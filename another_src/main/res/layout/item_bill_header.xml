@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingTop="32dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/tv_header_date"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="2026-02-17"
+        android:textColor="#9E9E9E"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.05" />
+
+    <TextView
+        android:id="@+id/btn_select_day"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="4dp"
+        android:text="全选"
+        android:textColor="#5C6BC0"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</LinearLayout>

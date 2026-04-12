@@ -1,0 +1,290 @@
+package tao.test.flipaccounting.ui.main.home
+
+import android.content.Context
+import android.view.KeyEvent
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
+import android.view.ViewConfiguration
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import tao.test.flipaccounting.BookAccountManager
+import tao.test.flipaccounting.R
+import kotlin.math.abs
+
+class BookAccountAdapter(
+    private val onItemClick: (String) -> Unit,
+    private val onRenameClick: (oldName: String, newName: String) -> Unit,
+    private val onDeleteClick: (name: String) -> Unit
+) : RecyclerView.Adapter<BookAccountAdapter.BookViewHolder>() {
+
+    private val items = mutableListOf<String>()
+    private var selectedBook: String = ""
+    private var openedPosition: Int = RecyclerView.NO_POSITION
+    private var editingPosition: Int = RecyclerView.NO_POSITION
+
+    fun submitList(books: List<String>, selected: String) {
+        val openedName = items.getOrNull(openedPosition)
+        val editingName = items.getOrNull(editingPosition)
+
+        items.clear()
+        // ALL_BOOK 始终固定在第一位，其余账本保持传入顺序
+        items.add(BookAccountManager.ALL_BOOK)
+        books.filter { BookAccountManager.normalizeBookName(it) != BookAccountManager.ALL_BOOK }
+            .forEach { items.add(it) }
+        selectedBook = selected
+
+        openedPosition = books.indexOf(openedName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
+        editingPosition = books.indexOf(editingName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
+        notifyDataSetChanged()
+    }
+
+    fun closeSwipeActions() {
+        if (openedPosition != RecyclerView.NO_POSITION) {
+            val old = openedPosition
+            openedPosition = RecyclerView.NO_POSITION
+            notifyItemChanged(old)
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_book_account, parent, false)
+        return BookViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: BookViewHolder, position: Int) {
+        holder.bind(
+            name = items[position],
+            selected = items[position] == selectedBook,
+            opened = position == openedPosition,
+            editing = position == editingPosition
+        )
+    }
+
+    override fun getItemCount(): Int = items.size
+
+    inner class BookViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val foreground: View = itemView.findViewById(R.id.layout_foreground)
+        private val tvName: TextView = itemView.findViewById(R.id.tv_book_name)
+        private val etName: EditText = itemView.findViewById(R.id.et_book_name)
+        private val ivSelected: ImageView = itemView.findViewById(R.id.iv_book_selected)
+        private val btnEdit: ImageView = itemView.findViewById(R.id.btn_book_edit)
+        private val btnDelete: ImageView = itemView.findViewById(R.id.btn_book_delete)
+
+        private val slop = ViewConfiguration.get(itemView.context).scaledTouchSlop
+        private val actionsWidthPx = 120f * itemView.resources.displayMetrics.density
+
+        private var downX = 0f
+        private var downY = 0f
+        private var startTx = 0f
+        private var dragging = false
+
+        init {
+            foreground.setOnTouchListener { _, ev -> onForegroundTouch(ev) }
+            foreground.setOnClickListener {
+                val pos = adapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                if (editingPosition == pos) return@setOnClickListener
+
+                if (openedPosition == pos) {
+                    closeSwipeActions()
+                    return@setOnClickListener
+                }
+
+                closeSwipeActions()
+                onItemClick(items[pos])
+            }
+
+            btnEdit.setOnClickListener {
+                val pos = adapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                closeSwipeActions()
+                startInlineEdit(pos)
+            }
+
+            btnDelete.setOnClickListener {
+                val pos = adapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                closeSwipeActions()
+                onDeleteClick(items[pos])
+            }
+
+            etName.setOnEditorActionListener { _, actionId, event ->
+                val imeDone = actionId == EditorInfo.IME_ACTION_DONE
+                val keyDone = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP
+                if (imeDone || keyDone) {
+                    commitInlineRename()
+                    true
+                } else {
+                    false
+                }
+            }
+
+            etName.setOnFocusChangeListener { _, hasFocus ->
+                val pos = adapterPosition
+                if (!hasFocus && pos != RecyclerView.NO_POSITION && editingPosition == pos) {
+                    commitInlineRename()
+                }
+            }
+        }
+
+        private fun onForegroundTouch(ev: MotionEvent): Boolean {
+            val pos = adapterPosition
+            if (pos == RecyclerView.NO_POSITION || editingPosition == pos) return false
+
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = ev.rawX
+                    downY = ev.rawY
+                    startTx = foreground.translationX
+                    dragging = false
+                    if (openedPosition != RecyclerView.NO_POSITION && openedPosition != pos) {
+                        val old = openedPosition
+                        openedPosition = RecyclerView.NO_POSITION
+                        notifyItemChanged(old)
+                    }
+                    // 提前告知父容器不要拦截，确保 MOVE 能持续送达
+                    itemView.parent?.requestDisallowInterceptTouchEvent(true)
+                    return true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = ev.rawX - downX
+                    val dy = ev.rawY - downY
+                    if (!dragging) {
+                        when {
+                            abs(dx) > slop && abs(dx) > abs(dy) -> {
+                                // 确认横向拖动
+                                dragging = true
+                            }
+                            abs(dy) > slop -> {
+                                // 确认纵向滚动，释放拦截权，让 RecyclerView/NestedScrollView 接管
+                                dragging = false
+                                itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                                return false
+                            }
+                        }
+                    }
+                    if (dragging) {
+                        // 向左滑（dx < 0）露出右侧编辑/删除按钮，translationX 范围 [-actionsWidthPx, 0]
+                        val tx = (startTx + dx).coerceIn(-actionsWidthPx, 0f)
+                        foreground.translationX = tx
+                        return true
+                    }
+                    return true
+                }
+
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                    if (dragging) {
+                        settleSwipe(pos)
+                        dragging = false
+                        return true
+                    }
+                    if (ev.actionMasked == MotionEvent.ACTION_UP) {
+                        foreground.performClick()
+                        return true
+                    }
+                }
+            }
+            return false
+        }
+
+        private fun settleSwipe(pos: Int) {
+            // 向左滑超过40%则弹出，否则回弹；向右滑时关闭
+            val shouldOpen = foreground.translationX < -actionsWidthPx * 0.4f
+            val target = if (shouldOpen) -actionsWidthPx else 0f
+            if (shouldOpen) {
+                val old = openedPosition
+                openedPosition = pos
+                if (old != RecyclerView.NO_POSITION && old != pos) {
+                    notifyItemChanged(old)
+                }
+            } else if (openedPosition == pos) {
+                openedPosition = RecyclerView.NO_POSITION
+            }
+            foreground.animate().translationX(target).setDuration(180L).start()
+        }
+
+        private fun startInlineEdit(pos: Int) {
+            val old = editingPosition
+            editingPosition = pos
+            if (old != RecyclerView.NO_POSITION && old != pos) {
+                notifyItemChanged(old)
+            }
+            notifyItemChanged(pos)
+        }
+
+        private fun commitInlineRename() {
+            val pos = adapterPosition
+            if (pos == RecyclerView.NO_POSITION) return
+            val oldName = items.getOrNull(pos) ?: return
+            val newName = etName.text?.toString()?.trim().orEmpty()
+            editingPosition = RecyclerView.NO_POSITION
+            hideKeyboard(etName)
+            notifyItemChanged(pos)
+
+            if (newName.isBlank() || newName == oldName) return
+            onRenameClick(oldName, newName)
+        }
+
+        private fun hideKeyboard(view: View) {
+            val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+
+        fun bind(name: String, selected: Boolean, opened: Boolean, editing: Boolean) {
+            val normalized = BookAccountManager.normalizeBookName(name)
+            val isAllBook = normalized == BookAccountManager.ALL_BOOK
+            val isDefaultBook = normalized == BookAccountManager.DEFAULT_BOOK
+
+            foreground.animate().cancel()
+            tvName.text = when {
+                isAllBook -> "全部账本（汇总视图）"
+                isDefaultBook -> "默认账本（记账落点）"
+                else -> name
+            }
+            foreground.translationX = if (opened) -actionsWidthPx else 0f
+            foreground.setBackgroundResource(if (selected) R.drawable.bg_book_item_selected else R.drawable.bg_book_item_normal)
+            ivSelected.visibility = if (selected) View.VISIBLE else View.GONE
+
+            if (isAllBook) {
+                tvName.setTextColor(android.graphics.Color.parseColor("#1A73E8"))
+                btnEdit.isEnabled = false
+                btnDelete.isEnabled = false
+                btnEdit.alpha = 0.35f
+                btnDelete.alpha = 0.35f
+            } else {
+                tvName.setTextColor(android.graphics.Color.parseColor("#333333"))
+                btnEdit.isEnabled = true
+                btnDelete.isEnabled = true
+                btnEdit.alpha = 1f
+                btnDelete.alpha = 1f
+            }
+
+            if (editing) {
+                tvName.visibility = View.GONE
+                etName.visibility = View.VISIBLE
+                if (etName.text?.toString() != name) {
+                    etName.setText(name)
+                }
+                etName.post {
+                    if (adapterPosition != RecyclerView.NO_POSITION && adapterPosition == editingPosition) {
+                        etName.requestFocus()
+                        etName.setSelection(etName.text?.length ?: 0)
+                        val imm = etName.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                        imm?.showSoftInput(etName, InputMethodManager.SHOW_IMPLICIT)
+                    }
+                }
+            } else {
+                tvName.visibility = View.VISIBLE
+                etName.visibility = View.GONE
+            }
+        }
+    }
+}

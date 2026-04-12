@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_reference_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="参考文本：无"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_ai_extract_rule"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="✨ AI 帮你提取规则"
+        android:visibility="gone"
+        app:backgroundTint="#673AB7"
+        android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="匹配关键字 (多关键字逗号分隔，例: 豆浆,油条)"
+        android:layout_marginBottom="12dp">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_keyword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="目标类型: "
+            android:textSize="16sp" />
+        <Spinner
+            android:id="@+id/sp_type"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:entries="@array/bill_types" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="目标分类: "
+            android:textSize="16sp" />
+        <TextView
+            android:id="@+id/tv_category"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="点击选择分类"
+            android:background="?attr/selectableItemBackground"
+            android:padding="8dp"
+            android:textSize="16sp"
+            android:textColor="#333333"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:id="@+id/tv_account1_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="源账户: "
+            android:textSize="16sp" />
+        <Spinner
+            android:id="@+id/sp_account1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_account2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/tv_account2_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="目标账户: "
+            android:textSize="16sp" />
+        <Spinner
+            android:id="@+id/sp_account2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <Switch
+        android:id="@+id/switch_enabled"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="启用该规则"
+        android:checked="true"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

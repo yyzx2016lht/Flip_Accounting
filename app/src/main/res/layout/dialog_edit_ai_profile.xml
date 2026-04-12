@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- AI 头像 -->
+    <FrameLayout
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp">
+
+        <ImageView
+            android:id="@+id/iv_ai_profile_avatar"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_ai_default_avatar"
+            android:background="@drawable/bg_circle_gray"
+            android:clipToOutline="true" />
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="bottom|end"
+            android:background="@drawable/bg_send_btn"
+            android:padding="5dp"
+            android:src="@drawable/ic_edit"
+            android:tint="#FFFFFF"
+            android:clickable="false" />
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="点击头像更换图片"
+        android:textColor="#999999"
+        android:textSize="12sp"
+        android:layout_marginBottom="20dp" />
+
+    <!-- AI 名字 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="AI 名称"
+        android:textColor="#666666"
+        android:textSize="13sp"
+        android:layout_marginBottom="6dp" />
+
+    <EditText
+        android:id="@+id/et_ai_profile_name"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_chat_input"
+        android:hint="输入 AI 助手名称"
+        android:paddingHorizontal="14dp"
+        android:singleLine="true"
+        android:textColor="#333333"
+        android:textSize="15sp" />
+
+</LinearLayout>

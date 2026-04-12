@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/bg_chat_dialog_panel">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="选择对话模型"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#25344A"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="10dp" />
+
+    <EditText
+        android:id="@+id/et_model_search"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:background="@drawable/bg_model_search_field"
+        android:hint="搜索模型名称"
+        android:singleLine="true"
+        android:textSize="14sp"
+        android:paddingHorizontal="12dp"
+        android:inputType="text" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_model_list"
+        android:layout_width="match_parent"
+        android:layout_height="280dp"
+        android:layout_marginTop="10dp"
+        android:clipToPadding="false"
+        android:paddingBottom="6dp" />
+
+    <TextView
+        android:id="@+id/tv_model_empty"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:gravity="center"
+        android:text="没有匹配的模型"
+        android:textColor="#8A98AD"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/btn_model_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="取消"
+        android:textSize="14sp"
+        android:textColor="#6F7E95"
+        android:paddingVertical="10dp" />
+
+</LinearLayout>

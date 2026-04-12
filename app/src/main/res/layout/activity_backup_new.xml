@@ -1,0 +1,511 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F7F8FA"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="10dp"
+            android:src="@drawable/ic_chevron_left"
+            app:tint="#1A2744" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:text="备份与恢复"
+            android:textColor="#1A2744"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingBottom="36dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:background="@drawable/bg_backup_tip"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="现在可以按模块备份"
+                    android:textColor="#1A2744"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:lineSpacingExtra="2dp"
+                    android:text="账单、聊天、聊天资源、AI 配置都已经拆开。你可以只带走想保留的部分，恢复时也更安心。"
+                    android:textColor="#68778F"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#E6EAF0"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="导出备份"
+                        android:textColor="#1A2744"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="14dp"
+                        android:lineSpacingExtra="2dp"
+                        android:text="模块已经按使用场景重新分组，选起来会更直观一些。"
+                        android:textColor="#8C98A8"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_backup_group"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="核心账本数据"
+                            android:textColor="#2D3C57"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="迁移账本时最常用的一组，包含账单、资产、分类和记账习惯。"
+                            android:textColor="#7A879A"
+                            android:textSize="12sp" />
+
+                        <GridLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:columnCount="2">
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_assets"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="资产数据"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_categories"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="分类设置"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_bills"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="账单记录"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_rules"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="记账习惯"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+                        </GridLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="聊天与对话"
+                            android:textColor="#2D3C57"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="适合单独迁移 AI 对话体验，包含聊天记录、背景、头像和语音文件。"
+                            android:textColor="#7A879A"
+                            android:textSize="12sp" />
+
+                        <GridLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:columnCount="2">
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_chat_messages"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="聊天记录"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_chat_media"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="聊天资源"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+                        </GridLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="聊天资源包含聊天背景、用户头像、AI 头像和聊天语音文件。"
+                            android:textColor="#8C98A8"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="偏好与界面设置"
+                            android:textColor="#2D3C57"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="如果只是想迁移风格和配置，可以只勾这组。AI 核心配置里会包含 API 信息。"
+                            android:textColor="#7A879A"
+                            android:textSize="12sp" />
+
+                        <GridLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:columnCount="2">
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_general"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="基础设置"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_display"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="显示设置"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_ai_core"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="AI 核心配置"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_ai_prompts"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="AI 提示词"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_ai_chat"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="AI 对话设置"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_books"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="账本偏好"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_advanced"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="高级设置"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_banners"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="账本封面图"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+                        </GridLayout>
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_do_backup"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="14dp"
+                        android:letterSpacing="0"
+                        android:text="选择路径并备份"
+                        android:textSize="15sp"
+                        app:backgroundTint="#5C80EA"
+                        app:cornerRadius="12dp"
+                        app:icon="@android:drawable/ic_menu_save"
+                        app:iconGravity="textStart" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#E6EAF0"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="导入恢复"
+                        android:textColor="#1A2744"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="14dp"
+                        android:text="从备份文件中挑选模块恢复，避免把不需要的配置整包覆盖。"
+                        android:textColor="#8C98A8"
+                        android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_do_restore"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:letterSpacing="0"
+                        android:text="选择备份文件"
+                        android:textColor="#5C80EA"
+                        android:textSize="15sp"
+                        app:cornerRadius="12dp"
+                        app:icon="@android:drawable/ic_menu_upload"
+                        app:iconGravity="textStart"
+                        app:iconTint="#5C80EA"
+                        app:strokeColor="#AFC1F4"
+                        app:strokeWidth="1dp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#E6EAF0"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="账单 CSV 导入 / 导出"
+                        android:textColor="#1A2744"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="14dp"
+                        android:lineSpacingExtra="2dp"
+                        android:text="导出账单为通用 CSV 文件，或从第三方软件导出的 CSV 文件中导入账单数据。"
+                        android:textColor="#8C98A8"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="2">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_export_csv"
+                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:letterSpacing="0"
+                            android:text="导出 CSV"
+                            android:textColor="#4F5E74"
+                            android:textSize="14sp"
+                            app:backgroundTint="#EEF2F8"
+                            app:cornerRadius="10dp"
+                            app:icon="@android:drawable/ic_menu_save"
+                            app:iconTint="#6C7F9B" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_import_csv"
+                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:letterSpacing="0"
+                            android:text="导入账单"
+                            android:textColor="#4F5E74"
+                            android:textSize="14sp"
+                            app:backgroundTint="#EEF2F8"
+                            app:cornerRadius="10dp"
+                            app:icon="@android:drawable/ic_menu_upload"
+                            app:iconTint="#6C7F9B" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

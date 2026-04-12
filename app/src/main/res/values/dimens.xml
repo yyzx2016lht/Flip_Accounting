@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Typography -->
+    <dimen name="text_size_10">10sp</dimen>
+    <dimen name="text_size_11">12sp</dimen>
+    <dimen name="text_size_12">12sp</dimen>
+    <dimen name="text_size_13">13sp</dimen>
+    <dimen name="text_size_14">14sp</dimen>
+    <dimen name="text_size_15">15sp</dimen>
+    <dimen name="text_size_16">16sp</dimen>
+    <dimen name="text_size_17">16sp</dimen>
+    <dimen name="text_size_18">18sp</dimen>
+    <dimen name="text_size_20">20sp</dimen>
+    <dimen name="text_size_22">20sp</dimen>
+    <dimen name="text_size_24">24sp</dimen>
+    <dimen name="text_size_28">28sp</dimen>
+    <dimen name="text_size_32">32sp</dimen>
+    <dimen name="text_size_36">36sp</dimen>
+
+    <!-- Icon sizing -->
+    <dimen name="icon_size_10">10dp</dimen>
+    <dimen name="icon_size_14">14dp</dimen>
+    <dimen name="icon_size_16">16dp</dimen>
+    <dimen name="icon_size_20">20dp</dimen>
+    <dimen name="icon_size_24">24dp</dimen>
+    <dimen name="icon_size_26">24dp</dimen>
+    <dimen name="icon_size_28">28dp</dimen>
+    <dimen name="icon_size_30">28dp</dimen>
+    <dimen name="icon_size_32">32dp</dimen>
+    <dimen name="icon_size_40">40dp</dimen>
+    <dimen name="icon_size_48">48dp</dimen>
+    <dimen name="icon_size_64">64dp</dimen>
+</resources>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tv_issue_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#111827"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_issue_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#4B5563"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tv_issue_reason"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#6B7280"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btn_go_asset"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_segmented_selected"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:text="去资产页"
+                android:textColor="#333333"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btn_edit_bill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_segmented_selected"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:text="修正账单"
+                android:textColor="#333333"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btn_ignore"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_segmented_selected"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:text="忽略提醒"
+                android:textColor="#333333"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

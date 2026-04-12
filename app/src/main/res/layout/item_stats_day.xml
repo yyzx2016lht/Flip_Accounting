@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="12dp">
+
+    <TextView
+        android:id="@+id/tv_day_date"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="01"
+        android:textColor="#333333"
+        android:textSize="@dimen/text_size_14" />
+
+    <TextView
+        android:id="@+id/tv_day_income"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="¥0.00"
+        android:textColor="#333333"
+        android:textSize="@dimen/text_size_14" />
+
+    <TextView
+        android:id="@+id/tv_day_expense"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="¥0.00"
+        android:textColor="#333333"
+        android:textSize="@dimen/text_size_14" />
+
+    <TextView
+        android:id="@+id/tv_day_balance"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="¥0.00"
+        android:textColor="#333333"
+        android:textSize="@dimen/text_size_14"
+        android:textStyle="bold" />
+
+</LinearLayout>

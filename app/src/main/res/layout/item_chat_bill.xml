@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI 返回账单卡片（左侧AI消息，但内容是账单列表） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="6dp">
+
+    <TextView
+        android:id="@+id/tv_ai_bill_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_chat_time_chip"
+        android:gravity="center"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="3dp"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#6F8099"
+        android:layout_marginBottom="6dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="start">
+
+    <!-- AI 头像 -->
+    <ImageView
+        android:id="@+id/iv_ai_avatar_bill"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:src="@drawable/ic_ai_default_avatar"
+        android:scaleType="centerCrop"
+        android:padding="1dp"
+        android:background="@drawable/bg_chat_bill_icon_container"
+        android:layout_gravity="top"
+        android:layout_marginEnd="10dp" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginEnd="38dp"
+        android:orientation="vertical"
+        >
+
+        <TextView
+            android:id="@+id/tv_ai_name_bill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#7A8598"
+            android:layout_marginBottom="6dp"
+            android:visibility="gone" />
+
+        <!-- 账单卡片容器 -->
+        <LinearLayout
+            android:id="@+id/container_bills"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_chat_bubble_ai_bill"
+            android:padding="12dp">
+
+            <!-- 账单卡片由代码动态填充 -->
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_ai_bill_time_legacy"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="#AAAAAA"
+                android:textSize="10sp"
+                android:visibility="gone" />
+
+
+        </LinearLayout>
+    </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

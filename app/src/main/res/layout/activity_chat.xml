@@ -1,0 +1,321 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_chat_sessions"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="false">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/chat_root"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F5F7FB">
+
+        <ImageView
+            android:id="@+id/iv_chat_bg"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:scaleType="centerCrop"
+            android:visibility="invisible"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/toolbar_chat"
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:background="#FCFDFF"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+            android:elevation="4dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ImageView
+                android:id="@+id/btn_chat_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="8dp"
+                android:src="@drawable/ic_chevron_left"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#333333" />
+
+            <ImageView
+                android:id="@+id/iv_ai_avatar"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_circle_soft"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_ai_default_avatar"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <LinearLayout
+                android:id="@+id/layout_ai_name_click"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:id="@+id/tv_ai_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="小计"
+                    android:textColor="#333333"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_ai_model"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#555555"
+                    android:textSize="11sp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btn_switch_model"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="切换"
+                android:textColor="#1A73E8"
+                android:textSize="13sp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:background="@drawable/bg_search_box"
+                android:layout_marginEnd="4dp"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <ImageView
+                android:id="@+id/btn_chat_more"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="8dp"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#333333" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_chat_messages"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:clipToPadding="false"
+            android:overScrollMode="always"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:scrollbarStyle="outsideOverlay"
+            android:scrollbars="vertical"
+            app:layout_constraintTop_toBottomOf="@id/toolbar_chat"
+            app:layout_constraintBottom_toTopOf="@id/layout_chat_bottom"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_voice_record_overlay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_msg_popup_menu"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:text="松开发送，上滑取消"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/layout_chat_bottom"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:id="@+id/layout_chat_bottom"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:elevation="4dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#E8ECF3" />
+
+            <LinearLayout
+                android:id="@+id/layout_voice_selection_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_chat_voice_select_bar"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_voice_selection_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="已选择 0 条语音"
+                    android:textColor="#2A3A53"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btn_voice_selection_cancel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp"
+                    android:text="取消"
+                    android:textColor="#72819A"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/btn_voice_selection_delete"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_dialog_action_item_danger"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:text="删除"
+                    android:textColor="#B3261E"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chat_input_bar"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="8dp"
+                android:orientation="vertical"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="8dp">
+
+                <TextView
+                    android:id="@+id/tv_voice_model_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_chat_voice_hint"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:text="当前模型不支持直接语音识别，已改为先转文本再发送，可能存在一点误差。"
+                    android:textColor="#7E8CA3"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/layout_chat_input_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/btn_voice_toggle"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_mic"
+                        android:background="@drawable/bg_input_icon_btn"
+                        app:tint="#4263B5"
+                        android:layout_gravity="center_vertical" />
+
+                    <EditText
+                        android:id="@+id/et_chat_input"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginHorizontal="6dp"
+                        android:background="@drawable/bg_chat_input"
+                        android:hint="说点什么，我来帮你记账"
+                        android:textSize="15sp"
+                        android:textColor="#233248"
+                        android:textColorHint="#8CA0BE"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="8dp"
+                        android:minLines="1"
+                        android:maxLines="5"
+                        android:inputType="textMultiLine|textCapSentences"
+                        android:gravity="top"
+                        android:layout_gravity="center_vertical" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_voice_hold"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:layout_marginHorizontal="4dp"
+                        android:text="按住说话"
+                        android:textSize="14sp"
+                        android:textAllCaps="false"
+                        app:cornerRadius="20dp"
+                        android:backgroundTint="#EDF2FF"
+                        android:textColor="#3F5FCA"
+                        android:visibility="gone"
+                        android:layout_gravity="center_vertical"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton" />
+
+                    <ImageView
+                        android:id="@+id/btn_chat_more_input"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_image"
+                        android:background="@drawable/bg_input_icon_btn"
+                        app:tint="#5A6D90"
+                        android:contentDescription="选择图片"
+                        android:layout_gravity="center_vertical" />
+
+                    <ImageView
+                        android:id="@+id/btn_chat_send"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_send"
+                        android:background="@drawable/bg_send_btn"
+                        app:tint="#FFFFFF"
+                        android:layout_gravity="center_vertical" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_session_drawer_container"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:elevation="12dp">
+
+        <include layout="@layout/dialog_chat_sessions_panel" />
+    </LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_floating_view"
+    android:layout_width="320dp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/shape_floating_card"
+    android:elevation="8dp"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Spinner
+            android:id="@+id/spinner_type"
+            android:layout_width="86dp"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/shape_tag_bg" />
+
+        <EditText
+            android:id="@+id/et_amount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_toStartOf="@+id/spinner_type"
+            android:background="@null"
+            android:hint="0.00"
+            android:inputType="numberDecimal"
+            android:textColor="#2E7D32"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_bill_mode_switch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="账单模式："
+            android:textColor="#666666"
+            android:textSize="13sp" />
+        <RadioGroup
+            android:id="@+id/rg_bill_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginStart="12dp">
+            <RadioButton
+                android:id="@+id/rb_single"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="单账单"
+                android:textSize="13sp"
+                android:minHeight="0dp"
+                android:textColor="#5C6BC0"
+                android:buttonTint="#5C6BC0" />
+            <RadioButton
+                android:id="@+id/rb_multi"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="多账单"
+                android:textSize="13sp"
+                android:minHeight="0dp"
+                android:textColor="#5C6BC0"
+                android:buttonTint="#5C6BC0"
+                android:layout_marginStart="12dp" />
+        </RadioGroup>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        android:layout_marginVertical="8dp"/>
+
+    <LinearLayout
+        android:id="@+id/layout_account"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center_vertical"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackground">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="💳" android:textSize="18sp"/>
+        <TextView
+            android:id="@+id/tv_account"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="选择资产"
+            android:textColor="#333333"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_account_2"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center_vertical"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackground"
+        android:visibility="gone">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📥" android:textSize="18sp"/>
+        <TextView
+            android:id="@+id/tv_account_2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="转入账户"
+            android:textColor="#333333"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_category"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center_vertical"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackground">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🏷️" android:textSize="18sp"/>
+        <TextView
+            android:id="@+id/tv_category"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="选择分类"
+            android:textColor="#333333"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_fee"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="💸" android:textSize="18sp"/>
+        <EditText
+            android:id="@+id/et_fee"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginStart="12dp"
+            android:background="@null"
+            android:hint="手续费 (默认0)"
+            android:inputType="numberDecimal"
+            android:textSize="14sp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_time"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center_vertical">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⏰" android:textSize="18sp"/>
+        <TextView
+            android:id="@+id/tv_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="2026-02-07 12:00"
+            android:textColor="#666666"
+            android:textSize="13sp"/>
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/et_remark"
+        android:layout_width="match_parent"
+        android:layout_height="39dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/shape_edit_bg"
+        android:gravity="top"
+        android:hint="输入备注信息..."
+        android:padding="8dp"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical">
+
+        <Spinner
+            android:id="@+id/spinner_currency"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/shape_tag_bg"
+            android:paddingStart="8dp"
+            android:paddingEnd="24dp"
+            android:spinnerMode="dropdown"
+            tools:listitem="@android:layout/simple_spinner_dropdown_item" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+
+        <LinearLayout
+            android:id="@+id/layout_ai_entry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="4dp">
+            <ImageView
+                android:id="@+id/btn_ai_image"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="6dp"
+                android:src="@drawable/ic_picture_button"
+                android:contentDescription="图片记账"
+                android:visibility="gone" />
+            <ImageView
+                android:id="@+id/btn_ai_voice"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="8dp"
+                android:src="@android:drawable/ic_btn_speak_now"
+                android:contentDescription="语音输入" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="智能识别"
+                android:textColor="#673AB7"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <ImageView
+                android:id="@+id/btn_ai_magic"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="6dp"
+                android:src="@drawable/ic_ai_robot"
+                android:contentDescription="AI助手" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_cancel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="取消"
+            android:textColor="#666666"
+            app:strokeColor="#DDDDDD"
+            app:cornerRadius="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_save"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1.5"
+            android:layout_marginStart="8dp"
+            android:text="记录并发送"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            app:backgroundTint="#5C6BC0"
+            app:cornerRadius="8dp" />
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_save_only"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:text="保存账单 (不发送)"
+        android:textColor="#5C6BC0"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:visibility="visible"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        app:strokeColor="#5C6BC0"
+        app:cornerRadius="8dp" />
+
+</LinearLayout>

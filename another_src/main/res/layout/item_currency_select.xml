@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="16dp"
+    android:background="?attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/tv_currency_flag"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:textSize="28sp"
+        android:text="🇺🇸"
+        android:textColor="#000000"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/tv_currency_code"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="USD"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#333333"/>
+            
+            <TextView
+                android:id="@+id/tv_currency_symbol"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="$"
+                android:textSize="14sp"
+                android:textColor="#666666"
+                android:background="#EEEEEE"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="1dp"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_currency_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="美元 (美国)"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:layout_marginTop="2dp"/>
+    </LinearLayout>
+
+    <CheckBox
+        android:id="@+id/cb_select"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clickable="false"
+        android:focusable="false"/>
+
+</LinearLayout>

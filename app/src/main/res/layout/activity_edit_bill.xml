@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F8F9FA">
+
+    <!-- 顶部 Toolbar -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#FFFFFF"
+        android:paddingHorizontal="16dp">
+        <TextView
+            android:id="@+id/btn_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="取消"
+            android:textColor="#666666"
+            android:textSize="@dimen/text_size_16" />
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="编辑账单"
+            android:textColor="#333333"
+            android:textSize="@dimen/text_size_18"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/btn_save"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_alignParentEnd="true"
+            android:gravity="center"
+            android:text="保存"
+            android:textColor="#2196F3"
+            android:textSize="@dimen/text_size_16"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- 类型选择 (支出/收入/转账) -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/toggle_group_type"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:singleSelection="true"
+                app:selectionRequired="true"
+                app:checkedButton="@+id/btn_type_expense">
+                <Button
+                    android:id="@+id/btn_type_expense"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="支出" />
+                <Button
+                    android:id="@+id/btn_type_income"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="收入" />
+                <Button
+                    android:id="@+id/btn_type_transfer"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="转账" />
+                <Button
+                    android:id="@+id/btn_type_repayment"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="还款" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <!-- 金额输入 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="￥"
+                        android:textColor="#333333"
+                        android:textSize="@dimen/text_size_24"
+                        android:textStyle="bold" />
+                    <EditText
+                        android:id="@+id/et_amount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:hint="0.00"
+                        android:inputType="numberDecimal"
+                        android:paddingStart="8dp"
+                        android:textColor="#333333"
+                        android:textSize="@dimen/text_size_32"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 详细选项列表 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 分类 -->
+                    <LinearLayout
+                        android:id="@+id/layout_category"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp">
+                        <ImageView
+                            android:layout_width="@dimen/icon_size_24"
+                            android:layout_height="@dimen/icon_size_24"
+                            android:src="@android:drawable/ic_menu_agenda"
+                            app:tint="#666666" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:text="选择分类"
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14" />
+                        <TextView
+                            android:id="@+id/tv_category"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="未分类"
+                            android:textColor="#999999"
+                            android:textSize="@dimen/text_size_14" />
+                        <!-- 收入模式下显示的"退款"切换标签 -->
+                        <TextView
+                            android:id="@+id/tv_refund_toggle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/shape_tag_bg"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:paddingTop="3dp"
+                            android:paddingBottom="3dp"
+                            android:text="账单退款"
+                            android:textColor="#E53935"
+                            android:textSize="@dimen/text_size_14"
+                            android:visibility="gone"
+                            android:clickable="true"
+                            android:focusable="true"/>
+                    </LinearLayout>
+
+                    <!-- 退款来源账单（点击"退款"标签后替换分类行） -->
+                    <View
+                        android:id="@+id/line_refund_source"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#F5F5F5"
+                        android:layout_marginHorizontal="16dp"
+                        android:visibility="gone" />
+                    <LinearLayout
+                        android:id="@+id/layout_refund_source"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:visibility="gone">
+                        <ImageView
+                            android:layout_width="@dimen/icon_size_24"
+                            android:layout_height="@dimen/icon_size_24"
+                            android:src="@android:drawable/ic_menu_revert"
+                            app:tint="#E53935" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:text="退款来源账单"
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14" />
+                        <TextView
+                            android:id="@+id/tv_refund_source_bill"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="选择账单"
+                            android:textColor="#E53935"
+                            android:textSize="@dimen/text_size_14" />
+                        <!-- 取消退款标签 -->
+                        <TextView
+                            android:id="@+id/tv_refund_badge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/shape_tag_bg"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:paddingTop="3dp"
+                            android:paddingBottom="3dp"
+                            android:text="取消退款"
+                            android:textColor="#999999"
+                            android:textSize="@dimen/text_size_14"
+                            android:clickable="true"
+                            android:focusable="true"/>
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F5F5F5" android:layout_marginHorizontal="16dp" />
+
+                    <!-- 账户/资产 -->
+                    <LinearLayout
+                        android:id="@+id/layout_account"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp">
+                        <ImageView
+                            android:layout_width="@dimen/icon_size_24"
+                            android:layout_height="@dimen/icon_size_24"
+                            android:src="@android:drawable/ic_menu_manage"
+                            app:tint="#666666" />
+                        <TextView
+                            android:id="@+id/tv_account_label"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:text="选择账户"
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14" />
+                        <TextView
+                            android:id="@+id/tv_account"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="默认账户"
+                            android:textColor="#999999"
+                            android:textSize="@dimen/text_size_14" />
+                    </LinearLayout>
+
+                    <!-- 转入账户（转账/还款时显示） -->
+                    <View
+                        android:id="@+id/line_account_2"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#F5F5F5"
+                        android:layout_marginHorizontal="16dp"
+                        android:visibility="gone" />
+                    <LinearLayout
+                        android:id="@+id/layout_account_2"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:visibility="gone">
+                        <ImageView
+                            android:layout_width="@dimen/icon_size_24"
+                            android:layout_height="@dimen/icon_size_24"
+                            android:src="@android:drawable/ic_menu_manage"
+                            app:tint="#4CAF50" />
+                        <TextView
+                            android:id="@+id/tv_account_2_label"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:text="转入账户"
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14" />
+                        <TextView
+                            android:id="@+id/tv_account_2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="选择转入账户"
+                            android:textColor="#999999"
+                            android:textSize="@dimen/text_size_14" />
+                    </LinearLayout>
+
+                    <!-- 手续费（转账时显示） -->
+                    <View
+                        android:id="@+id/line_fee"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#F5F5F5"
+                        android:layout_marginHorizontal="16dp"
+                        android:visibility="gone" />
+                    <LinearLayout
+                        android:id="@+id/layout_fee"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:visibility="gone">
+                        <ImageView
+                            android:layout_width="@dimen/icon_size_24"
+                            android:layout_height="@dimen/icon_size_24"
+                            android:src="@android:drawable/ic_menu_send"
+                            app:tint="#FF9800" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:text="手续费"
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14" />
+                        <EditText
+                            android:id="@+id/et_fee"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:background="@null"
+                            android:gravity="end"
+                            android:hint="0.00"
+                            android:inputType="numberDecimal"
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F5F5F5" android:layout_marginHorizontal="16dp" />
+
+                    <!-- 时间日期 -->
+                    <LinearLayout
+                        android:id="@+id/layout_time"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp">
+                        <ImageView
+                            android:layout_width="@dimen/icon_size_24"
+                            android:layout_height="@dimen/icon_size_24"
+                            android:src="@android:drawable/ic_menu_today"
+                            app:tint="#666666" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:text="选择时间"
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14" />
+                        <TextView
+                            android:id="@+id/tv_time"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="2026-03-20 12:00"
+                            android:textColor="#999999"
+                            android:textSize="@dimen/text_size_14" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F5F5F5" android:layout_marginHorizontal="16dp" />
+
+                    <!-- 备注 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+                        <ImageView
+                            android:layout_width="@dimen/icon_size_24"
+                            android:layout_height="@dimen/icon_size_24"
+                            android:src="@android:drawable/ic_menu_edit"
+                            app:tint="#666666" />
+                        <EditText
+                            android:id="@+id/et_remark"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:background="@null"
+                            android:hint="输入备注..."
+                            android:textColor="#333333"
+                            android:textSize="@dimen/text_size_14"
+                            android:inputType="textNoSuggestions"
+                            android:imeOptions="actionDone|flagNoExtractUi"
+                            android:maxLines="1" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 删除按钮 -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_delete"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="24dp"
+                android:text="删除此账单"
+                android:textColor="#F44336" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

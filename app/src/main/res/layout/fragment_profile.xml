@@ -1,0 +1,2063 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="false"
+    android:background="#F7F8FA">
+
+    <!--
+        fitsSystemWindows="false" 加在 AppBarLayout 及其子层上，
+        彻底截断 insets 向下传递，防止 HomeFragment 切换状态栏模式时
+        AppBarLayout 被动加上状态栏 padding 导致"设置中心"下移。
+        顶部留白由两个固定高度的 View 手动撑开（与统计页相同策略）。
+    -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar_profile"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="false"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <!-- 状态栏占位 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:fitsSystemWindows="false" />
+
+        <!-- 顶部标题栏（与其它页面风格统一） -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:fitsSystemWindows="false"
+            android:paddingHorizontal="16dp">
+
+            <TextView
+                android:id="@+id/tv_profile_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="设置中心"
+                android:textColor="#1A2744"
+                android:textSize="@dimen/text_size_18"
+                android:textStyle="bold" />
+        </RelativeLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="56dp"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="16dp">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/layout_user_profile_entry"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:cardUseCompatPadding="false">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="18dp"
+                    android:paddingVertical="16dp">
+
+                    <ImageView
+                        android:id="@+id/iv_profile_user_avatar"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:src="@drawable/ic_user_avatar_default" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tv_profile_user_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="我"
+                            android:textColor="#1A2744"
+                            android:textSize="@dimen/text_size_16"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_profile_user_avatar_desc"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="点击修改名字和头像"
+                            android:textColor="#7B8794"
+                            android:textSize="@dimen/text_size_12" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_chevron_right"
+                        android:tint="#A7B1BD" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- ══════════════════════════════════
+                 悬浮窗权限提醒卡片（动态显示）
+                 ══════════════════════════════════ -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/card_overlay_reminder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#FFF8E8"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="#F0C96A"
+                app:strokeWidth="1.5dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:padding="9dp"
+                            android:src="@drawable/ic_profile_alert"
+                            android:tint="#FFFFFF"
+                            android:background="@drawable/bg_icon_badge_warn" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_overlay_reminder_title"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="翻转记账需要悬浮窗权限"
+                                android:textColor="#7A4B00"
+                                android:textSize="@dimen/text_size_14"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_overlay_reminder_desc"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:text="检测到未授予悬浮窗权限。请先授权，否则翻转手势无法正常唤起记账界面。"
+                                android:textColor="#8A5A00"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRequestOverlay"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:layout_weight="1"
+                            android:text="立即开启"
+                            android:textColor="#FFFFFF"
+                            android:textSize="@dimen/text_size_12"
+                            app:backgroundTint="#E8A000"
+                            app:cornerRadius="8dp" />
+
+                        <View android:layout_width="8dp" android:layout_height="1dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnShowOverlay"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:layout_weight="1"
+                            android:text="显示悬浮窗"
+                            android:textColor="#B26A00"
+                            android:textSize="@dimen/text_size_12"
+                            app:strokeColor="#E8A000"
+                            app:cornerRadius="8dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- ══════════════════════════════════
+                 分区：数据与偏好
+                 ══════════════════════════════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="4dp">
+
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:background="@drawable/bg_section_indicator_blue"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="数据与偏好"
+                    android:textColor="#1A2744"
+                    android:textSize="@dimen/text_size_14"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02" />
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:cardUseCompatPadding="false">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 收支分类管理 -->
+                    <LinearLayout
+                        android:id="@+id/btn_manage_categories"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="18dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_blue">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_category"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="收支分类管理"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="自定义支出与收入分类"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="›"
+                            android:textColor="#C0C8D4"
+                            android:textSize="22sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="68dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 多币种与汇率 -->
+                    <LinearLayout
+                        android:id="@+id/btn_manage_currencies"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="18dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_green">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_exchange"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="多币种与汇率"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="设置货币单位及实时汇率"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="›"
+                            android:textColor="#C0C8D4"
+                            android:textSize="22sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="68dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 翻转灵敏度调节 -->
+                    <LinearLayout
+                        android:id="@+id/btn_flip_sensitivity"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="18dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_orange">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_sensitivity"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="翻转灵敏度调节"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="调整翻转手势的触发灵敏度"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="›"
+                            android:textColor="#C0C8D4"
+                            android:textSize="22sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="68dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 备份与恢复 -->
+                    <LinearLayout
+                        android:id="@+id/btn_backup_restore"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="18dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_purple">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_backup"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="备份与恢复"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="导出或导入本地账单数据"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="›"
+                            android:textColor="#C0C8D4"
+                            android:textSize="22sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- ══════════════════════════════════
+                 分区：手势与偏好
+                 ══════════════════════════════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="4dp">
+
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:background="@drawable/bg_section_indicator_teal"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="手势与偏好"
+                    android:textColor="#1A2744"
+                    android:textSize="@dimen/text_size_14"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02" />
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:cardUseCompatPadding="false">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp">
+
+                    <!-- 启用翻转手势 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingTop="6dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_teal">
+                                <ImageView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_flip"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:text="启用翻转手势"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_flip_trigger"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:paddingVertical="0dp"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="50dp"
+                            android:paddingBottom="8dp"
+                            android:paddingTop="2dp"
+                            android:text="手机翻转至正面时自动记账 (默认全局模式)"
+                            android:textColor="#9AA4B2"
+                            android:textSize="@dimen/text_size_11" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:background="@drawable/bg_inset_panel"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="横屏状态不检测"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_13"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="启用后，横屏时将忽略翻转手势触发。"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_10" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_flip_disable_landscape"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- 白名单容器 -->
+                    <LinearLayout
+                        android:id="@+id/layout_whitelist_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:background="@drawable/bg_inset_panel"
+                        android:orientation="vertical"
+                        android:paddingBottom="4dp"
+                        android:paddingHorizontal="12dp"
+                        android:paddingTop="6dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="4dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="白名单模式（需 Shizuku）"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_13"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="只在指定应用内触发翻转记账。"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_10" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_whitelist_mode"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginBottom="6dp"
+                            android:background="#E7ECF4" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_manage_whitelist"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_marginBottom="2dp"
+                            android:layout_marginStart="8dp"
+                            android:text="管理白名单应用"
+                            android:textColor="#5C6BC0"
+                            android:textSize="@dimen/text_size_12"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layout_screen_accounting_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:background="@drawable/bg_inset_panel"
+                        android:orientation="vertical"
+                        android:paddingBottom="4dp"
+                        android:paddingHorizontal="12dp"
+                        android:paddingTop="6dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="4dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="截屏记账（Shizuku）"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_13"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="在悬浮窗中显示截屏记账按钮，优先走 Shizuku 静默截屏。"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_10" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_screen_accounting"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_screen_accounting_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:background="@drawable/bg_inset_panel"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="10dp"
+                        android:text="截屏记账需先开启并授权 Shizuku，授权后才会显示屏幕识别入口和相关配置。"
+                        android:textColor="#9AA4B2"
+                        android:textSize="@dimen/text_size_10"
+                        android:visibility="gone" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_indigo">
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_nav_assets"
+                                android:scaleType="fitCenter"
+                                android:adjustViewBounds="true"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="记账时启用资产功能"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="关闭后仍可正常记账，但为获得最优体验，建议继续添加并启用资产功能。"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_asset_feature"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 弹窗震动反馈 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_pink">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_vibrate"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="弹窗震动反馈"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="识别完成时通过轻震动提示"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_vibrate_feedback"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 显示首页趋势卡片 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_indigo">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_trend"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="显示首页趋势卡片"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="在首页展示近期开销变化趋势"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_show_home_trend_card"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- ══════════════════════════════════
+                 分区：AI 智能功能
+                 ══════════════════════════════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="4dp">
+
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:background="@drawable/bg_section_indicator_purple"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AI 智能功能"
+                    android:textColor="#1A2744"
+                    android:textSize="@dimen/text_size_14"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02" />
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:cardUseCompatPadding="false">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp">
+
+                    <!-- 启用 AI 功能 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_purple">
+                            <ImageView
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_gravity="center"
+                                android:scaleType="fitCenter"
+                                android:src="@drawable/ic_profile_ai"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:text="启用 AI 功能"
+                            android:textColor="#1A2744"
+                            android:textSize="@dimen/text_size_15"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_show_ai"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <!-- AI 展开区 -->
+                    <LinearLayout
+                        android:id="@+id/layout_ai_main_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <!-- AI 对话入口模式（位于多账单上方） -->
+                        <LinearLayout
+                            android:id="@+id/layout_ai_chat_entry_settings"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="6dp"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="4dp">
+
+                            <LinearLayout
+                                android:id="@+id/layout_open_ai_chat_page"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="6dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="AI 对话页面"
+                                        android:textColor="#1F2A3D"
+                                        android:textSize="@dimen/text_size_13"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="开启后，首页“+”直接进入 AI 对话记账。"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_10" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_ai_chat_mode"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="6dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="记账页面增加 AI 入口"
+                                        android:textColor="#1F2A3D"
+                                        android:textSize="@dimen/text_size_13"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="在传统记账弹窗底部显示“切换到 AI 对话记账”按钮。"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_10" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_show_ai_chat_entry"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- 多账单 + 规则开关组 -->
+                        <LinearLayout
+                            android:id="@+id/layout_multi_bill_settings"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="6dp"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="4dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="4dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="开启多账单模式"
+                                        android:textColor="#1F2A3D"
+                                        android:textSize="@dimen/text_size_13"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="开启后，普通记账页可切换多笔识别；会话界面也会默认使用多账单提示词。"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_10" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_show_multi_bill"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:layout_marginVertical="4dp"
+                                android:background="#E7ECF4" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="4dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginStart="10dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="不验证直接批量保存"
+                                        android:textColor="#24324A"
+                                        android:textSize="@dimen/text_size_12"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/tv_multi_bill_not_sync_desc"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="识别结果将优先存入本地列表，方便后续核对或批量同步。"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_10" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_multi_bill_not_sync"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:layout_marginVertical="4dp"
+                                android:background="#E7ECF4" />
+
+                            <!-- 极简记账 -->
+                            <LinearLayout
+                                android:id="@+id/layout_multi_bill_fast_mode"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="4dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginStart="10dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="极简记账"
+                                        android:textColor="#24324A"
+                                        android:textSize="@dimen/text_size_12"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="开启后多账单识别速度更快，但分类准确率依赖本地规则，不确定时会留空。"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_10" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_multi_bill_fast_mode"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:layout_marginVertical="4dp"
+                                android:background="#E7ECF4" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="4dp">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="显示表单账本入口"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_13"
+                                    android:textStyle="bold" />
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_show_book_entry"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- 动态提示词 + 本地规则 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="6dp"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="4dp">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="动态提示词纠错"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_13"
+                                    android:textStyle="bold" />
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_ai_prompt_correction"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:layout_marginVertical="4dp"
+                                android:background="#E7ECF4" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="4dp">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="本地规则强覆盖"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_13"
+                                    android:textStyle="bold" />
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_local_rule_override"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- 语音识别开关行 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingVertical="8dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="语音记账"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_14"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="开启后可通过语音识别快速生成账单"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_10" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_show_voice"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <!-- 语音引擎 + 模型（按需展开） -->
+                        <LinearLayout
+                            android:id="@+id/layout_asr_mode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="4dp"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="10dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_horizontal"
+                                android:layout_marginBottom="6dp"
+                                android:text="识别引擎"
+                                android:textColor="#4E5A6A"
+                                android:textSize="@dimen/text_size_13"
+                                android:textStyle="bold" />
+
+                            <Spinner
+                                android:id="@+id/spinner_asr_mode"
+                                android:layout_width="match_parent"
+                                android:layout_height="36dp"
+                                android:background="@drawable/bg_spinner_rounded"
+                                android:entries="@array/asr_modes" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/layout_asr_model_info"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="8dp"
+                            android:baselineAligned="false"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="10dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_horizontal"
+                                android:layout_marginBottom="6dp"
+                                android:text="模型信息"
+                                android:textColor="#4E5A6A"
+                                android:textSize="@dimen/text_size_13"
+                                android:textStyle="bold" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/btn_delete_offline_model"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clickable="true"
+                                android:focusable="true"
+                                app:cardBackgroundColor="#FFFFFF"
+                                app:cardCornerRadius="10dp"
+                                app:cardElevation="0dp"
+                                app:strokeColor="#D9E0EA"
+                                app:strokeWidth="1dp">
+
+                                <FrameLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:paddingHorizontal="12dp"
+                                    android:paddingVertical="7dp"
+                                    android:foreground="?attr/selectableItemBackground">
+
+                                    <TextView
+                                        android:id="@+id/tv_asr_model_desc"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_gravity="center"
+                                        android:gravity="center"
+                                        android:text="模型状态"
+                                        android:textColor="#5F6B7A"
+                                        android:textSize="@dimen/text_size_12"
+                                        android:textStyle="bold" />
+                                </FrameLayout>
+                            </com.google.android.material.card.MaterialCardView>
+                        </LinearLayout>
+
+                        <!-- 图片记账开关行 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingVertical="8dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="图片记账"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_14"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="开启后可从小票或截图中识别账单信息"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_10" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_show_ai_image"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginBottom="6dp"
+                            android:background="#E7ECF4" />
+
+                        <!-- OCR 引擎 + 语言（按需展开） -->
+                        <LinearLayout
+                            android:id="@+id/layout_ocr_mode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="4dp"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="10dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_horizontal"
+                                android:layout_marginBottom="6dp"
+                                android:text="识别引擎"
+                                android:textColor="#4E5A6A"
+                                android:textSize="@dimen/text_size_13"
+                                android:textStyle="bold" />
+
+                            <Spinner
+                                android:id="@+id/spinner_ocr_mode"
+                                android:layout_width="match_parent"
+                                android:layout_height="36dp"
+                                android:background="@drawable/bg_spinner_rounded"
+                                android:entries="@array/ocr_modes" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/layout_receipt_lang"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="8dp"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="10dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_horizontal"
+                                android:layout_marginBottom="6dp"
+                                android:text="小票语言"
+                                android:textColor="#4E5A6A"
+                                android:textSize="@dimen/text_size_13"
+                                android:textStyle="bold" />
+
+                            <Spinner
+                                android:id="@+id/spinner_receipt_lang"
+                                android:layout_width="match_parent"
+                                android:layout_height="36dp"
+                                android:background="@drawable/bg_spinner_rounded"
+                                android:entries="@array/receipt_lang_modes" />
+                        </LinearLayout>
+
+                        <!-- OCR 调试 + 按钮 -->
+                        <LinearLayout
+                            android:id="@+id/layout_ocr_debug_panel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_inset_panel"
+                            android:layout_marginBottom="6dp"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="4dp"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="保存 OCR 原文"
+                                        android:textColor="#1F2A3D"
+                                        android:textSize="@dimen/text_size_13"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="用于排查识别问题与优化提示词"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_10" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_save_ocr_debug"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_view_ocr_debug"
+                                style="@style/Widget.MaterialComponents.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:layout_gravity="end"
+                                android:layout_marginTop="4dp"
+                                android:minHeight="0dp"
+                                android:text="查看 →"
+                                android:textColor="#5C6BC0"
+                                android:textSize="@dimen/text_size_11"
+                                android:visibility="gone" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginVertical="6dp"
+                            android:background="#F0F2F5" />
+
+                        <!-- 底部操作按钮行 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="4dp">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_manage_ai_rules"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="44dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="记账习惯"
+                                android:textColor="#4E5A6A"
+                                android:textSize="@dimen/text_size_13"
+                                app:backgroundTint="#FFFFFF"
+                                app:strokeColor="#DCE2EA"
+                                app:cornerRadius="12dp"
+                                app:rippleColor="#205C6BC0" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_ai_detailed_config"
+                                android:layout_width="0dp"
+                                android:layout_height="44dp"
+                                android:layout_weight="1"
+                                android:text="AI 详细配置"
+                                android:textColor="#FFFFFF"
+                                android:textSize="@dimen/text_size_13"
+                                android:textStyle="bold"
+                                app:backgroundTint="#5C6BC0"
+                                app:cornerRadius="12dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- ══════════════════════════════════
+                 分区：高级与调试
+                 ══════════════════════════════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="4dp">
+
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:background="@drawable/bg_section_indicator_red"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="高级与调试"
+                    android:textColor="#1A2744"
+                    android:textSize="@dimen/text_size_14"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02" />
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:cardUseCompatPadding="false">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp">
+
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- Shizuku 模式 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_blue">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_power"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Shizuku 模式"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="开启后才显示白名单模式"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_shizuku_mode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <!-- Shizuku 深度保活（仅开启 Shizuku 模式后显示） -->
+                    <View
+                        android:id="@+id/divider_shizuku_persistence"
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/layout_shizuku_persistence"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp"
+                        android:visibility="gone">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_warn">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_power"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Shizuku 深度保活"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="通过 Shizuku 强制解除所有后台限制"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_shizuku_persistence"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 显示多币种选项 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_green">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_globe"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="显示多币种选项"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="支持在录入时选择不同结算币种"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_show_multi_cur"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 强力唤醒锁 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_warn">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_power"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="强力唤醒锁（防杀）"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="防止系统在后台杀掉本应用进程"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_permanent_wakelock"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 开发者日志 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_gray">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_logs"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="开发者日志"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_share_logs"
+                                style="@style/Widget.MaterialComponents.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="28dp"
+                                android:layout_marginTop="0dp"
+                                android:layout_marginStart="-8dp"
+                                android:minHeight="0dp"
+                                android:paddingVertical="0dp"
+                                android:text="查看日志内容 →"
+                                android:textColor="#5C6BC0"
+                                android:textSize="@dimen/text_size_11"
+                                android:visibility="gone" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_logging"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+

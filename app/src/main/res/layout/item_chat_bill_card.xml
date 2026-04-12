@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 账单卡片子项（在AI消息气泡内，每一笔账单一个卡片） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="10dp"
+    android:padding="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_bill_item_chat"
+        android:padding="12dp">
+
+        <!-- 第一行：图标 + 分类名 + 金额 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_chat_bill_icon_container"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:id="@+id/iv_chat_bill_icon"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:scaleType="centerInside"
+                    android:tint="#444444" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_chat_bill_category"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#25344C"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_chat_bill_detail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#7A8598"
+                    android:textSize="12sp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:layout_marginTop="3dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_chat_bill_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chat_bill_amount_tag"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#D32F2F" />
+        </LinearLayout>
+
+        <!-- 时间行 -->
+        <TextView
+            android:id="@+id/tv_chat_bill_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#8C97AA"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- 操作按钮行 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="start"
+        android:layout_marginTop="9dp">
+
+        <TextView
+            android:id="@+id/btn_chat_bill_edit_category"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="修改分类"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#1F5FC8"
+            android:background="@drawable/bg_chat_bill_action_primary"
+            android:paddingHorizontal="12dp"
+            android:layout_marginEnd="8dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btn_chat_bill_delete"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="删除"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#C13E4A"
+            android:background="@drawable/bg_chat_bill_action_danger"
+            android:paddingHorizontal="12dp"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+</LinearLayout>

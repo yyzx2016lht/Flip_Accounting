@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/bg_chat_dialog_panel">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="更多操作"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#25344A"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="10dp" />
+
+    <TextView
+        android:id="@+id/item_more_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_dialog_action_item"
+        android:text="搜索聊天记录"
+        android:textSize="15sp"
+        android:textColor="#2A3A53"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp" />
+
+    <TextView
+        android:id="@+id/item_more_new_conversation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:text="新建对话"
+        android:textSize="15sp"
+        android:textColor="#2A3A53"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp" />
+
+    <TextView
+        android:id="@+id/item_more_background"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:text="更换聊天背景"
+        android:textSize="15sp"
+        android:textColor="#2A3A53"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp" />
+
+    <TextView
+        android:id="@+id/item_more_clear"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item_danger"
+        android:text="清空当前对话"
+        android:textSize="15sp"
+        android:textColor="#B3261E"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp" />
+
+    <TextView
+        android:id="@+id/item_more_copy_debug"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:text="复制调试信息"
+        android:textSize="15sp"
+        android:textColor="#2A3A53"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp" />
+
+    <TextView
+        android:id="@+id/btn_more_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="取消"
+        android:textSize="14sp"
+        android:textColor="#6F7E95"
+        android:paddingVertical="10dp" />
+
+</LinearLayout>

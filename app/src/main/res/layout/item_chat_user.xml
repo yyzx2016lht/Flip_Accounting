@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 用户消息气泡（右侧） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="5dp">
+
+    <TextView
+        android:id="@+id/tv_user_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textColor="#90A0B6"
+        android:layout_marginBottom="4dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <!-- 多选复选框（多选模式时显示在气泡左侧） -->
+        <CheckBox
+            android:id="@+id/cb_user_select"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="4dp"
+            android:clickable="false"
+            android:focusable="false"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="0"
+            android:maxWidth="280dp">
+
+        <!-- 文字气泡 -->
+        <TextView
+            android:id="@+id/tv_user_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="280dp"
+            android:background="@drawable/bg_chat_bubble_user"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:lineSpacingExtra="2dp"
+            android:singleLine="false"
+            android:scrollHorizontally="false"
+            android:hyphenationFrequency="full"
+            android:visibility="visible" />
+
+        <!-- 图片气泡 -->
+        <ImageView
+            android:id="@+id/iv_user_image"
+            android:layout_width="200dp"
+            android:layout_height="150dp"
+            android:scaleType="centerCrop"
+            android:background="@drawable/bg_chat_bubble_user"
+            android:padding="4dp"
+            android:visibility="gone" />
+
+        <!-- 语音标签 -->
+        <LinearLayout
+            android:id="@+id/layout_user_voice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_chat_voice_bubble"
+            android:minWidth="132dp"
+            android:paddingStart="10dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true">
+
+            <FrameLayout
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/bg_chat_voice_play_chip">
+
+                <ImageView
+                    android:id="@+id/iv_voice_play"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_voice_play"
+                    app:tint="#FFFFFF" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_voice_wave"
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:layout_marginEnd="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/view_voice_bar_1"
+                    android:layout_width="4dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="#BFFFFFFF" />
+
+                <View
+                    android:id="@+id/view_voice_bar_2"
+                    android:layout_width="4dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="#E6FFFFFF" />
+
+                <View
+                    android:id="@+id/view_voice_bar_3"
+                    android:layout_width="4dp"
+                    android:layout_height="10dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="#CCFFFFFF" />
+
+                <View
+                    android:id="@+id/view_voice_bar_4"
+                    android:layout_width="4dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="#F2FFFFFF" />
+
+                <View
+                    android:id="@+id/view_voice_bar_5"
+                    android:layout_width="4dp"
+                    android:layout_height="9dp"
+                    android:background="#CCFFFFFF" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_voice_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1''"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#F7FAFF" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_voice_transcript"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_chat_voice_transcript"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="10dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_voice_transcript_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="转文字"
+                    android:textColor="#71819D"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_voice_transcript"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:maxWidth="232dp"
+                    android:textColor="#2B3547"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="2dp" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/iv_voice_transcript_copy"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="10dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="1dp"
+                android:src="@drawable/ic_copy"
+                app:tint="#6F7F99"
+                android:contentDescription="复制转写文本" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 用户头像 -->
+    <ImageView
+        android:id="@+id/iv_user_avatar"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_user_avatar_default"
+        android:scaleType="centerCrop"
+        android:background="@drawable/bg_circle_soft"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="用户头像"
+        android:layout_gravity="top" />
+    </LinearLayout>
+
+</LinearLayout>

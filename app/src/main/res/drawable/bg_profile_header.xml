@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置中心顶部渐变 Header 背景：深蓝 → 蓝紫 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:type="linear"
+        android:angle="135"
+        android:startColor="#1565C0"
+        android:centerColor="#283593"
+        android:endColor="#4527A0" />
+</shape>

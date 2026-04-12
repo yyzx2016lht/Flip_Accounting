@@ -1,0 +1,154 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- ===== 钱包主体阴影层（偏移投影效果） ===== -->
+    <path
+        android:pathData="M23,43 C23,38 27,35 32,35 L90,35 C95,35 99,38 99,43 L99,89 C99,94 95,97 90,97 L32,97 C27,97 23,94 23,89 Z"
+        android:fillColor="#D8E2EE"
+        android:strokeColor="#00000000"
+        android:strokeWidth="0" />
+
+    <!-- 钱包主体填充 -->
+    <path
+        android:pathData="M20,40 C20,35 24,32 29,32 L91,32 C96,32 100,35 100,40 L100,86 C100,91 96,94 91,94 L29,94 C24,94 20,91 20,86 Z"
+        android:fillColor="#F0F4FA" />
+
+    <!-- 钱包主体描边 -->
+    <path
+        android:pathData="M20,40 C20,35 24,32 29,32 L91,32 C96,32 100,35 100,40 L100,86 C100,91 96,94 91,94 L29,94 C24,94 20,91 20,86 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#CDD6E6"
+        android:strokeWidth="1.5" />
+
+    <!-- 钱包顶部折叠分隔线 -->
+    <path
+        android:pathData="M20,40 L100,40"
+        android:strokeColor="#CDD6E6"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+
+    <!-- ===== 右侧卡槽（圆角矩形） ===== -->
+    <path
+        android:pathData="M76,52 C76,49 78.5,47 82,47 L100,47 L100,73 L82,73 C78.5,73 76,71 76,68 Z"
+        android:fillColor="#E2E9F4"
+        android:strokeColor="#C8D4E8"
+        android:strokeWidth="1.5" />
+
+    <!-- ===== 金币外圈 ===== -->
+    <path
+        android:pathData="M86.5,60 m-8.5,0 a8.5,8.5 0,1,0 17,0 a8.5,8.5 0,1,0 -17,0"
+        android:fillColor="#FFD740"
+        android:strokeColor="#FFC400"
+        android:strokeWidth="1.5" />
+
+    <!-- 金币内圈纹路 -->
+    <path
+        android:pathData="M86.5,60 m-5.5,0 a5.5,5.5 0,1,0 11,0 a5.5,5.5 0,1,0 -11,0"
+        android:fillColor="#FFCA28"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="1" />
+
+    <!-- 金币高光弧线 -->
+    <path
+        android:pathData="M83,56.5 Q84.5,55 86.5,55"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- ===== 钱包内容区空白线条（模拟账单条目） ===== -->
+    <!-- 条目1：左圆点 + 右长线 -->
+    <path
+        android:pathData="M30,48 m-3,0 a3,3 0,1,0 6,0 a3,3 0,1,0 -6,0"
+        android:fillColor="#C8D4E8" />
+    <path
+        android:pathData="M38,48 L68,48"
+        android:strokeColor="#D4DCE9"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+
+    <!-- 条目1 副文字 -->
+    <path
+        android:pathData="M38,56 L55,56"
+        android:strokeColor="#DCE4EF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+
+    <!-- 分隔线 -->
+    <path
+        android:pathData="M30,64 L74,64"
+        android:strokeColor="#E4EAF4"
+        android:strokeWidth="1"
+        android:strokeLineCap="round" />
+
+    <!-- 条目2：左圆点 + 右长线 -->
+    <path
+        android:pathData="M30,70 m-3,0 a3,3 0,1,0 6,0 a3,3 0,1,0 -6,0"
+        android:fillColor="#D4DCE9" />
+    <path
+        android:pathData="M38,70 L62,70"
+        android:strokeColor="#D8E0EC"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+
+    <!-- 条目2 副文字 -->
+    <path
+        android:pathData="M38,78 L50,78"
+        android:strokeColor="#E4EAF4"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+
+    <!-- ===== 底部虚线分隔 ===== -->
+    <path
+        android:pathData="M30,86 L90,86"
+        android:strokeColor="#D0D8E8"
+        android:strokeWidth="1"
+        android:strokeLineCap="round" />
+
+    <!-- ===== 底部三个小装饰圆点 ===== -->
+    <path
+        android:pathData="M51,91 m-3,0 a3,3 0,1,0 6,0 a3,3 0,1,0 -6,0"
+        android:fillColor="#C8D4E4" />
+    <path
+        android:pathData="M60,91 m-3,0 a3,3 0,1,0 6,0 a3,3 0,1,0 -6,0"
+        android:fillColor="#D8E2EE" />
+    <path
+        android:pathData="M69,91 m-3,0 a3,3 0,1,0 6,0 a3,3 0,1,0 -6,0"
+        android:fillColor="#D8E2EE" />
+
+    <!-- ===== 右上角金色星星 ===== -->
+    <path
+        android:pathData="M104,14 L105.2,18.2 L109.8,18.2 L106.2,20.8 L107.4,25 L104,22.4 L100.6,25 L101.8,20.8 L98.2,18.2 L102.8,18.2 Z"
+        android:fillColor="#FFE082"
+        android:strokeColor="#FFD740"
+        android:strokeWidth="0.5" />
+
+    <!-- ===== 左上角蓝灰小星星 ===== -->
+    <path
+        android:pathData="M14,20 L15,23.5 L18.5,23.5 L15.8,25.5 L16.8,29 L14,27 L11.2,29 L12.2,25.5 L9.5,23.5 L13,23.5 Z"
+        android:fillColor="#B8C8DC"
+        android:strokeColor="#A0B4CC"
+        android:strokeWidth="0.5" />
+
+    <!-- ===== 右下角装饰大圆 ===== -->
+    <path
+        android:pathData="M110,84 m-4.5,0 a4.5,4.5 0,1,0 9,0 a4.5,4.5 0,1,0 -9,0"
+        android:fillColor="#EBF0F8"
+        android:strokeColor="#D4DCE8"
+        android:strokeWidth="1.5" />
+
+    <!-- 右下角小圆 -->
+    <path
+        android:pathData="M114,74 m-2.5,0 a2.5,2.5 0,1,0 5,0 a2.5,2.5 0,1,0 -5,0"
+        android:fillColor="#EFF3FB" />
+
+    <!-- ===== 左下角装饰小圆 ===== -->
+    <path
+        android:pathData="M10,78 m-2.5,0 a2.5,2.5 0,1,0 5,0 a2.5,2.5 0,1,0 -5,0"
+        android:fillColor="#E4EAF4" />
+
+</vector>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <!-- 设置圆圈的颜色，这里使用浅灰色 #CCCCCC -->
+    <solid android:color="#CCCCCC" />
+
+    <!-- 设置默认大小，虽然作为占位图通常会拉伸，但定义固有宽高是个好习惯 -->
+    <size
+        android:width="100dp"
+        android:height="100dp" />
+</shape>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="72dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="16dp"
+    android:background="?attr/selectableItemBackground"
+    android:layout_marginBottom="1dp">
+
+    <TextView
+        android:id="@+id/tv_flag"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:textSize="28sp"
+        android:text="🇺🇸"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="12dp">
+        <TextView
+            android:id="@+id/tv_code"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="USD 美元"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#333333"/>
+        <TextView
+            android:id="@+id/tv_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1 CNY = 0.14 USD"
+            android:textSize="13sp"
+            android:textColor="#666666"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="end">
+        <TextView
+            android:id="@+id/tv_reverse_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1 USD = 7.14 CNY"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#5C6BC0"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="转换基准"
+            android:textSize="11sp"
+            android:textColor="#999999"/>
+    </LinearLayout>
+
+</LinearLayout>

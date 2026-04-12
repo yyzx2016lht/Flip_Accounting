@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_chat_dialog_panel"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="8dp"
+        android:paddingTop="4dp"
+        android:text="自定义回复风格"
+        android:textColor="#25344A"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingHorizontal="8dp"
+        android:text="可以写语气、人设、长度、是否带颜文字，也可以强调不要复读账单。"
+        android:textColor="#8A98AD"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/et_custom_reply_style"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_model_search_field"
+        android:gravity="top|start"
+        android:hint="例如：像可爱的记账搭子，控制在1-2句话，可带一点颜文字，不要太吵，也不要复读账单内容。"
+        android:inputType="textMultiLine|textCapSentences"
+        android:padding="12dp"
+        android:textColor="#25344A"
+        android:textColorHint="#9AA7BA"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/tv_custom_preview_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:text="小提示：可以写“像元气一点的记账助手”“温柔一点”“回复控制在一句话”这种自然描述。"
+        android:textColor="#7E8BA0"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/btn_custom_save"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:gravity="center"
+        android:paddingVertical="12dp"
+        android:text="保存并使用"
+        android:textColor="#2A3A53"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/btn_custom_turn_off"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item_danger"
+        android:gravity="center"
+        android:paddingVertical="12dp"
+        android:text="关闭自然回复"
+        android:textColor="#B3261E"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/btn_custom_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:paddingVertical="10dp"
+        android:text="取消"
+        android:textColor="#6F7E95"
+        android:textSize="14sp" />
+
+</LinearLayout>

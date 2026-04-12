@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/bg_book_item_normal"
+    android:gravity="center_vertical"
+    android:minHeight="54dp"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="10dp">
+
+    <ImageView
+        android:id="@+id/iv_book_icon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_switch_book" />
+
+    <TextView
+        android:id="@+id/tv_book_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#333333"
+        android:textSize="14sp" />
+
+    <ImageView
+        android:id="@+id/iv_book_selected"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_book_selected_check"
+        android:visibility="gone" />
+
+</LinearLayout>

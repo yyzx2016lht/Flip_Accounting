@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_chat_dialog_panel"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="8dp"
+        android:paddingTop="4dp"
+        android:text="回复风格"
+        android:textColor="#25344A"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingHorizontal="8dp"
+        android:text="这里只影响账单后的自然回复，不会影响账单 JSON 提取。"
+        android:textColor="#8A98AD"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:id="@+id/layout_style_options"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical" />
+
+    <TextView
+        android:id="@+id/btn_style_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:paddingVertical="10dp"
+        android:text="取消"
+        android:textColor="#6F7E95"
+        android:textSize="14sp" />
+
+</LinearLayout>

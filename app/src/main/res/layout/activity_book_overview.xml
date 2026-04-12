@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F7FA"
+    android:orientation="vertical">
+
+    <!-- 顶部标题栏 -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbarBookOverview"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp"
+        app:navigationIcon="@drawable/ic_chevron_left"
+        app:title="账本总览"
+        app:titleTextColor="#111111"
+        app:titleTextAppearance="@style/TextAppearance.AppCompat.Widget.ActionBar.Title" />
+
+    <!-- 年月选择栏 -->
+    <LinearLayout
+        android:id="@+id/layoutPeriodSelector"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:elevation="0dp">
+
+        <!-- 左箭头 -->
+        <TextView
+            android:id="@+id/btnPeriodPrev"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="上一期"
+            android:gravity="center"
+            android:text="‹"
+            android:textColor="#888888"
+            android:textSize="26sp" />
+
+        <!-- 年/月 文本，居中 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvCurrentPeriod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2026年3月"
+                android:textColor="#111111"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- 右箭头 -->
+        <TextView
+            android:id="@+id/btnPeriodNext"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="下一期"
+            android:gravity="center"
+            android:text="›"
+            android:textColor="#888888"
+            android:textSize="26sp" />
+
+        <!-- 年/月 切换 Chip 组 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_segmented_container"
+            android:orientation="horizontal"
+            android:padding="2dp">
+
+            <TextView
+                android:id="@+id/btnViewMonth"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_segmented_selected"
+                android:gravity="center"
+                android:text="月"
+                android:textColor="#4080FF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnViewYear"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:gravity="center"
+                android:text="年"
+                android:textColor="#888888"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 全部账本汇总条 -->
+    <LinearLayout
+        android:id="@+id/layoutSummaryBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="总支出"
+                android:textColor="#999999"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvTotalExpense"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="¥0.00"
+                android:textColor="#E05A5A"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="32dp"
+            android:background="#EEEEEE" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="总收入"
+                android:textColor="#999999"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvTotalIncome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="¥0.00"
+                android:textColor="#2FA36B"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="32dp"
+            android:background="#EEEEEE" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="总结余"
+                android:textColor="#999999"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvTotalBalance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="¥0.00"
+                android:textColor="#4080FF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 分割线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F0F0F0" />
+
+    <!-- 账本卡片列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvBookOverview"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="12dp"
+        android:paddingBottom="16dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp" />
+
+</LinearLayout>

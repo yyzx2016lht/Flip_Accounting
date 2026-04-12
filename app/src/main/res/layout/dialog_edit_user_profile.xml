@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <FrameLayout
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp">
+
+        <ImageView
+            android:id="@+id/iv_user_profile_avatar"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:background="@drawable/bg_circle_gray"
+            android:clipToOutline="true"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_user_avatar_default" />
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="bottom|end"
+            android:background="@drawable/bg_send_btn"
+            android:clickable="false"
+            android:padding="5dp"
+            android:src="@drawable/ic_edit"
+            android:tint="#FFFFFF" />
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:text="点击头像更换图片"
+        android:textColor="#999999"
+        android:textSize="12sp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:text="你的名字"
+        android:textColor="#666666"
+        android:textSize="13sp" />
+
+    <EditText
+        android:id="@+id/et_user_profile_name"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_chat_input"
+        android:hint="输入你想显示的名字"
+        android:paddingHorizontal="14dp"
+        android:singleLine="true"
+        android:textColor="#333333"
+        android:textSize="15sp" />
+
+</LinearLayout>

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F7F8FA">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- 顶部留白，高度对齐账单页顶栏 56dp -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="56dp" />
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:text="净资产"
+                    android:textColor="#999999"
+                    android:textSize="@dimen/text_size_14" />
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/tv_net_asset"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:text="¥0.00"
+                android:textColor="#333333"
+                android:textSize="@dimen/text_size_28"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_rate_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
+                android:text="汇率状态：未初始化"
+                android:textColor="#9E9E9E"
+                android:textSize="@dimen/text_size_11"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="总资产"
+                        android:textColor="#999999"
+                        android:textSize="@dimen/text_size_12" />
+                    <TextView
+                        android:id="@+id/tv_total_asset"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="¥0.00"
+                        android:textColor="#333333"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center_vertical"
+                    android:background="#EEEEEE" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="总负债"
+                        android:textColor="#999999"
+                        android:textSize="@dimen/text_size_12" />
+                    <TextView
+                        android:id="@+id/tv_total_debt"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="无"
+                        android:textColor="#333333"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nsv_assets"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:overScrollMode="never"
+        android:paddingBottom="96dp"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp">
+
+            <!-- 动态卡片由 AssetsFragment 代码生成，按类别各一张，有资产才显示 -->
+            <LinearLayout
+                android:id="@+id/container_category_cards"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"/>
+
+            <TextView
+                android:id="@+id/btn_asset_data_check"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_segmented_selected"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:text="检查净资产差异记录"
+                android:textColor="#333333"
+                android:textSize="@dimen/text_size_13"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add_asset"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:layout_marginBottom="80dp"
+        android:src="@android:drawable/ic_input_add"
+        app:backgroundTint="#2196F3"
+        app:tint="@android:color/white"
+        app:elevation="4dp"
+        app:borderWidth="0dp"/>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

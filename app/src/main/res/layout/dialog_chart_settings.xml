@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="图表设置"
+        android:textColor="@android:color/black"
+        android:textSize="@dimen/text_size_14"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="时间范围"
+        android:textSize="@dimen/text_size_12"
+        android:layout_marginBottom="4dp" />
+
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleGroupTimeRange"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:layout_marginBottom="12dp"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        app:checkedButton="@+id/btnRange7Days">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRange7Days"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="0dp"
+            android:paddingVertical="0dp"
+            android:textSize="@dimen/text_size_11"
+            android:text="近7日" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRange15Days"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="0dp"
+            android:paddingVertical="0dp"
+            android:textSize="@dimen/text_size_11"
+            android:text="近15日" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRangeWeek"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="0dp"
+            android:paddingVertical="0dp"
+            android:textSize="@dimen/text_size_11"
+            android:text="本周" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRangeMonth"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="0dp"
+            android:paddingVertical="0dp"
+            android:textSize="@dimen/text_size_11"
+            android:text="本月" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="收支类型"
+        android:textSize="@dimen/text_size_12"
+        android:layout_marginBottom="4dp" />
+
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleGroupType"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        app:checkedButton="@+id/btnTypeExpense">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTypeExpense"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="0dp"
+            android:paddingVertical="0dp"
+            android:textSize="@dimen/text_size_11"
+            android:text="仅支出" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTypeIncome"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="0dp"
+            android:paddingVertical="0dp"
+            android:textSize="@dimen/text_size_11"
+            android:text="仅收入" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTypeBoth"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="0dp"
+            android:paddingVertical="0dp"
+            android:textSize="@dimen/text_size_11"
+            android:text="收支对比" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+</LinearLayout>

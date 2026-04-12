@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF"
+    android:orientation="vertical"
+    android:paddingHorizontal="14dp"
+    android:paddingTop="18dp"
+    android:paddingBottom="14dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="4dp"
+        android:text="对话记录"
+        android:textColor="#24364D"
+        android:textSize="19sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingHorizontal="4dp"
+        android:text="切换会话、调整回复风格，或者更换当前聊天背景。"
+        android:textColor="#8A98AD"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/et_session_search"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_model_search_field"
+        android:hint="搜索聊天记录"
+        android:paddingHorizontal="12dp"
+        android:singleLine="true"
+        android:textColor="#25344A"
+        android:textColorHint="#92A1B5"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/btn_new_session"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:gravity="center"
+        android:text="新建对话"
+        android:textColor="#2A3A53"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/btn_reply_style"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:gravity="center"
+        android:text="回复风格"
+        android:textColor="#2A3A53"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/btn_change_chat_bg"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item"
+        android:gravity="center"
+        android:text="更换背景"
+        android:textColor="#2A3A53"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:paddingHorizontal="4dp"
+        android:text="历史会话"
+        android:textColor="#8A98AD"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_session_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="6dp" />
+
+    <TextView
+        android:id="@+id/btn_clear_current_session"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_dialog_action_item_danger"
+        android:gravity="center"
+        android:text="清空当前对话"
+        android:textColor="#B3261E"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+</LinearLayout>

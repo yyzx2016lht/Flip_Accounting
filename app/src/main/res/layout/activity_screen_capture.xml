@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#E6000000">
+
+    <!-- 扫描光线（从顶到底循环，由代码驱动 translationY） -->
+    <View
+        android:id="@+id/view_scan_line"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_gravity="top"
+        android:background="#807C9FF8"
+        android:translationY="0dp" />
+
+    <!-- 中心卡片，初始 alpha=0 scaleX/Y=0.85，入场动画由代码驱动 -->
+    <LinearLayout
+        android:id="@+id/layout_capture_card"
+        android:layout_width="260dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:alpha="0"
+        android:background="@drawable/bg_screen_capture_card"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingHorizontal="32dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="28dp"
+        android:scaleX="0.85"
+        android:scaleY="0.85">
+
+        <ProgressBar
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:indeterminate="true"
+            android:indeterminateTint="#7C9FF8" />
+
+        <TextView
+            android:id="@+id/tv_capture_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="正在识别屏幕中..."
+            android:textAlignment="center"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_capture_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="请保持当前页面不动"
+            android:textAlignment="center"
+            android:textColor="#7C8FA8"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+</FrameLayout>

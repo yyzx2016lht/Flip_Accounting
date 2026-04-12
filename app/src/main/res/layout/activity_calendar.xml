@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F7FA"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#FFFFFF"
+        android:paddingHorizontal="16dp">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="@dimen/icon_size_24"
+            android:layout_height="@dimen/icon_size_24"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:src="@drawable/ic_arrow_left_line" />
+
+        <TextView
+            android:id="@+id/tvMonthSelector"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:drawableEnd="@drawable/ic_chevron_down_small"
+            android:drawablePadding="2dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:text="2025.12"
+            android:textColor="#333333"
+            android:textSize="@dimen/text_size_18"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btnMore"
+            android:layout_width="@dimen/icon_size_24"
+            android:layout_height="@dimen/icon_size_24"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:src="@drawable/ic_more" />
+    </RelativeLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshCalendar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:orientation="vertical">
+
+                    <!-- 日历卡片滑动舞台：当前面板 + peek 面板并排 -->
+                    <FrameLayout
+                        android:id="@+id/calendarPanelStage"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                    <LinearLayout
+                        android:id="@+id/layoutCalendarPanel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="12dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_calendar_panel"
+                        android:orientation="vertical"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="8dp">
+
+                        <LinearLayout
+                            android:id="@+id/layoutWeekdays"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="8dp">
+
+                            <TextView android:id="@+id/tvW1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="一" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvW2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="二" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvW3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="三" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvW4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="四" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvW5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="五" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvW6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="六" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvW7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="日" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvCalendar"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:nestedScrollingEnabled="false"
+                            android:paddingHorizontal="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- peek 面板：平时在屏幕外，拖动时预加载下一个月 -->
+                    <LinearLayout
+                        android:id="@+id/layoutCalendarPanelPeek"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="12dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_calendar_panel"
+                        android:orientation="vertical"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="8dp"
+                        android:visibility="invisible">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="8dp">
+
+                            <TextView android:id="@+id/tvPeekW1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="一" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvPeekW2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="二" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvPeekW3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="三" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvPeekW4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="四" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvPeekW5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="五" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvPeekW6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="六" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                            <TextView android:id="@+id/tvPeekW7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="日" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvCalendarPeek"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:nestedScrollingEnabled="false"
+                            android:paddingHorizontal="8dp" />
+
+                        <TextView
+                            android:id="@+id/tvPeekMonthSummary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:gravity="center"
+                            android:text=""
+                            android:textColor="#A0A0A0"
+                            android:textSize="@dimen/text_size_12"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    </FrameLayout><!-- end calendarPanelStage -->
+
+                    <!-- 独立的模式与月汇总面板：不并入日历滑动舞台 -->
+                    <LinearLayout
+                        android:id="@+id/layoutMonthPanel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="12dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_calendar_panel"
+                        android:orientation="vertical"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="16dp">
+
+                        <LinearLayout
+                            android:id="@+id/modesContainer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_gravity="center_horizontal"
+                            android:background="@drawable/bg_segmented_container"
+                            android:orientation="horizontal"
+                            android:padding="2dp">
+
+                            <TextView
+                                android:id="@+id/btnModeBoth"
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:background="@drawable/bg_segmented_selected"
+                                android:gravity="center"
+                                android:paddingHorizontal="18dp"
+                                android:text="收&amp;支"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_13" />
+
+                            <TextView
+                                android:id="@+id/btnModeBalance"
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:gravity="center"
+                                android:paddingHorizontal="18dp"
+                                android:text="结余"
+                                android:textColor="#666666"
+                                android:textSize="@dimen/text_size_13" />
+
+                            <TextView
+                                android:id="@+id/btnModeIncome"
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:gravity="center"
+                                android:paddingHorizontal="18dp"
+                                android:text="收入"
+                                android:textColor="#666666"
+                                android:textSize="@dimen/text_size_13" />
+
+                            <TextView
+                                android:id="@+id/btnModeExpense"
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:gravity="center"
+                                android:paddingHorizontal="18dp"
+                                android:text="支出"
+                                android:textColor="#666666"
+                                android:textSize="@dimen/text_size_13" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvMonthSummary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:gravity="center"
+                            android:text="月收入:¥0.00, 月支出:¥0.00, 月结余:¥0.00"
+                            android:textColor="#A0A0A0"
+                            android:textSize="@dimen/text_size_12" />
+                    </LinearLayout>
+
+                    <!-- 每日账单列表 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginHorizontal="12dp"
+                        android:background="#FFFFFF"
+                        android:orientation="vertical">
+
+                        <RelativeLayout
+                            android:id="@+id/layoutDailyHeader"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingHorizontal="16dp"
+                            android:paddingTop="16dp"
+                            android:paddingBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/tvDailyDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentStart="true"
+                                android:text="12.20 周六"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvDailySummary"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:text="收:¥0.00 支:¥0.00"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_14"
+                                android:textStyle="bold" />
+                        </RelativeLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvDailyBills"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:nestedScrollingEnabled="false"
+                            android:paddingBottom="80dp" />
+
+                        <TextView
+                            android:id="@+id/tvDailyEmpty"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:paddingVertical="50dp"
+                            android:text="当日无账单记录"
+                            android:textColor="#BDBDBD"
+                            android:textSize="@dimen/text_size_15"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_multi_select_actions"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:layout_gravity="bottom"
+            android:background="#FFFFFF"
+            android:elevation="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/btn_ms_cancel"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/shape_button_outline"
+                android:gravity="center"
+                android:text="取消"
+                android:textColor="#666666"
+                android:textSize="@dimen/text_size_16" />
+
+            <TextView
+                android:id="@+id/btn_ms_select_all"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/shape_button_outline"
+                android:gravity="center"
+                android:text="全选"
+                android:textColor="#333333"
+                android:textSize="@dimen/text_size_16" />
+
+            <TextView
+                android:id="@+id/btn_ms_move_book"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/shape_button_outline"
+                android:gravity="center"
+                android:text="移动"
+                android:textColor="#4080FF"
+                android:textSize="@dimen/text_size_16" />
+
+            <TextView
+                android:id="@+id/btn_ms_delete"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/shape_button_outline_red"
+                android:gravity="center"
+                android:text="删除"
+                android:textColor="#FF5252"
+                android:textSize="@dimen/text_size_16" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

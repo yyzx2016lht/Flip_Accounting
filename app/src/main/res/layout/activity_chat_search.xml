@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F8F9FA">
+
+    <!-- Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#FFFFFF"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp"
+        android:elevation="2dp">
+
+        <ImageView
+            android:id="@+id/btn_search_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_chevron_left"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#333333" />
+
+        <EditText
+            android:id="@+id/et_chat_search"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="4dp"
+            android:background="@drawable/bg_search_box"
+            android:hint="搜索聊天记录..."
+            android:textSize="14sp"
+            android:paddingHorizontal="12dp"
+            android:singleLine="true"
+            android:imeOptions="actionSearch"
+            android:inputType="text" />
+
+        <TextView
+            android:id="@+id/btn_search_confirm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="搜索"
+            android:textColor="#1A73E8"
+            android:textSize="14sp"
+            android:paddingHorizontal="8dp" />
+    </LinearLayout>
+
+    <!-- 结果列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_search_results"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingVertical="8dp" />
+
+    <!-- 空状态 -->
+    <TextView
+        android:id="@+id/tv_search_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="32dp"
+        android:text="暂无结果，试试其它关键词"
+        android:textColor="#AAAAAA"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+</LinearLayout>

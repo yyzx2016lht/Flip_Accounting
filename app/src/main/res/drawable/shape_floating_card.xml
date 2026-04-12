@@ -1,0 +1,5 @@
+<!-- res/drawable/shape_floating_card.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="16dp" />
+</shape>

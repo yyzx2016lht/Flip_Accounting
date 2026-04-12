@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI 助手默认头像 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#1A73E8"
+        android:pathData="M24,4C12.95,4 4,12.95 4,24C4,35.05 12.95,44 24,44C35.05,44 44,35.05 44,24C44,12.95 35.05,4 24,4Z" />
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M24,12C20.13,12 17,15.13 17,19C17,22.87 20.13,26 24,26C27.87,26 31,22.87 31,19C31,15.13 27.87,12 24,12ZM16,30C14.34,30 13,31.34 13,33L13,36L35,36L35,33C35,31.34 33.66,30 32,30L16,30Z" />
+</vector>

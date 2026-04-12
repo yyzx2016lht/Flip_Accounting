@@ -1,0 +1,524 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_floating_view"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#FFFFFF"
+    android:elevation="0dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true">
+
+    <LinearLayout
+        android:id="@+id/layout_form_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="16dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Spinner
+                android:id="@+id/spinner_type"
+                android:layout_width="88dp"
+                android:layout_height="34dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/shape_tag_bg" />
+
+            <EditText
+                android:id="@+id/et_amount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:layout_toStartOf="@+id/spinner_type"
+                android:background="@null"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:hint="0.00"
+                android:inputType="none"
+                android:longClickable="false"
+                android:textColor="#2E7D32"
+                android:textSize="@dimen/text_size_24"
+                android:textStyle="bold" />
+        </RelativeLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_bill_mode_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="账单模式"
+                android:textColor="#666666"
+                android:textSize="@dimen/text_size_13" />
+
+            <RadioGroup
+                android:id="@+id/rg_bill_mode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rb_single"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:buttonTint="#5C6BC0"
+                    android:minHeight="0dp"
+                    android:text="单笔"
+                    android:textColor="#5C6BC0"
+                    android:textSize="@dimen/text_size_13" />
+
+                <RadioButton
+                    android:id="@+id/rb_multi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="12dp"
+                    android:buttonTint="#5C6BC0"
+                    android:minHeight="0dp"
+                    android:text="多笔"
+                    android:textColor="#5C6BC0"
+                    android:textSize="@dimen/text_size_13" />
+            </RadioGroup>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_form_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+        <View
+            android:id="@+id/view_form_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="6dp"
+            android:background="#EDF1F6" />
+
+        <LinearLayout
+            android:id="@+id/layout_account"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical">
+
+            <FrameLayout
+                android:layout_width="22dp"
+                android:layout_height="22dp">
+
+                <TextView
+                    android:id="@+id/tv_account_icon_emoji"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="&#x1F3E6;"
+                    android:textSize="16sp" />
+
+                <ImageView
+                    android:id="@+id/iv_account_icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tv_account"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="选择资产"
+                android:textColor="#333333" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_account_2"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:gravity="center"
+                android:text="&#x21C4;"
+                android:textColor="#7A8799"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tv_account_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="转入账户"
+                android:textColor="#333333" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_category"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical">
+
+            <FrameLayout
+                android:layout_width="22dp"
+                android:layout_height="22dp">
+
+                <TextView
+                    android:id="@+id/tv_category_icon_emoji"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="&#x1F5C2;&#xFE0F;"
+                    android:textSize="16sp" />
+
+                <ImageView
+                    android:id="@+id/iv_category_icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tv_category"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="选择分类"
+                android:textColor="#333333" />
+
+            <TextView
+                android:id="@+id/tv_refund_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/shape_tag_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="10dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="3dp"
+                android:text="账单退款"
+                android:textColor="#E53935"
+                android:textSize="@dimen/text_size_13"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_refund_source"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:gravity="center"
+                android:text="&#x21A9;&#xFE0F;"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tv_refund_source_bill"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="选择退款账单"
+                android:textColor="#888888" />
+
+            <TextView
+                android:id="@+id/tv_refund_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/shape_tag_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="10dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="3dp"
+                android:text="取消退款"
+                android:textColor="#999999"
+                android:textSize="@dimen/text_size_13" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_fee"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:gravity="center"
+                android:text="&#x1F4B0;"
+                android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/et_fee"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="12dp"
+                android:background="@null"
+                android:hint="手续费（默认0）"
+                android:inputType="numberDecimal"
+                android:textSize="@dimen/text_size_14" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_time"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:gravity="center"
+                android:text="&#x1F558;"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tv_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="2026-02-07 12:00"
+                android:textColor="#666666"
+                android:textSize="@dimen/text_size_13" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_book"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:gravity="center"
+                android:text="&#x1F4D2;"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tv_book"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="默认账本"
+                android:textColor="#333333" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/et_remark"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/shape_edit_bg"
+            android:gravity="top"
+            android:hint="输入备注信息..."
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp"
+            android:textSize="@dimen/text_size_14" />
+
+        <LinearLayout
+            android:id="@+id/layout_form_footer_tools"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Spinner
+                android:id="@+id/spinner_currency"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:background="@drawable/shape_tag_bg"
+                android:paddingStart="8dp"
+                android:paddingEnd="24dp"
+                android:spinnerMode="dropdown"
+                tools:listitem="@android:layout/simple_spinner_dropdown_item" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:id="@+id/layout_ai_entry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/btn_ai_screenshot"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="6dp"
+                    android:padding="2dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="截屏识别"
+                    android:focusable="true"
+                    android:src="@drawable/ic_screenshot"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/btn_ai_image"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="图片记账"
+                    android:focusable="true"
+                    android:src="@drawable/ic_picture_button"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/btn_ai_voice"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="语音输入"
+                    android:focusable="true"
+                    android:src="@android:drawable/ic_btn_speak_now" />
+
+                <LinearLayout
+                    android:id="@+id/layout_ai_text_entry"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/shape_tag_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="7dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="7dp"
+                    android:paddingBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="智能识别"
+                        android:textColor="#673AB7"
+                        android:textSize="@dimen/text_size_15"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/btn_ai_magic"
+                        android:layout_width="@dimen/icon_size_28"
+                        android:layout_height="@dimen/icon_size_28"
+                        android:layout_marginStart="4dp"
+                        android:contentDescription="AI助手"
+                        android:src="@drawable/ic_ai_robot" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_form_actions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_cancel"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_weight="1"
+                android:text="取消"
+                android:textColor="#666666"
+                app:cornerRadius="14dp"
+                app:strokeColor="#D8E0EA" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_save"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1.5"
+                android:text="保存并记账"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                app:backgroundTint="#4F6EDB"
+                app:cornerRadius="14dp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_open_ai_chat"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="10dp"
+            android:text="切换到 AI 对话记账"
+            android:textColor="#1A73E8"
+            android:textSize="13sp"
+            android:visibility="gone"
+            app:cornerRadius="14dp"
+            app:strokeColor="#B9CFFB" />
+
+        </LinearLayout>
+
+        <include
+            layout="@layout/layout_amount_keypad"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+</FrameLayout>
+
+
+
+

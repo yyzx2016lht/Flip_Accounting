@@ -1,0 +1,18 @@
+<resources>
+    <!-- 修改前的可能是 Theme.AppCompat.Light... -->
+    <!-- 请将其修改为如下内容： -->
+    <style name="Theme.FlipAccounting" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- 主颜色配置 -->
+        <item name="colorPrimary">#5C6BC0</item>
+        <item name="colorPrimaryVariant">#3F51B5</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <!-- 次要颜色 -->
+        <item name="colorSecondary">#FF4081</item>
+        <item name="colorSecondaryVariant">#F50057</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+
+        <!-- 状态栏颜色 -->
+        <item name="android:statusBarColor">#F5F7FA</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

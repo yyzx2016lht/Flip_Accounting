@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F7FA"
+    android:fitsSystemWindows="true">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#FFFFFF"
+        android:elevation="4dp"
+        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:title="灵敏度调节"
+        app:titleTextColor="#333333" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#FFFFFF">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchAdvancedMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="进阶自定义模式"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#333333"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="开启后可手动精确修改重力阈值和耗时参数"
+                        android:textSize="12sp"
+                        android:textColor="#999999"
+                        android:layout_marginBottom="12dp"/>
+
+                    <!-- 1. 标准模式 UI (SeekBar) -->
+                    <LinearLayout
+                        android:id="@+id/layoutStandardMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="翻转检测灵敏度"
+                            android:textSize="14sp"
+                            android:textColor="#666666"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="16dp">
+                            
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="容易"
+                                android:textSize="12sp"
+                                android:textColor="#999999"/>
+                            
+                            <SeekBar
+                                android:id="@+id/seekBarSensitivity"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:max="100"
+                                android:progress="50"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="严格"
+                                android:textSize="12sp"
+                                android:textColor="#999999"/>
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvCurrentValue"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:layout_marginTop="8dp"
+                            android:text="当前设定：标准 (50)"
+                            android:textColor="#5C6BC0"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <!-- 2. 进阶模式 UI (EditTexts) -->
+                    <LinearLayout
+                        android:id="@+id/layoutAdvancedInputs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="重力阈值 (g)"
+                            app:helperText="建议范围 5.0 - 9.5">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etCustomG"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:text="7.25"/>
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="最大翻转允许耗时 (ms)"
+                            app:helperText="建议范围 200 - 1000">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etCustomTime"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:text="550"/>
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaveCustom"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="保存自定义参数"
+                            app:cornerRadius="8dp"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="参数详解"
+                android:textSize="14sp"
+                android:textColor="#666666"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#FFFFFF">
+                
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tvParamG"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="重力阈值：7.25g"
+                        android:textSize="14sp"
+                        android:textColor="#333333"/>
+                    
+                    <TextView
+                         android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="手机扣向桌面的平整度要求，数值越大要求越平。"
+                        android:textSize="12sp"
+                        android:textColor="#999999"
+                        android:layout_marginBottom="12dp"/>
+
+                     <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#F0F0F0"
+                        android:layout_marginBottom="12dp"/>
+
+                    <TextView
+                        android:id="@+id/tvParamTime"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="最大耗时：550ms"
+                        android:textSize="14sp"
+                        android:textColor="#333333"/>
+                     <TextView
+                         android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="从背面翻转到正面的最大允许时间，数值越小要求翻转速度越快。"
+                        android:textSize="12sp"
+                        android:textColor="#999999"/>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnResetDefault"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="恢复默认设置"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:textColor="#5C6BC0"/>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>
