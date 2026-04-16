@@ -5,72 +5,60 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
     android:layout_marginTop="14dp"
-    app:cardBackgroundColor="#FCFDFF"
-    app:cardCornerRadius="18dp"
+    app:cardBackgroundColor="#FFFFFF"
+    app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
-    app:strokeColor="#DCE5F4"
+    app:strokeColor="#DCE4F1"
     app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="18dp"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="16dp"
         android:paddingBottom="14dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <View
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/shape_circle_blue_light" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="分类报表"
-                android:textColor="#1F2D44"
-                android:textSize="@dimen/text_size_16"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <com.github.mikephil.charting.charts.PieChart
-            android:id="@+id/pie_chart"
-            android:layout_width="match_parent"
-            android:layout_height="264dp"
-            android:layout_marginTop="8dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:gravity="center"
-            android:text="可手指旋转饼图查看，小于2%不会显示"
-            android:textColor="#8E98A8"
-            android:textSize="@dimen/text_size_12" />
+            android:text="占比分析"
+            android:textColor="#1F2D44"
+            android:textSize="@dimen/text_size_16"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:gravity="center"
-            android:text="点击下方分类可查看对应账单"
-            android:textColor="#6E7B91"
+            android:text="点击下方分类即可查看账单明细"
+            android:textColor="#7D8CA5"
             android:textSize="@dimen/text_size_12" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_stats_metric_tile"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="10dp">
+
+            <com.github.mikephil.charting.charts.PieChart
+                android:id="@+id/pie_chart"
+                android:layout_width="match_parent"
+                android:layout_height="236dp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="34dp"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="14dp"
-            android:layout_marginBottom="12dp"
-            android:background="@drawable/bg_segmented_container"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_stats_toggle_strip"
             android:orientation="horizontal"
             android:padding="3dp">
 
@@ -78,12 +66,12 @@
                 android:id="@+id/btn_category_expense"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:background="@drawable/bg_segmented_selected"
+                android:background="@drawable/bg_stats_toggle_selected"
                 android:gravity="center"
-                android:minWidth="80dp"
+                android:minWidth="86dp"
                 android:paddingHorizontal="16dp"
-                android:text="支出"
-                android:textColor="#222222"
+                android:text="支出分类"
+                android:textColor="#202B3F"
                 android:textSize="@dimen/text_size_13" />
 
             <TextView
@@ -91,10 +79,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:minWidth="80dp"
+                android:minWidth="86dp"
                 android:paddingHorizontal="16dp"
-                android:text="收入"
-                android:textColor="#666666"
+                android:text="收入分类"
+                android:textColor="#6D7890"
                 android:textSize="@dimen/text_size_13" />
         </LinearLayout>
 
@@ -103,4 +91,5 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
     </LinearLayout>
+
 </com.google.android.material.card.MaterialCardView>

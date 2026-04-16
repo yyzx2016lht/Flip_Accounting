@@ -272,12 +272,12 @@ class StatsFragment : Fragment() {
 
     private fun updateButtonStyles(root: View, selectedId: Int, unselectedId: Int) {
         root.findViewById<TextView>(selectedId).apply {
-            setBackgroundResource(R.drawable.bg_segmented_selected)
-            setTextColor(Color.parseColor("#222222"))
+            setBackgroundResource(R.drawable.bg_stats_toggle_selected)
+            setTextColor(Color.parseColor("#202B3F"))
         }
         root.findViewById<TextView>(unselectedId).apply {
             background = null
-            setTextColor(Color.parseColor("#666666"))
+            setTextColor(Color.parseColor("#6D7890"))
         }
     }
 
