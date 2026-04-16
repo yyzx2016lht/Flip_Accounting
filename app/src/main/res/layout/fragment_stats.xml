@@ -12,27 +12,28 @@
         app:elevation="0dp">
 
         <LinearLayout
+            android:id="@+id/stats_top_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_stats_hero_panel"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="12dp">
 
             <RelativeLayout
                 android:layout_width="match_parent"
-                android:layout_height="32dp">
+                android:layout_height="30dp">
 
                 <ImageView
                     android:id="@+id/btn_currency"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_money"
-                    app:tint="#FFFFFF" />
+                    app:tint="#1F2937" />
 
                 <TextView
                     android:id="@+id/tv_title"
@@ -40,54 +41,54 @@
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
                     android:text="统计"
-                    android:textColor="#FFFFFF"
-                    android:textSize="@dimen/text_size_18"
+                    android:textColor="#111827"
+                    android:textSize="@dimen/text_size_17"
                     android:textStyle="bold" />
 
                 <ImageView
                     android:id="@+id/btn_filter"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_shaixuan"
-                    app:tint="#FFFFFF" />
+                    app:tint="#1F2937" />
             </RelativeLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="10dp"
                 android:gravity="center"
                 android:orientation="horizontal">
 
                 <ImageView
                     android:id="@+id/btn_prev_date"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:padding="10dp"
+                    android:padding="9dp"
                     android:src="@drawable/ic_chevron_left"
-                    app:tint="#E6EDFF" />
+                    app:tint="#4B5563" />
 
                 <LinearLayout
                     android:id="@+id/layout_date_selector"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_marginHorizontal="10dp"
+                    android:layout_height="34dp"
+                    android:layout_marginHorizontal="8dp"
                     android:background="@drawable/bg_stats_date_capsule"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="14dp">
+                    android:paddingHorizontal="12dp">
 
                     <TextView
                         android:id="@+id/tv_date_selector"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2026-03"
-                        android:textColor="#FFFFFF"
-                        android:textSize="@dimen/text_size_16"
+                        android:textColor="#111827"
+                        android:textSize="@dimen/text_size_15"
                         android:textStyle="bold" />
 
                     <ImageView
@@ -95,51 +96,50 @@
                         android:layout_height="14dp"
                         android:layout_marginStart="4dp"
                         android:src="@drawable/ic_chevron_down"
-                        app:tint="#FFFFFF" />
+                        app:tint="#6B7280" />
                 </LinearLayout>
 
                 <ImageView
                     android:id="@+id/btn_next_date"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:padding="10dp"
+                    android:padding="9dp"
                     android:src="@drawable/ic_chevron_right"
-                    app:tint="#E6EDFF" />
+                    app:tint="#4B5563" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="8dp"
             android:background="@drawable/bg_stats_toggle_strip"
-            android:gravity="center"
             android:orientation="horizontal"
-            android:padding="4dp">
+            android:padding="3dp">
 
             <TextView
                 android:id="@+id/btn_mode_month"
                 android:layout_width="0dp"
-                android:layout_height="34dp"
+                android:layout_height="32dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_stats_toggle_selected"
                 android:gravity="center"
                 android:text="月视图"
-                android:textColor="#202B3F"
-                android:textSize="@dimen/text_size_14"
+                android:textColor="#111827"
+                android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/btn_mode_year"
                 android:layout_width="0dp"
-                android:layout_height="34dp"
+                android:layout_height="32dp"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="年视图"
-                android:textColor="#6D7890"
-                android:textSize="@dimen/text_size_14"
+                android:textColor="#6B7280"
+                android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
@@ -148,14 +148,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingBottom="20dp"
+        android:paddingBottom="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingTop="10dp">
+            android:paddingTop="8dp">
 
             <include layout="@layout/card_stats_overview" />
 
@@ -163,7 +163,7 @@
                 android:id="@+id/empty_state_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="48dp"
+                android:layout_marginTop="40dp"
                 android:gravity="center"
                 android:orientation="vertical"
                 android:visibility="gone">
@@ -172,7 +172,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="没有可统计的数据"
-                    android:textColor="#8A95A8"
+                    android:textColor="#9CA3AF"
                     android:textSize="@dimen/text_size_14" />
             </LinearLayout>
 

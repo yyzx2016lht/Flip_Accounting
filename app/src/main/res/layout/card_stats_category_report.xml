@@ -3,28 +3,25 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
-    android:layout_marginTop="14dp"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginTop="10dp"
     app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="20dp"
+    app:cardCornerRadius="14dp"
     app:cardElevation="0dp"
-    app:strokeColor="#DCE4F1"
+    app:strokeColor="#E5E7EB"
     app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="14dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="14dp">
+        android:padding="14dp">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
             android:text="占比分析"
-            android:textColor="#1F2D44"
+            android:textColor="#111827"
             android:textSize="@dimen/text_size_16"
             android:textStyle="bold" />
 
@@ -32,32 +29,28 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:gravity="center"
-            android:text="点击下方分类即可查看账单明细"
-            android:textColor="#7D8CA5"
+            android:text="点击分类可查看对应账单明细"
+            android:textColor="#9CA3AF"
             android:textSize="@dimen/text_size_12" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_stats_metric_tile"
-            android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="10dp">
+            android:padding="8dp">
 
             <com.github.mikephil.charting.charts.PieChart
                 android:id="@+id/pie_chart"
                 android:layout_width="match_parent"
-                android:layout_height="236dp" />
+                android:layout_height="230dp" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="34dp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="10dp"
+            android:layout_height="32dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_stats_toggle_strip"
             android:orientation="horizontal"
             android:padding="3dp">
@@ -68,28 +61,31 @@
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_stats_toggle_selected"
                 android:gravity="center"
-                android:minWidth="86dp"
-                android:paddingHorizontal="16dp"
-                android:text="支出分类"
-                android:textColor="#202B3F"
-                android:textSize="@dimen/text_size_13" />
+                android:minWidth="84dp"
+                android:paddingHorizontal="14dp"
+                android:text="支出"
+                android:textColor="#111827"
+                android:textSize="@dimen/text_size_13"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/btn_category_income"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:minWidth="86dp"
-                android:paddingHorizontal="16dp"
-                android:text="收入分类"
-                android:textColor="#6D7890"
-                android:textSize="@dimen/text_size_13" />
+                android:minWidth="84dp"
+                android:paddingHorizontal="14dp"
+                android:text="收入"
+                android:textColor="#6B7280"
+                android:textSize="@dimen/text_size_13"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_category_list"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" />
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

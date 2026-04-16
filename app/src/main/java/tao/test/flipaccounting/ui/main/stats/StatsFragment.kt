@@ -11,6 +11,8 @@ import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -70,6 +72,8 @@ class StatsFragment : Fragment() {
 
     private lateinit var emptyStateContainer: View
     private lateinit var statsContentContainer: View
+    private lateinit var topPanel: View
+    private var topPanelBaseMarginTop: Int = 0
 
     private var isOverviewExpanded = false
 
@@ -158,6 +162,9 @@ class StatsFragment : Fragment() {
     }
 
     private fun initViews(root: View) {
+        topPanel = root.findViewById(R.id.stats_top_panel)
+        topPanelBaseMarginTop = (topPanel.layoutParams as ViewGroup.MarginLayoutParams).topMargin
+
         pieChart = root.findViewById(R.id.pie_chart)
 
         tvTotalExpense = root.findViewById(R.id.tv_total_expense)
@@ -192,6 +199,19 @@ class StatsFragment : Fragment() {
 
         setupPieChart()
         updateOverviewExpandState()
+        applyStatusBarInset(root)
+    }
+
+    private fun applyStatusBarInset(root: View) {
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val topInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            (topPanel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.topMargin = topPanelBaseMarginTop + topInset
+                topPanel.layoutParams = lp
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
     }
 
     private fun setupListeners(root: View) {
@@ -273,11 +293,11 @@ class StatsFragment : Fragment() {
     private fun updateButtonStyles(root: View, selectedId: Int, unselectedId: Int) {
         root.findViewById<TextView>(selectedId).apply {
             setBackgroundResource(R.drawable.bg_stats_toggle_selected)
-            setTextColor(Color.parseColor("#202B3F"))
+            setTextColor(Color.parseColor("#111827"))
         }
         root.findViewById<TextView>(unselectedId).apply {
             background = null
-            setTextColor(Color.parseColor("#6D7890"))
+            setTextColor(Color.parseColor("#6B7280"))
         }
     }
 
