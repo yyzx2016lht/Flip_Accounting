@@ -38,6 +38,16 @@
                 android:paddingEnd="8dp">
 
                 <TextView
+                    android:id="@+id/tv_btn_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:padding="4dp"
+                    android:text="搜索"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_16" />
+
+                <TextView
                     android:id="@+id/tv_btn_edit"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -57,6 +67,33 @@
                     android:textSize="@dimen/text_size_16" />
             </LinearLayout>
         </androidx.appcompat.widget.Toolbar>
+
+        <LinearLayout
+            android:id="@+id/layout_asset_search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone"
+            android:orientation="vertical">
+
+            <EditText
+                android:id="@+id/et_asset_bill_search"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_search_box"
+                android:hint="搜索金额/备注/分类/账户"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textColor="#333333"
+                android:textColorHint="#8892A0"
+                android:textSize="@dimen/text_size_14" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"

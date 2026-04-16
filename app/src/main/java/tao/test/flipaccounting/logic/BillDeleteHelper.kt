@@ -53,6 +53,7 @@ object BillDeleteHelper {
                         billDao.updateBill(original.copy(amount = restored, originalAmount = baseOriginal))
                     }
                 }
+                BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
                 billDao.delete(latestBill)
             }
 
@@ -65,6 +66,9 @@ object BillDeleteHelper {
             latestBill.type == Bill.TYPE_EXPENSE -> {
                 val refunds = billDao.getRefundBillsBySourceId(latestBill.id)
                 if (refunds.isNotEmpty()) {
+                    refunds.forEach { refund ->
+                        BillAssetImpactService.revertBillBalanceImpact(db, refund)
+                    }
                     billDao.delete(refunds)
                 }
                 BillAssetImpactService.revertBillBalanceImpact(db, latestBill)

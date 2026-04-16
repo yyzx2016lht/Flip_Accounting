@@ -160,6 +160,7 @@ class HomeFragment : Fragment() {
     private lateinit var vBannerGradient: View
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var ivCalendarView: ImageView
+    private lateinit var ivSearchBill: ImageView
     private lateinit var ivBookSwitcher: ImageView
     private lateinit var drawerBooks: DrawerLayout
     private lateinit var layoutBookDrawer: View
@@ -270,6 +271,7 @@ class HomeFragment : Fragment() {
         tvMonthBalance = view.findViewById(R.id.tvMonthBalance)
         tvMonthSelector = view.findViewById(R.id.tvMonthSelector)
         ivCalendarView = view.findViewById(R.id.ivCalendarView)
+        ivSearchBill = view.findViewById(R.id.ivSearchBill)
         ivBookSwitcher = view.findViewById(R.id.ivBookSwitcher)
         // tvChartTotal / tvChartTitle 已在 cvChartContainer inflate 时绑定，此处不再重复
         vBannerGradient = view.findViewById(R.id.vBannerGradient)
@@ -360,6 +362,12 @@ class HomeFragment : Fragment() {
             intent.putExtra("YEAR", selectedYear)
             intent.putExtra("MONTH", selectedMonth)
             intent.putExtra("BOOK_NAME", selectedBookName)
+            startActivity(intent)
+        }
+        ivSearchBill.setOnClickListener {
+            val intent = Intent(requireContext(), BillSearchActivity::class.java).apply {
+                putExtra(BillSearchActivity.EXTRA_SOURCE_BOOK, selectedBookName)
+            }
             startActivity(intent)
         }
 
@@ -952,6 +960,7 @@ class HomeFragment : Fragment() {
         // 图标
         androidx.core.widget.ImageViewCompat.setImageTintList(ivBookSwitcher, tintList)
         androidx.core.widget.ImageViewCompat.setImageTintList(ivCalendarView, tintList)
+        androidx.core.widget.ImageViewCompat.setImageTintList(ivSearchBill, tintList)
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -1527,7 +1536,8 @@ class HomeFragment : Fragment() {
             // 点击在顶栏子控件上（账本按钮、月份选择、日历）时，不拦截，交给子控件处理
             if (isTouchInsideView(event, ivBookSwitcher) ||
                 isTouchInsideView(event, tvMonthSelector) ||
-                isTouchInsideView(event, ivCalendarView)
+                isTouchInsideView(event, ivCalendarView) ||
+                isTouchInsideView(event, ivSearchBill)
             ) {
                 return@setOnTouchListener false
             }

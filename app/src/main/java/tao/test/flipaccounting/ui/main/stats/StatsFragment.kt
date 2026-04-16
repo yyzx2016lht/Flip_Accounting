@@ -318,6 +318,14 @@ class StatsFragment : Fragment() {
         tvTotalRepayment.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalRepayment)
         tvTotalRefund.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalRefund)
 
+        tvBalance.setTextColor(
+            when {
+                state.balance > 0 -> Color.parseColor("#237E4B")
+                state.balance < 0 -> Color.parseColor("#CF2F2F")
+                else -> Color.parseColor("#1F2D44")
+            }
+        )
+
         val hasData = state.bills.isNotEmpty()
         emptyStateContainer.visibility = if (hasData) View.GONE else View.VISIBLE
         statsContentContainer.visibility = if (hasData) View.VISIBLE else View.GONE

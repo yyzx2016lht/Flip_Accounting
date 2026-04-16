@@ -137,7 +137,15 @@ object BillMutationService {
                 "Original bill is not refundable"
             }
 
-            val oldRefundAmount = previousRefundBill?.amount ?: 0.0
+            val existingRefund = when {
+                previousRefundBill != null -> {
+                    db.billDao().getBillById(previousRefundBill.id) ?: previousRefundBill
+                }
+                refundBill.id > 0L -> db.billDao().getBillById(refundBill.id)
+                else -> null
+            }
+
+            val oldRefundAmount = existingRefund?.amount ?: 0.0
             val delta = refundBill.amount - oldRefundAmount
             require(delta <= latestOriginal.amount + 1e-9) {
                 "Refund amount exceeds remaining expense"
@@ -154,7 +162,7 @@ object BillMutationService {
 
             val sourceCategory = stripRefundPrefix(latestOriginal.categoryName)
             val normalizedRefundBill = refundBill.copy(
-                id = previousRefundBill?.id ?: refundBill.id,
+                id = existingRefund?.id ?: refundBill.id,
                 type = Bill.TYPE_INCOME,
                 subType = Bill.SUBTYPE_REFUND,
                 categoryId = latestOriginal.categoryId,
@@ -167,12 +175,17 @@ object BillMutationService {
             )
 
             // 编辑已有退款账单时用 updateBill，新建时才用 insertBill
-            if (normalizedRefundBill.id > 0L) {
+            validateRequiredRatesForBill(db, normalizedRefundBill)
+            existingRefund?.let { BillAssetImpactService.revertBillBalanceImpact(db, it) }
+
+            val savedRefundBill = if (normalizedRefundBill.id > 0L) {
                 db.billDao().updateBill(normalizedRefundBill)
                 normalizedRefundBill
             } else {
                 normalizedRefundBill.copy(id = db.billDao().insertBill(normalizedRefundBill))
             }
+            BillAssetImpactService.applyBillBalanceImpact(db, savedRefundBill)
+            savedRefundBill
         }
     }
 

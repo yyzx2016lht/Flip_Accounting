@@ -1,85 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="18dp"
-    android:layout_marginTop="18dp"
-    app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp">
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginTop="14dp"
+    app:cardBackgroundColor="#FCFDFF"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:strokeColor="#DCE5F4"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="收支总览"
-            android:textColor="#222222"
-            android:textSize="@dimen/text_size_16"
-            android:textStyle="bold" />
+        android:padding="18dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:baselineAligned="false"
+            android:gravity="center"
             android:orientation="horizontal">
 
-            <LinearLayout
-                android:layout_width="0dp"
+            <View
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:background="@drawable/shape_circle_blue_light" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="支出"
-                    android:textColor="#888888"
-                    android:textSize="@dimen/text_size_13" />
-
-                <TextView
-                    android:id="@+id/tv_total_expense"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="¥0.00"
-                    android:textColor="#222222"
-                    android:textSize="@dimen/text_size_20"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="收入"
-                    android:textColor="#888888"
-                    android:textSize="@dimen/text_size_13" />
-
-                <TextView
-                    android:id="@+id/tv_total_income"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="¥0.00"
-                    android:textColor="#222222"
-                    android:textSize="@dimen/text_size_20"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                android:layout_marginStart="6dp"
+                android:text="收支总览"
+                android:textColor="#1F2D44"
+                android:textSize="@dimen/text_size_16"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <LinearLayout
@@ -93,14 +49,81 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_stats_metric_tile"
                 android:gravity="center"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingVertical="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="支出"
+                    android:textColor="#8A95A8"
+                    android:textSize="@dimen/text_size_13" />
+
+                <TextView
+                    android:id="@+id/tv_total_expense"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="¥0.00"
+                    android:textColor="#CF2F2F"
+                    android:textSize="@dimen/text_size_20"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_stats_metric_tile"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingVertical="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="收入"
+                    android:textColor="#8A95A8"
+                    android:textSize="@dimen/text_size_13" />
+
+                <TextView
+                    android:id="@+id/tv_total_income"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="¥0.00"
+                    android:textColor="#237E4B"
+                    android:textSize="@dimen/text_size_20"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_stats_metric_tile"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingVertical="10dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="结余"
-                    android:textColor="#888888"
+                    android:textColor="#8A95A8"
                     android:textSize="@dimen/text_size_13" />
 
                 <TextView
@@ -109,7 +132,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="¥0.00"
-                    android:textColor="#222222"
+                    android:textColor="#1F2D44"
                     android:textSize="@dimen/text_size_16"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -118,14 +141,17 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_stats_metric_tile"
                 android:gravity="center"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingVertical="10dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="日均支出"
-                    android:textColor="#888888"
+                    android:textColor="#8A95A8"
                     android:textSize="@dimen/text_size_13" />
 
                 <TextView
@@ -134,7 +160,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="¥0.00"
-                    android:textColor="#222222"
+                    android:textColor="#1F2D44"
                     android:textSize="@dimen/text_size_16"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -149,7 +175,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:baselineAligned="false"
                 android:orientation="horizontal">
 
@@ -158,18 +184,20 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_stats_metric_tile"
                     android:clickable="true"
                     android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="6dp">
+                    android:paddingVertical="10dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="转账"
-                        android:textColor="#888888"
+                        android:textColor="#8A95A8"
                         android:textSize="@dimen/text_size_13" />
 
                     <TextView
@@ -178,7 +206,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="¥0.00"
-                        android:textColor="#222222"
+                        android:textColor="#1F2D44"
                         android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -188,18 +216,20 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_stats_metric_tile"
                     android:clickable="true"
                     android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="6dp">
+                    android:paddingVertical="10dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="信用卡还款"
-                        android:textColor="#888888"
+                        android:textColor="#8A95A8"
                         android:textSize="@dimen/text_size_13" />
 
                     <TextView
@@ -208,7 +238,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="¥0.00"
-                        android:textColor="#222222"
+                        android:textColor="#1F2D44"
                         android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -217,7 +247,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
                 android:baselineAligned="false"
                 android:orientation="horizontal">
 
@@ -226,18 +256,20 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_stats_metric_tile"
                     android:clickable="true"
                     android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="6dp">
+                    android:paddingVertical="10dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="退款"
-                        android:textColor="#888888"
+                        android:textColor="#8A95A8"
                         android:textSize="@dimen/text_size_13" />
 
                     <TextView
@@ -246,7 +278,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="¥0.00"
-                        android:textColor="#222222"
+                        android:textColor="#1F2D44"
                         android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -266,7 +298,7 @@
             android:layout_marginTop="10dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_chevron_down_small"
-            app:tint="#C5CAD3" />
+            app:tint="#A7B1C3" />
 
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

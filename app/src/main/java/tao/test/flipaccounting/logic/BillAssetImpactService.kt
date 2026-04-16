@@ -16,7 +16,6 @@ object BillAssetImpactService {
 
     suspend fun applyBillBalanceImpact(db: AppDatabase, bill: Bill) {
         when {
-            bill.subType == Bill.SUBTYPE_REFUND -> return
             bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT || bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> return
             bill.type == Bill.TYPE_EXPENSE -> {
                 val asset = resolveSourceAsset(db, bill) ?: return
@@ -49,7 +48,6 @@ object BillAssetImpactService {
 
     suspend fun revertBillBalanceImpact(db: AppDatabase, bill: Bill) {
         when {
-            bill.subType == Bill.SUBTYPE_REFUND -> return
             bill.type == Bill.TYPE_EXPENSE -> {
                 val asset = resolveSourceAsset(db, bill) ?: return
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)

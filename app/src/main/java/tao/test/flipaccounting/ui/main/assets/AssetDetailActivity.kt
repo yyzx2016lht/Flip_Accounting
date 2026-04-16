@@ -4,9 +4,12 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -51,11 +54,17 @@ class AssetDetailActivity : AppCompatActivity() {
 
     private lateinit var tvBalance: TextView
     private lateinit var tvToolbarAssetName: TextView
+    private lateinit var tvBtnSearch: TextView
+    private lateinit var layoutAssetSearchBar: View
+    private lateinit var etAssetBillSearch: EditText
     private lateinit var rvTransactions: RecyclerView
     private lateinit var adapter: TransactionAdapter
 
     private var assetId: Long = -1
     private var currentAsset: Asset? = null
+    private var allAssetBills: List<Bill> = emptyList()
+    private var assetSearchKeyword: String = ""
+    private var isAssetSearchMode: Boolean = false
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val assetRepository by lazy { AssetRepository(db.assetDao(), db.billDao(), db) }
     private val dfDetailTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -86,12 +95,18 @@ class AssetDetailActivity : AppCompatActivity() {
     private fun initViews() {
         tvBalance = findViewById(R.id.tv_asset_balance)
         tvToolbarAssetName = findViewById(R.id.tv_toolbar_asset_name)
+        tvBtnSearch = findViewById(R.id.tv_btn_search)
+        layoutAssetSearchBar = findViewById(R.id.layout_asset_search_bar)
+        etAssetBillSearch = findViewById(R.id.et_asset_bill_search)
         rvTransactions = findViewById(R.id.rv_transactions)
 
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         toolbar.setNavigationOnClickListener { finish() }
         toolbar.title = ""
 
+        tvBtnSearch.setOnClickListener {
+            handleAssetSearchClick()
+        }
         findViewById<View>(R.id.tv_btn_edit).setOnClickListener {
             val intent = Intent(this, AddAssetActivity::class.java)
             intent.putExtra("ASSET_ID", assetId)
@@ -105,6 +120,15 @@ class AssetDetailActivity : AppCompatActivity() {
         rvTransactions.layoutManager = LinearLayoutManager(this)
         adapter = TransactionAdapter()
         rvTransactions.adapter = adapter
+        etAssetBillSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                if (!isAssetSearchMode) return
+                applyAssetBillSearch(s?.toString().orEmpty())
+            }
+        })
+        refreshAssetSearchButton()
 
         val fabAddBill = findViewById<FloatingActionButton>(R.id.fab_add_bill)
         fabAddBill.setOnClickListener {
@@ -126,7 +150,8 @@ class AssetDetailActivity : AppCompatActivity() {
             }
             val assetName = currentAsset?.name.orEmpty()
             db.billDao().getBillsByAssetIdOrName(assetId, assetName).collectLatest { bills ->
-                adapter.submitList(bills)
+                allAssetBills = bills
+                adapter.submitList(filterAssetBillsByKeyword(bills))
             }
         }
     }
@@ -134,6 +159,72 @@ class AssetDetailActivity : AppCompatActivity() {
     private fun updateAssetUI(asset: Asset) {
         tvToolbarAssetName.text = asset.name
         tvBalance.text = CurrencyUtils.formatAmount(asset.balance, asset.currency)
+    }
+
+    private fun handleAssetSearchClick() {
+        if (!isAssetSearchMode) {
+            isAssetSearchMode = true
+            layoutAssetSearchBar.visibility = View.VISIBLE
+            etAssetBillSearch.requestFocus()
+            etAssetBillSearch.setText(assetSearchKeyword)
+            etAssetBillSearch.setSelection(etAssetBillSearch.text.length)
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.showSoftInput(etAssetBillSearch, InputMethodManager.SHOW_IMPLICIT)
+            refreshAssetSearchButton()
+            return
+        }
+
+        if (assetSearchKeyword.isNotBlank()) {
+            etAssetBillSearch.setText("")
+            return
+        }
+
+        isAssetSearchMode = false
+        layoutAssetSearchBar.visibility = View.GONE
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.hideSoftInputFromWindow(etAssetBillSearch.windowToken, 0)
+        refreshAssetSearchButton()
+    }
+
+    private fun refreshAssetSearchButton() {
+        tvBtnSearch.text = if (!isAssetSearchMode) "搜索" else if (assetSearchKeyword.isBlank()) "关闭" else "清空"
+    }
+
+    private fun applyAssetBillSearch(rawKeyword: String) {
+        assetSearchKeyword = rawKeyword.trim()
+        refreshAssetSearchButton()
+        adapter.submitList(filterAssetBillsByKeyword(allAssetBills))
+    }
+
+    private fun filterAssetBillsByKeyword(source: List<Bill>): List<Bill> {
+        val keyword = assetSearchKeyword.lowercase(Locale.getDefault())
+        if (keyword.isBlank()) return source
+        val normalizedKeyword = keyword.replace(',', '.')
+
+        return source.filter { bill ->
+            val textMatched = listOf(
+                bill.remark,
+                bill.categoryName,
+                BillDisplayFormatter.stripRefundPrefix(bill.categoryName),
+                bill.accountName,
+                bill.toAccountName
+            ).any { text ->
+                text.isNotBlank() && text.lowercase(Locale.getDefault()).contains(keyword)
+            }
+            if (textMatched) return@filter true
+
+            val numericCandidates = listOf(
+                String.format(Locale.US, "%.2f", bill.amount),
+                bill.amount.toString(),
+                String.format(Locale.US, "%.2f", bill.originalAmount),
+                bill.originalAmount.toString(),
+                String.format(Locale.US, "%.2f", bill.amount * bill.exchangeRate)
+            )
+            numericCandidates.any { value ->
+                val v = value.lowercase(Locale.getDefault())
+                v.contains(keyword) || v.contains(normalizedKeyword)
+            }
+        }
     }
 
     private fun showAddBillForAsset() {
