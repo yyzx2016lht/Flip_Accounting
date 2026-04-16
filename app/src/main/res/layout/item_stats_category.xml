@@ -9,7 +9,8 @@
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
     android:orientation="vertical"
-    android:padding="10dp">
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="9dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,8 +20,8 @@
 
         <ImageView
             android:id="@+id/iv_category_icon"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:background="@drawable/bg_circle_soft"
             android:padding="6dp"
             android:src="@drawable/ic_placeholder" />
@@ -32,8 +33,8 @@
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:text="分类"
-            android:textColor="#1A1A1A"
-            android:textSize="@dimen/text_size_14"
+            android:textColor="#111827"
+            android:textSize="@dimen/text_size_13"
             android:textStyle="bold" />
 
         <TextView
@@ -41,10 +42,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_stats_metric_tile"
-            android:paddingHorizontal="8dp"
+            android:paddingHorizontal="7dp"
             android:paddingVertical="2dp"
             android:text="0.00%"
-            android:textColor="#6B6B6B"
+            android:textColor="#6B7280"
             android:textSize="@dimen/text_size_11" />
     </LinearLayout>
 
@@ -61,7 +62,7 @@
             android:layout_height="wrap_content"
             android:text="¥0.00"
             android:textColor="#1F2937"
-            android:textSize="@dimen/text_size_15"
+            android:textSize="@dimen/text_size_14"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -94,7 +95,7 @@
             android:layout_width="14dp"
             android:layout_height="14dp"
             android:src="@drawable/ic_chevron_right"
-            app:tint="#8A8A8A" />
+            app:tint="#9CA3AF" />
     </LinearLayout>
 
     <ProgressBar

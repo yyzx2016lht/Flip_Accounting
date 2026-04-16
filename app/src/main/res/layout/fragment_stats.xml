@@ -15,11 +15,11 @@
             android:id="@+id/stats_top_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="14dp"
+            android:layout_marginHorizontal="12dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_stats_hero_panel"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="12dp">
 
             <RelativeLayout
                 android:layout_width="match_parent"
@@ -33,7 +33,7 @@
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_money"
-                    app:tint="#1A1A1A" />
+                    app:tint="#1F2937" />
 
                 <TextView
                     android:id="@+id/tv_title"
@@ -41,8 +41,8 @@
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
                     android:text="统计"
-                    android:textColor="#1A1A1A"
-                    android:textSize="@dimen/text_size_18"
+                    android:textColor="#111827"
+                    android:textSize="@dimen/text_size_17"
                     android:textStyle="bold" />
 
                 <ImageView
@@ -53,7 +53,7 @@
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_shaixuan"
-                    app:tint="#1A1A1A" />
+                    app:tint="#1F2937" />
             </RelativeLayout>
 
             <LinearLayout
@@ -70,33 +70,33 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="9dp"
                     android:src="@drawable/ic_chevron_left"
-                    app:tint="#4B4B4B" />
+                    app:tint="#4B5563" />
 
                 <LinearLayout
                     android:id="@+id/layout_date_selector"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
+                    android:layout_height="34dp"
                     android:layout_marginHorizontal="8dp"
                     android:background="@drawable/bg_stats_date_capsule"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="14dp">
+                    android:paddingHorizontal="12dp">
 
                     <TextView
                         android:id="@+id/tv_date_selector"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2026-03"
-                        android:textColor="#1A1A1A"
-                        android:textSize="@dimen/text_size_17"
+                        android:textColor="#111827"
+                        android:textSize="@dimen/text_size_15"
                         android:textStyle="bold" />
 
                     <ImageView
                         android:layout_width="14dp"
                         android:layout_height="14dp"
-                        android:layout_marginStart="5dp"
+                        android:layout_marginStart="4dp"
                         android:src="@drawable/ic_chevron_down"
-                        app:tint="#5C5C5C" />
+                        app:tint="#6B7280" />
                 </LinearLayout>
 
                 <ImageView
@@ -106,14 +106,14 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="9dp"
                     android:src="@drawable/ic_chevron_right"
-                    app:tint="#4B4B4B" />
+                    app:tint="#4B5563" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="14dp"
+            android:layout_marginHorizontal="12dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/bg_stats_toggle_strip"
             android:orientation="horizontal"
@@ -122,23 +122,23 @@
             <TextView
                 android:id="@+id/btn_mode_month"
                 android:layout_width="0dp"
-                android:layout_height="34dp"
+                android:layout_height="32dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_stats_toggle_selected"
                 android:gravity="center"
                 android:text="月视图"
-                android:textColor="#FFFFFF"
+                android:textColor="#111827"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/btn_mode_year"
                 android:layout_width="0dp"
-                android:layout_height="34dp"
+                android:layout_height="32dp"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="年视图"
-                android:textColor="#5C5C5C"
+                android:textColor="#6B7280"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -148,7 +148,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingBottom="18dp"
+        android:paddingBottom="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -172,7 +172,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="没有可统计的数据"
-                    android:textColor="#8A8A8A"
+                    android:textColor="#9CA3AF"
                     android:textSize="@dimen/text_size_14" />
             </LinearLayout>
 
