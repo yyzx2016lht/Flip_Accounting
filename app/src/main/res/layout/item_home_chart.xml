@@ -1,25 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cvChartContainer"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginStart="16dp"
     android:layout_marginEnd="16dp"
-    android:layout_marginTop="8dp"
-    android:layout_marginBottom="8dp"
+    android:layout_marginTop="10dp"
+    android:layout_marginBottom="10dp"
     app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="16dp"
+    app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
-    app:cardUseCompatPadding="false">
+    app:strokeColor="#E5ECF8"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="10dp">
+        android:paddingHorizontal="18dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="14dp">
 
         <RelativeLayout
             android:layout_width="match_parent"
@@ -36,40 +37,40 @@
                     android:id="@+id/tvChartTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="最近7日支出"
-                    android:textColor="#1A1A1A"
-                    android:textSize="@dimen/text_size_16"
+                    android:text="Spending Trend"
+                    android:textColor="#1A2744"
+                    android:textSize="@dimen/text_size_17"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvChartTotal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="总计: 0.00"
-                    android:textColor="#999999"
+                    android:layout_marginTop="4dp"
+                    android:text="Total: 0.00"
+                    android:textColor="#6D7B92"
                     android:textSize="@dimen/text_size_13" />
             </LinearLayout>
 
             <ImageView
                 android:id="@+id/ivChartSettings"
-                android:layout_width="@dimen/icon_size_40"
-                android:layout_height="@dimen/icon_size_40"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:background="@drawable/bg_home_chart_menu_button"
                 android:clickable="true"
                 android:contentDescription="Settings"
                 android:focusable="true"
-                android:padding="8dp"
+                android:padding="9dp"
                 android:src="@drawable/ic_more_heng"
-                app:tint="#AAAAAA" />
+                app:tint="#6F7F97" />
         </RelativeLayout>
 
         <com.github.mikephil.charting.charts.BarChart
             android:id="@+id/barChart"
             android:layout_width="match_parent"
-            android:layout_height="130dp"
-            android:layout_marginTop="8dp" />
+            android:layout_height="142dp"
+            android:layout_marginTop="12dp" />
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>
