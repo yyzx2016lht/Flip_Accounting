@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -29,6 +30,7 @@ class CategoryStatsAdapter(
 
     /** 分类名 → 颜色映射，由 StatsFragment 在更新饼图时同步传入 */
     private var colorMap: Map<String, Int> = emptyMap()
+    private var pinnedCategory: String? = null
 
     fun setColors(colors: List<Int>) {
         chartColors = colors
@@ -42,7 +44,35 @@ class CategoryStatsAdapter(
         items = newItems
         this.isExpense = isExpense
         this.currencySymbol = currencySymbol
+        if (pinnedCategory != null && newItems.none { it.categoryName == pinnedCategory }) {
+            pinnedCategory = null
+        }
         notifyDataSetChanged()
+    }
+
+    fun findPositionByCategory(categoryName: String): Int =
+        displayItems().indexOfFirst { it.categoryName == categoryName }
+
+    fun pinCategory(categoryName: String) {
+        if (items.none { it.categoryName == categoryName }) return
+        pinnedCategory = categoryName
+        notifyDataSetChanged()
+    }
+
+    fun clearPinCategory() {
+        if (pinnedCategory == null) return
+        pinnedCategory = null
+        notifyDataSetChanged()
+    }
+
+    private fun displayItems(): List<CategoryStat> {
+        val pinned = pinnedCategory ?: return items
+        val index = items.indexOfFirst { it.categoryName == pinned }
+        if (index <= 0) return items
+        val mutable = items.toMutableList()
+        val selected = mutable.removeAt(index)
+        mutable.add(0, selected)
+        return mutable
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -53,7 +83,8 @@ class CategoryStatsAdapter(
         val tvAmount: TextView = view.findViewById(R.id.tv_category_amount)
         val ivArrow: ImageView = view.findViewById(R.id.iv_comparison_arrow)
         val tvComparison: TextView = view.findViewById(R.id.tv_comparison_amount)
-        val comparisonContainer: View = view.findViewById(R.id.ll_comparison)
+        val comparisonContainer: LinearLayout = view.findViewById(R.id.ll_comparison)
+        val divider: View = view.findViewById(R.id.view_item_divider)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -62,7 +93,7 @@ class CategoryStatsAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val stat = items[position]
+        val stat = displayItems()[position]
 
         holder.itemView.visibility = View.VISIBLE
         holder.itemView.layoutParams = RecyclerView.LayoutParams(
@@ -99,15 +130,20 @@ class CategoryStatsAdapter(
         }
         holder.ivIcon.setColorFilter(Color.WHITE)
 
+        holder.divider.visibility = if (position == itemCount - 1) View.GONE else View.VISIBLE
+        holder.itemView.setBackgroundColor(Color.TRANSPARENT)
+        holder.itemView.alpha = 1f
+
         when {
             stat.amountDiffFromLastPeriod > 0 -> {
                 holder.comparisonContainer.visibility = View.VISIBLE
-                holder.ivArrow.setImageResource(android.R.drawable.arrow_up_float)
-                holder.ivArrow.setColorFilter(Color.parseColor("#E53935"))
-                holder.tvComparison.setTextColor(Color.parseColor("#E53935"))
+                holder.comparisonContainer.setBackgroundResource(R.drawable.bg_stats_comparison_up)
+                holder.ivArrow.setImageResource(R.drawable.ic_trend_up)
+                holder.ivArrow.setColorFilter(Color.parseColor("#DC2626"))
+                holder.tvComparison.setTextColor(Color.parseColor("#DC2626"))
                 holder.tvComparison.text = String.format(
                     Locale.getDefault(),
-                    "%s%.2f",
+                    "+%s%.2f",
                     currencySymbol,
                     stat.amountDiffFromLastPeriod
                 )
@@ -115,12 +151,13 @@ class CategoryStatsAdapter(
 
             stat.amountDiffFromLastPeriod < 0 -> {
                 holder.comparisonContainer.visibility = View.VISIBLE
-                holder.ivArrow.setImageResource(android.R.drawable.arrow_down_float)
-                holder.ivArrow.setColorFilter(Color.parseColor("#4CAF50"))
-                holder.tvComparison.setTextColor(Color.parseColor("#4CAF50"))
+                holder.comparisonContainer.setBackgroundResource(R.drawable.bg_stats_comparison_down)
+                holder.ivArrow.setImageResource(R.drawable.ic_trend_down)
+                holder.ivArrow.setColorFilter(Color.parseColor("#059669"))
+                holder.tvComparison.setTextColor(Color.parseColor("#059669"))
                 holder.tvComparison.text = String.format(
                     Locale.getDefault(),
-                    "%s%.2f",
+                    "-%s%.2f",
                     currencySymbol,
                     abs(stat.amountDiffFromLastPeriod)
                 )
@@ -134,5 +171,5 @@ class CategoryStatsAdapter(
         holder.itemView.setOnClickListener { onItemClick(stat.categoryName) }
     }
 
-    override fun getItemCount() = items.size
+    override fun getItemCount() = displayItems().size
 }

@@ -1958,9 +1958,8 @@ class HomeFragment : Fragment() {
         }
 
         // currentType: 0=expense, 1=income, 2=both
-        // hide value labels in both mode
-    // hide value labels in both mode; additionally hide when time range is 15-day (currentTimeRange == 1)
-    val shouldDrawValues = (currentType != 2) && (currentTimeRange != 1)
+        // Hide value labels in both mode; additionally hide in 15-day mode.
+        val shouldDrawValues = (currentType != 2) && (currentTimeRange != 1)
 
         if (currentType == 0 || currentType == 2) {
             val setExpense = BarDataSet(expenseEntries, "\u652f\u51fa").apply {
@@ -1986,12 +1985,12 @@ class HomeFragment : Fragment() {
 
         val barData = BarData(dataSets.toList() as List<com.github.mikephil.charting.interfaces.datasets.IBarDataSet>)
 
-    // must set data before groupBars()
+        // must set data before groupBars()
         barChart.data = barData
 
-    // Set renderer rounding style based on time range: 7-day and 本周 -> capsule (fullRound=true),
-    // 15-day -> top-rounded only (fullRound=false), other ranges keep top-rounded.
-    roundedBarChartRenderer?.fullRound = (currentTimeRange == 0 || currentTimeRange == 2)
+        // Set renderer rounding style based on time range: 7-day and 本周 -> capsule (fullRound=true),
+        // 15-day -> top-rounded only (fullRound=false), other ranges keep top-rounded.
+        roundedBarChartRenderer?.fullRound = (currentTimeRange == 0 || currentTimeRange == 2)
 
         if (currentType == 2) {
             // make bars thinner; for 7-day (currentTimeRange==0) use an extra-thin style

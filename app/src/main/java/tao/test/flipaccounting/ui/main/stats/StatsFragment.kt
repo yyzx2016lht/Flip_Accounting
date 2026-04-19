@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
@@ -22,10 +23,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
-import com.github.mikephil.charting.formatter.PercentFormatter
+import com.github.mikephil.charting.highlight.Highlight
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +44,9 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 class StatsFragment : Fragment() {
 
@@ -52,6 +58,7 @@ class StatsFragment : Fragment() {
     }
 
     private lateinit var pieChart: PieChart
+    private lateinit var rvCategoryList: RecyclerView
     private lateinit var categoryAdapter: CategoryStatsAdapter
     private var isCategoryExpense = true
 
@@ -63,12 +70,23 @@ class StatsFragment : Fragment() {
     private lateinit var tvTotalRepayment: TextView
     private lateinit var tvTotalRefund: TextView
     private lateinit var tvDateSelector: TextView
+    private lateinit var tvDailyAvgLabel: TextView
+    private lateinit var btnModeMonth: TextView
+    private lateinit var btnModeYear: TextView
+    private lateinit var btnCategoryExpense: TextView
+    private lateinit var btnCategoryIncome: TextView
+    private lateinit var indicatorModeMonth: View
+    private lateinit var indicatorModeYear: View
+    private lateinit var indicatorCategoryExpense: View
+    private lateinit var indicatorCategoryIncome: View
 
     private lateinit var rowTransfer: View
     private lateinit var rowRepayment: View
     private lateinit var rowRefund: View
     private lateinit var layoutOverviewExtra: View
     private lateinit var ivOverviewExpand: View
+    private lateinit var btnPrevDate: ImageView
+    private lateinit var btnNextDate: ImageView
 
     private lateinit var emptyStateContainer: View
     private lateinit var statsContentContainer: View
@@ -76,6 +94,7 @@ class StatsFragment : Fragment() {
     private var topPanelBaseMarginTop: Int = 0
 
     private var isOverviewExpanded = false
+    private var lastModeIsMonth: Boolean? = null
 
     private val chartColors = listOf(
         "#FF9800", "#FF5722", "#00C853", "#8BC34A", "#2196F3", "#03A9F4", "#9C27B0", "#E91E63"
@@ -175,17 +194,28 @@ class StatsFragment : Fragment() {
         tvTotalRepayment = root.findViewById(R.id.tv_total_repayment)
         tvTotalRefund = root.findViewById(R.id.tv_total_refund)
         tvDateSelector = root.findViewById(R.id.tv_date_selector)
+        tvDailyAvgLabel = root.findViewById(R.id.tv_daily_avg_label)
+        btnModeMonth = root.findViewById(R.id.btn_mode_month)
+        btnModeYear = root.findViewById(R.id.btn_mode_year)
+        btnCategoryExpense = root.findViewById(R.id.btn_category_expense)
+        btnCategoryIncome = root.findViewById(R.id.btn_category_income)
+        indicatorModeMonth = root.findViewById(R.id.indicator_mode_month)
+        indicatorModeYear = root.findViewById(R.id.indicator_mode_year)
+        indicatorCategoryExpense = root.findViewById(R.id.indicator_category_expense)
+        indicatorCategoryIncome = root.findViewById(R.id.indicator_category_income)
 
         rowTransfer = root.findViewById(R.id.row_total_transfer)
         rowRepayment = root.findViewById(R.id.row_total_repayment)
         rowRefund = root.findViewById(R.id.row_total_refund)
         layoutOverviewExtra = root.findViewById(R.id.layout_overview_extra)
         ivOverviewExpand = root.findViewById(R.id.iv_overview_expand)
+        btnPrevDate = root.findViewById(R.id.btn_prev_date)
+        btnNextDate = root.findViewById(R.id.btn_next_date)
 
         emptyStateContainer = root.findViewById(R.id.empty_state_container)
         statsContentContainer = root.findViewById(R.id.stats_content_container)
 
-        val rvCategoryList = root.findViewById<RecyclerView>(R.id.rv_category_list)
+        rvCategoryList = root.findViewById(R.id.rv_category_list)
         rvCategoryList.layoutManager = LinearLayoutManager(context)
         categoryAdapter = CategoryStatsAdapter(
             chartColors = chartColors,
@@ -223,33 +253,29 @@ class StatsFragment : Fragment() {
             showCustomFilterSheet()
         }
 
-        root.findViewById<View>(R.id.btn_category_expense).setOnClickListener {
+        btnCategoryExpense.setOnClickListener {
             isCategoryExpense = true
-            updateButtonStyles(root, R.id.btn_category_expense, R.id.btn_category_income)
             updateUI(viewModel.uiState.value)
         }
 
-        root.findViewById<View>(R.id.btn_category_income).setOnClickListener {
+        btnCategoryIncome.setOnClickListener {
             isCategoryExpense = false
-            updateButtonStyles(root, R.id.btn_category_income, R.id.btn_category_expense)
             updateUI(viewModel.uiState.value)
         }
 
-        root.findViewById<View>(R.id.btn_mode_month).setOnClickListener {
+        btnModeMonth.setOnClickListener {
             viewModel.setMode(true)
-            updateButtonStyles(root, R.id.btn_mode_month, R.id.btn_mode_year)
         }
 
-        root.findViewById<View>(R.id.btn_mode_year).setOnClickListener {
+        btnModeYear.setOnClickListener {
             viewModel.setMode(false)
-            updateButtonStyles(root, R.id.btn_mode_year, R.id.btn_mode_month)
         }
 
-        root.findViewById<View>(R.id.btn_prev_date).setOnClickListener {
+        btnPrevDate.setOnClickListener {
             viewModel.prevDate()
         }
 
-        root.findViewById<View>(R.id.btn_next_date).setOnClickListener {
+        btnNextDate.setOnClickListener {
             viewModel.nextDate()
         }
 
@@ -290,15 +316,18 @@ class StatsFragment : Fragment() {
         }
     }
 
-    private fun updateButtonStyles(root: View, selectedId: Int, unselectedId: Int) {
-        root.findViewById<TextView>(selectedId).apply {
-            setBackgroundResource(R.drawable.bg_stats_toggle_selected)
-            setTextColor(Color.parseColor("#111827"))
-        }
-        root.findViewById<TextView>(unselectedId).apply {
-            background = null
-            setTextColor(Color.parseColor("#6B7280"))
-        }
+    private fun updateModeTabStyles(isMonthMode: Boolean) {
+        btnModeMonth.setTextColor(Color.parseColor(if (isMonthMode) "#111827" else "#6B7280"))
+        btnModeYear.setTextColor(Color.parseColor(if (isMonthMode) "#6B7280" else "#111827"))
+        indicatorModeMonth.setBackgroundColor(Color.parseColor(if (isMonthMode) "#111827" else "#00000000"))
+        indicatorModeYear.setBackgroundColor(Color.parseColor(if (isMonthMode) "#00000000" else "#111827"))
+    }
+
+    private fun updateCategoryTabStyles(isExpenseTab: Boolean) {
+        btnCategoryExpense.setTextColor(Color.parseColor(if (isExpenseTab) "#111827" else "#6B7280"))
+        btnCategoryIncome.setTextColor(Color.parseColor(if (isExpenseTab) "#6B7280" else "#111827"))
+        indicatorCategoryExpense.setBackgroundColor(Color.parseColor(if (isExpenseTab) "#111827" else "#00000000"))
+        indicatorCategoryIncome.setBackgroundColor(Color.parseColor(if (isExpenseTab) "#00000000" else "#111827"))
     }
 
     private fun updateOverviewExpandState() {
@@ -320,6 +349,7 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateUI(state: StatsUiState) {
+        val modeChanged = lastModeIsMonth != null && lastModeIsMonth != state.isMonthMode
         val symbol = state.selectedCurrency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
 
         tvDateSelector.text = if (state.dateLabel.isNotBlank()) {
@@ -333,10 +363,21 @@ class StatsFragment : Fragment() {
         tvTotalExpense.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalExpense)
         tvTotalIncome.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalIncome)
         tvBalance.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.balance)
-        tvDailyAvg.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.dailyAvg)
+        val avgLabel = if (state.isMonthMode) "日均支出" else "月均支出"
+        val avgValue = state.dailyAvg
+        tvDailyAvgLabel.text = avgLabel
+        tvDailyAvg.text = String.format(Locale.getDefault(), "%s%.2f", symbol, avgValue)
         tvTotalTransfer.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalTransfer)
         tvTotalRepayment.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalRepayment)
         tvTotalRefund.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalRefund)
+        btnPrevDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_left else R.drawable.ic_chevrons_left)
+        btnNextDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_right else R.drawable.ic_chevrons_right)
+        btnPrevDate.contentDescription = if (state.isMonthMode) "上个月" else "上一年"
+        btnNextDate.contentDescription = if (state.isMonthMode) "下个月" else "下一年"
+        updateModeTabStyles(state.isMonthMode)
+        updateCategoryTabStyles(isCategoryExpense)
+        if (modeChanged) playModeSwitchAnimation()
+        lastModeIsMonth = state.isMonthMode
 
         tvBalance.setTextColor(
             when {
@@ -356,15 +397,50 @@ class StatsFragment : Fragment() {
         categoryAdapter.submitList(list, isCategoryExpense, symbol)
     }
 
+    private fun playModeSwitchAnimation() {
+        val targets = listOf<View>(tvDateSelector, pieChart, statsContentContainer)
+        targets.forEach { v ->
+            v.animate().cancel()
+            v.alpha = 0.62f
+            v.translationY = 8f
+            v.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(180L)
+                .start()
+        }
+    }
+
     private fun setupPieChart() {
         pieChart.description.isEnabled = false
         pieChart.legend.isEnabled = false
         pieChart.isDrawHoleEnabled = true
         pieChart.setHoleColor(Color.TRANSPARENT)
         pieChart.setUsePercentValues(true)
-        pieChart.setExtraOffsets(27f, 20f, 27f, 20f)
+        pieChart.setTransparentCircleAlpha(0)
+        pieChart.holeRadius = 58f
+        pieChart.rotationAngle = 270f
+        pieChart.isRotationEnabled = true
+        pieChart.setEntryLabelColor(Color.TRANSPARENT)
+        pieChart.setExtraOffsets(22f, 18f, 22f, 18f)
         pieChart.setNoDataText("暂无图表数据")
         pieChart.setNoDataTextColor(Color.parseColor("#9AA0A6"))
+        pieChart.setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: Highlight?) {
+                val label = (e as? PieEntry)?.label ?: return
+                val index = categoryAdapter.findPositionByCategory(label)
+                if (index >= 0) {
+                    categoryAdapter.pinCategory(label)
+                    (rvCategoryList.layoutManager as? LinearLayoutManager)
+                        ?.scrollToPositionWithOffset(0, 0)
+                    rvCategoryList.post { rvCategoryList.smoothScrollToPosition(0) }
+                }
+            }
+
+            override fun onNothingSelected() {
+                categoryAdapter.clearPinCategory()
+            }
+        })
     }
 
     private fun updateCategoryChart(state: StatsUiState) {
@@ -377,21 +453,34 @@ class StatsFragment : Fragment() {
                 stat.categoryName to chartColors[i % chartColors.size]
             }.toMap()
 
-            // 饼图数据从小到大排序，颜色按名字查映射，保证与列表一致
+            // 不做 TopN 裁剪：尽量全部显示，仅隐藏占比 < 2% 的分类
             val filteredStats = targetStats.filter { it.percentage >= 2f }.sortedBy { it.amount }
+            if (filteredStats.isEmpty()) {
+                pieChart.clear()
+                pieChart.setNoDataText("暂无占比≥2%的分类")
+                pieChart.invalidate()
+                categoryAdapter.setColorMap(colorByName)
+                return
+            }
             val pieEntries = filteredStats.map { PieEntry(it.amount.toFloat(), it.categoryName) }
             val sliceColors = filteredStats.map { colorByName[it.categoryName] ?: chartColors[0] }
+            val labelSize = when {
+                filteredStats.size >= 12 -> 7.5f
+                filteredStats.size >= 9 -> 8.0f
+                else -> 9.0f
+            }
 
             val pieDataSet = PieDataSet(pieEntries, "").apply {
                 colors = sliceColors
                 xValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
                 yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
                 valueLinePart1OffsetPercentage = 100f
-                valueLinePart1Length = 0.333f
-                valueLinePart2Length = 0.8f
+                valueLinePart1Length = if (filteredStats.size >= 10) 0.22f else 0.30f
+                valueLinePart2Length = if (filteredStats.size >= 10) 0.55f else 0.78f
+                selectionShift = 4f
                 setValueLineVariableLength(true)
                 setUsingSliceColorAsValueLineColor(true)
-                valueTextSize = 9f
+                valueTextSize = labelSize
                 setValueTextColors(sliceColors)
                 valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
                     override fun getFormattedValue(value: Float): String = ""
@@ -403,8 +492,15 @@ class StatsFragment : Fragment() {
             }
 
             pieChart.data = PieData(pieDataSet)
-            pieChart.centerText = if (isCategoryExpense) "支出比例" else "收入比例"
+            val visibleTotal = filteredStats.sumOf { it.amount }
+            val centerTitle = if (isCategoryExpense) "支出占比" else "收入占比"
+            val symbol = state.selectedCurrency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
+            pieChart.centerText = "$centerTitle\n${String.format(Locale.getDefault(), "%s%.2f", symbol, visibleTotal)}"
+            pieChart.rotationAngle = findBestInitialRotation(pieEntries.map { it.value })
+            pieChart.setCenterTextSize(12f)
+            pieChart.setCenterTextColor(Color.parseColor("#374151"))
             pieChart.setDrawEntryLabels(false)
+            pieChart.animateY(260)
 
             // 把颜色映射同步给列表 Adapter，使图标背景色/进度条颜色与饼图一致
             categoryAdapter.setColorMap(colorByName)
@@ -414,6 +510,55 @@ class StatsFragment : Fragment() {
 
         pieChart.legend.isEnabled = false
         pieChart.invalidate()
+    }
+
+    /**
+     * 在首次展示前自动选择一个标签更不容易重叠的角度。
+     * 原理：遍历候选角度，按左右两侧标签中心 y 值估算相邻拥挤程度，取最小值。
+     */
+    private fun findBestInitialRotation(values: List<Float>): Float {
+        if (values.size <= 2) return 270f
+        val total = values.sum().takeIf { it > 0f } ?: return 270f
+        val sweeps = values.map { it / total * 360f }
+
+        var bestAngle = 270f
+        var bestScore = Float.MAX_VALUE
+        for (candidate in 0 until 360 step 6) {
+            val score = computeOverlapScore(sweeps, candidate.toFloat(), minGap = 0.15f)
+            if (score < bestScore) {
+                bestScore = score
+                bestAngle = candidate.toFloat()
+            }
+        }
+        return bestAngle
+    }
+
+    private fun computeOverlapScore(sweeps: List<Float>, rotationAngle: Float, minGap: Float): Float {
+        var start = rotationAngle
+        val leftY = mutableListOf<Float>()
+        val rightY = mutableListOf<Float>()
+
+        sweeps.forEach { sweep ->
+            val center = start + sweep / 2f
+            val rad = Math.toRadians(center.toDouble())
+            val y = sin(rad).toFloat()
+            val x = cos(rad).toFloat()
+            if (x >= 0f) rightY.add(y) else leftY.add(y)
+            start += sweep
+        }
+
+        fun sideScore(points: List<Float>): Float {
+            if (points.size <= 1) return 0f
+            val sorted = points.sorted()
+            var score = 0f
+            for (i in 1 until sorted.size) {
+                val gap = sorted[i] - sorted[i - 1]
+                if (gap < minGap) score += (minGap - gap)
+            }
+            return score
+        }
+
+        return sideScore(leftY) + sideScore(rightY)
     }
 
     private fun showMonthYearPicker() {
@@ -525,6 +670,10 @@ class StatsFragment : Fragment() {
         val dialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.layout_stats_filter_sheet, null)
 
+        val chipToday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_today)
+        val chipYesterday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_yesterday)
+        val chipThisWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_week)
+        val chipLastWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_week)
         val chipThisMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_month)
         val chipLastMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_month)
         val chipThisYear = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_year)
@@ -546,13 +695,20 @@ class StatsFragment : Fragment() {
         var customEnd: Long? = null
         var selectedBook: String? = state.selectedBookName
         var availableBooks: List<String> = emptyList()
+        var suppressQuickSync = false
 
         fun clearQuickChips() {
+            suppressQuickSync = true
+            chipToday.isChecked = false
+            chipYesterday.isChecked = false
+            chipThisWeek.isChecked = false
+            chipLastWeek.isChecked = false
             chipThisMonth.isChecked = false
             chipLastMonth.isChecked = false
             chipThisYear.isChecked = false
             chipLastYear.isChecked = false
             chipAll.isChecked = false
+            suppressQuickSync = false
         }
 
         fun resetDateLabels() {
@@ -560,10 +716,131 @@ class StatsFragment : Fragment() {
             tvEnd.text = customEnd?.let { dfDateLabel.format(Date(it)) } ?: "\u9009\u62e9\u65e5\u671f"
         }
 
+        fun setDayStart(cal: Calendar) {
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+        }
+
+        fun setDayEnd(cal: Calendar) {
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
+        }
+
+        fun isQuickLabel(label: String?): Boolean {
+            return label == "\u4eca\u5929" ||
+                label == "\u6628\u5929" ||
+                label == "\u672c\u5468" ||
+                label == "\u4e0a\u5468" ||
+                label == "\u672c\u6708" ||
+                label == "\u4e0a\u6708" ||
+                label == "\u4eca\u5e74" ||
+                label == "\u53bb\u5e74" ||
+                label == "\u5168\u90e8"
+        }
+
+        fun updateCustomRangeByQuick(label: String) {
+            when (label) {
+                "\u4eca\u5929" -> {
+                    val cal = Calendar.getInstance()
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u6628\u5929" -> {
+                    val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u672c\u5468" -> {
+                    val cal = Calendar.getInstance().apply {
+                        firstDayOfWeek = Calendar.MONDAY
+                        set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.add(Calendar.DAY_OF_YEAR, 6)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u4e0a\u5468" -> {
+                    val cal = Calendar.getInstance().apply {
+                        firstDayOfWeek = Calendar.MONDAY
+                        set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                        add(Calendar.WEEK_OF_YEAR, -1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.add(Calendar.DAY_OF_YEAR, 6)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u672c\u6708" -> {
+                    val cal = Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH, 1) }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u4e0a\u6708" -> {
+                    val cal = Calendar.getInstance().apply {
+                        add(Calendar.MONTH, -1)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u4eca\u5e74" -> {
+                    val cal = Calendar.getInstance().apply {
+                        set(Calendar.MONTH, Calendar.JANUARY)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.MONTH, Calendar.DECEMBER)
+                    cal.set(Calendar.DAY_OF_MONTH, 31)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u53bb\u5e74" -> {
+                    val cal = Calendar.getInstance().apply {
+                        add(Calendar.YEAR, -1)
+                        set(Calendar.MONTH, Calendar.JANUARY)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.MONTH, Calendar.DECEMBER)
+                    cal.set(Calendar.DAY_OF_MONTH, 31)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u5168\u90e8" -> {
+                    customStart = null
+                    customEnd = null
+                }
+            }
+            resetDateLabels()
+        }
+
         tvBook.text = selectedBook ?: "\u5168\u90e8\u8d26\u672c"
         resetDateLabels()
 
         when (state.forcedLabel) {
+            "\u4eca\u5929" -> chipToday.isChecked = true
+            "\u6628\u5929" -> chipYesterday.isChecked = true
+            "\u672c\u5468" -> chipThisWeek.isChecked = true
+            "\u4e0a\u5468" -> chipLastWeek.isChecked = true
             "\u672c\u6708" -> chipThisMonth.isChecked = true
             "\u4e0a\u6708" -> chipLastMonth.isChecked = true
             "\u4eca\u5e74" -> chipThisYear.isChecked = true
@@ -574,8 +851,27 @@ class StatsFragment : Fragment() {
         if (state.forcedStartTime != null && state.forcedEndTime != null && state.forcedEndTime != Long.MAX_VALUE) {
             customStart = state.forcedStartTime
             customEnd = state.forcedEndTime
-            clearQuickChips()
+            if (!isQuickLabel(state.forcedLabel)) {
+                clearQuickChips()
+            }
             resetDateLabels()
+        }
+
+        listOf(
+            chipToday to "\u4eca\u5929",
+            chipYesterday to "\u6628\u5929",
+            chipThisWeek to "\u672c\u5468",
+            chipLastWeek to "\u4e0a\u5468",
+            chipThisMonth to "\u672c\u6708",
+            chipLastMonth to "\u4e0a\u6708",
+            chipThisYear to "\u4eca\u5e74",
+            chipLastYear to "\u53bb\u5e74",
+            chipAll to "\u5168\u90e8"
+        ).forEach { (chip, label) ->
+            chip.setOnCheckedChangeListener { _, isChecked ->
+                if (!isChecked || suppressQuickSync) return@setOnCheckedChangeListener
+                updateCustomRangeByQuick(label)
+            }
         }
 
         cardStart.setOnClickListener {
@@ -638,6 +934,10 @@ class StatsFragment : Fragment() {
 
         btnConfirm.setOnClickListener {
             when {
+                chipToday.isChecked -> viewModel.applyTodayFilter()
+                chipYesterday.isChecked -> viewModel.applyYesterdayFilter()
+                chipThisWeek.isChecked -> viewModel.applyThisWeekFilter()
+                chipLastWeek.isChecked -> viewModel.applyLastWeekFilter()
                 chipThisMonth.isChecked -> viewModel.applyThisMonthFilter()
                 chipLastMonth.isChecked -> viewModel.applyLastMonthFilter()
                 chipThisYear.isChecked -> viewModel.applyThisYearFilter()
@@ -720,7 +1020,9 @@ class StatsFragment : Fragment() {
             isExpense = isCategoryExpense,
             subStats = subStats,
             totalAmount = total,
-            colors = chartColors
+            colors = chartColors,
+            currencySymbol = viewModel.uiState.value.selectedCurrency
+                ?.let { CurrencyManager.getSymbol(it) } ?: "¥"
         ) { subCategory ->
             val bills = viewModel.getBillsForSubCategory(categoryName, subCategory, isCategoryExpense)
             if (bills.isEmpty()) {

@@ -3,14 +3,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="0dp"
     android:background="@drawable/bg_stats_list_item"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
     android:orientation="vertical"
-    android:paddingHorizontal="10dp"
-    android:paddingVertical="9dp">
+    android:paddingHorizontal="6dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -41,9 +42,6 @@
             android:id="@+id/tv_category_percent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_stats_metric_tile"
-            android:paddingHorizontal="7dp"
-            android:paddingVertical="2dp"
             android:text="0.00%"
             android:textColor="#6B7280"
             android:textSize="@dimen/text_size_11" />
@@ -67,29 +65,36 @@
 
         <LinearLayout
             android:id="@+id/ll_comparison"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:layout_weight="1"
+            android:background="@drawable/bg_stats_comparison_down"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingHorizontal="7dp"
+            android:paddingVertical="3dp">
 
             <ImageView
                 android:id="@+id/iv_comparison_arrow"
-                android:layout_width="@dimen/icon_size_10"
-                android:layout_height="@dimen/icon_size_10"
-                android:src="@android:drawable/arrow_up_float"
-                app:tint="#4CAF50" />
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/ic_trend_down"
+                app:tint="#059669" />
 
             <TextView
                 android:id="@+id/tv_comparison_amount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="1dp"
+                android:layout_marginStart="2dp"
                 android:text="¥0.00"
-                android:textColor="#4CAF50"
+                android:textColor="#059669"
                 android:textSize="@dimen/text_size_11" />
         </LinearLayout>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
 
         <ImageView
             android:layout_width="14dp"
@@ -103,9 +108,16 @@
         style="@android:style/Widget.ProgressBar.Horizontal"
         android:layout_width="match_parent"
         android:layout_height="5dp"
-        android:layout_marginTop="7dp"
+        android:layout_marginTop="8dp"
         android:max="100"
         android:progress="0"
         android:progressDrawable="@drawable/bg_stats_progress" />
+
+    <View
+        android:id="@+id/view_item_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:background="#EEF2F7" />
 
 </LinearLayout>

@@ -13,10 +13,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
+import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.formatter.ValueFormatter
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -36,6 +39,8 @@ import tao.test.flipaccounting.ui.activity.EditBillActivity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 
 class SubCategoryBottomSheet(
     private val title: String,
@@ -43,8 +48,12 @@ class SubCategoryBottomSheet(
     private val subStats: Map<String, Double>,
     private val totalAmount: Double,
     private val colors: List<Int>,
+    private val currencySymbol: String,
     private val onSubCategoryClick: (String) -> Unit
 ) : BottomSheetDialogFragment() {
+
+    private lateinit var rvSub: RecyclerView
+    private lateinit var categoryAdapter: CategoryStatsAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -68,14 +77,16 @@ class SubCategoryBottomSheet(
         val sortedCategoryNames = categoryStats.map { it.categoryName }
 
         val pieChart = root.findViewById<PieChart>(R.id.pie_chart_sub)
-        setupPieChart(pieChart)
-        updatePieChart(pieChart, sortedCategoryNames)
 
-        val rvSub = root.findViewById<RecyclerView>(R.id.rv_sub_categories)
+        rvSub = root.findViewById(R.id.rv_sub_categories)
         rvSub.layoutManager = LinearLayoutManager(context)
-        rvSub.adapter = CategoryStatsAdapter(colors, categoryStats, isExpense) {
+        categoryAdapter = CategoryStatsAdapter(colors, categoryStats, isExpense, currencySymbol) {
             onSubCategoryClick(it)
         }
+        rvSub.adapter = categoryAdapter
+
+        setupPieChart(pieChart)
+        updatePieChart(pieChart, sortedCategoryNames)
         return root
     }
 
@@ -84,37 +95,74 @@ class SubCategoryBottomSheet(
         pieChart.legend.isEnabled = false
         pieChart.isDrawHoleEnabled = true
         pieChart.setHoleColor(Color.TRANSPARENT)
+        pieChart.setTransparentCircleAlpha(0)
+        pieChart.holeRadius = 56f
+        pieChart.rotationAngle = 270f
+        pieChart.isRotationEnabled = true
         pieChart.setDrawCenterText(true)
         pieChart.setUsePercentValues(true)
-        pieChart.setExtraOffsets(35f, 10f, 35f, 10f)
+        pieChart.setEntryLabelColor(Color.TRANSPARENT)
+        pieChart.setExtraOffsets(22f, 12f, 22f, 12f)
         pieChart.setNoDataText("暂无图表数据")
         pieChart.setNoDataTextColor(Color.parseColor("#9AA0A6"))
+        pieChart.setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: Highlight?) {
+                val label = (e as? PieEntry)?.label ?: return
+                categoryAdapter.pinCategory(label)
+                (rvSub.layoutManager as? LinearLayoutManager)
+                    ?.scrollToPositionWithOffset(0, 0)
+                rvSub.post { rvSub.smoothScrollToPosition(0) }
+            }
+
+            override fun onNothingSelected() {
+                categoryAdapter.clearPinCategory()
+            }
+        })
     }
 
     private fun updatePieChart(pieChart: PieChart, sortedCategoryNames: List<String>) {
+        // 同步颜色到列表，使图表和列表颜色一致
+        val colorByName = sortedCategoryNames.mapIndexed { index, name ->
+            name to colors[index % colors.size]
+        }.toMap()
+        categoryAdapter.setColorMap(colorByName)
+
+        val filteredNames = sortedCategoryNames.filter { name ->
+            val amount = subStats[name] ?: 0.0
+            val pct = if (totalAmount > 0.0) (amount / totalAmount * 100.0) else 0.0
+            pct >= 2.0
+        }
+        if (filteredNames.isEmpty()) {
+            pieChart.clear()
+            pieChart.setNoDataText("暂无占比≥2%的二级分类")
+            pieChart.invalidate()
+            return
+        }
+
         // build entries in the same order as the list
-        val entries = sortedCategoryNames.map { name ->
+        val entries = filteredNames.map { name ->
             val amount = subStats[name] ?: 0.0
             PieEntry(amount.toFloat(), name)
         }
         val dataSet = PieDataSet(entries, "")
-        
-        // 关键：显式给 DataSet 传入外部颜色列表
-        dataSet.colors = this.colors
-        
+
+        val sliceColors = filteredNames.map { colorByName[it] ?: colors[0] }
+        dataSet.colors = sliceColors
         dataSet.xValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
         dataSet.yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
         dataSet.valueLinePart1OffsetPercentage = 100f
-        dataSet.valueLinePart1Length = 0.333f
-        dataSet.valueLinePart2Length = 0.8f
+        dataSet.valueLinePart1Length = if (filteredNames.size >= 10) 0.22f else 0.30f
+        dataSet.valueLinePart2Length = if (filteredNames.size >= 10) 0.55f else 0.78f
+        dataSet.selectionShift = 4f
         dataSet.setValueLineVariableLength(true)
-        
-        // 确保连线颜色使用扇区颜色
         dataSet.setUsingSliceColorAsValueLineColor(true)
-        
-        dataSet.valueTextSize = 9f
-        // keep label colors aligned with slice colors
-        dataSet.setValueTextColors(this.colors)
+
+        dataSet.valueTextSize = when {
+            filteredNames.size >= 12 -> 7.5f
+            filteredNames.size >= 9 -> 8.0f
+            else -> 9.0f
+        }
+        dataSet.setValueTextColors(sliceColors)
         
         dataSet.valueFormatter = object : ValueFormatter() {
             override fun getFormattedValue(value: Float): String = ""
@@ -126,8 +174,59 @@ class SubCategoryBottomSheet(
 
         pieChart.data = PieData(dataSet)
         pieChart.setDrawEntryLabels(false)
-        pieChart.centerText = "二级分类\n比例"
+        val visibleTotal = filteredNames.sumOf { subStats[it] ?: 0.0 }
+        val centerSubtitle = if (isExpense) "子分类支出" else "子分类收入"
+        pieChart.centerText = "${String.format(Locale.getDefault(), "%s%.2f", currencySymbol, visibleTotal)}\n$centerSubtitle"
+        pieChart.rotationAngle = findBestInitialRotation(entries.map { it.value })
+        pieChart.setCenterTextSize(12f)
+        pieChart.setCenterTextColor(Color.parseColor("#374151"))
+        pieChart.animateY(260)
         pieChart.invalidate()
+    }
+
+    private fun findBestInitialRotation(values: List<Float>): Float {
+        if (values.size <= 2) return 270f
+        val total = values.sum().takeIf { it > 0f } ?: return 270f
+        val sweeps = values.map { it / total * 360f }
+
+        var bestAngle = 270f
+        var bestScore = Float.MAX_VALUE
+        for (candidate in 0 until 360 step 6) {
+            val score = computeOverlapScore(sweeps, candidate.toFloat(), minGap = 0.15f)
+            if (score < bestScore) {
+                bestScore = score
+                bestAngle = candidate.toFloat()
+            }
+        }
+        return bestAngle
+    }
+
+    private fun computeOverlapScore(sweeps: List<Float>, rotationAngle: Float, minGap: Float): Float {
+        var start = rotationAngle
+        val leftY = mutableListOf<Float>()
+        val rightY = mutableListOf<Float>()
+
+        sweeps.forEach { sweep ->
+            val center = start + sweep / 2f
+            val rad = Math.toRadians(center.toDouble())
+            val y = sin(rad).toFloat()
+            val x = cos(rad).toFloat()
+            if (x >= 0f) rightY.add(y) else leftY.add(y)
+            start += sweep
+        }
+
+        fun sideScore(points: List<Float>): Float {
+            if (points.size <= 1) return 0f
+            val sorted = points.sorted()
+            var score = 0f
+            for (i in 1 until sorted.size) {
+                val gap = sorted[i] - sorted[i - 1]
+                if (gap < minGap) score += (minGap - gap)
+            }
+            return score
+        }
+
+        return sideScore(leftY) + sideScore(rightY)
     }
 }
 

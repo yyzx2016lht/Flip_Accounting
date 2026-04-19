@@ -51,6 +51,11 @@ class AccountingFormController(
     private val tvAccountIconEmoji: TextView? = rootView.findViewById(R.id.tv_account_icon_emoji)
     private val layoutAccount2: View = rootView.findViewById(R.id.layout_account_2)
     private val tvAccount2: TextView = rootView.findViewById(R.id.tv_account_2)
+    private val ivAccount2Icon: ImageView? = rootView.findViewById(R.id.iv_account_2_icon)
+    private val tvAccount2IconEmoji: TextView? = rootView.findViewById(R.id.tv_account_2_icon_emoji)
+    private val tvAccountAmount: TextView? = rootView.findViewById(R.id.tv_account_amount)
+    private val tvAccount2Amount: TextView? = rootView.findViewById(R.id.tv_account_2_amount)
+    private val btnSwapAccounts: View? = rootView.findViewById(R.id.btn_swap_accounts)
     private val layoutCategory: View = rootView.findViewById(R.id.layout_category)
     private val tvCategory: TextView = rootView.findViewById(R.id.tv_category)
     private val ivCategoryIcon: ImageView? = rootView.findViewById(R.id.iv_category_icon)
@@ -127,12 +132,26 @@ class AccountingFormController(
 
     private fun refreshSelectionIcons() {
         refreshAccountIconForName(tvAccount.text?.toString().orEmpty())
+        refreshAccount2IconForName(tvAccount2.text?.toString().orEmpty())
         refreshCategoryIconForSelection(tvCategory.text?.toString().orEmpty())
     }
 
     private fun resetAccountIconToEmoji() {
         ivAccountIcon?.visibility = View.GONE
         tvAccountIconEmoji?.visibility = View.VISIBLE
+        tvAccountAmount?.text = "--"
+    }
+
+    private fun resetAccount2IconToEmoji() {
+        ivAccount2Icon?.visibility = View.GONE
+        tvAccount2IconEmoji?.visibility = View.VISIBLE
+        tvAccount2Amount?.text = "--"
+    }
+
+    private fun formatAssetBalance(asset: Asset): String {
+        val symbol = CurrencyManager.getSymbol(asset.currency)
+        val amount = String.format(Locale.getDefault(), "%.2f", asset.balance)
+        return "$symbol$amount"
     }
 
     private fun resetCategoryIconToEmoji() {
@@ -151,8 +170,14 @@ class AccountingFormController(
             val asset = withContext(Dispatchers.IO) {
                 AppDatabase.getDatabase(ctx).assetDao().getAssetByName(normalized)
             }
-            if (asset == null || asset.icon.isBlank()) {
+            if (asset == null) {
                 resetAccountIconToEmoji()
+                return@launch
+            }
+            tvAccountAmount?.text = formatAssetBalance(asset)
+            if (asset.icon.isBlank()) {
+                ivAccountIcon?.visibility = View.GONE
+                tvAccountIconEmoji?.visibility = View.VISIBLE
                 return@launch
             }
             tvAccountIconEmoji?.visibility = View.GONE
@@ -284,6 +309,7 @@ class AccountingFormController(
             layoutAccount.visibility = View.GONE
             layoutAccount2.visibility = View.GONE
             rootView.findViewById<View?>(R.id.line_account_2)?.visibility = View.GONE
+            refreshAccount2IconForName("")
             layoutFee.visibility = View.GONE
             rootView.findViewById<View?>(R.id.line_fee)?.visibility = View.GONE
             tvAccount.text = ""
@@ -314,10 +340,12 @@ class AccountingFormController(
             layoutAccount.visibility = View.VISIBLE
             layoutAccount2.visibility = if (isTransfer || isRepayment) View.VISIBLE else View.GONE
             rootView.findViewById<View?>(R.id.line_account_2)?.visibility = layoutAccount2.visibility
+            btnSwapAccounts?.visibility = if (isTransfer || isRepayment) View.VISIBLE else View.GONE
         } else {
             layoutAccount.visibility = View.GONE
             layoutAccount2.visibility = View.GONE
             rootView.findViewById<View?>(R.id.line_account_2)?.visibility = View.GONE
+            btnSwapAccounts?.visibility = View.GONE
         }
 
         // 分类：仅支出/收入时显示
@@ -349,8 +377,9 @@ class AccountingFormController(
                 tvLabel?.text  = "转出账户"
                 tvLabel2?.text = "转入账户"
                 if (tvAccount.text == "选择资产") tvAccount.text = "转出账户"
-                if (tvAccount2.text.isEmpty() || tvAccount2.text == "选择资产" || tvAccount2.text == "选择信用卡") tvAccount2.text = "选择转入账户"
+                if (tvAccount2.text.isEmpty() || tvAccount2.text == "选择资产" || tvAccount2.text == "选择信用卡" || tvAccount2.text == "选择转入账户") tvAccount2.text = "转入账户"
                 refreshAccountIconForName(tvAccount.text.toString())
+                refreshAccount2IconForName(tvAccount2.text.toString())
                 customTransferRate = null
                 customTargetAmount = null
                 hasConfirmedExchangeRate = false
@@ -358,17 +387,19 @@ class AccountingFormController(
                 updateCurrencySpinnerMode(isTransferMode = true)
             }
             3 -> {
-                tvLabel?.text  = "付款账户"
-                tvLabel2?.text = "还款信用卡"
-                if (tvAccount.text == "转出账户") tvAccount.text = "选择资产"
-                if (tvAccount2.text.isEmpty() || tvAccount2.text == "选择转入账户") tvAccount2.text = "选择信用卡"
+                tvLabel?.text  = "转出账户"
+                tvLabel2?.text = "转入账户"
+                if (tvAccount.text == "选择资产" || tvAccount.text == "付款账户") tvAccount.text = "转出账户"
+                if (tvAccount2.text.isEmpty() || tvAccount2.text == "选择转入账户" || tvAccount2.text == "选择信用卡") tvAccount2.text = "转入账户"
                 refreshAccountIconForName(tvAccount.text.toString())
+                refreshAccount2IconForName(tvAccount2.text.toString())
                 updateCurrencySpinnerMode(isTransferMode = false)
             }
             else -> {
                 tvLabel?.text  = "选择账户"
                 if (tvAccount.text == "转出账户" || tvAccount.text == "付款账户") tvAccount.text = "选择资产"
                 refreshAccountIconForName(tvAccount.text.toString())
+                refreshAccount2IconForName(tvAccount2.text.toString())
                 updateCurrencySpinnerMode(isTransferMode = false)
             }
         }
@@ -444,6 +475,99 @@ class AccountingFormController(
         tvBook.text = selectedFormBook
     }
 
+    private fun parseUiTimeToMillis(text: String): Long? {
+        val value = text.trim()
+        if (value.isEmpty()) return null
+        return try {
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(value)?.time
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun refreshAccount2IconForName(name: String) {
+        val normalized = name.trim()
+        if (normalized.isBlank() || normalized.contains("选择") || normalized == "转入账户") {
+            resetAccount2IconToEmoji()
+            return
+        }
+        scope.launch {
+            val asset = withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(ctx).assetDao().getAssetByName(normalized)
+            }
+            if (asset == null) {
+                resetAccount2IconToEmoji()
+                return@launch
+            }
+            tvAccount2Amount?.text = formatAssetBalance(asset)
+            if (asset.icon.isBlank()) {
+                ivAccount2Icon?.visibility = View.GONE
+                tvAccount2IconEmoji?.visibility = View.VISIBLE
+                return@launch
+            }
+            tvAccount2IconEmoji?.visibility = View.GONE
+            ivAccount2Icon?.visibility = View.VISIBLE
+            ivAccount2Icon?.let {
+                Glide.with(ctx)
+                    .load(asset.icon)
+                    .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                    .into(it)
+            }
+        }
+    }
+
+    private fun isAccountPlaceholder(name: String): Boolean {
+        val text = name.trim()
+        if (text.isEmpty()) return true
+        return text.contains("选择") || text == "转出账户" || text == "转入账户" || text == "付款账户"
+    }
+
+    private fun adjustTypeByToAccount(toAccountName: String) {
+        if (!isAssetFeatureEnabled || toAccountName.isBlank()) return
+        scope.launch(Dispatchers.IO) {
+            val selected = AppDatabase.getDatabase(ctx).assetDao().getAssetByName(toAccountName)
+            withContext(Dispatchers.Main) {
+                val currentPos = spType.selectedItemPosition
+                if (selected?.assetCategory == Asset.CATEGORY_CREDIT_CARD && currentPos == 2) {
+                    spType.setSelection(3)
+                } else if (selected?.assetCategory != Asset.CATEGORY_CREDIT_CARD && currentPos == 3) {
+                    spType.setSelection(2)
+                }
+            }
+        }
+    }
+
+    private fun swapAccounts() {
+        val currentType = spType.selectedItemPosition
+        if (currentType != 2 && currentType != 3) return
+
+        val fromRaw = tvAccount.text?.toString().orEmpty()
+        val toRaw = tvAccount2.text?.toString().orEmpty()
+        val fromName = fromRaw.takeUnless { isAccountPlaceholder(it) }.orEmpty()
+        val toName = toRaw.takeUnless { isAccountPlaceholder(it) }.orEmpty()
+
+        tvAccount.text = if (toName.isNotEmpty()) toName else "转出账户"
+        tvAccount2.text = if (fromName.isNotEmpty()) fromName else "转入账户"
+        refreshAccountIconForName(tvAccount.text?.toString().orEmpty())
+        refreshAccount2IconForName(tvAccount2.text?.toString().orEmpty())
+
+        customTransferRate = null
+        customTargetAmount = null
+        hasConfirmedExchangeRate = false
+
+        val newFromName = tvAccount.text?.toString().orEmpty().takeUnless { isAccountPlaceholder(it) }.orEmpty()
+        if (Prefs.isShowMultiCurrency(ctx) && newFromName.isNotEmpty()) {
+            scope.launch(Dispatchers.IO) {
+                val selected = AppDatabase.getDatabase(ctx).assetDao().getAssetByName(newFromName)
+                withContext(Dispatchers.Main) {
+                    val accountCurrency = selected?.currency ?: "CNY"
+                    setCurrency(accountCurrency)
+                }
+            }
+        }
+
+    }
+
     private fun setupListeners() {
         etMoney.setOnClickListener { showAmountKeypad() }
         etMoney.setOnTouchListener { _, event ->
@@ -472,7 +596,7 @@ class AccountingFormController(
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             if (assets.isNotEmpty()) {
-                                val title = if (spType.selectedItemPosition == 2) "选择转出账户" else "选择资产"
+                                val title = if (spType.selectedItemPosition == 2 || spType.selectedItemPosition == 3) "选择转出账户" else "选择资产"
                                 OverlayDialogs.showGridAssetPicker(ctx, tvAccount.text.toString(), title) { selectedName ->
                                     tvAccount.text = selectedName
                                     refreshAccountIconForName(selectedName)
@@ -505,26 +629,11 @@ class AccountingFormController(
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             if (assets.isNotEmpty()) {
-                                val isRepayment = spType.selectedItemPosition == 3
-                                val title = if (isRepayment) "选择还款信用卡" else "选择转入账户"
+                                val title = "选择转入账户"
                                 OverlayDialogs.showGridAssetPicker(ctx, tvAccount2.text.toString(), title) { selectedName ->
                                     tvAccount2.text = selectedName
-                                    // 自动检测：若选择的是信用卡资产，自动切换为还款
-                                    scope.launch(Dispatchers.IO) {
-                                        val selected = AppDatabase.getDatabase(ctx).assetDao().getAssetByName(selectedName)
-                                        withContext(Dispatchers.Main) {
-                                            val currentPos = spType.selectedItemPosition
-                                            if (selected?.assetCategory == tao.test.flipaccounting.data.local.entity.Asset.CATEGORY_CREDIT_CARD
-                                                && currentPos == 2) {
-                                                // 转账→信用卡，自动升级为还款
-                                                spType.setSelection(3)
-                                            } else if (selected?.assetCategory != tao.test.flipaccounting.data.local.entity.Asset.CATEGORY_CREDIT_CARD
-                                                && currentPos == 3) {
-                                                // 还款→普通资产，自动退回转账
-                                                spType.setSelection(2)
-                                            }
-                                        }
-                                    }
+                                    refreshAccount2IconForName(selectedName)
+                                    adjustTypeByToAccount(selectedName)
                                 }
                             } else Utils.toast(ctx, "请先添加资产")
                         }
@@ -539,6 +648,10 @@ class AccountingFormController(
         tvCategory.setOnClickListener(clickListener)
         layoutAccount2.setOnClickListener(clickListener)
         tvAccount2.setOnClickListener(clickListener)
+        btnSwapAccounts?.setOnClickListener {
+            hideAmountKeypad()
+            swapAccounts()
+        }
 
         // 分类行右侧“退款”标签：点击进入退款模式
         tvRefundToggle?.setOnClickListener {
@@ -586,7 +699,10 @@ class AccountingFormController(
 
         rootView.findViewById<View>(R.id.layout_time)?.setOnClickListener {
             hideAmountKeypad()
-            if (isActivityAlive()) OverlayDialogs.showCustomTimePicker(ctx) { tvTime.text = it }
+            val initialTimeMillis = parseUiTimeToMillis(tvTime.text?.toString().orEmpty())
+            if (isActivityAlive()) {
+                OverlayDialogs.showCustomTimePicker(ctx, initialTimeMillis = initialTimeMillis) { tvTime.text = it }
+            }
         }
         layoutBook.setOnClickListener {
             hideAmountKeypad()
@@ -1867,6 +1983,7 @@ class AccountingFormController(
             val toA = json.optString("to_asset_name")
             if (toA.isNotEmpty()) {
                 tvAccount2.text = toA
+                refreshAccount2IconForName(toA)
                 // 如果当前是转账且转入是信用卡，自动切换为还款
                 if (spType.selectedItemPosition == 2) {
                     scope.launch(Dispatchers.IO) {
@@ -1942,6 +2059,7 @@ class AccountingFormController(
                 }
                 if (tvAccount2.text.toString() == toName) {
                     tvAccount2.text = ""
+                    refreshAccount2IconForName("")
                 }
                 if (tvCategory.text.toString().trim() == "转账") {
                     tvCategory.text = "其他"

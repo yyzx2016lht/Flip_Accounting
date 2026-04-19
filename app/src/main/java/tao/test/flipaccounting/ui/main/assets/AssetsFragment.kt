@@ -31,7 +31,6 @@ class AssetsFragment : Fragment() {
     private lateinit var tvNetAsset: TextView
     private lateinit var tvTotalAsset: TextView
     private lateinit var tvTotalDebt: TextView
-    private lateinit var btnAssetDataCheck: TextView
     private lateinit var containerCategoryCards: LinearLayout
     private lateinit var fabAddAsset: FloatingActionButton
 
@@ -49,12 +48,7 @@ class AssetsFragment : Fragment() {
         tvNetAsset = view.findViewById(R.id.tv_net_asset)
         tvTotalAsset = view.findViewById(R.id.tv_total_asset)
         tvTotalDebt = view.findViewById(R.id.tv_total_debt)
-        btnAssetDataCheck = view.findViewById(R.id.btn_asset_data_check)
         containerCategoryCards = view.findViewById(R.id.container_category_cards)
-
-        btnAssetDataCheck.setOnClickListener {
-            startActivity(Intent(requireContext(), AssetDataCheckActivity::class.java))
-        }
 
         fabAddAsset = view.findViewById(R.id.fab_add_asset)
         fabAddAsset.setOnClickListener {

@@ -149,7 +149,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         cal.set(Calendar.MILLISECOND, 999)
         val end = cal.timeInMillis
 
-        applyDateRange(start, end, dfMonthLabel.format(Date(start)))
+        applyDateRange(start, end, "本月")
     }
 
     fun applyLastMonthFilter() {
@@ -169,7 +169,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         cal.set(Calendar.MILLISECOND, 999)
         val end = cal.timeInMillis
 
-        applyDateRange(start, end, dfMonthLabel.format(Date(start)))
+        applyDateRange(start, end, "上月")
     }
 
     fun applyThisYearFilter() {
@@ -190,7 +190,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         cal.set(Calendar.MILLISECOND, 999)
         val end = cal.timeInMillis
 
-        applyDateRange(start, end, cal.get(Calendar.YEAR).toString())
+        applyDateRange(start, end, "今年")
     }
 
     fun applyLastYearFilter() {
@@ -213,7 +213,75 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         cal.set(Calendar.MILLISECOND, 999)
         val end = cal.timeInMillis
 
-        applyDateRange(start, end, targetYear.toString())
+        applyDateRange(start, end, "去年")
+    }
+
+    fun applyTodayFilter() {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val start = cal.timeInMillis
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        applyDateRange(start, cal.timeInMillis, "今天")
+    }
+
+    fun applyYesterdayFilter() {
+        val cal = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, -1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val start = cal.timeInMillis
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        applyDateRange(start, cal.timeInMillis, "昨天")
+    }
+
+    fun applyThisWeekFilter() {
+        val cal = Calendar.getInstance().apply {
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val start = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, 6)
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        applyDateRange(start, cal.timeInMillis, "本周")
+    }
+
+    fun applyLastWeekFilter() {
+        val cal = Calendar.getInstance().apply {
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            add(Calendar.WEEK_OF_YEAR, -1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val start = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, 6)
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        applyDateRange(start, cal.timeInMillis, "上周")
     }
 
     fun applyAllTimeFilter() {
@@ -338,7 +406,6 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         return bills.filter { bill ->
             val currencyMatched = state.selectedCurrency == null || bill.currency == state.selectedCurrency
             val bookMatched = selectedBookNormalized == null ||
-                selectedBookNormalized == BookAccountManager.ALL_BOOK ||
                 BookAccountManager.normalizeBookName(bill.bookName) == selectedBookNormalized
             currencyMatched && bookMatched
         }

@@ -109,73 +109,135 @@
             android:layout_marginBottom="6dp"
             android:background="#EDF1F6" />
 
-        <LinearLayout
-            android:id="@+id/layout_account"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="46dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical">
+            android:layout_height="wrap_content">
 
-            <FrameLayout
-                android:layout_width="22dp"
-                android:layout_height="22dp">
-
-                <TextView
-                    android:id="@+id/tv_account_icon_emoji"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="&#x1F3E6;"
-                    android:textSize="16sp" />
-
-                <ImageView
-                    android:id="@+id/iv_account_icon"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:adjustViewBounds="true"
-                    android:scaleType="fitCenter"
-                    android:visibility="gone" />
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/tv_account"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:text="选择资产"
-                android:textColor="#333333" />
-        </LinearLayout>
+                android:orientation="vertical">
 
-        <LinearLayout
-            android:id="@+id/layout_account_2"
-            android:layout_width="match_parent"
-            android:layout_height="46dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:visibility="gone">
+                <LinearLayout
+                    android:id="@+id/layout_account"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical">
+
+                    <FrameLayout
+                        android:layout_width="22dp"
+                        android:layout_height="22dp">
+
+                        <TextView
+                            android:id="@+id/tv_account_icon_emoji"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="&#x1F3E6;"
+                            android:textSize="16sp" />
+
+                        <ImageView
+                            android:id="@+id/iv_account_icon"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:adjustViewBounds="true"
+                            android:scaleType="fitCenter"
+                            android:visibility="gone" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tv_account"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="选择资产"
+                        android:textColor="#333333" />
+
+                    <TextView
+                        android:id="@+id/tv_account_amount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="#8A9099"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/line_account_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#EDF1F6" />
+
+                <LinearLayout
+                    android:id="@+id/layout_account_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:visibility="gone">
+
+                    <FrameLayout
+                        android:layout_width="22dp"
+                        android:layout_height="22dp">
+
+                        <TextView
+                            android:id="@+id/tv_account_2_icon_emoji"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="&#x1F3E6;"
+                            android:textSize="16sp" />
+
+                        <ImageView
+                            android:id="@+id/iv_account_2_icon"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:adjustViewBounds="true"
+                            android:scaleType="fitCenter"
+                            android:visibility="gone" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tv_account_2"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="转入账户"
+                        android:textColor="#333333" />
+
+                    <TextView
+                        android:id="@+id/tv_account_2_amount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="#8A9099"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
 
             <TextView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:id="@+id/btn_swap_accounts"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_swap_center_button"
+                android:clickable="true"
+                android:contentDescription="互换转出与转入账户"
+                android:elevation="3dp"
+                android:focusable="true"
                 android:gravity="center"
+                android:rotation="90"
                 android:text="&#x21C4;"
                 android:textColor="#7A8799"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/tv_account_2"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:text="转入账户"
-                android:textColor="#333333" />
-        </LinearLayout>
+                android:textSize="16sp" />
+        </FrameLayout>
 
         <LinearLayout
             android:id="@+id/layout_category"
@@ -518,7 +580,3 @@
     </LinearLayout>
 
 </FrameLayout>
-
-
-
-

@@ -17,7 +17,6 @@
             android:orientation="vertical"
             android:padding="20dp">
 
-            <!-- 顶部留白，高度对齐账单页顶栏 56dp -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="56dp" />
@@ -25,6 +24,7 @@
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -68,12 +68,14 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="总资产"
                         android:textColor="#999999"
                         android:textSize="@dimen/text_size_12" />
+
                     <TextView
                         android:id="@+id/tv_total_asset"
                         android:layout_width="wrap_content"
@@ -95,12 +97,14 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="总负债"
                         android:textColor="#999999"
                         android:textSize="@dimen/text_size_12" />
+
                     <TextView
                         android:id="@+id/tv_total_debt"
                         android:layout_width="wrap_content"
@@ -117,10 +121,10 @@
         android:id="@+id/nsv_assets"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:clipToPadding="false"
         android:overScrollMode="never"
         android:paddingBottom="96dp"
-        android:clipToPadding="false">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -129,28 +133,11 @@
             android:paddingHorizontal="16dp"
             android:paddingTop="8dp">
 
-            <!-- 动态卡片由 AssetsFragment 代码生成，按类别各一张，有资产才显示 -->
             <LinearLayout
                 android:id="@+id/container_category_cards"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"/>
-
-            <TextView
-                android:id="@+id/btn_asset_data_check"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:background="@drawable/bg_segmented_selected"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="10dp"
-                android:text="检查净资产差异记录"
-                android:textColor="#333333"
-                android:textSize="@dimen/text_size_13"
-                android:textStyle="bold" />
-
+                android:orientation="vertical" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
@@ -163,8 +150,8 @@
         android:layout_marginBottom="80dp"
         android:src="@android:drawable/ic_input_add"
         app:backgroundTint="#2196F3"
-        app:tint="@android:color/white"
+        app:borderWidth="0dp"
         app:elevation="4dp"
-        app:borderWidth="0dp"/>
+        app:tint="@android:color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

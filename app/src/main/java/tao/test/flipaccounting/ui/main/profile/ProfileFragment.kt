@@ -315,6 +315,25 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
             requireActivity().startActivity(Intent(requireContext(), BackupActivity::class.java))
         }
+        val switchEnableAiInPrefs = view.findViewById<CompoundButton>(R.id.switch_enable_ai_in_prefs)
+        val layoutAiFeatureEntry = view.findViewById<View>(R.id.layout_ai_feature_entry)
+        val dividerAiFeatureEntry = view.findViewById<View>(R.id.divider_ai_feature_entry)
+        fun refreshAiFeatureEntryVisibility(enabled: Boolean) {
+            val visibility = if (enabled) View.VISIBLE else View.GONE
+            layoutAiFeatureEntry.visibility = visibility
+            dividerAiFeatureEntry.visibility = visibility
+        }
+        switchEnableAiInPrefs.apply {
+            isChecked = Prefs.isShowAiText(requireContext())
+            refreshAiFeatureEntryVisibility(isChecked)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setShowAiText(requireContext(), isChecked)
+                refreshAiFeatureEntryVisibility(isChecked)
+            }
+        }
+        view.findViewById<View>(R.id.layout_ai_feature_entry)?.setOnClickListener {
+            requireActivity().startActivity(Intent(requireContext(), AiFeatureSettingsActivity::class.java))
+        }
 
         // --- 翻转手势与白名单 ---
         val switchFlip = view.findViewById<CompoundButton>(R.id.switch_flip_trigger)
@@ -759,6 +778,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 R.id.switch_screen_accounting,
                 R.id.switch_vibrate_feedback,
                 R.id.switch_show_home_trend_card,
+                R.id.switch_enable_ai_in_prefs,
                 R.id.switch_show_ai,
                 R.id.switch_ai_chat_mode,
                 R.id.switch_show_ai_chat_entry,

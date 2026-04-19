@@ -118,8 +118,8 @@
 
     <activity android:name=".ui.main.assets.AssetDetailActivity" android:label="资产详情" />
     <activity android:name=".ui.main.assets.AssetStatsActivity" android:label="资产统计" />
-    <activity android:name=".ui.main.assets.AssetDataCheckActivity" android:label="资产流水自检" />
     <activity android:name=".AiRuleManageActivity" android:label="AI规则管理" />
+    <activity android:name=".AiFeatureSettingsActivity" android:label="AI智能功能" />
     <activity android:name=".AiConfigActivity" android:label="AI详细配置" />
         <activity
             android:name=".ChatActivity"

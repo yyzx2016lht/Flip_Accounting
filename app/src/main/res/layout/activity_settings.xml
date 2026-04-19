@@ -1,32 +1,33 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F4F7FB"
+    android:background="@drawable/bg_home_page"
     android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/white"
-        android:elevation="3dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp"
         android:orientation="vertical"
-        android:paddingHorizontal="18dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="18dp">
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:paddingHorizontal="14dp">
 
         <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="52dp">
 
             <ImageView
                 android:id="@+id/btn_back"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_centerVertical="true"
-                android:background="@drawable/bg_segmented_container"
+                android:background="@drawable/bg_home_topbar_capsule"
                 android:padding="8dp"
-                android:src="@drawable/ic_chevron_left" />
+                android:src="@drawable/ic_chevron_left"
+                android:tint="#FFFFFF" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -39,8 +40,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="分类管理"
-                    android:textColor="#142033"
-                    android:textSize="20sp"
+                    android:textColor="#1F2937"
+                    android:textSize="@dimen/text_size_18"
                     android:textStyle="bold" />
 
                 <TextView
@@ -48,8 +49,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="管理一级分类、二级分类与排序"
-                    android:textColor="#7B8698"
-                    android:textSize="12sp" />
+                    android:textColor="#6B7280"
+                    android:textSize="@dimen/text_size_11" />
             </LinearLayout>
 
             <TextView
@@ -58,12 +59,12 @@
                 android:layout_height="34dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:background="@drawable/bg_btn_outline_blue"
+                android:background="@drawable/bg_home_topbar_capsule"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
                 android:text="+ 添加"
-                android:textColor="#2C74FF"
-                android:textSize="13sp"
+                android:textColor="#FFFFFF"
+                android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
         </RelativeLayout>
 
@@ -71,10 +72,10 @@
             android:id="@+id/rg_type"
             android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_segmented_container"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_home_topbar_capsule"
             android:orientation="horizontal"
-            android:padding="2dp">
+            android:padding="3dp">
 
             <RadioButton
                 android:id="@+id/rb_expense"
@@ -87,7 +88,7 @@
                 android:gravity="center"
                 android:text="支出"
                 android:textColor="@color/selector_tab_text"
-                android:textSize="15sp"
+                android:textSize="@dimen/text_size_15"
                 android:textStyle="bold" />
 
             <RadioButton
@@ -100,55 +101,57 @@
                 android:gravity="center"
                 android:text="收入"
                 android:textColor="@color/selector_tab_text"
-                android:textSize="15sp"
+                android:textSize="@dimen/text_size_15"
                 android:textStyle="bold" />
         </RadioGroup>
+    </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/layout_sort_actions"
-            android:layout_width="match_parent"
+    <LinearLayout
+        android:id="@+id/layout_sort_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginHorizontal="12dp"
+        android:background="@drawable/bg_rule_page_section"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_sort_tip"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_rule_page_section"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="14dp"
-            android:visibility="gone">
+            android:layout_weight="1"
+            android:text="长按分类卡片并拖动即可调整顺序"
+            android:textColor="#7B8698"
+            android:textSize="@dimen/text_size_12" />
 
-            <TextView
-                android:id="@+id/tv_sort_tip"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="长按分类卡片直接拖动排序"
-                android:textColor="#7B8698"
-                android:textSize="12sp" />
+        <TextView
+            android:id="@+id/btn_cancel_sort"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_segmented_container"
+            android:gravity="center"
+            android:paddingHorizontal="14dp"
+            android:text="取消"
+            android:textColor="#718096"
+            android:textSize="@dimen/text_size_13"
+            android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/btn_cancel_sort"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:background="@drawable/bg_segmented_container"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="取消"
-                android:textColor="#718096"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/btn_save_sort"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/bg_rule_primary_action"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="保存"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/btn_save_sort"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_rule_primary_action"
+            android:gravity="center"
+            android:paddingHorizontal="14dp"
+            android:text="保存"
+            android:textColor="#FFFFFF"
+            android:textSize="@dimen/text_size_13"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
@@ -158,9 +161,9 @@
         android:layout_weight="1"
         android:clipToPadding="false"
         android:paddingStart="12dp"
-        android:paddingTop="14dp"
+        android:paddingTop="12dp"
         android:paddingEnd="12dp"
-        android:paddingBottom="18dp"
+        android:paddingBottom="20dp"
         android:visibility="gone" />
 
     <ScrollView
@@ -169,7 +172,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:clipToPadding="false"
-        android:paddingTop="14dp">
+        android:paddingTop="12dp">
 
         <LinearLayout
             android:id="@+id/container_main"
@@ -178,7 +181,7 @@
             android:orientation="vertical"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:paddingBottom="36dp" />
+            android:paddingBottom="40dp" />
     </ScrollView>
 
 </LinearLayout>

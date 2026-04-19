@@ -62,6 +62,7 @@ class AddAssetActivity : AppCompatActivity() {
     private var suppressBalanceWatcher = false
     private var balanceEditedByUser = false
     private var pendingAssetSave: PendingAssetSave? = null
+    private val assetUiPrefs by lazy { getSharedPreferences(PREFS_ASSET_UI, MODE_PRIVATE) }
 
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val balanceAdjustmentLauncher = registerForActivityResult(
@@ -175,6 +176,20 @@ class AddAssetActivity : AppCompatActivity() {
 
             override fun afterTextChanged(s: Editable?) = Unit
         })
+
+        swIncludeNet.setOnCheckedChangeListener { buttonView, isChecked ->
+            // Programmatic state updates (e.g. loading existing asset) should not trigger this one-time tip.
+            if (!buttonView.isPressed) return@setOnCheckedChangeListener
+            if (isChecked) return@setOnCheckedChangeListener
+            if (assetUiPrefs.getBoolean(KEY_SKIP_NET_ASSET_TIP_SHOWN, false)) return@setOnCheckedChangeListener
+
+            Toast.makeText(
+                this,
+                "该账户将不计入总资产，余额变化不影响净资产；相关流水仍会正常记录。",
+                Toast.LENGTH_LONG
+            ).show()
+            assetUiPrefs.edit().putBoolean(KEY_SKIP_NET_ASSET_TIP_SHOWN, true).apply()
+        }
     }
 
     private fun setupTypePicker() {
@@ -568,5 +583,10 @@ class AddAssetActivity : AppCompatActivity() {
         }
 
         override fun getItemCount(): Int = icons.size
+    }
+
+    companion object {
+        private const val PREFS_ASSET_UI = "asset_ui_prefs"
+        private const val KEY_SKIP_NET_ASSET_TIP_SHOWN = "skip_net_asset_tip_shown"
     }
 }

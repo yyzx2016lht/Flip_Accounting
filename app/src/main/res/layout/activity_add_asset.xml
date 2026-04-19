@@ -270,7 +270,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="如果开启，则此账户的金额将会算入总资产"
+                            android:text="开启：金额计入总资产；关闭：余额变化不计入净资产，但流水仍正常记录"
                             android:textColor="#999999"
                             android:textSize="@dimen/text_size_12"
                             android:layout_marginTop="2dp"/>

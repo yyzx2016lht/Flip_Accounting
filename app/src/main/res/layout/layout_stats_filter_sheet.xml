@@ -119,6 +119,54 @@
                     app:singleSelection="true">
 
                     <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_filter_today"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="&#20170;&#22825;"
+                        android:textColor="#23324A"
+                        android:textSize="14sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipCornerRadius="20dp"
+                        app:checkedIconVisible="false" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_filter_yesterday"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="&#26152;&#22825;"
+                        android:textColor="#23324A"
+                        android:textSize="14sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipCornerRadius="20dp"
+                        app:checkedIconVisible="false" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_filter_this_week"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="&#26412;&#21608;"
+                        android:textColor="#23324A"
+                        android:textSize="14sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipCornerRadius="20dp"
+                        app:checkedIconVisible="false" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_filter_last_week"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="&#19978;&#21608;"
+                        android:textColor="#23324A"
+                        android:textSize="14sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipCornerRadius="20dp"
+                        app:checkedIconVisible="false" />
+
+                    <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_this_month"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
