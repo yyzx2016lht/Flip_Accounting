@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F7F8FA"
+    android:background="#F3F6FB"
     android:orientation="vertical">
 
     <LinearLayout
@@ -36,40 +36,14 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:overScrollMode="never"
-        android:paddingBottom="36dp">
+        android:paddingBottom="26dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
-            android:paddingTop="12dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp"
-                android:background="@drawable/bg_backup_tip"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="现在可以按模块备份"
-                    android:textColor="#1A2744"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:lineSpacingExtra="2dp"
-                    android:text="账单、聊天、聊天资源、AI 配置都已经拆开。你可以只带走想保留的部分，恢复时也更安心。"
-                    android:textColor="#68778F"
-                    android:textSize="13sp" />
-            </LinearLayout>
+            android:paddingTop="8dp">
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -78,21 +52,21 @@
                 app:cardBackgroundColor="#FFFFFF"
                 app:cardCornerRadius="18dp"
                 app:cardElevation="1dp"
-                app:strokeColor="#E6EAF0"
+                app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="18dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="导出备份"
                         android:textColor="#1A2744"
-                        android:textSize="17sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -108,6 +82,129 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="@drawable/bg_backup_group"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="备份预设"
+                            android:textColor="#2D3C57"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <RadioGroup
+                            android:id="@+id/rg_backup_preset"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:orientation="horizontal">
+
+                            <RadioButton
+                                android:id="@+id/rb_backup_preset_lite"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:checked="true"
+                                android:singleLine="true"
+                                android:text="轻量"
+                                android:textColor="#2D3C57"
+                                android:textSize="13sp" />
+
+                            <RadioButton
+                                android:id="@+id/rb_backup_preset_full"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:singleLine="true"
+                                android:text="完整"
+                                android:textColor="#2D3C57"
+                                android:textSize="13sp" />
+
+                            <RadioButton
+                                android:id="@+id/rb_backup_preset_custom"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:singleLine="true"
+                                android:text="自定义"
+                                android:textColor="#2D3C57"
+                                android:textSize="13sp" />
+                        </RadioGroup>
+
+                        <TextView
+                            android:id="@+id/tv_backup_preset_hint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="轻量备份默认不含聊天资源，体积更小。"
+                            android:textColor="#6E7D95"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:text="PIN 保护"
+                            android:textColor="#2D3C57"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <RadioGroup
+                            android:id="@+id/rg_backup_pin_mode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:orientation="horizontal">
+
+                            <RadioButton
+                                android:id="@+id/rb_pin_auto"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:checked="true"
+                                android:singleLine="true"
+                                android:text="自动"
+                                android:textColor="#2D3C57"
+                                android:textSize="13sp" />
+
+                            <RadioButton
+                                android:id="@+id/rb_pin_force"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:singleLine="true"
+                                android:text="强制"
+                                android:textColor="#2D3C57"
+                                android:textSize="13sp" />
+
+                            <RadioButton
+                                android:id="@+id/rb_pin_plain"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:singleLine="true"
+                                android:text="不加密"
+                                android:textColor="#2D3C57"
+                                android:textSize="13sp" />
+                        </RadioGroup>
+
+                        <TextView
+                            android:id="@+id/tv_backup_pin_hint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="PIN 自动：仅当备份 AI 核心且存在 API Key 时加密。"
+                            android:textColor="#6E7D95"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/group_backup_core"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
                         android:background="@drawable/bg_backup_group"
                         android:orientation="vertical"
                         android:padding="14dp">
@@ -181,6 +278,7 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/group_backup_chat"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -243,6 +341,7 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/group_backup_settings"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -362,18 +461,71 @@
                         </GridLayout>
                     </LinearLayout>
 
+                    <TextView
+                        android:id="@+id/tv_backup_mode_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginBottom="8dp"
+                        android:textColor="#5A6B84"
+                        android:textSize="12sp" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_do_backup"
                         android:layout_width="match_parent"
-                        android:layout_height="50dp"
-                        android:layout_marginTop="14dp"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="2dp"
                         android:letterSpacing="0"
-                        android:text="选择路径并备份"
+                        android:text="覆盖默认备份"
                         android:textSize="15sp"
                         app:backgroundTint="#5C80EA"
                         app:cornerRadius="12dp"
                         app:icon="@android:drawable/ic_menu_save"
                         app:iconGravity="textStart" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:weightSum="2">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_backup_save_as"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:text="另存为"
+                            android:textAllCaps="false"
+                            android:textColor="#36507D"
+                            android:textSize="13sp"
+                            app:backgroundTint="#FFFFFF"
+                            app:cornerRadius="12dp"
+                            app:icon="@android:drawable/ic_menu_edit"
+                            app:iconTint="#4B73C8"
+                            app:strokeColor="#CFE0FA"
+                            app:strokeWidth="1dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_change_backup_dir"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="更换目录"
+                            android:textAllCaps="false"
+                            android:textColor="#36507D"
+                            android:textSize="13sp"
+                            app:backgroundTint="#FFFFFF"
+                            app:cornerRadius="12dp"
+                            app:icon="@android:drawable/ic_menu_set_as"
+                            app:iconTint="#4B73C8"
+                            app:strokeColor="#CFE0FA"
+                            app:strokeWidth="1dp" />
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -385,21 +537,21 @@
                 app:cardBackgroundColor="#FFFFFF"
                 app:cardCornerRadius="18dp"
                 app:cardElevation="1dp"
-                app:strokeColor="#E6EAF0"
+                app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="18dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="导入恢复"
                         android:textColor="#1A2744"
-                        android:textSize="17sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -415,7 +567,7 @@
                         android:id="@+id/btn_do_restore"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="match_parent"
-                        android:layout_height="50dp"
+                        android:layout_height="48dp"
                         android:letterSpacing="0"
                         android:text="选择备份文件"
                         android:textColor="#5C80EA"
@@ -433,24 +585,205 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 app:cardBackgroundColor="#FFFFFF"
                 app:cardCornerRadius="18dp"
                 app:cardElevation="1dp"
-                app:strokeColor="#E6EAF0"
+                app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="18dp">
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="云端备份设置"
+                        android:textColor="#1A2744"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="12dp"
+                        android:text="坚果云示例：URL=https://dav.jianguoyun.com/dav/"
+                        android:textColor="#8C98A8"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="WebDAV 地址"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_user"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="WebDAV 账号"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_pass"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="WebDAV 应用密码"
+                        android:inputType="textPassword"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_dir"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="云端子目录（如 FlipAccounting）"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_device_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="设备名称（用于区分多设备）"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:weightSum="2">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_save_cloud_settings"
+                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="46dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:text="保存设置"
+                            android:textColor="#44556E"
+                            android:textSize="13sp"
+                            app:backgroundTint="#EAF0FB"
+                            app:cornerRadius="10dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_test_cloud_connection"
+                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="46dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="测试连接"
+                            android:textColor="#44556E"
+                            android:textSize="13sp"
+                            app:backgroundTint="#EAF0FB"
+                            app:cornerRadius="10dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:weightSum="2">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_manual_upload"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:text="手动上传"
+                            android:textSize="13sp"
+                            app:backgroundTint="#2E9F72"
+                            app:cornerRadius="10dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_manual_download"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="手动下载"
+                            android:textColor="#2E9F72"
+                            android:textSize="13sp"
+                            app:cornerRadius="10dp"
+                            app:strokeColor="#8ED3B7"
+                            app:strokeWidth="1dp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_show_cleanup_policy"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="46dp"
+                        android:layout_marginTop="10dp"
+                        android:text="查看保留策略"
+                        android:textColor="#44556E"
+                        android:textSize="13sp"
+                        app:backgroundTint="#EAF0FB"
+                        app:cornerRadius="10dp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#DEE6F2"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="账单 CSV 导入 / 导出"
                         android:textColor="#1A2744"
-                        android:textSize="17sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -480,7 +813,7 @@
                             android:text="导出 CSV"
                             android:textColor="#4F5E74"
                             android:textSize="14sp"
-                            app:backgroundTint="#EEF2F8"
+                            app:backgroundTint="#EAF0FB"
                             app:cornerRadius="10dp"
                             app:icon="@android:drawable/ic_menu_save"
                             app:iconTint="#6C7F9B" />
@@ -496,7 +829,7 @@
                             android:text="导入账单"
                             android:textColor="#4F5E74"
                             android:textSize="14sp"
-                            app:backgroundTint="#EEF2F8"
+                            app:backgroundTint="#EAF0FB"
                             app:cornerRadius="10dp"
                             app:icon="@android:drawable/ic_menu_upload"
                             app:iconTint="#6C7F9B" />
@@ -509,3 +842,5 @@
     </ScrollView>
 
 </LinearLayout>
+
+

@@ -557,6 +557,68 @@
                             android:textSize="22sp" />
                     </LinearLayout>
 
+                    <View
+                        android:id="@+id/divider_storage_cleanup_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="68dp"
+                        android:background="#F0F2F5"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/layout_storage_cleanup_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="18dp"
+                        android:visibility="gone">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_purple">
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_gravity="center"
+                                android:src="@android:drawable/ic_menu_delete"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="存储清理"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="预览语音与图片占用后，再选择清理"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="›"
+                            android:textColor="#C0C8D4"
+                            android:textSize="22sp" />
+                    </LinearLayout>
+
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

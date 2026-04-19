@@ -55,6 +55,7 @@ object PrefsBackupSupport {
     private const val KEY_AI_ENTRY_MODE = "ai_entry_mode"
     private const val KEY_AI_CHAT_NAME = "ai_chat_name"
     private const val KEY_USER_CHAT_NAME = "user_chat_name"
+    private const val KEY_USER_PROFILE_DESC = "user_profile_desc"
     private const val KEY_AI_CHAT_AVATAR_PATH = "ai_chat_avatar_path"
     private const val KEY_USER_CHAT_AVATAR_PATH = "user_chat_avatar_path"
     private const val KEY_AI_CHAT_BG_PATH = "ai_chat_bg_path"
@@ -181,6 +182,7 @@ object PrefsBackupSupport {
         if (root.has("ai_entry_mode_v1")) edit.putInt(KEY_AI_ENTRY_MODE, root.getInt("ai_entry_mode_v1"))
         if (root.has("ai_chat_name_v1")) edit.putString(KEY_AI_CHAT_NAME, root.getString("ai_chat_name_v1"))
         if (root.has("user_chat_name_v1")) edit.putString(KEY_USER_CHAT_NAME, root.getString("user_chat_name_v1"))
+        if (root.has("user_profile_desc_v1")) edit.putString(KEY_USER_PROFILE_DESC, root.getString("user_profile_desc_v1"))
         if (root.has("ai_chat_avatar_path_v1")) edit.putString(KEY_AI_CHAT_AVATAR_PATH, root.getString("ai_chat_avatar_path_v1"))
         if (root.has("user_chat_avatar_path_v1")) edit.putString(KEY_USER_CHAT_AVATAR_PATH, root.getString("user_chat_avatar_path_v1"))
         if (root.has("ai_chat_bg_path_v1")) edit.putString(KEY_AI_CHAT_BG_PATH, root.getString("ai_chat_bg_path_v1"))
@@ -352,6 +354,7 @@ object PrefsBackupSupport {
             put("ai_entry_mode_v1", Prefs.getAiEntryMode(ctx))
             put("ai_chat_name_v1", Prefs.getAiChatName(ctx))
             put("user_chat_name_v1", Prefs.getUserChatName(ctx))
+            put("user_profile_desc_v1", Prefs.getUserProfileDesc(ctx))
             put("ai_chat_avatar_path_v1", Prefs.getAiChatAvatarPath(ctx))
             put("user_chat_avatar_path_v1", Prefs.getUserChatAvatarPath(ctx))
             put("ai_chat_bg_path_v1", Prefs.getAiChatBgPath(ctx))
@@ -370,7 +373,7 @@ object PrefsBackupSupport {
             "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "save_ocr_debug_v1"),
             "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_model_id_v1", "ai_single_model_v1", "ai_multi_model_v1", "ai_rule_model_v1", "ai_receipt_model_v1", "ai_receipt_vision_model_v1", "ai_screen_model_v1", "ai_receipt_ocr_refine_model_v1", "ai_speech_model_v1", "ai_models_cache_v1", "asr_mode_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1"),
             "settings_ai_prompts" to filterSettingsModule(full, "ai_system_prompt_v1", "multi_bill_prompt_v1", "rule_prompt_v1", "receipt_bill_prompt_v1", "receipt_vision_prompt_v1", "screen_accounting_prompt_v1", "receipt_ocr_refine_prompt_v1"),
-            "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "user_chat_name_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
+            "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
             "settings_books" to filterSettingsModule(full, "book_accounts_v1", "selected_book_v1", "book_colors_v1", "book_banners_v1"),
             "settings_advanced" to filterSettingsModule(full, "vibrate_feedback_v1", "permanent_wakelock_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1", "show_multi_cur_v1", "show_screen_accounting_v1", "flip_sensitivity_v1", "flip_debounce_v1", "use_custom_sensitivity_v1", "custom_g_threshold_v1", "custom_max_duration_v1")
         )

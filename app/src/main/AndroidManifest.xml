@@ -90,8 +90,28 @@
     <activity android:name=".SettingsActivity" android:label="分类管理" />
     <activity android:name=".CategorySortActivity" android:label="排序分类" />
         <activity
-            android:name=".BackupActivity"
+            android:name=".BackupHomeActivity"
             android:label="备份与恢复"
+            android:exported="false" />
+        <activity
+            android:name=".CloudBackupActivity"
+            android:label="云端备份设置"
+            android:exported="false" />
+        <activity
+            android:name=".StorageCleanupActivity"
+            android:label="存储清理"
+            android:exported="false" />
+        <activity
+            android:name=".StoragePreviewActivity"
+            android:label="预览待清理内容"
+            android:exported="false" />
+        <activity
+            android:name=".StorageImageViewerActivity"
+            android:label="图片预览"
+            android:exported="false" />
+        <activity
+            android:name=".BackupActivity"
+            android:label="本地备份与恢复"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

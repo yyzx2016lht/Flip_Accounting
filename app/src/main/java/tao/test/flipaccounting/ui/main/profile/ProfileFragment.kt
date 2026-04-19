@@ -318,10 +318,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val switchEnableAiInPrefs = view.findViewById<CompoundButton>(R.id.switch_enable_ai_in_prefs)
         val layoutAiFeatureEntry = view.findViewById<View>(R.id.layout_ai_feature_entry)
         val dividerAiFeatureEntry = view.findViewById<View>(R.id.divider_ai_feature_entry)
+        val layoutStorageCleanupEntry = view.findViewById<View>(R.id.layout_storage_cleanup_entry)
+        val dividerStorageCleanupEntry = view.findViewById<View>(R.id.divider_storage_cleanup_entry)
         fun refreshAiFeatureEntryVisibility(enabled: Boolean) {
-            val visibility = if (enabled) View.VISIBLE else View.GONE
-            layoutAiFeatureEntry.visibility = visibility
-            dividerAiFeatureEntry.visibility = visibility
+            val aiVisibility = if (enabled) View.VISIBLE else View.GONE
+            layoutAiFeatureEntry.visibility = aiVisibility
+            dividerAiFeatureEntry.visibility = aiVisibility
+            layoutStorageCleanupEntry.visibility = View.VISIBLE
+            dividerStorageCleanupEntry.visibility = View.VISIBLE
         }
         switchEnableAiInPrefs.apply {
             isChecked = Prefs.isShowAiText(requireContext())
@@ -333,6 +337,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
         view.findViewById<View>(R.id.layout_ai_feature_entry)?.setOnClickListener {
             requireActivity().startActivity(Intent(requireContext(), AiFeatureSettingsActivity::class.java))
+        }
+        view.findViewById<View>(R.id.layout_storage_cleanup_entry)?.setOnClickListener {
+            requireActivity().startActivity(Intent(requireContext(), StorageCleanupActivity::class.java))
         }
 
         // --- 翻转手势与白名单 ---
@@ -984,6 +991,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val tvName = root.findViewById<TextView>(R.id.tv_profile_user_name)
         val tvDesc = root.findViewById<TextView>(R.id.tv_profile_user_avatar_desc)
         tvName?.text = Prefs.getUserChatName(requireContext())
+        tvDesc?.text = Prefs.getUserProfileDesc(requireContext())
         val path = Prefs.getUserChatAvatarPath(requireContext())
         val file = if (path.isNotBlank()) File(path) else null
         if (file != null && file.exists()) {
@@ -993,10 +1001,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 placeholderRes = R.drawable.ic_user_avatar_default,
                 circleCrop = true
             )
-            tvDesc?.text = "点击修改名字和头像"
         } else {
             ivAvatar.setImageResource(R.drawable.ic_user_avatar_default)
-            tvDesc?.text = "点击设置名字和头像"
         }
     }
 
@@ -1005,11 +1011,15 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val view = layoutInflater.inflate(R.layout.dialog_edit_user_profile, null)
         val ivAvatar = view.findViewById<ImageView>(R.id.iv_user_profile_avatar)
         val etName = view.findViewById<EditText>(R.id.et_user_profile_name)
+        val etDesc = view.findViewById<EditText>(R.id.et_user_profile_desc)
         pendingEditUserAvatarView = ivAvatar
 
         val currentName = Prefs.getUserChatName(ctx).ifBlank { "我" }
         etName.setText(currentName)
         etName.setSelection(currentName.length)
+        val currentDesc = Prefs.getUserProfileDesc(ctx).ifBlank { "点击设置名字和头像" }
+        etDesc.setText(currentDesc)
+        etDesc.setSelection(currentDesc.length)
 
         val avatarPath = Prefs.getUserChatAvatarPath(ctx)
         val avatarFile = if (avatarPath.isNotBlank()) File(avatarPath) else null
@@ -1032,6 +1042,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             .setNegativeButton("取消", null)
             .setPositiveButton("保存") { _, _ ->
                 Prefs.setUserChatName(ctx, etName.text?.toString().orEmpty())
+                Prefs.setUserProfileDesc(ctx, etDesc.text?.toString().orEmpty())
                 rootRef?.let { refreshUserAvatarCard(it) }
                 Utils.toast(ctx, "个人资料已更新")
             }

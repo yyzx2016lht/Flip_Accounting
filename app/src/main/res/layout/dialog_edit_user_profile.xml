@@ -59,4 +59,24 @@
         android:textColor="#333333"
         android:textSize="15sp" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="6dp"
+        android:text="头像下方文案"
+        android:textColor="#666666"
+        android:textSize="13sp" />
+
+    <EditText
+        android:id="@+id/et_user_profile_desc"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_chat_input"
+        android:hint="例如：点击设置名字和头像"
+        android:paddingHorizontal="14dp"
+        android:singleLine="true"
+        android:textColor="#333333"
+        android:textSize="15sp" />
+
 </LinearLayout>

@@ -1,9 +1,11 @@
 package tao.test.flipaccounting.data.backup
 
 import com.google.gson.Gson
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -19,7 +21,8 @@ object BackupManager {
         bannerDir: File? = null,
         chatMediaFiles: Map<String, File> = emptyMap()
     ) {
-        ZipOutputStream(FileOutputStream(outputFile)).use { zos ->
+        ZipOutputStream(BufferedOutputStream(FileOutputStream(outputFile))).use { zos ->
+            zos.setLevel(Deflater.BEST_COMPRESSION)
             for ((fileName, data) in dataMap) {
                 val json = if (data is String) data else gson.toJson(data)
                 zos.putNextEntry(ZipEntry("$fileName.json"))

@@ -24,6 +24,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.webkit.MimeTypeMap
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
@@ -1114,23 +1115,26 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun handlePickedImage(uri: Uri) {
-        appendUserMessage("", MSG_TYPE_USER_IMAGE, imageUri = uri.toString())
         lifecycleScope.launch {
             try {
-                val (base64, mime) = withContext(Dispatchers.IO) {
-                    val stream = contentResolver.openInputStream(uri) ?: return@withContext Pair("", "")
+                val (storedUri, base64, mime) = withContext(Dispatchers.IO) {
+                    val sourceMime = contentResolver.getType(uri) ?: "image/jpeg"
+                    val stableUri = copyPickedImageToStorage(uri, sourceMime)
+                    val stream = contentResolver.openInputStream(stableUri) ?: return@withContext Triple(Uri.EMPTY, "", sourceMime)
                     val bytes = stream.readBytes()
                     stream.close()
-                    Pair(
+                    Triple(
+                        stableUri,
                         android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
-                        contentResolver.getType(uri) ?: "image/jpeg"
+                        sourceMime
                     )
                 }
                 if (base64.isBlank()) return@launch
+                appendUserMessage("", MSG_TYPE_USER_IMAGE, imageUri = storedUri.toString())
 
                 val text = if (Prefs.getOcrMode(this@ChatActivity) == Prefs.OCR_MODE_LOCAL) {
                     val ocr = withContext(Dispatchers.IO) {
-                        try { ReceiptOcrHelper.runOcrOnly(this@ChatActivity, uri) } catch (_: Exception) { "" }
+                        try { ReceiptOcrHelper.runOcrOnly(this@ChatActivity, storedUri) } catch (_: Exception) { "" }
                     }
                     if (ocr.isBlank()) "[MULTIMODAL_IMAGE]$base64|$mime" else "[图片OCR文本]: $ocr"
                 } else {
@@ -1141,6 +1145,19 @@ class ChatActivity : AppCompatActivity() {
                 appendAiTextMessage("图片处理失败: ${e.message}", isLoading = false)
             }
         }
+    }
+
+    private fun copyPickedImageToStorage(sourceUri: Uri, sourceMime: String): Uri {
+        val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(sourceMime)
+            ?.lowercase(Locale.getDefault())
+            ?.ifBlank { null }
+            ?: "jpg"
+        val imageDir = File(filesDir, "chat_images").also { it.mkdirs() }
+        val outFile = File(imageDir, "chat_img_${System.currentTimeMillis()}_${UUID.randomUUID()}.$ext")
+        contentResolver.openInputStream(sourceUri)?.use { ins ->
+            FileOutputStream(outFile).use { outs -> ins.copyTo(outs) }
+        } ?: throw IOException("无法读取图片")
+        return Uri.fromFile(outFile)
     }
 
     @android.annotation.SuppressLint("MissingPermission")

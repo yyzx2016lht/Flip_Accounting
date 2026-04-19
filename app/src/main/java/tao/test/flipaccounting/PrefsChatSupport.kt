@@ -9,6 +9,7 @@ object PrefsChatSupport {
     private const val KEY_AI_ENTRY_MODE = "ai_entry_mode"
     private const val KEY_AI_CHAT_NAME = "ai_chat_name"
     private const val KEY_USER_CHAT_NAME = "user_chat_name"
+    private const val KEY_USER_PROFILE_DESC = "user_profile_desc"
     private const val KEY_AI_CHAT_AVATAR_PATH = "ai_chat_avatar_path"
     private const val KEY_USER_CHAT_AVATAR_PATH = "user_chat_avatar_path"
     private const val KEY_AI_CHAT_BG_PATH = "ai_chat_bg_path"
@@ -38,6 +39,11 @@ object PrefsChatSupport {
         prefs(ctx).getString(KEY_USER_CHAT_NAME, "我") ?: "我"
     fun setUserChatName(ctx: Context, name: String) =
         prefs(ctx).edit().putString(KEY_USER_CHAT_NAME, name.trim().ifBlank { "我" }).apply()
+
+    fun getUserProfileDesc(ctx: Context): String =
+        prefs(ctx).getString(KEY_USER_PROFILE_DESC, "点击设置名字和头像") ?: "点击设置名字和头像"
+    fun setUserProfileDesc(ctx: Context, text: String) =
+        prefs(ctx).edit().putString(KEY_USER_PROFILE_DESC, text.trim().ifBlank { "点击设置名字和头像" }).apply()
 
     fun getAiChatAvatarPath(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_CHAT_AVATAR_PATH, "") ?: ""

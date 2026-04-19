@@ -323,6 +323,8 @@ object Prefs {
 
     fun getUserChatName(ctx: Context): String = PrefsChatSupport.getUserChatName(ctx)
     fun setUserChatName(ctx: Context, name: String) = PrefsChatSupport.setUserChatName(ctx, name)
+    fun getUserProfileDesc(ctx: Context): String = PrefsChatSupport.getUserProfileDesc(ctx)
+    fun setUserProfileDesc(ctx: Context, text: String) = PrefsChatSupport.setUserProfileDesc(ctx, text)
 
     fun getAiChatAvatarPath(ctx: Context): String = PrefsChatSupport.getAiChatAvatarPath(ctx)
     fun setAiChatAvatarPath(ctx: Context, path: String) =

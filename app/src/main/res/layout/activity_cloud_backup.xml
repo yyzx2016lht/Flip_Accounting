@@ -1,0 +1,247 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F3F6FB"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="10dp"
+            android:src="@drawable/ic_chevron_left"
+            app:tint="#1A2744" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:text="云端备份设置"
+            android:textColor="#1A2744"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#DEE6F2"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="WebDAV 参数"
+                        android:textColor="#1A2744"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="建议使用坚果云应用密码，避免直接暴露主密码。"
+                        android:textColor="#6D7C93"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="WebDAV 地址"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_user"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="WebDAV 账号"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_pass"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="WebDAV 应用密码"
+                        android:inputType="textPassword"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5" />
+
+                    <EditText
+                        android:id="@+id/et_webdav_dir"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="远程子目录（如 FlipAccounting）"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5" />
+
+                    <EditText
+                        android:id="@+id/et_device_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_backup_group"
+                        android:hint="设备名称（用于文件命名）"
+                        android:paddingHorizontal="12dp"
+                        android:singleLine="true"
+                        android:textColor="#223047"
+                        android:textColorHint="#8793A5" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:weightSum="2">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_save_cloud_settings"
+                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="46dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:text="保存设置"
+                            android:textColor="#44556E"
+                            app:backgroundTint="#EAF0FB"
+                            app:cornerRadius="10dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_test_cloud_connection"
+                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="46dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:text="测试连接"
+                            android:textColor="#44556E"
+                            app:backgroundTint="#EAF0FB"
+                            app:cornerRadius="10dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#DEE6F2"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="手动同步"
+                        android:textColor="#1A2744"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="只在你点击时上传/下载。默认不开启后台自动同步。"
+                        android:textColor="#6D7C93"
+                        android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_manual_upload"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="12dp"
+                        android:text="手动上传到云端"
+                        app:backgroundTint="#2E9F72"
+                        app:cornerRadius="10dp"
+                        app:icon="@android:drawable/ic_menu_upload"
+                        app:iconGravity="textStart" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_manual_download"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:text="手动从云端下载"
+                        android:textColor="#2E9F72"
+                        app:cornerRadius="10dp"
+                        app:icon="@android:drawable/ic_menu_save"
+                        app:iconGravity="textStart"
+                        app:iconTint="#2E9F72"
+                        app:strokeColor="#8ED3B7"
+                        app:strokeWidth="1dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_show_cleanup_policy"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="46dp"
+                        android:layout_marginTop="10dp"
+                        android:text="查看云端保留策略"
+                        android:textColor="#44556E"
+                        app:backgroundTint="#EAF0FB"
+                        app:cornerRadius="10dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>
