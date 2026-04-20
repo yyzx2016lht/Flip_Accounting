@@ -103,7 +103,7 @@
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:layout_gravity="center"
-                    android:src="@drawable/ic_voice_play"
+                    android:src="@drawable/ic_voice_play_telegram"
                     app:tint="#FFFFFF" />
             </FrameLayout>
 

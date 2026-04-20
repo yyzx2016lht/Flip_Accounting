@@ -23,8 +23,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.webkit.MimeTypeMap
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
@@ -43,11 +48,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.yalantis.ucrop.UCrop
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -70,6 +72,7 @@ import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 class ChatActivity : AppCompatActivity() {
 
@@ -134,7 +137,7 @@ class ChatActivity : AppCompatActivity() {
                 drawerSessions.closeDrawer(GravityCompat.END)
                 loadHistoryMessages()
             },
-            onRename = { row -> showRenameSessionDialog(row) },
+            onRename = { row, newTitle -> renameSessionInline(row, newTitle) },
             onDelete = { row -> showDeleteSessionDialog(row) }
         )
     }
@@ -171,6 +174,8 @@ class ChatActivity : AppCompatActivity() {
     private val voiceHandler = Handler(Looper.getMainLooper())
     private var recordingStartAt = 0L
     private var currentPlayingPath: String? = null
+    private var pausedVoicePath: String? = null
+    private var pausedVoicePositionMs: Int = 0
     private var mediaPlayer: MediaPlayer? = null
     private var currentAudioFocusGranted = false
     private var audioSupportProbeJob: Job? = null
@@ -704,11 +709,16 @@ class ChatActivity : AppCompatActivity() {
             .groupBy { (it.bookName.ifBlank { BookAccountManager.DEFAULT_BOOK }) to it.conversationId }
             .filterKeys { it.second.isNotBlank() }
             .toMutableMap()
-
-        val orderByFirstSeen = grouped.entries
-            .sortedBy { entry -> entry.value.minOfOrNull { it.timestamp } ?: Long.MAX_VALUE }
-            .mapIndexed { index, entry -> entry.key to "AI对话${index + 1}" }
-            .toMap()
+        val orderByFirstSeen = mutableMapOf<Pair<String, String>, Int>()
+        grouped.entries
+            .groupBy { it.key.first }
+            .forEach { (_, entriesInBook) ->
+                entriesInBook
+                    .sortedBy { entry -> entry.value.minOfOrNull { it.timestamp } ?: Long.MAX_VALUE }
+                    .forEachIndexed { index, entry ->
+                        orderByFirstSeen[entry.key] = index + 1
+                    }
+            }
 
         allSessionRows.clear()
         val rows = mutableListOf<ChatSessionRow>()
@@ -719,16 +729,30 @@ class ChatActivity : AppCompatActivity() {
             val latestBillMsg = list
                 .filter { it.msgType == MSG_TYPE_AI_BILL && !isDeprecatedBillMessage(it.billIds) }
                 .maxByOrNull { it.timestamp }
-            val defaultTitle = orderByFirstSeen[key] ?: "AI对话"
             val preview = runCatching {
                 buildSessionPreview(latestBillMsg, latest)
             }.getOrElse {
                 buildSessionPreviewFallback(latestBillMsg, latest)
             }
+            val bookLabel = BookAccountManager.normalizeBookName(rowBookName).ifBlank {
+                BookAccountManager.DEFAULT_BOOK
+            }
+            val defaultTitle = "$bookLabel · 会话 ${orderByFirstSeen[key] ?: 1}"
+            val savedTitle = Prefs.getAiChatSessionTitle(this, rowBookName, convId).trim()
+            val oldAutoTitle = buildSessionAutoTitle(list, preview)
+            val finalTitle = if (
+                savedTitle.isBlank() ||
+                isLegacySessionAutoTitle(savedTitle) ||
+                savedTitle == oldAutoTitle
+            ) {
+                defaultTitle
+            } else {
+                savedTitle
+            }
             rows += ChatSessionRow(
                 bookName = rowBookName,
                 conversationId = convId,
-                title = Prefs.getAiChatSessionTitle(this, rowBookName, convId).ifBlank { defaultTitle },
+                title = finalTitle,
                 preview = preview,
                 displayTime = latest?.timestamp?.let {
                     SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(it))
@@ -738,6 +762,52 @@ class ChatActivity : AppCompatActivity() {
             )
         }
         allSessionRows.addAll(rows.sortedByDescending { it.timestamp })
+    }
+
+    private fun buildSessionAutoTitle(messages: List<ChatMessage>, preview: String): String {
+        val latestUserText = messages
+            .asReversed()
+            .firstOrNull { it.msgType == MSG_TYPE_USER_TEXT }
+            ?.content
+            .orEmpty()
+            .trim()
+        if (latestUserText.isNotBlank()) {
+            val clean = latestUserText
+                .replace(Regex("\\s+"), " ")
+                .replace("。", "")
+                .replace("，", " ")
+                .replace(",", " ")
+                .trim()
+            return clean.take(16).ifBlank { "新的会话" }
+        }
+
+        val latestVoiceText = messages
+            .asReversed()
+            .firstOrNull { it.msgType == MSG_TYPE_USER_VOICE }
+            ?.let { parseVoicePayload(it.content).transcript.trim() }
+            .orEmpty()
+        if (latestVoiceText.isNotBlank()) {
+            return latestVoiceText.take(16)
+        }
+
+        if (preview.isNotBlank()) {
+            return preview
+                .removePrefix("最后一笔账单：（")
+                .removePrefix("最近消息：")
+                .removeSuffix("）")
+                .trim()
+                .take(16)
+                .ifBlank { "新的会话" }
+        }
+        return "新的会话"
+    }
+
+    private fun isLegacySessionAutoTitle(title: String): Boolean {
+        val t = title.trim()
+        if (t == "AI对话") return true
+        if (t == "新的会话") return true
+        if (Regex("^记账会话\\s*\\d+$").matches(t)) return true
+        return Regex("^AI对话\\d+$").matches(t)
     }
 
     private suspend fun switchToLatestConversationOrNew(bookName: String) {
@@ -809,6 +879,19 @@ class ChatActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    private fun renameSessionInline(row: ChatSessionRow, newTitle: String) {
+        val value = newTitle.trim()
+        if (value.isBlank() || value == row.title) return
+        Prefs.setAiChatSessionTitle(this, row.bookName, row.conversationId, value)
+        lifecycleScope.launch {
+            refreshSessionRows()
+            if (etSessionSearch.text?.toString().orEmpty().isBlank()) {
+                rvSessionList.adapter = sessionAdapter
+                sessionAdapter.submit(allSessionRows.toList())
+            }
+        }
     }
 
     private fun showReplyStyleDialog() {
@@ -1343,51 +1426,11 @@ class ChatActivity : AppCompatActivity() {
                 text == "MODEL_DOWNLOADING"
             ) "" else text
         }
-        return coroutineScope {
-            val localDeferred = async(Dispatchers.IO) {
-                normalize(LocalAsrService.speechToText(this@ChatActivity, audioFile))
-            }
-            val cloudDeferred = async(Dispatchers.IO) {
-                normalize(AIService.speechToText(this@ChatActivity, audioFile))
-            }
-
-            var firstText = ""
-            var firstSource = ""
-            var waitRounds = 0
-            while (firstText.isBlank() && waitRounds < 80) {
-                if (localDeferred.isCompleted) {
-                    val local = runCatching { localDeferred.await() }.getOrDefault("")
-                    if (local.isNotBlank()) {
-                        firstText = local
-                        firstSource = "local"
-                        break
-                    }
-                }
-                if (cloudDeferred.isCompleted) {
-                    val cloud = runCatching { cloudDeferred.await() }.getOrDefault("")
-                    if (cloud.isNotBlank()) {
-                        firstText = cloud
-                        firstSource = "cloud"
-                        break
-                    }
-                }
-                if (localDeferred.isCompleted && cloudDeferred.isCompleted) break
-                waitRounds++
-                delay(60)
-            }
-
-            if (firstText.isBlank()) {
-                val local = withTimeoutOrNull(8000) { runCatching { localDeferred.await() }.getOrDefault("") }.orEmpty()
-                val cloud = withTimeoutOrNull(8000) { runCatching { cloudDeferred.await() }.getOrDefault("") }.orEmpty()
-                return@coroutineScope listOf(local, cloud).filter { it.isNotBlank() }.maxByOrNull { it.length }.orEmpty()
-            }
-
-            // 首条结果太短时，给另一条一个短窗口，优先更长文本，兼顾速度和完整度。
-            val maybeOther = withTimeoutOrNull(900) {
-                if (firstSource == "local") runCatching { cloudDeferred.await() }.getOrDefault("")
-                else runCatching { localDeferred.await() }.getOrDefault("")
-            }.orEmpty()
-            if (firstText.length < 10 && maybeOther.length > firstText.length) maybeOther else firstText
+        val asrMode = Prefs.getAsrMode(this)
+        return if (asrMode == Prefs.ASR_MODE_WHISPER) {
+            normalize(LocalAsrService.speechToText(this@ChatActivity, audioFile))
+        } else {
+            normalize(AIService.speechToText(this@ChatActivity, audioFile))
         }
     }
 
@@ -1469,8 +1512,25 @@ class ChatActivity : AppCompatActivity() {
             return
         }
         if (currentPlayingPath == path) {
+            val player = mediaPlayer
+            if (player != null) {
+                if (player.isPlaying) {
+                    pausedVoicePath = path
+                    pausedVoicePositionMs = runCatching { player.currentPosition }.getOrDefault(0)
+                    runCatching { player.pause() }
+                } else {
+                    if (pausedVoicePath == path && pausedVoicePositionMs > 0) {
+                        runCatching { player.seekTo(pausedVoicePositionMs) }
+                    }
+                    runCatching { player.start() }
+                    pausedVoicePath = null
+                    pausedVoicePositionMs = 0
+                }
+                adapter.notifyDataSetChanged()
+                return
+            }
             stopVoicePlayback()
-            return
+            adapter.notifyDataSetChanged()
         }
         stopVoicePlayback()
         val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
@@ -1495,6 +1555,8 @@ class ChatActivity : AppCompatActivity() {
             start()
         }
         currentPlayingPath = path
+        pausedVoicePath = null
+        pausedVoicePositionMs = 0
         adapter.notifyDataSetChanged()
     }
 
@@ -1510,6 +1572,8 @@ class ChatActivity : AppCompatActivity() {
         audioManager?.isSpeakerphoneOn = false
         currentAudioFocusGranted = false
         currentPlayingPath = null
+        pausedVoicePath = null
+        pausedVoicePositionMs = 0
     }
 
     private fun showVoiceMessageMenu(anchor: View, item: ChatDisplayItem) {
@@ -3019,8 +3083,10 @@ class ChatActivity : AppCompatActivity() {
                     layoutVoiceWave.layoutParams = layoutVoiceWave.layoutParams.apply {
                         this.width = width.toInt()
                     }
-                    val isPlaying = currentPlayingPath == voice.audioPath
-                    ivVoicePlay.setImageResource(if (isPlaying) R.drawable.ic_voice_pause else R.drawable.ic_voice_play)
+                    val isPlaying = currentPlayingPath == voice.audioPath && (mediaPlayer?.isPlaying == true)
+                    ivVoicePlay.setImageResource(
+                        if (isPlaying) R.drawable.ic_voice_pause_telegram else R.drawable.ic_voice_play_telegram
+                    )
                     bindWaveBars(voice.audioPath, isPlaying)
                     bindVoiceTranscript(voice)
                     maybeAnimateFreshVoiceBubble(voice.audioPath)
@@ -3194,15 +3260,32 @@ class ChatActivity : AppCompatActivity() {
 
     inner class SessionListAdapter(
         private val onClick: (ChatSessionRow) -> Unit,
-        private val onRename: (ChatSessionRow) -> Unit,
+        private val onRename: (ChatSessionRow, String) -> Unit,
         private val onDelete: (ChatSessionRow) -> Unit
     ) : RecyclerView.Adapter<SessionListAdapter.VH>() {
         private val list = mutableListOf<ChatSessionRow>()
+        private var openedPosition: Int = RecyclerView.NO_POSITION
+        private var editingPosition: Int = RecyclerView.NO_POSITION
 
         fun submit(data: List<ChatSessionRow>) {
+            val openedKey = list.getOrNull(openedPosition)?.let { it.bookName to it.conversationId }
+            val editingKey = list.getOrNull(editingPosition)?.let { it.bookName to it.conversationId }
             list.clear()
             list.addAll(data)
+            openedPosition = list.indexOfFirst {
+                (it.bookName to it.conversationId) == openedKey
+            }.takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
+            editingPosition = list.indexOfFirst {
+                (it.bookName to it.conversationId) == editingKey
+            }.takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
             notifyDataSetChanged()
+        }
+
+        fun closeSwipeActions() {
+            if (openedPosition == RecyclerView.NO_POSITION) return
+            val old = openedPosition
+            openedPosition = RecyclerView.NO_POSITION
+            notifyItemChanged(old)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -3212,25 +3295,191 @@ class ChatActivity : AppCompatActivity() {
         }
 
         override fun getItemCount(): Int = list.size
-        override fun onBindViewHolder(holder: VH, position: Int) = holder.bind(list[position])
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            holder.bind(
+                item = list[position],
+                opened = position == openedPosition,
+                editing = position == editingPosition
+            )
+        }
 
         inner class VH(v: View) : RecyclerView.ViewHolder(v) {
+            private val foreground: View = v.findViewById(R.id.layout_session_foreground)
             private val tvTitle: TextView = v.findViewById(R.id.tv_session_title)
+            private val etTitle: EditText = v.findViewById(R.id.et_session_title)
             private val tvPreview: TextView = v.findViewById(R.id.tv_session_preview)
             private val tvTime: TextView = v.findViewById(R.id.tv_session_time)
-            private val btnRename: TextView = v.findViewById(R.id.btn_session_rename)
-            private val btnDelete: TextView = v.findViewById(R.id.btn_session_delete)
-            fun bind(item: ChatSessionRow) {
+            private val btnRename: ImageView = v.findViewById(R.id.btn_session_rename)
+            private val btnDelete: ImageView = v.findViewById(R.id.btn_session_delete)
+            private val slop = ViewConfiguration.get(v.context).scaledTouchSlop
+            private val actionsWidthPx = 120f * v.resources.displayMetrics.density
+            private var downX = 0f
+            private var downY = 0f
+            private var startTx = 0f
+            private var dragging = false
+
+            init {
+                foreground.setOnTouchListener { _, ev -> onForegroundTouch(ev) }
+                foreground.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                    if (editingPosition == pos) return@setOnClickListener
+                    val item = list.getOrNull(pos) ?: return@setOnClickListener
+                    if (openedPosition == pos) {
+                        closeSwipeActions()
+                        return@setOnClickListener
+                    }
+                    closeSwipeActions()
+                    onClick(item)
+                }
+                btnRename.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                    closeSwipeActions()
+                    startInlineEdit(pos)
+                }
+                btnDelete.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                    val item = list.getOrNull(pos) ?: return@setOnClickListener
+                    closeSwipeActions()
+                    onDelete(item)
+                }
+                etTitle.setOnEditorActionListener { _, actionId, event ->
+                    val imeDone = actionId == EditorInfo.IME_ACTION_DONE
+                    val keyDone = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP
+                    if (imeDone || keyDone) {
+                        commitInlineRename()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                etTitle.setOnFocusChangeListener { _, hasFocus ->
+                    val pos = adapterPosition
+                    if (!hasFocus && pos != RecyclerView.NO_POSITION && editingPosition == pos) {
+                        commitInlineRename()
+                    }
+                }
+            }
+
+            private fun onForegroundTouch(ev: MotionEvent): Boolean {
+                val pos = adapterPosition
+                if (pos == RecyclerView.NO_POSITION) return false
+                if (editingPosition == pos) return false
+                when (ev.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downX = ev.rawX
+                        downY = ev.rawY
+                        startTx = foreground.translationX
+                        dragging = false
+                        if (openedPosition != RecyclerView.NO_POSITION && openedPosition != pos) {
+                            val old = openedPosition
+                            openedPosition = RecyclerView.NO_POSITION
+                            notifyItemChanged(old)
+                        }
+                        itemView.parent?.requestDisallowInterceptTouchEvent(true)
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = ev.rawX - downX
+                        val dy = ev.rawY - downY
+                        if (!dragging) {
+                            when {
+                                abs(dx) > slop && abs(dx) > abs(dy) -> dragging = true
+                                abs(dy) > slop -> {
+                                    itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                                    return false
+                                }
+                            }
+                        }
+                        if (dragging) {
+                            val tx = (startTx + dx).coerceIn(-actionsWidthPx, 0f)
+                            foreground.translationX = tx
+                            return true
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                        if (dragging) {
+                            settleSwipe(pos)
+                            dragging = false
+                            return true
+                        }
+                        if (ev.actionMasked == MotionEvent.ACTION_UP) {
+                            foreground.performClick()
+                            return true
+                        }
+                    }
+                }
+                return false
+            }
+
+            private fun settleSwipe(pos: Int) {
+                val shouldOpen = foreground.translationX < -actionsWidthPx * 0.38f
+                val target = if (shouldOpen) -actionsWidthPx else 0f
+                if (shouldOpen) {
+                    val old = openedPosition
+                    openedPosition = pos
+                    if (old != RecyclerView.NO_POSITION && old != pos) notifyItemChanged(old)
+                } else if (openedPosition == pos) {
+                    openedPosition = RecyclerView.NO_POSITION
+                }
+                foreground.animate().translationX(target).setDuration(180L).start()
+            }
+
+            private fun startInlineEdit(pos: Int) {
+                val old = editingPosition
+                editingPosition = pos
+                if (old != RecyclerView.NO_POSITION && old != pos) notifyItemChanged(old)
+                notifyItemChanged(pos)
+            }
+
+            private fun commitInlineRename() {
+                val pos = adapterPosition
+                if (pos == RecyclerView.NO_POSITION) return
+                val item = list.getOrNull(pos) ?: return
+                val newTitle = etTitle.text?.toString().orEmpty().trim()
+                editingPosition = RecyclerView.NO_POSITION
+                hideKeyboard(etTitle)
+                notifyItemChanged(pos)
+                if (newTitle.isBlank() || newTitle == item.title) return
+                onRename(item, newTitle)
+            }
+
+            private fun hideKeyboard(view: View) {
+                val imm = view.context.getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.hideSoftInputFromWindow(view.windowToken, 0)
+            }
+
+            fun bind(item: ChatSessionRow, opened: Boolean, editing: Boolean) {
                 tvTitle.text = item.title
                 tvPreview.text = item.preview
                 tvTime.text = item.displayTime
-                itemView.setBackgroundResource(
-                    if (item.isCurrent) R.drawable.bg_chat_session_item_selected
-                    else R.drawable.bg_chat_session_item
-                )
-                itemView.setOnClickListener { onClick(item) }
-                btnRename.setOnClickListener { onRename(item) }
-                btnDelete.setOnClickListener { onDelete(item) }
+                foreground.animate().cancel()
+                foreground.translationX = if (opened) -actionsWidthPx else 0f
+                val bgRes = when {
+                    item.isCurrent -> R.drawable.bg_book_item_selected
+                    else -> R.drawable.bg_book_item_normal
+                }
+                foreground.setBackgroundResource(bgRes)
+                if (editing) {
+                    tvTitle.visibility = View.GONE
+                    etTitle.visibility = View.VISIBLE
+                    if (etTitle.text?.toString() != item.title) etTitle.setText(item.title)
+                    etTitle.post {
+                        if (adapterPosition != RecyclerView.NO_POSITION && adapterPosition == editingPosition) {
+                            etTitle.requestFocus()
+                            etTitle.setSelection(etTitle.text?.length ?: 0)
+                            val imm = etTitle.context.getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+                            imm?.showSoftInput(etTitle, InputMethodManager.SHOW_IMPLICIT)
+                        }
+                    }
+                } else {
+                    tvTitle.visibility = View.VISIBLE
+                    etTitle.visibility = View.GONE
+                }
             }
         }
     }

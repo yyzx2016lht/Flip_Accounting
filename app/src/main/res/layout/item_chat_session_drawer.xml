@@ -1,20 +1,56 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    android:background="@drawable/bg_chat_session_item"
-    android:gravity="center_vertical"
-    android:minHeight="98dp"
-    android:orientation="horizontal"
-    android:paddingHorizontal="14dp"
-    android:paddingVertical="13dp">
+    android:layout_height="60dp"
+    android:layout_marginBottom="8dp">
 
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:id="@+id/layout_session_actions"
+        android:layout_width="120dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <ImageView
+            android:id="@+id/btn_session_rename"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_book_action_edit"
+            android:clickable="true"
+            android:contentDescription="rename"
+            android:focusable="true"
+            android:padding="14dp"
+            android:src="@android:drawable/ic_menu_edit"
+            android:tint="#FFFFFF" />
+
+        <ImageView
+            android:id="@+id/btn_session_delete"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_book_action_delete"
+            android:clickable="true"
+            android:contentDescription="delete"
+            android:focusable="true"
+            android:padding="14dp"
+            android:src="@android:drawable/ic_menu_delete"
+            android:tint="#FFFFFF" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_session_foreground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_book_item_normal"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="7dp"
+        android:paddingBottom="7dp">
 
         <TextView
             android:id="@+id/tv_session_title"
@@ -22,68 +58,50 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="#24364D"
-            android:textSize="15sp"
+            android:textColor="#1C2E4A"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tv_session_book"
-            android:layout_width="wrap_content"
+        <EditText
+            android:id="@+id/et_session_title"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:background="@drawable/bg_dialog_action_item"
-            android:ellipsize="end"
+            android:background="@android:color/transparent"
+            android:imeOptions="actionDone"
+            android:inputType="textCapWords"
             android:maxLines="1"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="2dp"
-            android:textColor="#4665A9"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:padding="0dp"
+            android:textColor="#1C2E4A"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/tv_session_preview"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="7dp"
-            android:ellipsize="end"
-            android:lineSpacingExtra="1dp"
-            android:maxLines="2"
-            android:textColor="#74849A"
-            android:textSize="12.5sp" />
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tv_session_time"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="9dp"
-            android:textColor="#9AA7B8"
-            android:textSize="11.5sp" />
+            <TextView
+                android:id="@+id/tv_session_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#8A97AB"
+                android:textSize="10.5sp" />
+
+            <TextView
+                android:id="@+id/tv_session_preview"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#8A97AB"
+                android:textSize="10.5sp" />
+        </LinearLayout>
+
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/btn_session_rename"
-        android:layout_width="wrap_content"
-        android:layout_height="32dp"
-        android:layout_marginStart="10dp"
-        android:background="@drawable/bg_dialog_action_item"
-        android:gravity="center"
-        android:paddingHorizontal="10dp"
-        android:text="重命名"
-        android:textColor="#4665A9"
-        android:textSize="12sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/btn_session_delete"
-        android:layout_width="wrap_content"
-        android:layout_height="32dp"
-        android:layout_marginStart="8dp"
-        android:background="@drawable/bg_dialog_action_item_danger"
-        android:gravity="center"
-        android:paddingHorizontal="10dp"
-        android:text="删除"
-        android:textColor="#B3261E"
-        android:textSize="12sp"
-        android:textStyle="bold" />
-
-</LinearLayout>
+</FrameLayout>
