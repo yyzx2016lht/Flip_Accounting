@@ -21,6 +21,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE name = :name LIMIT 1")
     suspend fun getCategoryByName(name: String): Category?
 
+    @Query("SELECT MAX(sortOrder) FROM categories WHERE type = :type AND IFNULL(parentId, 0) = IFNULL(:parentId, 0)")
+    suspend fun getMaxSortOrder(type: Int, parentId: Long?): Int?
+
     @Update
     suspend fun updateCategory(category: Category)
 

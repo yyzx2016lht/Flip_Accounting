@@ -32,6 +32,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var rvSortCategories: RecyclerView
     private var expandedParentName: String? = null
     private var isSortMode = false
+    private var activeSortParentId: Long? = null
     private val sortCategories = mutableListOf<Category>()
     private lateinit var sortAdapter: RecyclerView.Adapter<*>
 
@@ -51,7 +52,13 @@ class SettingsActivity : AppCompatActivity() {
         scrollNormalContent = findViewById(R.id.scroll_normal_content)
         layoutSortActions = findViewById(R.id.layout_sort_actions)
         rvSortCategories = findViewById(R.id.rv_sort_categories)
-        findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
+        findViewById<View>(R.id.btn_back).setOnClickListener {
+            if (isSortMode) {
+                exitSortMode(resetData = true)
+            } else {
+                finish()
+            }
+        }
 
     // 右上角添加按钮
         findViewById<View>(R.id.btn_add_category).setOnClickListener {
@@ -75,7 +82,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (isSortMode) enterSortMode() else renderUI()
+        if (isSortMode) enterSortMode(activeSortParentId) else renderUI()
     }
 
     private fun renderUI() {
@@ -113,6 +120,7 @@ class SettingsActivity : AppCompatActivity() {
                 holder.iconContainer.scaleY = 0.88f
                 holder.itemView.alpha = 0.96f
                 loadSafeCategoryIcon(item.iconId, holder.icon)
+                holder.icon.setColorFilter(Color.parseColor("#4F5D75"))
             }
         }
         rvSortCategories.adapter = sortAdapter
@@ -157,7 +165,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         findViewById<View>(R.id.btn_save_sort).setOnClickListener {
             lifecycleScope.launch(Dispatchers.IO) {
-                categoryRepository.saveOrderedCategoryTree(sortCategories.toList())
+                categoryRepository.saveOrderedCategories(sortCategories.toList())
                 withContext(Dispatchers.Main) {
                     exitSortMode(resetData = false)
                     renderUI()
@@ -186,8 +194,9 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun enterSortMode() {
+    private fun enterSortMode(sortParentId: Long?) {
         isSortMode = true
+        activeSortParentId = sortParentId
         scrollNormalContent.visibility = View.GONE
         layoutSortActions.visibility = View.VISIBLE
         rvSortCategories.visibility = View.VISIBLE
@@ -196,19 +205,21 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val dbType = if (currentType == Prefs.TYPE_INCOME) 1 else 0
             val all = withContext(Dispatchers.IO) { categoryRepository.getCategoriesListByType(dbType) }
-            val childrenByParent = all.filter { it.parentId != null }.groupBy { it.parentId }
             sortCategories.clear()
-            all.filter { it.parentId == null }.forEach { parent ->
-                sortCategories += parent
-                sortCategories += childrenByParent[parent.id].orEmpty()
+            if (sortParentId == null) {
+                sortCategories += all.filter { it.parentId == null }
+                findViewById<TextView>(R.id.tv_sort_tip)?.text = "拖动一级分类进行排序"
+            } else {
+                sortCategories += all.filter { it.parentId == sortParentId }
+                findViewById<TextView>(R.id.tv_sort_tip)?.text = "拖动子分类进行排序"
             }
-            sortCategories += all.filter { it.parentId != null && sortCategories.none { added -> added.id == it.id } }
             sortAdapter.notifyDataSetChanged()
         }
     }
 
     private fun exitSortMode(resetData: Boolean) {
         isSortMode = false
+        activeSortParentId = null
         layoutSortActions.visibility = View.GONE
         rvSortCategories.visibility = View.GONE
         scrollNormalContent.visibility = View.VISIBLE
@@ -425,7 +436,7 @@ class SettingsActivity : AppCompatActivity() {
                     }
                     "删除分类" -> handleDeleteCategory(target, parent)
                     "排序分类" -> {
-                        startActivity(CategorySortActivity.createIntent(this@SettingsActivity, currentType))
+                        enterSortMode(if (isSubCategory) parent?.id else null)
                     }
                     "升级为一级分类" -> showPromoteConfirm(target)
                     "调整为子分类" -> showDemoteDialog(target, allCats)
@@ -640,5 +651,13 @@ class SettingsActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    override fun onBackPressed() {
+        if (isSortMode) {
+            exitSortMode(resetData = true)
+        } else {
+            super.onBackPressed()
+        }
     }
 }

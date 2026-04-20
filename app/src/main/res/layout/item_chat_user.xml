@@ -83,86 +83,40 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/bg_chat_voice_bubble"
-            android:minWidth="118dp"
-            android:paddingStart="9dp"
-            android:paddingTop="7dp"
-            android:paddingEnd="9dp"
-            android:paddingBottom="7dp"
+            android:minWidth="80dp"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="10dp"
             android:visibility="gone"
             android:clickable="true"
             android:focusable="true">
-
-            <FrameLayout
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_chat_voice_play_chip">
-
-                <ImageView
-                    android:id="@+id/iv_voice_play"
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_voice_play_telegram"
-                    app:tint="#FFFFFF" />
-            </FrameLayout>
-
-            <LinearLayout
-                android:id="@+id/layout_voice_wave"
-                android:layout_width="wrap_content"
-                android:layout_height="16dp"
-                android:layout_marginEnd="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/view_voice_bar_1"
-                    android:layout_width="3dp"
-                    android:layout_height="6dp"
-                    android:layout_marginEnd="3dp"
-                    android:background="@drawable/bg_chat_voice_wave_bar"
-                    android:alpha="0.64" />
-
-                <View
-                    android:id="@+id/view_voice_bar_2"
-                    android:layout_width="3dp"
-                    android:layout_height="11dp"
-                    android:layout_marginEnd="3dp"
-                    android:background="@drawable/bg_chat_voice_wave_bar"
-                    android:alpha="0.84" />
-
-                <View
-                    android:id="@+id/view_voice_bar_3"
-                    android:layout_width="3dp"
-                    android:layout_height="8dp"
-                    android:layout_marginEnd="3dp"
-                    android:background="@drawable/bg_chat_voice_wave_bar"
-                    android:alpha="0.74" />
-
-                <View
-                    android:id="@+id/view_voice_bar_4"
-                    android:layout_width="3dp"
-                    android:layout_height="13dp"
-                    android:layout_marginEnd="3dp"
-                    android:background="@drawable/bg_chat_voice_wave_bar"
-                    android:alpha="0.92" />
-
-                <View
-                    android:id="@+id/view_voice_bar_5"
-                    android:layout_width="3dp"
-                    android:layout_height="7dp"
-                    android:background="@drawable/bg_chat_voice_wave_bar"
-                    android:alpha="0.72" />
-            </LinearLayout>
 
             <TextView
                 android:id="@+id/tv_voice_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="1''"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="#F7FAFF" />
+                android:layout_marginEnd="6dp"
+                android:text="1&quot;"
+                android:textSize="15sp"
+                android:textColor="#333333" />
+
+            <LinearLayout
+                android:id="@+id/layout_voice_wave"
+                android:layout_width="wrap_content"
+                android:layout_height="18dp"
+                android:layout_marginEnd="6dp"
+                android:gravity="center_vertical|end"
+                android:orientation="horizontal">
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/iv_voice_play"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_voice_play_telegram"
+                app:tint="#333333" />
+
         </LinearLayout>
 
         <LinearLayout

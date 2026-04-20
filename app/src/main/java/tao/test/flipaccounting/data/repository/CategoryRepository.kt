@@ -68,7 +68,9 @@ class CategoryRepository(
     }
 
     suspend fun addCategory(category: Category): Long {
-        return categoryDao.insertCategory(category)
+        val maxOrder = categoryDao.getMaxSortOrder(category.type, category.parentId) ?: 0
+        val categoryWithOrder = category.copy(sortOrder = maxOrder + 10)
+        return categoryDao.insertCategory(categoryWithOrder)
     }
 
     suspend fun getCategoryByName(name: String): Category? {

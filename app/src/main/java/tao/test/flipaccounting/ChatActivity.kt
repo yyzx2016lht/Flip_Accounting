@@ -73,6 +73,7 @@ import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class ChatActivity : AppCompatActivity() {
 
@@ -181,6 +182,7 @@ class ChatActivity : AppCompatActivity() {
     private var audioSupportProbeJob: Job? = null
     private val pendingVoiceBubbleAnimations = mutableSetOf<String>()
     private val pendingTranscriptRevealAnimations = mutableSetOf<String>()
+    private val transcribingPaths = mutableSetOf<String>()
     private var inlineAmountEditingBillId: Long? = null
 
     private val sampleRate = 16000
@@ -1699,19 +1701,31 @@ class ChatActivity : AppCompatActivity() {
             Utils.toast(this, "语音文件已不存在")
             return
         }
+        if (transcribingPaths.contains(path)) return
+        
         lifecycleScope.launch {
             if (!force && voice.transcript.trim().isNotBlank()) {
-                if (showResult) {
+                val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
+                if (showResult && idx >= 0) {
                     pendingTranscriptRevealAnimations += voice.audioPath
-                    val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
-                    if (idx >= 0) adapter.notifyItemChanged(idx)
+                    adapter.notifyItemChanged(idx)
                     scrollToBottom()
                 }
                 return@launch
             }
-            val text = withContext(Dispatchers.IO) {
-                transcribeVoiceToTextWithFallback(file)
-            }.orEmpty().trim()
+            
+            transcribingPaths.add(path)
+            findVoiceItemIndex(item.dbId, voice.audioPath).takeIf { it >= 0 }?.let { adapter.notifyItemChanged(it) }
+
+            val text = try {
+                withContext(Dispatchers.IO) {
+                    transcribeVoiceToTextWithFallback(file)
+                }.orEmpty().trim()
+            } finally {
+                transcribingPaths.remove(path)
+                findVoiceItemIndex(item.dbId, voice.audioPath).takeIf { it >= 0 }?.let { adapter.notifyItemChanged(it) }
+            }
+
             if (text.isBlank()) {
                 Utils.toast(this@ChatActivity, "转文字失败，请稍后重试")
                 return@launch
@@ -2004,9 +2018,13 @@ class ChatActivity : AppCompatActivity() {
         val loadingIdx = appendAiTextMessage("正在理解你的消息...", isLoading = true)
         var loadingStage = 1
         fun pushLoadingStatus(raw: String) {
-            val (stage, _) = mapProgressToNaturalStatus(raw)
+            val (stage, text) = mapProgressToNaturalStatus(raw)
             loadingStage = maxOf(loadingStage, stage)
-            val stableText = if (loadingStage >= 2) "正在生成回复..." else "正在理解你的消息..."
+            val stableText = when (loadingStage) {
+                1 -> "正在理解你的消息..."
+                2 -> "正在生成回复..."
+                else -> text
+            }
             updateLoadingMessage(loadingIdx, stableText)
         }
         lifecycleScope.launch {
@@ -2936,6 +2954,11 @@ class ChatActivity : AppCompatActivity() {
         val text = raw.trim()
         if (text.isBlank()) return 1 to "正在理解你的消息..."
         val lower = text.lowercase(Locale.getDefault())
+
+        if (text.contains("智能分类中") || text.contains("智能分析中") || text.contains("匹配中")) {
+            return 3 to text
+        }
+
         return when {
             lower.contains("reply") ||
                 lower.contains("respond") ||
@@ -3042,15 +3065,7 @@ class ChatActivity : AppCompatActivity() {
         private val layoutVoiceTranscript: LinearLayout = v.findViewById(R.id.layout_voice_transcript)
         private val tvVoiceTranscript: TextView = v.findViewById(R.id.tv_voice_transcript)
         private val ivVoiceTranscriptCopy: ImageView = v.findViewById(R.id.iv_voice_transcript_copy)
-        private val waveBars by lazy {
-            listOf(
-                v.findViewById<View>(R.id.view_voice_bar_1),
-                v.findViewById<View>(R.id.view_voice_bar_2),
-                v.findViewById<View>(R.id.view_voice_bar_3),
-                v.findViewById<View>(R.id.view_voice_bar_4),
-                v.findViewById<View>(R.id.view_voice_bar_5)
-            )
-        }
+        private var waveBars: List<View> = emptyList()
         private val cbSelect: android.widget.CheckBox = v.findViewById(R.id.cb_user_select)
         private val ivUserAvatar: ImageView = v.findViewById(R.id.iv_user_avatar)
 
@@ -3078,17 +3093,19 @@ class ChatActivity : AppCompatActivity() {
                     ivImage.visibility = View.GONE
                     layoutVoice.visibility = View.VISIBLE
                     val voice = item.voice ?: parseVoicePayload(item.content)
-                    tvVoice.text = "${voice.durationSec}''"
+                    tvVoice.text = "${voice.durationSec}\""
                     val width = (44 + voice.durationSec.coerceAtMost(45) * 3.4f) * itemView.resources.displayMetrics.density
+                    val waveWidth = width.toInt().coerceAtLeast(0)
                     layoutVoiceWave.layoutParams = layoutVoiceWave.layoutParams.apply {
-                        this.width = width.toInt()
+                        this.width = waveWidth
                     }
+                    updateWaveBarsForVoice(voice.durationSec, waveWidth)
                     val isPlaying = currentPlayingPath == voice.audioPath && (mediaPlayer?.isPlaying == true)
                     ivVoicePlay.setImageResource(
                         if (isPlaying) R.drawable.ic_voice_pause_telegram else R.drawable.ic_voice_play_telegram
                     )
                     bindWaveBars(voice.audioPath, isPlaying)
-                    bindVoiceTranscript(voice)
+                    bindVoiceTranscript(item, voice)
                     maybeAnimateFreshVoiceBubble(voice.audioPath)
                     maybeAnimateTranscriptReveal(voice.audioPath)
                     layoutVoice.alpha = if (isVoiceSelectionMode && selectedVoiceMessageIds.contains(item.dbId)) 0.8f else 1f
@@ -3120,6 +3137,7 @@ class ChatActivity : AppCompatActivity() {
                 layoutVoice.setOnClickListener(null)
                 layoutVoice.setOnLongClickListener(null)
                 layoutVoiceTranscript.setOnLongClickListener(null)
+                tvVoiceTranscript.setOnLongClickListener(null)
                 ivVoiceTranscriptCopy.setOnClickListener(null)
             }
             ivUserAvatar.setOnClickListener {
@@ -3130,38 +3148,94 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        private fun bindVoiceTranscript(voice: VoicePayload) {
+        private fun bindVoiceTranscript(item: ChatDisplayItem, voice: VoicePayload) {
             val transcript = voice.transcript.trim()
-            if (transcript.isBlank()) {
+            val isTranscribing = transcribingPaths.contains(voice.audioPath)
+            
+            if (transcript.isBlank() && !isTranscribing) {
                 layoutVoiceTranscript.visibility = View.GONE
                 layoutVoiceTranscript.alpha = 1f
                 layoutVoiceTranscript.translationY = 0f
                 ivVoiceTranscriptCopy.setOnClickListener(null)
                 layoutVoiceTranscript.setOnLongClickListener(null)
+                tvVoiceTranscript.setOnLongClickListener(null)
                 return
             }
+            
             layoutVoiceTranscript.visibility = View.VISIBLE
-            tvVoiceTranscript.text = transcript
-            ivVoiceTranscriptCopy.setOnClickListener {
-                copyToClipboard("voice_transcript", transcript, "已复制转写文本")
+            tvVoiceTranscript.text = if (isTranscribing) "正在转换文字，请稍候..." else transcript
+            ivVoiceTranscriptCopy.visibility = if (isTranscribing) View.GONE else View.VISIBLE
+            
+            if (isTranscribing) {
+                ivVoiceTranscriptCopy.setOnClickListener(null)
+                layoutVoiceTranscript.setOnLongClickListener(null)
+                tvVoiceTranscript.setOnLongClickListener(null)
+            } else {
+                ivVoiceTranscriptCopy.setOnClickListener {
+                    copyToClipboard("voice_transcript", transcript, "已复制转写文本")
+                }
+                val hideTranscriptLongClick = View.OnLongClickListener {
+                    if (isVoiceSelectionMode) return@OnLongClickListener false
+                    showVoiceMessageMenu(layoutVoiceTranscript, item)
+                    true
+                }
+                layoutVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
+                tvVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
             }
-            layoutVoiceTranscript.setOnLongClickListener {
-                copyToClipboard("voice_transcript", transcript, "已复制转写文本")
-                true
+        }
+
+        private fun updateWaveBarsForVoice(durationSec: Int, waveWidthPx: Int) {
+            val density = itemView.resources.displayMetrics.density
+            val barCount = calculateWaveBarCount(durationSec, waveWidthPx, density)
+            val barWidth = (2.4f * density).roundToInt().coerceAtLeast(2)
+            val marginEnd = (1.9f * density).roundToInt().coerceAtLeast(1)
+            if (layoutVoiceWave.childCount != barCount) {
+                layoutVoiceWave.removeAllViews()
+                repeat(barCount) {
+                    val bar = View(itemView.context).apply {
+                        setBackgroundResource(R.drawable.bg_chat_voice_wave_bar)
+                    }
+                    layoutVoiceWave.addView(bar)
+                }
             }
+            waveBars = (0 until layoutVoiceWave.childCount).map { layoutVoiceWave.getChildAt(it) }
+            waveBars.forEachIndexed { index, bar ->
+                val heightDp = 5 + ((index * 5 + durationSec * 3) % 9)
+                val params = (bar.layoutParams as? LinearLayout.LayoutParams)
+                    ?: LinearLayout.LayoutParams(barWidth, (heightDp * density).toInt())
+                params.width = barWidth
+                params.height = (heightDp * density).roundToInt()
+                params.marginEnd = if (index == waveBars.lastIndex) 0 else marginEnd
+                bar.layoutParams = params
+                bar.alpha = 0.6f + ((index + durationSec) % 5) * 0.07f
+            }
+        }
+
+        private fun calculateWaveBarCount(durationSec: Int, waveWidthPx: Int, density: Float): Int {
+            val slotPx = (4.3f * density).coerceAtLeast(1f)
+            val maxByWidth = (waveWidthPx / slotPx).toInt().coerceIn(8, 36)
+            val fillRatio = when {
+                durationSec <= 3 -> 0.58f
+                durationSec <= 8 -> 0.72f
+                durationSec <= 20 -> 0.86f
+                else -> 0.92f
+            }
+            val byWidth = (maxByWidth * fillRatio).roundToInt()
+            val byDuration = 6 + durationSec.coerceAtMost(60) / 2
+            return maxOf(byWidth, byDuration).coerceIn(8, maxByWidth)
         }
 
         private fun bindWaveBars(audioPath: String, isPlaying: Boolean) {
             waveBars.forEachIndexed { index, bar ->
                 bar.animate().cancel()
                 if (isPlaying) {
-                    val minScale = 0.45f + index * 0.08f
+                    val minScale = 0.45f + (index % 5) * 0.08f
                     bar.scaleY = minScale
-                    bar.alpha = 0.55f + index * 0.08f
+                    bar.alpha = 0.55f + (index % 4) * 0.1f
                     animateWaveBar(bar, audioPath, index)
                 } else {
                     bar.scaleY = 1f
-                    bar.alpha = 0.85f
+                    if (bar.alpha < 0.62f) bar.alpha = 0.7f
                 }
             }
         }
@@ -3196,8 +3270,8 @@ class ChatActivity : AppCompatActivity() {
         }
 
         private fun animateWaveBar(bar: View, audioPath: String, index: Int) {
-            val targetScale = 1.4f - index * 0.08f
-            val duration = 170L + index * 45L
+            val targetScale = 1.4f - (index % 5) * 0.08f
+            val duration = 170L + (index % 6) * 40L
             bar.animate()
                 .scaleY(targetScale)
                 .alpha(1f)
