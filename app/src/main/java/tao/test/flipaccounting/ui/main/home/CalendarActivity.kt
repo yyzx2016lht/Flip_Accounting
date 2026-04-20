@@ -419,7 +419,7 @@ class CalendarActivity : AppCompatActivity() {
             if (dailyAdapter.isMultiSelectMode) {
                 isMultiSelectModeActive = true
                 layoutMultiSelectActions.visibility = View.VISIBLE
-                btnMsDelete.text = if (count > 0) "鍒犻櫎($count)" else "鍒犻櫎"
+                btnMsDelete.text = if (count > 0) "删除($count)" else "删除"
             } else {
                 isMultiSelectModeActive = false
                 layoutMultiSelectActions.visibility = View.GONE

@@ -269,6 +269,13 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
             emptyList()
         }
         val currencies = CurrencyManager.getEnabledCurrencies(ctx)
+        val availableBooks = withContext(Dispatchers.IO) {
+            val dbBookNames = AppDatabase.getDatabase(ctx).billDao().getAllBookNames()
+            BookAccountManager.getBookAccounts(ctx, dbBookNames)
+                .map { BookAccountManager.normalizeBookName(it) }
+                .filter { it.isNotBlank() && it != BookAccountManager.ALL_BOOK }
+                .distinct()
+        }
 
         val catRepo = CategoryRepository(AppDatabase.getDatabase(ctx).categoryDao())
         val expenseCats = mutableListOf<String>()
@@ -319,7 +326,11 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
             "\n\n【无资产模式硬约束】当前账本已关闭资产功能：禁止输出转账、还款、信用卡还款；`type` 仅允许 0=支出 或 1=收入；`asset_name`、`to_asset_name` 必须留空或不输出。\n"
         }
         p += "\n【示例防串用硬约束】系统提示词中的示例日期、示例金额、示例商家名都只是格式示范，绝不能直接抄进当前结果；若用户未明确给出时间，请结合当前时间理解，而不是使用示例中的固定日期。\n"
-    p += buildRemarksRichnessRule()
+        p += buildRemarksRichnessRule()
+        p += buildIncomeCategoryHardRule()
+        if (availableBooks.isNotEmpty()) {
+            p += "\n【账本字段（可选）】当且仅当用户明确提到记入某账本时，才可输出 `book_name` 字段；可选账本：${availableBooks.joinToString("、")}。未明确提及时不要猜测，也可以不输出该字段。\n"
+        }
 
         val creditCardNames = dbAssets
             .filter { it.assetCategory == Asset.CATEGORY_CREDIT_CARD }
@@ -374,7 +385,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
                  "- 已预设字段会在后续本地规则中补全或校正，AI 本轮重点只需要抽取金额、时间、备注、币种、手续费等基础信息。\n" +
                  "- 如果分类或账户拿不准，可以留空，不要为了凑字段勉强猜测。\n"
         }
-        p += "\n【输出格式】You must return one valid JSON object only. Do not return markdown or extra explanation.\n"
+        p += "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name。Do not return markdown or extra explanation.\n"
 
         val promptExpenseCats = if (!isMultiMode && !localPrefill?.category.isNullOrBlank()) emptyList() else expenseCats
         val promptIncomeCats = if (!isMultiMode && !localPrefill?.category.isNullOrBlank()) emptyList() else incomeCats
@@ -586,6 +597,13 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
             emptyList()
         }
         val currencies = CurrencyManager.getEnabledCurrencies(ctx)
+        val availableBooks = withContext(Dispatchers.IO) {
+            val dbBookNames = AppDatabase.getDatabase(ctx).billDao().getAllBookNames()
+            BookAccountManager.getBookAccounts(ctx, dbBookNames)
+                .map { BookAccountManager.normalizeBookName(it) }
+                .filter { it.isNotBlank() && it != BookAccountManager.ALL_BOOK }
+                .distinct()
+        }
 
         val catRepo = CategoryRepository(AppDatabase.getDatabase(ctx).categoryDao())
         val expenseCats = mutableListOf<String>()
@@ -626,7 +644,11 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         }
         p += "\n【语音输入说明】本轮用户输入为一段口述记账语音，请直接根据语音内容提取账单，不要要求用户重新输入文字。\n"
         p += "\n【示例防串用硬约束】系统提示词中的示例日期、示例金额、示例商家名都只是格式示范，绝不能直接抄进当前结果；若用户未明确给出时间，请结合当前时间理解，而不是使用示例中的固定日期。\n"
-    p += buildRemarksRichnessRule()
+        p += buildRemarksRichnessRule()
+        p += buildIncomeCategoryHardRule()
+        if (availableBooks.isNotEmpty()) {
+            p += "\n【账本字段（可选）】当且仅当用户明确提到记入某账本时，才可输出 `book_name` 字段；可选账本：${availableBooks.joinToString("、")}。未明确提及时不要猜测，也可以不输出该字段。\n"
+        }
 
         val creditCardNames = dbAssets
             .filter { it.assetCategory == Asset.CATEGORY_CREDIT_CARD }
@@ -666,7 +688,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
                     "- 如果分类一时拿不准，优先保证拆单和 remarks 正确；后续会基于每条 remarks 再做逐条分类。\n"
             }
         }
-        p += "\n【输出格式】You must return one valid JSON object only. Do not return markdown or extra explanation.\n"
+        p += "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name。Do not return markdown or extra explanation.\n"
 
         val systemPrompt = p
             .replace("{{TIME}}", currentTimeStr)
@@ -717,6 +739,12 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
             val result = parseAnalyzeResult(content, isMultiMode)
 
             result?.let { root ->
+                if (shouldTreatAsNoBillChatter("[语音输入]", root)) {
+                    return JSONObject().apply {
+                        put("no_bill", true)
+                        put("reply", "这段语音更像是在聊天，不像需要落账的内容，我先按聊天回复你。")
+                    }
+                }
                 if (!assetFeatureEnabled) {
                     enforceNoAssetMode(root)
                 }
@@ -900,6 +928,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
         var p = Prefs.getScreenAccountingPrompt(ctx).ifBlank { SCREEN_ACCOUNTING_PROMPT_DEFAULT }
         p += buildRemarksRichnessRule()
+        p += buildIncomeCategoryHardRule()
 
         p += if (promptContext.assetFeatureEnabled) {
             "\n\n【类型白名单硬约束】`type` 仅允许四种取值：0=支出，1=收入，2=转账，3=还款。严禁输出其他数字。\n"
@@ -1471,14 +1500,25 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         if (normalizedInput.isBlank()) return true
         if (looksLikeReceiptExpenseSummary(normalizedInput)) return false
 
-        val financialSignals = listOf(
-            "花", "花了", "消费", "支出", "买", "购买", "付款", "支付", "转账", "还款", "报销", "退款",
-            "收入", "收款", "到账", "赚", "记账", "记一笔", "入账", "提现", "充值", "扣款", "账单",
-            "€", "$", "¥", "￥", "元", "块", "毛", "角", "pln", "cny", "usd", "eur", "rmb"
+        val strongFinancialSignals = listOf(
+            "花了", "消费", "支出", "购买", "付款", "支付", "转账", "还款", "报销", "退款",
+            "收入", "收款", "到账", "记账", "记一笔", "入账", "提现", "充值", "扣款", "账单",
+            "工资", "报销到账"
         )
-        val hasFinancialSignal = financialSignals.any { normalizedInput.contains(it) }
+        val weakFinancialSignals = listOf("花", "买", "赚")
+        val currencySignals = listOf("€", "$", "¥", "￥", "元", "块", "毛", "角", "pln", "cny", "usd", "eur", "rmb")
+        val hasStrongFinancialSignal = strongFinancialSignals.any { normalizedInput.contains(it) }
+        val weakFinancialSignalHits = weakFinancialSignals.count { normalizedInput.contains(it) }
+        val hasNumber = Regex("\\d").containsMatchIn(normalizedInput)
+        val hasCurrencySignal = currencySignals.any { normalizedInput.contains(it) }
+        val hasAmountPattern = Regex("""\d+(?:[.,]\d{1,2})?\s*(元|块|人民币|rmb|cny|usd|eur|pln|¥|￥|\$|€)""")
+            .containsMatchIn(normalizedInput)
+        val hasFinancialSignal =
+            hasStrongFinancialSignal ||
+                hasAmountPattern ||
+                (hasNumber && hasCurrencySignal) ||
+                weakFinancialSignalHits >= 2
         if (hasFinancialSignal) return false
-        if (Regex("\\d").containsMatchIn(normalizedInput)) return false
 
         val chatterSignals = listOf(
             "你好", "您好", "哈喽", "嗨", "hello", "hi", "早上好", "晚上好", "午安",
@@ -1496,7 +1536,14 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
             root.has("amount") -> listOf(root)
             else -> emptyList()
         }
-        if (billCandidates.isEmpty()) return false
+        if (billCandidates.isEmpty()) {
+            // 当模型返回 {"bills":[]} 这种空壳结果时，若输入本身不像记账，则按闲聊处理。
+            val emptyBillArray = root.has("bills") && (root.optJSONArray("bills")?.length() ?: 0) == 0
+            if (emptyBillArray) {
+                return inputLooksLikeChatter || !hasFinancialSignal
+            }
+            return false
+        }
 
         val allCandidatesLookEmpty = billCandidates.all { bill ->
             val amount = bill.optDouble("amount", 0.0)
@@ -1819,8 +1866,13 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         "- 禁止只写过短词（如 \"买菜\"、\"拉面\"）。\n" +
         "- 不要重复金额、币种、账户名（这些由其他字段表达）。\n"
 
+    private fun buildIncomeCategoryHardRule(): String =
+        "\n【收入分类硬约束】当 type=1（收入）时，category_name 必须从收入分类列表 {{INCOME_CATS}} 中原样选择。\n" +
+        "- 禁止输出“收入”“入账”等泛词作为分类。\n" +
+        "- 若无法判断具体收入分类，优先输出收入分类中的“其他/其它”类目；仍无法匹配时可留空。\n"
+
     private fun resolveOtherCategory(candidates: List<String>): String? =
-        candidates.find { it.contains("其他") }
+        candidates.find { it.contains("其他") || it.contains("其它") }
 
     private fun normalizeBillType(rawType: Int): Int = when (rawType) {
         0, 1, 2 -> rawType

@@ -93,15 +93,15 @@ class AssetActivity : AppCompatActivity() {
             }
         }
 
-        tvNetAsset.text = String.format(Locale.getDefault(), "楼%.2f", netAsset)
-        tvTotalAsset.text = String.format(Locale.getDefault(), "楼%.2f", totalAsset)
-        tvTotalDebt.text = if (totalDebt == 0.0) "鏃?" else String.format(Locale.getDefault(), "楼%.2f", totalDebt)
+        tvNetAsset.text = String.format(Locale.getDefault(), "¥%.2f", netAsset)
+        tvTotalAsset.text = String.format(Locale.getDefault(), "¥%.2f", totalAsset)
+        tvTotalDebt.text = if (totalDebt == 0.0) "¥0.00" else String.format(Locale.getDefault(), "¥%.2f", totalDebt)
     }
 
     private fun showAssetActionMenu(asset: Asset) {
-        val options = arrayOf("缂栬緫璐︽埛", "鍒犻櫎璐︽埛")
+        val options = arrayOf("编辑账户", "删除账户")
         AlertDialog.Builder(this)
-            .setTitle("鎿嶄綔锛?{asset.name}")
+            .setTitle("操作「${asset.name}」")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
@@ -117,22 +117,22 @@ class AssetActivity : AppCompatActivity() {
 
     private fun showDeleteAssetConfirm(asset: Asset) {
         AlertDialog.Builder(this)
-            .setTitle("鎻愮ず")
+            .setTitle("删除账户")
             .setMessage(
-                "纭畾瑕佸垹闄よ繖涓祫浜ц处鎴峰悧锛熷皢浼氭墽琛屽涓嬫搷浣滐細\n" +
-                    "1.浼氬幓鎺夋璧勪骇璐︽埛鐩稿叧鑱斿叾瀹冩暟鎹叧绯伙紱\n" +
-                    "2.浼氬垹闄や笌姝よ处鎴风浉鍏崇殑杞处銆佹敹娆俱€佽繕娆炬搷浣滐紱\n" +
-                    "3.涓嶄細鍒犻櫎姝よ处鎴蜂笅闈㈢殑鏀跺叆銆佹敮鍑鸿处鍗曪紝鍙槸璐﹀崟涓嶅啀涓庢璐︽埛鍏宠仈锛?"
+                "确定删除账户吗？相关账单将失去账户关联。\n" +
+                    "1. 会删除该账户本身；\n" +
+                    "2. 与该账户相关的转账、收款、还款会解除账户关联；\n" +
+                    "3. 不会删除该账户下历史收支账单，仅保留账户名快照。"
             )
-            .setPositiveButton("纭畾") { _, _ ->
+            .setPositiveButton("删除") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     assetRepository.deleteAssetWithCleanup(asset)
                     withContext(Dispatchers.Main) {
-                        Utils.toast(this@AssetActivity, "璐︽埛銆?{asset.name}銆嶅凡鍒犻櫎")
+                        Utils.toast(this@AssetActivity, "账户「${asset.name}」已删除")
                     }
                 }
             }
-            .setNegativeButton("鍙栨秷", null)
+            .setNegativeButton("取消", null)
             .show()
     }
 
@@ -168,28 +168,24 @@ class AssetActivity : AppCompatActivity() {
 
                 row.findViewById<TextView>(R.id.tv_asset_name).text = asset.name
                 row.findViewById<TextView>(R.id.tv_asset_balance).text =
-                    String.format(Locale.getDefault(), "楼%.2f", asset.balance)
+                    String.format(Locale.getDefault(), "¥%.2f", asset.balance)
 
                 val tvRemark = row.findViewById<TextView>(R.id.tv_asset_remark)
                 if (!asset.includeInNetAsset) {
                     tvRemark.visibility = View.VISIBLE
-                    tvRemark.text = "涓嶈鍏ユ€昏祫浜?"
+                    tvRemark.text = "不计入总资产"
                 } else {
                     tvRemark.visibility = View.GONE
                 }
 
                 val ivIcon = row.findViewById<ImageView>(R.id.iv_asset_icon)
-                if (asset.icon.isNotEmpty()) {
-                    Glide.with(itemView)
-                        .load(asset.icon)
-                        .transform(CircleCrop())
-                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                        .placeholder(android.R.drawable.ic_menu_gallery)
-                        .error(android.R.drawable.ic_menu_gallery)
-                        .into(ivIcon)
-                } else {
-                    ivIcon.setImageResource(android.R.drawable.ic_menu_gallery)
-                }
+                Glide.with(itemView)
+                    .load(AssetIconDefaults.withDefault(asset.icon))
+                    .transform(CircleCrop())
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .placeholder(R.drawable.ic_placeholder)
+                    .error(R.drawable.ic_placeholder)
+                    .into(ivIcon)
 
                 row.setOnClickListener { onClick(asset) }
                 row.setOnLongClickListener {

@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.content.Context
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
@@ -274,7 +274,7 @@ object LocalAsrService {
                     return@launch
                 }
 
-                withContext(Dispatchers.Main) { dialog.setMessage("姝ｅ湪鍒濆鍖栨ā鍨?..") }
+                withContext(Dispatchers.Main) { dialog.setMessage("正在初始化模型...") }
                 val ok = initModel(ctx, allowAutoDownload = false)
 
                 withContext(Dispatchers.Main) {
@@ -283,17 +283,17 @@ object LocalAsrService {
                         Utils.toast(ctx, "离线语音模型已准备完成")
                         onComplete()
                     } else {
-                        Utils.toast(ctx, "瀵煎叆瀹屾垚浣嗗垵濮嬪寲澶辫触: ${lastInitError ?: "鏈煡閿欒"}")
+                        Utils.toast(ctx, "导入完成但初始化失败: ${lastInitError ?: "未知错误"}")
                     }
                 }
             } catch (e: Throwable) {
                 e.printStackTrace()
                 importArchive.delete()
                 targetDir.deleteRecursively()
-                lastInitError = "瀵煎叆澶辫触: ${e.message ?: e.javaClass.simpleName}"
+                lastInitError = "导入失败: ${e.message ?: e.javaClass.simpleName}"
                 withContext(Dispatchers.Main) {
                     dialog.dismiss()
-                    Utils.toast(ctx, lastInitError ?: "瀵煎叆澶辫触")
+                    Utils.toast(ctx, lastInitError ?: "导入失败")
                 }
             }
         }
@@ -351,7 +351,7 @@ object LocalAsrService {
                 if (text.isNotBlank()) text else null
             } catch (e: Throwable) {
                 e.printStackTrace()
-                lastInitError = "璇嗗埆澶辫触: ${e.message ?: e.javaClass.simpleName}"
+                lastInitError = "识别失败: ${e.message ?: e.javaClass.simpleName}"
                 null
             }
         }
@@ -361,11 +361,11 @@ object LocalAsrService {
         val raw = e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
         val type = e.javaClass.simpleName
         return if (e is UnsatisfiedLinkError) {
-            "绂荤嚎璇嗗埆搴撳姞杞藉け璐?$type): $raw"
+            "离线识别库加载失败($type): $raw"
         } else if (e is NoClassDefFoundError || e is ClassNotFoundException) {
-            "绂荤嚎璇嗗埆绫荤己澶?$type): $raw"
+            "离线识别类缺失($type): $raw"
         } else {
-            "绂荤嚎妯″瀷鍒濆鍖栧け璐?$type): $raw"
+            "离线模型初始化失败($type): $raw"
         }
     }
 

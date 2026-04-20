@@ -166,6 +166,11 @@ class BookOverviewActivity : AppCompatActivity() {
         updateViewModeStyle()
     }
 
+    override fun onResume() {
+        super.onResume()
+        loadData()
+    }
+
     private fun stepPeriod(delta: Int) {
         if (isYearMode) {
             selectedYear += delta

@@ -6,10 +6,35 @@ import tao.test.flipaccounting.data.local.entity.Bill
 object BillDeleteHelper {
 
     suspend fun deleteBillAndRevertBalance(db: AppDatabase, bill: Bill) {
-        deleteBillAndRevertBalanceInternal(db, bill, backfillLinks = true)
+        deleteBillAndRevertBalanceInternal(
+            db = db,
+            bill = bill,
+            backfillLinks = true,
+            scopeBillIds = null
+        )
     }
 
     suspend fun deleteBillsAndRevertBalance(db: AppDatabase, bills: List<Bill>) {
+        deleteBillsAndRevertBalanceInternal(db, bills, scopeBillIds = null)
+    }
+
+    suspend fun deleteBillsAndRevertBalanceScoped(
+        db: AppDatabase,
+        bills: List<Bill>,
+        scopeBillIds: Set<Long>
+    ) {
+        deleteBillsAndRevertBalanceInternal(
+            db = db,
+            bills = bills,
+            scopeBillIds = scopeBillIds.filter { it > 0L }.toSet()
+        )
+    }
+
+    private suspend fun deleteBillsAndRevertBalanceInternal(
+        db: AppDatabase,
+        bills: List<Bill>,
+        scopeBillIds: Set<Long>?
+    ) {
         if (bills.isEmpty()) return
         val uniqueBills = bills.distinctBy {
             if (it.id > 0L) {
@@ -22,14 +47,20 @@ object BillDeleteHelper {
 
         db.billDao().backfillAssetLinksByName()
         uniqueBills.forEach { bill ->
-            deleteBillAndRevertBalanceInternal(db, bill, backfillLinks = false)
+            deleteBillAndRevertBalanceInternal(
+                db = db,
+                bill = bill,
+                backfillLinks = false,
+                scopeBillIds = scopeBillIds
+            )
         }
     }
 
     private suspend fun deleteBillAndRevertBalanceInternal(
         db: AppDatabase,
         bill: Bill,
-        backfillLinks: Boolean
+        backfillLinks: Boolean,
+        scopeBillIds: Set<Long>?
     ) {
         val billDao = db.billDao()
         if (backfillLinks) {
@@ -65,11 +96,15 @@ object BillDeleteHelper {
 
             latestBill.type == Bill.TYPE_EXPENSE -> {
                 val refunds = billDao.getRefundBillsBySourceId(latestBill.id)
-                if (refunds.isNotEmpty()) {
-                    refunds.forEach { refund ->
+                val refundsToDelete = when (scopeBillIds) {
+                    null -> refunds
+                    else -> refunds.filter { refund -> refund.id > 0L && scopeBillIds.contains(refund.id) }
+                }
+                if (refundsToDelete.isNotEmpty()) {
+                    refundsToDelete.forEach { refund ->
                         BillAssetImpactService.revertBillBalanceImpact(db, refund)
                     }
-                    billDao.delete(refunds)
+                    billDao.delete(refundsToDelete)
                 }
                 BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
                 billDao.delete(latestBill)

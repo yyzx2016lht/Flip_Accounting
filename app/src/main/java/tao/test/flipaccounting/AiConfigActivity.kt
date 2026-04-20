@@ -11,6 +11,7 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.Spinner
@@ -81,6 +82,7 @@ class AiConfigActivity : AppCompatActivity() {
         val btnScreenAccounting = findViewById<Chip>(R.id.btn_screen_accounting_prompt)
         val btnOcrRefine = findViewById<Chip>(R.id.btn_ocr_refine_prompt)
         val btnSpeech = findViewById<Chip>(R.id.btn_speech_prompt)
+        val promptModeGrid = findViewById<GridLayout>(R.id.chip_group_prompt_modes)
 
         val btnReset = findViewById<MaterialButton>(R.id.btn_reset_prompt)
         val btnTest = findViewById<MaterialButton>(R.id.btn_test_conn)
@@ -147,6 +149,8 @@ class AiConfigActivity : AppCompatActivity() {
         }
         if (!canShowScreenAccounting) {
             modeModels["screen_accounting"] = ""
+            // 避免 GridLayout 在隐藏中间项时出现“空格子”。
+            promptModeGrid.removeView(btnScreenAccounting)
         }
 
         fun modeHasPrompt(mode: String): Boolean = mode != "speech"
@@ -214,7 +218,7 @@ class AiConfigActivity : AppCompatActivity() {
             tvToggleExpand.text = if (isExpanded) "收起内容" else "展开内容"
         }
 
-        val cachedModels = Prefs.getAiModelsCache(this)
+        val cachedModels = Prefs.getAiModelsCache(this).map { it.trim() }.filter { it.isNotEmpty() }
         if (cachedModels.isNotEmpty()) {
             allModelsList.addAll(cachedModels)
         }
@@ -371,11 +375,12 @@ class AiConfigActivity : AppCompatActivity() {
                         btnTest.isEnabled = true
                         btnTest.text = "刷新并测试模型连接"
                         if (models.isNotEmpty()) {
+                            val cleanedModels = models.map { it.trim() }.filter { it.isNotEmpty() }
                             allModelsList.clear()
-                            allModelsList.addAll(models)
-                            Prefs.setAiModelsCache(this@AiConfigActivity, models)
+                            allModelsList.addAll(cleanedModels)
+                            Prefs.setAiModelsCache(this@AiConfigActivity, cleanedModels)
                             updateModelDisplay()
-                            Utils.toast(this@AiConfigActivity, "连接成功，已获取 ${models.size} 个模型")
+                            Utils.toast(this@AiConfigActivity, "连接成功，已获取 ${cleanedModels.size} 个模型")
                         } else {
                             Utils.toast(this@AiConfigActivity, "连接成功，但未找到可用模型")
                         }
@@ -441,13 +446,30 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiReceiptOcrRefineModel(this, modeModels["ocr_refine"] ?: "")
             Prefs.setAiSpeechModel(this, modeModels["speech"] ?: "")
 
-            Prefs.setAiPrompt(this, etSingle.text.toString().trim())
-            Prefs.setMultiBillPrompt(this, etMulti.text.toString().trim())
-            Prefs.setRulePrompt(this, etRule.text.toString().trim())
-            Prefs.setReceiptBillPrompt(this, etReceipt.text.toString().trim())
-            Prefs.setReceiptVisionPrompt(this, etReceiptVision.text.toString().trim())
-            Prefs.setScreenAccountingPrompt(this, etScreenAccounting.text.toString().trim())
-            Prefs.setReceiptOcrRefinePrompt(this, etOcrRefine.text.toString().trim())
+            val singleText = etSingle.text.toString().trim()
+            val multiText = etMulti.text.toString().trim()
+            val ruleText = etRule.text.toString().trim()
+            val receiptText = etReceipt.text.toString().trim()
+            val receiptVisionText = etReceiptVision.text.toString().trim()
+            val screenText = etScreenAccounting.text.toString().trim()
+            val ocrRefineText = etOcrRefine.text.toString().trim()
+
+            val singleDefault = AIService.getDefaultSingleBillPrompt(this).trim()
+            val multiDefault = AIService.getDefaultMultiBillPrompt(this).trim()
+            val ruleDefault = AIService.RULE_EXTRACT_PROMPT_DEFAULT.trim()
+            val receiptDefault = AIService.RECEIPT_BILL_PROMPT.trim()
+            val receiptVisionDefault = AIService.RECEIPT_VISION_RETRY_PROMPT_DEFAULT.trim()
+            val screenDefault = AIService.SCREEN_ACCOUNTING_PROMPT_DEFAULT.trim()
+            val ocrRefineDefault = AIService.RECEIPT_OCR_REFINE_PROMPT_DEFAULT.trim()
+
+            // 与默认提示词一致时不落库存储，运行时自动走“默认提示词 + 代码拼接规则”。
+            Prefs.setAiPrompt(this, if (singleText == singleDefault) "" else singleText)
+            Prefs.setMultiBillPrompt(this, if (multiText == multiDefault) "" else multiText)
+            Prefs.setRulePrompt(this, if (ruleText == ruleDefault) "" else ruleText)
+            Prefs.setReceiptBillPrompt(this, if (receiptText == receiptDefault) "" else receiptText)
+            Prefs.setReceiptVisionPrompt(this, if (receiptVisionText == receiptVisionDefault) "" else receiptVisionText)
+            Prefs.setScreenAccountingPrompt(this, if (screenText == screenDefault) "" else screenText)
+            Prefs.setReceiptOcrRefinePrompt(this, if (ocrRefineText == ocrRefineDefault) "" else ocrRefineText)
             Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
 
             Utils.toast(this, "所有 AI 配置已保存")

@@ -39,6 +39,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
+import androidx.room.InvalidationTracker
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -200,6 +201,7 @@ class HomeFragment : Fragment() {
     private var refreshTimeoutJob: Job? = null
     private var isPullRefreshing = false
     private var pullRefreshBeforeSnapshot: RefreshSnapshot? = null
+    private var billsInvalidationObserver: InvalidationTracker.Observer? = null
 
     /** Activity 作用域 ViewModel，跨 Fragment 重建存活，StateFlow 缓存账单数据 */
     private val homeViewModel: HomeViewModel by activityViewModels()
@@ -504,6 +506,7 @@ class HomeFragment : Fragment() {
         }
 
         // 后台刷新账本列表 UI（异步，不阻塞账单加载）
+        observeBillTableChanges()
         refreshBookAccounts(reloadTransactions = false)
         skipNextResume = true  // onViewCreated 已触发加载，紧随其后的 onResume 无需重复
         
@@ -2707,6 +2710,37 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         refreshTimeoutJob?.cancel()
         refreshTimeoutJob = null
+        val appContext = context?.applicationContext
+        if (appContext != null) {
+            val db = AppDatabase.getDatabase(appContext)
+            billsInvalidationObserver?.let { observer ->
+                db.invalidationTracker.removeObserver(observer)
+            }
+        }
+        billsInvalidationObserver = null
         super.onDestroyView()
+    }
+
+    private fun observeBillTableChanges() {
+        val db = AppDatabase.getDatabase(requireContext().applicationContext)
+        billsInvalidationObserver?.let { db.invalidationTracker.removeObserver(it) }
+        val observer = object : InvalidationTracker.Observer("bills") {
+            override fun onInvalidated(tables: Set<String>) {
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                    if (!isAdded) return@launch
+                    if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
+                    homeViewModel.forceReload(
+                        bookName = selectedBookName,
+                        year = selectedYear,
+                        month = selectedMonth,
+                        timeRange = currentTimeRange,
+                        type = currentType,
+                        isChartHidden = !Prefs.isShowHomeTrendCard(requireContext())
+                    )
+                }
+            }
+        }
+        billsInvalidationObserver = observer
+        db.invalidationTracker.addObserver(observer)
     }
 }

@@ -308,7 +308,7 @@
 
     <LinearLayout
         android:id="@+id/layout_session_drawer_container"
-        android:layout_width="300dp"
+        android:layout_width="328dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:orientation="vertical"

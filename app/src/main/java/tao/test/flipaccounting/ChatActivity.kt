@@ -172,6 +172,7 @@ class ChatActivity : AppCompatActivity() {
     private var audioSupportProbeJob: Job? = null
     private val pendingVoiceBubbleAnimations = mutableSetOf<String>()
     private val pendingTranscriptRevealAnimations = mutableSetOf<String>()
+    private var inlineAmountEditingBillId: Long? = null
 
     private val sampleRate = 16000
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
@@ -295,7 +296,7 @@ class ChatActivity : AppCompatActivity() {
         rvMessages.adapter = adapter
         rvMessages.itemAnimator = null
         rvMessages.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
-            if (bottom < oldBottom) ensureLastMessageVisible()
+            if (bottom < oldBottom && !isInlineAmountEditing()) ensureLastMessageVisible()
         }
     }
 
@@ -561,7 +562,7 @@ class ChatActivity : AppCompatActivity() {
                 bottomBar.paddingRight,
                 initialBottomPadding + extra
             )
-            if (imeVisible) ensureLastMessageVisible()
+            if (imeVisible && !isInlineAmountEditing()) ensureLastMessageVisible()
             insets
         }
     }
@@ -1906,7 +1907,8 @@ class ChatActivity : AppCompatActivity() {
         return error is IllegalArgumentException || msg.contains("JSON", ignoreCase = true)
     }
 
-    private fun ensureLastMessageVisible() {
+    private fun ensureLastMessageVisible(force: Boolean = false) {
+        if (!force && isInlineAmountEditing()) return
         if (displayMessages.isEmpty()) return
         rvMessages.post {
             rvMessages.scrollToPosition(displayMessages.lastIndex)
@@ -2680,9 +2682,12 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun scrollToBottom() {
+    private fun scrollToBottom(force: Boolean = false) {
+        if (!force && isInlineAmountEditing()) return
         if (displayMessages.isNotEmpty()) rvMessages.scrollToPosition(displayMessages.lastIndex)
     }
+
+    private fun isInlineAmountEditing(): Boolean = inlineAmountEditingBillId != null
 
     private fun resolveEntryBookName(intent: Intent?): String {
         val fromIntent = intent?.getStringExtra(EXTRA_SOURCE_BOOK).orEmpty().trim()
@@ -3090,16 +3095,45 @@ class ChatActivity : AppCompatActivity() {
                 val tvCat = card.findViewById<TextView>(R.id.tv_chat_bill_category)
                 val tvDetail = card.findViewById<TextView>(R.id.tv_chat_bill_detail)
                 val tvAmount = card.findViewById<TextView>(R.id.tv_chat_bill_amount)
+                val etAmount = card.findViewById<android.widget.EditText>(R.id.et_chat_bill_amount)
                 val tvBillTime = card.findViewById<TextView>(R.id.tv_chat_bill_time)
                 val ivIcon = card.findViewById<ImageView>(R.id.iv_chat_bill_icon)
                 val btnEdit = card.findViewById<TextView>(R.id.btn_chat_bill_edit_category)
                 val btnDelete = card.findViewById<TextView>(R.id.btn_chat_bill_delete)
+                val isTransfer = bill.type == Bill.TYPE_TRANSFER
 
                 tvCat.text = bill.categoryName
                 tvDetail.text = listOf(bill.accountName, bill.remark).filter { it.isNotBlank() }.joinToString(" | ")
-                val sign = if (bill.type == 1) "+" else "-"
-                tvAmount.text = "$sign${String.format(Locale.getDefault(), "%.2f", bill.amount)}"
-                tvAmount.setTextColor(if (bill.type == 1) Color.parseColor("#2E7D32") else Color.parseColor("#D32F2F"))
+                val sign = when (bill.type) {
+                    Bill.TYPE_INCOME -> "+"
+                    Bill.TYPE_TRANSFER -> ""
+                    else -> "-"
+                }
+                val amountText = String.format(Locale.getDefault(), "%.2f", bill.amount)
+                tvAmount.text = "$sign$amountText"
+                val amountColor = when (bill.type) {
+                    Bill.TYPE_INCOME -> Color.parseColor("#2E7D32")
+                    Bill.TYPE_TRANSFER -> Color.parseColor("#7A8598")
+                    else -> Color.parseColor("#D32F2F")
+                }
+                val amountBgRes = when (bill.type) {
+                    Bill.TYPE_INCOME -> R.drawable.bg_chat_bill_amount_tag_income
+                    Bill.TYPE_TRANSFER -> R.drawable.bg_chat_bill_amount_tag_transfer
+                    else -> R.drawable.bg_chat_bill_amount_tag_expense
+                }
+                val amountBgActiveRes = when (bill.type) {
+                    Bill.TYPE_INCOME -> R.drawable.bg_chat_bill_amount_tag_income_active
+                    Bill.TYPE_TRANSFER -> R.drawable.bg_chat_bill_amount_tag_transfer_active
+                    else -> R.drawable.bg_chat_bill_amount_tag_expense_active
+                }
+                tvAmount.setTextColor(amountColor)
+                etAmount.setTextColor(amountColor)
+                tvAmount.setBackgroundResource(amountBgRes)
+                etAmount.setBackgroundResource(amountBgActiveRes)
+                etAmount.setText(amountText)
+                etAmount.setSelection(etAmount.text?.length ?: 0)
+                tvAmount.visibility = View.VISIBLE
+                etAmount.visibility = View.GONE
                 tvBillTime.text = formatTime(bill.time)
                 if (deprecated) {
                     val strike = android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
@@ -3110,10 +3144,12 @@ class ChatActivity : AppCompatActivity() {
                     card.alpha = 0.55f
                     btnEdit.visibility = View.GONE
                     btnDelete.visibility = View.GONE
+                    etAmount.isEnabled = false
                 } else {
                     card.alpha = 1f
-                    btnEdit.visibility = View.VISIBLE
+                    btnEdit.visibility = if (isTransfer) View.GONE else View.VISIBLE
                     btnDelete.visibility = View.VISIBLE
+                    etAmount.isEnabled = true
                 }
                 val iconTint = when (bill.type) {
                     0 -> Color.parseColor("#D32F2F")
@@ -3161,6 +3197,90 @@ class ChatActivity : AppCompatActivity() {
                             }
                             maybeShowRuleDialogForChatBillCategoryEdit(item, originalBill, updated)
                         }
+                    }
+                }
+                var savingAmount = false
+                fun closeInlineAmountEdit(hideKeyboard: Boolean) {
+                    if (hideKeyboard) hideSoftKeyboard(etAmount)
+                    etAmount.clearFocus()
+                    etAmount.visibility = View.GONE
+                    tvAmount.visibility = View.VISIBLE
+                    tvAmount.setBackgroundResource(amountBgRes)
+                    if (inlineAmountEditingBillId == bill.id) {
+                        inlineAmountEditingBillId = null
+                    }
+                }
+                fun startInlineAmountEdit() {
+                    if (deprecated || savingAmount) return
+                    if (inlineAmountEditingBillId != null && inlineAmountEditingBillId != bill.id) {
+                        Utils.toast(this@ChatActivity, "请先完成当前金额编辑")
+                        return
+                    }
+                    inlineAmountEditingBillId = bill.id
+                    tvAmount.visibility = View.GONE
+                    etAmount.visibility = View.VISIBLE
+                    tvAmount.setBackgroundResource(amountBgRes)
+                    etAmount.setBackgroundResource(amountBgActiveRes)
+                    etAmount.setText(String.format(Locale.getDefault(), "%.2f", bill.amount))
+                    etAmount.setSelection(etAmount.text?.length ?: 0)
+                    etAmount.requestFocus()
+                    showSoftKeyboard(etAmount)
+                }
+                fun commitInlineAmountEdit() {
+                    if (deprecated || savingAmount || etAmount.visibility != View.VISIBLE) return
+                    val value = etAmount.text?.toString().orEmpty().trim()
+                    val editedAmount = value.toDoubleOrNull()
+                    if (editedAmount == null || !editedAmount.isFinite() || editedAmount <= 0.0) {
+                        Utils.toast(this@ChatActivity, "请输入有效金额")
+                        etAmount.requestFocus()
+                        return
+                    }
+                    val changed = kotlin.math.abs(editedAmount - bill.amount) > 0.000001
+                    if (!changed) {
+                        closeInlineAmountEdit(hideKeyboard = true)
+                        return
+                    }
+                    savingAmount = true
+                    lifecycleScope.launch {
+                        val updated = withContext(Dispatchers.IO) {
+                            val updatedBill = when {
+                                bill.subType == Bill.SUBTYPE_REFUND -> bill.copy(amount = editedAmount)
+                                bill.type == Bill.TYPE_EXPENSE -> bill.copy(amount = editedAmount, originalAmount = editedAmount)
+                                else -> bill.copy(amount = editedAmount)
+                            }
+                            BillMutationService.replaceBill(
+                                db = db,
+                                oldBill = bill,
+                                newBill = updatedBill
+                            )
+                        }
+                        savingAmount = false
+                        closeInlineAmountEdit(hideKeyboard = true)
+                        val msgIdx = displayMessages.indexOfFirst { it.dbId == item.dbId }
+                        if (msgIdx >= 0) {
+                            val rowIdx = displayMessages[msgIdx].bills.indexOfFirst { it.id == bill.id }
+                            if (rowIdx >= 0) {
+                                displayMessages[msgIdx].bills[rowIdx] = updated
+                                adapter.notifyItemChanged(msgIdx)
+                            }
+                        }
+                    }
+                }
+                tvAmount.setOnClickListener { startInlineAmountEdit() }
+                etAmount.setOnEditorActionListener { _, actionId, event ->
+                    val imeDone = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+                    val enterDown = event?.keyCode == android.view.KeyEvent.KEYCODE_ENTER &&
+                        event.action == android.view.KeyEvent.ACTION_DOWN
+                    if (imeDone || enterDown) {
+                        commitInlineAmountEdit()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                etAmount.setOnFocusChangeListener { _, hasFocus ->
+                    if (!hasFocus && !savingAmount && etAmount.visibility == View.VISIBLE) {
+                        closeInlineAmountEdit(hideKeyboard = false)
                     }
                 }
                 btnDelete.setOnClickListener {
@@ -3259,6 +3379,18 @@ class ChatActivity : AppCompatActivity() {
         } else {
             iv.setImageResource(R.drawable.ic_ai_default_avatar)
         }
+    }
+
+    private fun showSoftKeyboard(view: View) {
+        view.post {
+            val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(view, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    private fun hideSoftKeyboard(view: View) {
+        val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
     private fun formatTime(ms: Long): String =

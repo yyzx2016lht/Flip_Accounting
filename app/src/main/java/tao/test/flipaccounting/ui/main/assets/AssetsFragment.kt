@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.NestedScrollView
 import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,6 +21,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import tao.test.flipaccounting.AddAssetActivity
+import tao.test.flipaccounting.AssetIconDefaults
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Asset
@@ -32,10 +34,23 @@ class AssetsFragment : Fragment() {
     private lateinit var tvTotalAsset: TextView
     private lateinit var tvTotalDebt: TextView
     private lateinit var containerCategoryCards: LinearLayout
+    private lateinit var nsvAssets: NestedScrollView
     private lateinit var fabAddAsset: FloatingActionButton
 
     private val db by lazy { AppDatabase.getDatabase(requireContext()) }
     private var hasTriggeredInitialRateRefresh = false
+    private var dragAutoScrollActive = false
+    private var dragAutoScrollDirection = 0
+    private var dragAutoScrollSpeedPx = 0
+    private val dragAutoScrollRunner = object : Runnable {
+        override fun run() {
+            if (!dragAutoScrollActive || !isAdded || !::nsvAssets.isInitialized) return
+            if (dragAutoScrollDirection != 0 && dragAutoScrollSpeedPx > 0) {
+                nsvAssets.scrollBy(0, dragAutoScrollDirection * dragAutoScrollSpeedPx)
+            }
+            nsvAssets.postOnAnimation(this)
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_assets, container, false)
@@ -49,6 +64,7 @@ class AssetsFragment : Fragment() {
         tvTotalAsset = view.findViewById(R.id.tv_total_asset)
         tvTotalDebt = view.findViewById(R.id.tv_total_debt)
         containerCategoryCards = view.findViewById(R.id.container_category_cards)
+        nsvAssets = view.findViewById(R.id.nsv_assets)
 
         fabAddAsset = view.findViewById(R.id.fab_add_asset)
         fabAddAsset.setOnClickListener {
@@ -57,8 +73,7 @@ class AssetsFragment : Fragment() {
         fabAddAsset.post { showAssetFab() }
 
         // 上滑隐藏 FAB，下滑显示 FAB
-        view.findViewById<androidx.core.widget.NestedScrollView>(R.id.nsv_assets)
-            .setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+        nsvAssets.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
                 val dy = scrollY - oldScrollY
                 if (dy > 8) fabAddAsset.hide()
                 else if (dy < -8) fabAddAsset.show()
@@ -187,7 +202,12 @@ class AssetsFragment : Fragment() {
         val density = resources.displayMetrics.density
 
         // ── 计算该类别合计金额 ──
-        val total = group.sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
+        val total = group
+            .filter { it.includeInNetAsset }
+            .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
+        val excludedTotal = group
+            .filterNot { it.includeInNetAsset }
+            .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
 
         // ── CardView ──
         val card = CardView(ctx).apply {
@@ -280,11 +300,37 @@ class AssetsFragment : Fragment() {
                             scaleX = 1.02f
                             scaleY = 1.02f
                         }
+                    } else {
+                        stopDragAutoScroll()
+                    }
+                }
+
+                override fun onChildDraw(
+                    c: android.graphics.Canvas,
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    dX: Float,
+                    dY: Float,
+                    actionState: Int,
+                    isCurrentlyActive: Boolean
+                ) {
+                    val itemTop = viewHolder.itemView.top
+                    val itemBottom = viewHolder.itemView.bottom
+                    val minDy = (recyclerView.paddingTop - itemTop).toFloat()
+                    val maxDy = (recyclerView.height - recyclerView.paddingBottom - itemBottom).toFloat()
+                    val clampedDy = dY.coerceIn(minDy, maxDy)
+
+                    super.onChildDraw(c, recyclerView, viewHolder, dX, clampedDy, actionState, isCurrentlyActive)
+                    if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && isCurrentlyActive) {
+                        updateDragAutoScroll(recyclerView, viewHolder, clampedDy)
+                    } else {
+                        stopDragAutoScroll()
                     }
                 }
 
                 override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                     super.clearView(recyclerView, viewHolder)
+                    stopDragAutoScroll()
                     viewHolder.itemView.apply {
                         alpha = 1f
                         scaleX = 1f
@@ -302,8 +348,72 @@ class AssetsFragment : Fragment() {
         cardContent.addView(headerRow)
         cardContent.addView(divider)
         cardContent.addView(assetsRecycler)
+        val tvExcludedSummary = TextView(ctx).apply {
+            text = "不计入总资产：${CurrencyUtils.formatAmount(excludedTotal, "CNY")}"
+            setTextColor(android.graphics.Color.parseColor("#8A94A6"))
+            textSize = 12f
+            setPadding((16 * density).toInt(), (8 * density).toInt(), (16 * density).toInt(), (12 * density).toInt())
+        }
+        cardContent.addView(tvExcludedSummary)
         card.addView(cardContent)
         return card
+    }
+
+    private fun updateDragAutoScroll(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder,
+        dY: Float
+    ) {
+        if (!::nsvAssets.isInitialized) return
+        val rvLoc = IntArray(2)
+        val svLoc = IntArray(2)
+        recyclerView.getLocationOnScreen(rvLoc)
+        nsvAssets.getLocationOnScreen(svLoc)
+
+        val dragCenterYOnScreen = rvLoc[1] + viewHolder.itemView.top + dY + viewHolder.itemView.height / 2f
+        val visibleTop = svLoc[1].toFloat()
+        val visibleBottom = svLoc[1] + nsvAssets.height.toFloat()
+        val edgeThreshold = resources.displayMetrics.density * 84f
+        val maxSpeed = (resources.displayMetrics.density * 24f).toInt().coerceAtLeast(8)
+
+        val newDirection: Int
+        val newSpeed: Int
+        if (dragCenterYOnScreen > visibleBottom - edgeThreshold) {
+            val ratio = ((dragCenterYOnScreen - (visibleBottom - edgeThreshold)) / edgeThreshold).coerceIn(0f, 1f)
+            newDirection = 1
+            newSpeed = (maxSpeed * ratio).toInt().coerceAtLeast(2)
+        } else if (dragCenterYOnScreen < visibleTop + edgeThreshold) {
+            val ratio = (((visibleTop + edgeThreshold) - dragCenterYOnScreen) / edgeThreshold).coerceIn(0f, 1f)
+            newDirection = -1
+            newSpeed = (maxSpeed * ratio).toInt().coerceAtLeast(2)
+        } else {
+            newDirection = 0
+            newSpeed = 0
+        }
+
+        dragAutoScrollDirection = newDirection
+        dragAutoScrollSpeedPx = newSpeed
+        if (newDirection != 0) {
+            startDragAutoScroll()
+        } else {
+            stopDragAutoScroll()
+        }
+    }
+
+    private fun startDragAutoScroll() {
+        if (dragAutoScrollActive) return
+        dragAutoScrollActive = true
+        nsvAssets.removeCallbacks(dragAutoScrollRunner)
+        nsvAssets.postOnAnimation(dragAutoScrollRunner)
+    }
+
+    private fun stopDragAutoScroll() {
+        dragAutoScrollActive = false
+        dragAutoScrollDirection = 0
+        dragAutoScrollSpeedPx = 0
+        if (::nsvAssets.isInitialized) {
+            nsvAssets.removeCallbacks(dragAutoScrollRunner)
+        }
     }
 
     private fun persistCategoryOrder(changedCategory: String, reorderedList: List<Asset>) {
@@ -360,17 +470,13 @@ class AssetsFragment : Fragment() {
                 holder.tvRemark.visibility = View.GONE
             }
 
-            if (asset.icon.isNotEmpty()) {
-                Glide.with(holder.itemView)
-                    .load(asset.icon)
-                    .transform(CircleCrop())
-                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                    .placeholder(android.R.drawable.ic_menu_gallery)
-                    .error(android.R.drawable.ic_menu_gallery)
-                    .into(holder.ivIcon)
-            } else {
-                holder.ivIcon.setImageResource(android.R.drawable.ic_menu_gallery)
-            }
+            Glide.with(holder.itemView)
+                .load(AssetIconDefaults.withDefault(asset.icon))
+                .transform(CircleCrop())
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.ic_placeholder)
+                .error(R.drawable.ic_placeholder)
+                .into(holder.ivIcon)
 
             holder.itemView.setOnClickListener { onClick(asset) }
         }

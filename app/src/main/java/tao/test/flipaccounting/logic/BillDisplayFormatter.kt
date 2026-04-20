@@ -12,6 +12,7 @@ import java.util.Locale
 object BillDisplayFormatter {
 
     private val refundPrefixes = listOf("退款：", "退款·")
+    private const val DELETED_ASSET_SUFFIX = "（已删除）"
 
     fun stripRefundPrefix(categoryName: String): String {
         var normalized = categoryName.trim()
@@ -24,6 +25,27 @@ object BillDisplayFormatter {
 
     fun hasRefundPrefix(categoryName: String): Boolean {
         return refundPrefixes.any { categoryName.startsWith(it) }
+    }
+
+    fun formatAccountNameWithDeletedTag(accountName: String): CharSequence {
+        val raw = accountName.ifBlank { "未设置账户" }
+        val idx = raw.indexOf(DELETED_ASSET_SUFFIX)
+        if (idx < 0) return raw
+
+        val builder = SpannableStringBuilder()
+        val base = raw.substring(0, idx).ifBlank { "未设置账户" }
+        val tag = raw.substring(idx)
+        builder.append(base)
+        val tagSpan = SpannableString(tag).apply {
+            setSpan(
+                ForegroundColorSpan(Color.parseColor("#A1A8AF")),
+                0,
+                length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        builder.append(tagSpan)
+        return builder
     }
 
     fun buildRefundCategoryLabel(categoryName: String): String {
@@ -97,6 +119,6 @@ object BillDisplayFormatter {
         if (bill.currency.equals(targetCurrency, ignoreCase = true)) return null
         if (bill.exchangeRate == 1.0) return null
         val targetAmount = bill.amount * bill.exchangeRate
-        return "≈ ${formatMoney(targetAmount, targetCurrency)}"
+        return "≈${formatMoney(targetAmount, targetCurrency)}"
     }
 }

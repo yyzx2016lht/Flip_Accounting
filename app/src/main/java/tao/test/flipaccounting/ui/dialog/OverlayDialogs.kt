@@ -172,7 +172,7 @@ object OverlayDialogs {
             }
         }
 
-        // 寮傛浠庢暟鎹簱鍔犺浇鍒嗙被锛岀劧鍚庢覆鏌?
+        // 异步从数据库加载分类，然后渲染
         CoroutineScope(Dispatchers.Main).launch {
             val categories = withContext(Dispatchers.IO) { categoryRepository.getCategoryTree(dbType) }
             render(categories)
@@ -467,11 +467,11 @@ object OverlayDialogs {
     }
 
     /**
-     * 閫夋嫨杩佺Щ鐩爣鍒嗙被鐨勭綉鏍奸潰鏉裤€?
-     * @param excludeIds  闇€瑕佷粠鍒楄〃涓殣钘忕殑鍒嗙被 ID锛堟瘮濡傛鍦ㄥ垹闄ょ殑鍒嗙被鍙婂叾瀛愬垎绫伙級
-     * @param title       闈㈡澘椤堕儴鏍囬
-     * @param dbType      0=鏀嚭 1=鏀跺叆
-     * @param onConfirm   閫変腑纭鍚庡洖璋冿紝杩斿洖閫変腑鐨?CategoryNode
+     * 选择迁移目标分类的网格面板。
+     * @param excludeIds  需要从列表中排除的分类 ID（比如正在删除的分类及其子分类）
+     * @param title       面板顶部标题
+     * @param dbType      0=支出 1=收入
+     * @param onConfirm   选择确认后的回调，返回选中的 CategoryNode
      */
     fun showMigrationTargetPicker(
         ctx: Context,
@@ -483,16 +483,16 @@ object OverlayDialogs {
         val themeContext = ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting)
         val view = LayoutInflater.from(themeContext).inflate(R.layout.dialog_category_picker, null)
 
-        // 璁剧疆鑷畾涔夋爣棰?
+    // 设置自定义标题
         view.findViewById<TextView>(R.id.dialog_title)?.text = title
 
         val dialog = AlertDialog.Builder(themeContext).setView(view).create()
         val container = view.findViewById<LinearLayout>(R.id.container_categories)
         val categoryRepository = CategoryRepository(AppDatabase.getDatabase(ctx).categoryDao())
 
-        // 褰撳墠閫変腑鐨?CategoryNode锛堢埗绾э級
+    // 当前选中的父级 CategoryNode
         var selectedParent: CategoryNode? = null
-        // 褰撳墠閫変腑鐨勫瓙绾?CategoryNode锛堝彲浠ヤ负 null 琛ㄧず閫変簡鐖剁骇鏈韩锛?
+    // 当前选中的子级 CategoryNode（可为 null，表示选中父级本身）
         var selectedSub: CategoryNode? = null
 
         fun render(categories: List<CategoryNode>) {
@@ -536,7 +536,7 @@ object OverlayDialogs {
                 }
                 container.addView(rowLayout)
 
-                // 灞曞紑瀛愬垎绫婚潰鏉?
+                // 展开子分类面板
                 val curParent = selectedParent
                 if (curParent != null && row.any { it.name == curParent.name } && curParent.subs.isNotEmpty()) {
                     val anchorIndex = row.indexOfFirst { it.name == curParent.name }.coerceAtLeast(0)
@@ -550,7 +550,7 @@ object OverlayDialogs {
 
         CoroutineScope(Dispatchers.Main).launch {
             val allCategories = withContext(Dispatchers.IO) { categoryRepository.getCategoryTree(dbType) }
-            // 杩囨护鎺夐渶瑕佹帓闄ょ殑鍒嗙被锛堣嚜韬強鍏跺瓙鍒嗙被锛?
+            // 过滤掉需要排除的分类（自身及其子分类）
             val filtered = allCategories
                 .filter { it.id !in excludeIds }
                 .map { parent ->
@@ -834,7 +834,7 @@ object OverlayDialogs {
         val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_assets)
         var currentSelection = currentSelectionText
 
-        // 璧勪骇鍒楄〃锛堝彲鍙橈紝鐢ㄤ簬鎷栨嫿閲嶆帓锛?
+    // 资产列表（可变，用于拖拽重排）
         val assetList = mutableListOf<tao.test.flipaccounting.data.local.entity.Asset>()
 
         val adapter = object : androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder>() {
@@ -856,7 +856,7 @@ object OverlayDialogs {
                 val tvType = holder.itemView.findViewById<TextView?>(R.id.tv_asset_type)
                 val iv = holder.itemView.findViewById<ImageView>(R.id.iv_asset_icon)
                 tv.text = asset.name
-                tvType?.text = ""   // 娓呯┖澶嶇敤娈嬬暀锛岄€夋嫨鍣ㄤ笉鏄剧ず绫诲瀷
+                tvType?.text = ""   // 清空复用残留，选择器不显示类型
                 tvType?.visibility = View.GONE
                 tv.setTextColor(if (asset.name == currentSelection) Color.parseColor("#2196F3") else Color.parseColor("#333333"))
                 holder.itemView.alpha = if (asset.name == currentSelection) 1f else 0.85f
@@ -882,7 +882,7 @@ object OverlayDialogs {
         rv.layoutManager = androidx.recyclerview.widget.GridLayoutManager(ctx, 5)
         rv.adapter = adapter
 
-        // 闀挎寜鎷栨嫿鎺掑簭
+        // 长按拖拽排序
         val touchHelper = androidx.recyclerview.widget.ItemTouchHelper(
             object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
                 androidx.recyclerview.widget.ItemTouchHelper.UP or
@@ -919,7 +919,7 @@ object OverlayDialogs {
                     viewHolder.itemView.alpha = if (assetList.getOrNull(viewHolder.adapterPosition)?.name == currentSelection) 1f else 0.85f
                     viewHolder.itemView.scaleX = 1f
                     viewHolder.itemView.scaleY = 1f
-                    // 鎷栨嫿閲婃斁鍚庢壒閲忎繚瀛樻柊鐨?pickerSortOrder锛堢嫭绔嬩簬璧勪骇椤?sortOrder锛?
+                    // 拖拽释放后批量保存新的 pickerSortOrder（独立于资产页 sortOrder）
                     CoroutineScope(Dispatchers.IO).launch {
                         val db = AppDatabase.getDatabase(ctx)
                         assetList.forEachIndexed { idx, asset ->
@@ -976,11 +976,11 @@ object OverlayDialogs {
         onConfirm: (Double, Double, Double) -> Unit
     ) {
         try {
-            // 纭繚鎴戜滑鏈変竴涓湁鏁堢殑 Activity 涓婁笅鏂囨潵鏄剧ず瀵硅瘽妗?
+            // 确保我们有一个有效的 Activity 上下文来显示对话框
             val activityContext = if (ctx is Activity) {
                 ctx
             } else if (ctx is ContextThemeWrapper) {
-                // 灏濊瘯浠?ContextThemeWrapper 涓幏鍙栧熀纭€ Context
+                // 尝试从 ContextThemeWrapper 中获取基础 Context
                 val baseCtx = ctx.baseContext
                 if (baseCtx is Activity) baseCtx else ctx
             } else {
@@ -1099,15 +1099,15 @@ object OverlayDialogs {
         try {
             dialog.show()
         } catch (e: BadTokenException) {
-            // 濡傛灉鍥犱负绐楀彛浠ょ墝鏃犳晥鑰屽け璐ワ紝鍒欏皾璇曚娇鐢ㄥ簲鐢ㄤ笂涓嬫枃閲嶆柊鍒涘缓瀵硅瘽妗?
-            // 杩欓€氬父鍙戠敓鍦ㄤ粠鎮诞绐楁垨鍚庡彴鏈嶅姟璋冪敤鏃?
+            // 如果因为窗口令牌无效而失败，则尝试使用应用上下文重新创建对话框
+            // 这通常发生在从悬浮窗或后台服务调用时
             try {
                 val appContext = activityContext.applicationContext
                 val recoveryThemeContext = ContextThemeWrapper(appContext, R.style.Theme_FlipAccounting)
                 val recoveryView = LayoutInflater.from(recoveryThemeContext).inflate(R.layout.dialog_exchange_rate, null)
                 val recoveryDialog = AlertDialog.Builder(recoveryThemeContext).setView(recoveryView).setCancelable(false).create()
                 
-                // 閲嶆柊鍒濆鍖栨墍鏈塙I缁勪欢
+                // 重新初始化所有 UI 组件
                 val etSource = recoveryView.findViewById<EditText>(R.id.et_source_amount)
                 val tvSourceCurrency = recoveryView.findViewById<TextView>(R.id.tv_source_currency)
                 val etRate = recoveryView.findViewById<EditText>(R.id.et_exchange_rate)
@@ -1208,8 +1208,8 @@ object OverlayDialogs {
 
                 recoveryDialog.window?.let {
                     it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-                    // 鎮诞绐?Service 鍦烘櫙涓嬶紝蹇呴』璁剧疆 TYPE_APPLICATION_OVERLAY锛?
-                    // 鍚﹀垯 show() 浼氬洜涓?token null 鍐嶆鎶涘嚭 BadTokenException
+                    // 悬浮窗 Service 场景下，必须设置 TYPE_APPLICATION_OVERLAY
+                    // 否则 show() 会因为 token null 再次抛出 BadTokenException
                     it.setType(
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -1220,38 +1220,51 @@ object OverlayDialogs {
                 
                 recoveryDialog.show()
             } catch (ex: Exception) {
-                // 濡傛灉鎭㈠瀵硅瘽妗嗕篃澶辫触锛屽垯鍙褰曢敊璇苟杩斿洖
+                // 如果恢复对话框也失败，则只记录错误并返回
                 android.util.Log.e("OverlayDialogs", "Failed to show exchange rate dialog even after recovery attempt", ex)
-                onConfirm(sourceAmount, sourceAmount, 1.0)  // 杩斿洖榛樿鍊?
+                onConfirm(sourceAmount, sourceAmount, 1.0)  // 返回默认值
             }
         } catch (e: Exception) {
             android.util.Log.e("OverlayDialogs", "Failed to show exchange rate dialog", e)
-            onConfirm(sourceAmount, sourceAmount, 1.0)  // 杩斿洖榛樿鍊?
+            onConfirm(sourceAmount, sourceAmount, 1.0)  // 返回默认值
         }
         } catch (e: Exception) {
             android.util.Log.e("OverlayDialogs", "Failed to initialize exchange rate dialog", e)
-            onConfirm(sourceAmount, sourceAmount, 1.0)  // 杩斿洖榛樿鍊?
+            onConfirm(sourceAmount, sourceAmount, 1.0)  // 返回默认值
         }
     }
 
     /**
-     * 寮瑰嚭"閫夋嫨閫€娆炬潵婧愯处鍗?瀵硅瘽妗嗐€?
-     * 璇诲彇鏈€杩戠殑鏀嚭璐﹀崟锛堥潪閫€娆撅級锛屼互鍒楄〃+澶嶉€夋褰㈠紡灞曠ず锛岀敤鎴烽€夋嫨涓€鏉″悗鐐瑰嚮纭鍥炶皟銆?
+     * 弹出“选择退款来源账单”对话框。
+     * 读取最近的支出账单（非退款），以列表+复选框形式展示，用户选择一条后点击确认回调。
      *
-     * @param ctx         涓婁笅鏂囷紙Activity 鎴?Service锛?
-     * @param onConfirm   鐢ㄦ埛纭閫夋嫨鍚庣殑鍥炶皟锛屽弬鏁颁负閫変腑鐨勬敮鍑鸿处鍗?
+     * @param ctx         上下文（Activity 或 Service）
+     * @param onConfirm   用户确认选择后的回调，参数为选中的支出账单
      */
     fun showRefundBillPickerDialog(ctx: Context, onConfirm: (tao.test.flipaccounting.data.local.entity.Bill) -> Unit) {
         val themeContext = android.view.ContextThemeWrapper(ctx, tao.test.flipaccounting.R.style.Theme_FlipAccounting)
         val scope = CoroutineScope(Dispatchers.Main)
 
-        // 鍔犺浇鏈€杩?60 鏉℃敮鍑鸿处鍗曪紙鎺掗櫎宸查€€娆惧畬鍏ㄧ殑璐﹀崟锛?
+        // 加载最近 60 条支出账单（排除已退款完成的账单）
         scope.launch(Dispatchers.IO) {
             val db = tao.test.flipaccounting.data.local.AppDatabase.getDatabase(ctx)
             val expenseBills = db.billDao().getRecentExpenseBills(60)
 
             withContext(Dispatchers.Main) {
-                if (expenseBills.isEmpty()) {
+                fun normalizedTimeMillis(rawTime: Long): Long {
+                    // 兼容历史秒级时间戳，统一转成毫秒再排序/展示，避免列表看起来“乱序”。
+                    return if (rawTime in 1..9_999_999_999L) rawTime * 1000L else rawTime
+                }
+                val sortedRefundCandidates = expenseBills
+                    .asSequence()
+                    .filter { it.amount > 0.0 } // 已完全退款的支出（amount<=0）不再作为退款来源候选
+                    .sortedWith(
+                        compareByDescending<tao.test.flipaccounting.data.local.entity.Bill> { normalizedTimeMillis(it.time) }
+                            .thenByDescending { it.id }
+                    )
+                    .toList()
+
+                if (sortedRefundCandidates.isEmpty()) {
                     android.widget.Toast.makeText(ctx, "暂无可退款的支出账单", android.widget.Toast.LENGTH_SHORT).show()
                     return@withContext
                 }
@@ -1259,7 +1272,7 @@ object OverlayDialogs {
                 val df = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
                 val dp = ctx.resources.displayMetrics.density
 
-                // 鈹€鈹€ 澶栧眰瀹瑰櫒锛氬渾瑙掔櫧鍗＄墖 鈹€鈹€
+                // —— 外层容器：圆角白卡片 ——
                 val container = android.widget.LinearLayout(themeContext).apply {
                     orientation = android.widget.LinearLayout.VERTICAL
                     background = androidx.core.content.ContextCompat.getDrawable(
@@ -1269,7 +1282,7 @@ object OverlayDialogs {
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT)
                 }
 
-                // 鈹€鈹€ 鏍囬鍖?鈹€鈹€
+                // —— 标题区 ——
                 val tvTitle = android.widget.TextView(themeContext).apply {
                     text = "选择退款来源账单"
                     textSize = 16f
@@ -1284,14 +1297,14 @@ object OverlayDialogs {
                 }
                 container.addView(tvTitle)
 
-                // 鈹€鈹€ 鏍囬涓嬬粏绾?鈹€鈹€
+                // —— 标题下细线 ——
                 container.addView(android.view.View(themeContext).apply {
                     layoutParams = android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 1)
                     setBackgroundColor(android.graphics.Color.parseColor("#F0F0F0"))
                 })
 
-                // 鈹€鈹€ 鎼滅储妗嗭紙甯﹀渾瑙掕儗鏅級 鈹€鈹€
+                // —— 搜索框（带圆角背景） ——
                 val searchContainer = android.widget.FrameLayout(themeContext).apply {
                     val dp12 = (12 * dp).toInt()
                     layoutParams = android.widget.LinearLayout.LayoutParams(
@@ -1320,7 +1333,7 @@ object OverlayDialogs {
                 searchContainer.addView(etSearch)
                 container.addView(searchContainer)
 
-                // 鈹€鈹€ 婊氬姩鍒楄〃锛坵eight=1 鍗犳弧鍓╀綑绌洪棿锛?鈹€鈹€
+                // —— 滚动列表（height=1 占满剩余空间） ——
                 val scrollView = android.widget.ScrollView(themeContext).apply {
                     layoutParams = android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
@@ -1333,7 +1346,7 @@ object OverlayDialogs {
                 scrollView.addView(listLayout)
                 container.addView(scrollView)
 
-                // 鈹€鈹€ 鎸夐挳鍖轰笂缁嗙嚎 鈹€鈹€
+                // —— 按钮区上细线 ——
                 container.addView(android.view.View(themeContext).apply {
                     layoutParams = android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 1)
@@ -1342,11 +1355,11 @@ object OverlayDialogs {
 
                 var selectedBill: tao.test.flipaccounting.data.local.entity.Bill? = null
 
-                // 鈹€鈹€ 鏋勫缓/鍒锋柊鍒楄〃鍑芥暟 鈹€鈹€
+                // —— 构建/刷新列表函数 ——
                 fun renderList(filter: String) {
                     listLayout.removeAllViews()
                     val keyword = filter.trim().lowercase()
-                    val filtered = if (keyword.isEmpty()) expenseBills else expenseBills.filter { b ->
+                    val filtered = if (keyword.isEmpty()) sortedRefundCandidates else sortedRefundCandidates.filter { b ->
                         b.categoryName.lowercase().contains(keyword) ||
                         b.remark.lowercase().contains(keyword)
                     }
@@ -1416,9 +1429,9 @@ object OverlayDialogs {
                             setTextColor(android.graphics.Color.parseColor("#1A1A1A"))
                         }
 
-                        val detailSb = StringBuilder(df.format(java.util.Date(bill.time)))
-                        if (bill.accountName.isNotEmpty()) detailSb.append("  路  ${bill.accountName}")
-                        if (bill.remark.isNotEmpty())      detailSb.append("  路  ${bill.remark}")
+                        val detailSb = StringBuilder(df.format(java.util.Date(normalizedTimeMillis(bill.time))))
+                        if (bill.accountName.isNotEmpty()) detailSb.append("  ·  ${bill.accountName}")
+                        if (bill.remark.isNotEmpty())      detailSb.append("  ·  ${bill.remark}")
                         val tvDetail = android.widget.TextView(themeContext).apply {
                             text = detailSb.toString()
                             textSize = 11f
@@ -1431,7 +1444,11 @@ object OverlayDialogs {
                         }
 
                         val tvAmount = android.widget.TextView(themeContext).apply {
-                            text = "-楼${String.format(java.util.Locale.getDefault(), "%.2f", bill.amount)}"
+                            text = if (bill.currency.equals("CNY", ignoreCase = true)) {
+                                "-¥${String.format(java.util.Locale.getDefault(), "%.2f", bill.amount)}"
+                            } else {
+                                "-${String.format(java.util.Locale.getDefault(), "%.2f", bill.amount)} ${bill.currency}"
+                            }
                             textSize = 15f
                             setTypeface(null, android.graphics.Typeface.BOLD)
                             setTextColor(android.graphics.Color.parseColor("#E53935"))
@@ -1449,7 +1466,7 @@ object OverlayDialogs {
                             checkBoxes.forEach { it.isChecked = false }
                             cb.isChecked = !wasChecked
                             selectedBill = if (cb.isChecked) bill else null
-                            // 鍒锋柊楂樹寒
+                            // 刷新高亮
                             renderList(etSearch.text.toString())
                         }
                         itemLayout.setOnClickListener { clickAction() }
@@ -1462,7 +1479,7 @@ object OverlayDialogs {
 
                         listLayout.addView(itemLayout)
 
-                        // 鍒嗛殧绾匡紙閫変腑琛屼笉鍔狅紝瑙嗚涓婃洿鏁存磥锛?
+                        // 分隔线（选中行不加，视觉上更整洁）
                         if (index < filtered.size - 1 && !isSelected) {
                             listLayout.addView(android.view.View(themeContext).apply {
                                 layoutParams = android.widget.LinearLayout.LayoutParams(
@@ -1476,10 +1493,10 @@ object OverlayDialogs {
                     }
                 }
 
-                // 鍒濆娓叉煋鍏ㄩ儴
+                // 初始渲染全部
                 renderList("")
 
-                // 鐩戝惉鎼滅储妗嗚緭鍏?
+                // 监听搜索框输入
                 etSearch.addTextChangedListener(object : android.text.TextWatcher {
                     override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                     override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -1488,13 +1505,13 @@ object OverlayDialogs {
                     }
                 })
 
-                // 鈹€鈹€ 鎸夐挳琛岋細鍥哄畾楂樺害锛屾寜閽湪涓婁笅鏂瑰悜灞呬腑 鈹€鈹€
+                // —— 按钮行：固定高度，按钮在上下方向居中 ——
                 val btnRow = android.widget.LinearLayout(themeContext).apply {
                     orientation = android.widget.LinearLayout.HORIZONTAL
                     gravity = android.view.Gravity.CENTER
                     val dp16 = (16 * dp).toInt()
                     setPadding(dp16, 0, dp16, 0)
-                    // 鍥哄畾楂樺害锛屼娇鎸夐挳鍦ㄥ垎鍓茬嚎涓庡簳閮ㄤ箣闂村畬鍏ㄥ瀭鐩村眳涓?
+                    // 固定高度，使按钮在分割线与底部之间完全垂直居中
                     layoutParams = android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                         (64 * dp).toInt())
@@ -1525,7 +1542,7 @@ object OverlayDialogs {
                         setOnClickListener { alertDialog.dismiss() }
                     }
                     val btnConfirm = android.widget.Button(themeContext).apply {
-                        text = "纭"
+                        text = "确认"
                         textSize = 14f
                         setTextColor(android.graphics.Color.parseColor("#FFFFFF"))
                         setTypeface(null, android.graphics.Typeface.BOLD)

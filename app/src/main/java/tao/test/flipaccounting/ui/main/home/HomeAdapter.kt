@@ -1,6 +1,7 @@
 package tao.test.flipaccounting.ui.main.home
 
 import android.graphics.Color
+import android.text.SpannableStringBuilder
 import android.os.Build
 import android.util.Log
 import android.view.LayoutInflater
@@ -34,14 +35,13 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         val isDeprecated: Boolean = false
     )
 
-    /** Adapter 级别共享协程域：SupervisorJob 保证单个子协程失败不影响其它；
-     *  所有 icon 加载都在此 scope 里 launch，ViewHolder recycle 时取消对应 job */
+    // 图标查询放在 IO 线程，避免主线程阻塞。
     private val adapterScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    /** Diff 计算专用协程域，支持取消旧任务，避免快速切换账本时旧结果回流 */
+    // Diff 计算放在 Default 线程，减少主线程卡顿。
     private val diffScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var submitJob: Job? = null
     private var submitGeneration: Long = 0L
-    /** 分类图标内存缓存：key=type|name，value=url（空串表示无图标） */
+    // 图标 URL 缓存，key 形如 "type|categoryName"。
     private val iconUrlCache = mutableMapOf<String, String>()
     private val itemTimeFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
 
@@ -73,7 +73,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private val iconColorOther = Color.parseColor(COLOR_ICON_OTHER)
 
     sealed class ListItem {
-        /** 图表卡片（最近7日），始终排在列表第一位 */
+        // 用于承载首页图表占位项。
         object Chart : ListItem()
 
         data class Header(
@@ -90,9 +90,9 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     val items = mutableListOf<ListItem>()
     private val rawBills = mutableListOf<DisplayBill>()
 
-    /** 由 Fragment 传入的图表 CardView，作为 position=0 的 header item 展示 */
+    // 外部注入的图表视图，作为列表的第 0 项展示。
     var chartView: android.view.View? = null
-    /** 当前是否应在列表里显示图表卡片（由 Fragment 控制，随 isChartHidden / isCurrentMonth 同步更新） */
+    // 控制是否在列表顶部显示图表项。
     var showChart: Boolean = false
     private var lastSubmittedShowChart: Boolean = false
 
@@ -136,7 +136,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     .map { DisplayBill(it, isDeprecated = true) }
             )
         }.sortedByDescending { it.bill.time }
-        // 快速路径：如果数据完全相同，直接返回，不触发任何 DiffUtil 计算或 notify
+        // 数据和展示状态都没变时，直接跳过，避免无效刷新。
         if (rawBills == combinedBills && lastSubmittedShowChart == showChart) {
             Log.d("HomePerf", "submitList: skip (list unchanged)")
             return
@@ -144,18 +144,18 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         submitJob?.cancel()
         val generation = ++submitGeneration
-        val includeChart = showChart   // 在子线程中读取时快照，避免竞争
+        // 固定当前提交的图表开关，避免异步阶段读取到后续变化。
+        val includeChart = showChart
 
         val oldItems = items.toList()
 
-        // 在子线程构建新列表并计算 DiffUtil，避免主线程卡顿
         submitJob = diffScope.launch {
             val dfKey = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val dfDisplay = SimpleDateFormat("MM.dd", Locale.getDefault())
             val dfWeekday = SimpleDateFormat("E", Locale.CHINESE)
 
             val newItems = mutableListOf<ListItem>()
-            // 图表 header 始终排在最前面（由 showChart 控制是否显示）
+            // 可选地在首位插入图表项，然后按天分组生成 Header + Item。
             if (includeChart) newItems.add(ListItem.Chart)
             if (combinedBills.isNotEmpty()) {
                 val grouped = combinedBills.groupBy { dfKey.format(Date(it.bill.time)) }
@@ -197,7 +197,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 }
             })
 
-            // 切回主线程更新数据和 UI
+            // 回到主线程提交 diff，确保 RecyclerView 更新线程安全。
             withContext(Dispatchers.Main) {
                 if (generation != submitGeneration) {
                     Log.d("HomePerf", "submitList: drop stale generation=$generation latest=$submitGeneration")
@@ -261,8 +261,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             TYPE_CHART -> {
-                // 直接把由 Fragment 传入的 chartView 包装进一个 FrameLayout 容器，
-                // 宽度 match_parent，高度 wrap_content，外部留有间距
+                // 图表项使用独立容器，便于承载外部传入的 view。
                 val container = android.widget.FrameLayout(parent.context).apply {
                     layoutParams = RecyclerView.LayoutParams(
                         RecyclerView.LayoutParams.MATCH_PARENT,
@@ -304,19 +303,19 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
         super.onViewRecycled(holder)
         if (holder is ItemViewHolder) {
-            // ViewHolder 被回收：取消图标加载协程 + 清除 Glide 请求，防止旧回调覆盖新 item
+            // 回收时取消图标任务并清除图片，避免错位和资源泄漏。
             holder.iconJob?.cancel()
             holder.iconJob = null
             Glide.with(holder.ivIcon.context).clear(holder.ivIcon)
         }
     }
 
-    /** 图表卡片 ViewHolder：持有一个容器，将外部的 chartView 移入其中展示 */
+    // 只负责承载外部传入的图表 view，不参与图表内部状态管理。
     inner class ChartViewHolder(val container: android.widget.FrameLayout) : RecyclerView.ViewHolder(container) {
         fun bind(view: android.view.View?) {
             container.removeAllViews()
             if (view != null) {
-                // 如果 view 已经有 parent，先从 parent 移除
+                // 先从旧 parent 脱离，避免 addView 抛异常。
                 (view.parent as? android.view.ViewGroup)?.removeView(view)
                 container.addView(view, android.widget.FrameLayout.LayoutParams(
                     android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
@@ -358,10 +357,10 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
             val summaryBuilder = StringBuilder()
             if (header.income > 0) {
-                summaryBuilder.append("收 ¥${String.format(Locale.getDefault(), "%.2f", header.income)} ")
+                summaryBuilder.append("\u6536 \u00A5${String.format(Locale.getDefault(), "%.2f", header.income)} ")
             }
             if (header.expense > 0) {
-                summaryBuilder.append("支 ¥${String.format(Locale.getDefault(), "%.2f", header.expense)}")
+                summaryBuilder.append("\u652F \u00A5${String.format(Locale.getDefault(), "%.2f", header.expense)}")
             }
             tvSummary?.text = summaryBuilder.toString().trim()
             if (tvSummary?.text?.isEmpty() == true) {
@@ -383,7 +382,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             itemView.context.resources.getIdentifier("layout_icon_container", "id", itemView.context.packageName)
         )
 
-        /** 当前正在进行的图标加载协程 Job，recycle 时取消 */
+        // 当前 ViewHolder 的图标加载任务，复用/回收时可取消。
         var iconJob: Job? = null
         private var boundBill: Bill? = null
         private var boundDeprecated: Boolean = false
@@ -495,10 +494,10 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             )
 
             tvCategory.text = when {
-                isRepayment -> "还款"
-                isTransfer -> "转账"
+                isRepayment -> "\u8FD8\u6B3E"
+                isTransfer -> "\u8F6C\u8D26"
                 isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
-                else -> bill.categoryName.ifEmpty { "未分类" }
+                else -> bill.categoryName.ifEmpty { "\u672A\u5206\u7C7B" }
             }
 
             tvAmount.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {
@@ -543,40 +542,41 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
             tvTime.text = itemTimeFormatter.format(Date(bill.time))
 
-            val detailStr = buildString {
-                if (isTransfer) {
-                    append(bill.accountName)
-                    if (bill.toAccountName.isNotEmpty()) {
-                        append(" -> ")
-                        append(bill.toAccountName)
-                    }
-                } else if (isRefund) {
-                    if (bill.accountName.isNotEmpty()) {
-                        append(bill.accountName)
-                    }
-                } else {
-                    if (bill.accountName.isNotEmpty()) {
-                        append(bill.accountName)
-                        if (refundAmount > 0.0) {
-                            append("(退款")
-                            append(symbol)
-                            append(String.format(Locale.getDefault(), "%.2f", refundAmount))
-                            append(")")
-                        }
-                    }
+            val detailBuilder = SpannableStringBuilder()
+            if (isTransfer) {
+                if (bill.accountName.isNotEmpty()) {
+                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
                 }
-                if (bill.remark.isNotEmpty()) {
-                    if (isNotEmpty()) append(" | ")
-                    append(bill.remark)
+                if (bill.toAccountName.isNotEmpty()) {
+                    if (detailBuilder.isNotEmpty()) detailBuilder.append(" -> ")
+                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.toAccountName))
                 }
-                val suffix = detailSuffixProvider?.invoke(bill).orEmpty()
-                if (suffix.isNotEmpty()) {
-                    if (isNotEmpty()) append(" | ")
-                    append(suffix)
+            } else if (isRefund) {
+                if (bill.accountName.isNotEmpty()) {
+                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
+                }
+            } else {
+                if (bill.accountName.isNotEmpty()) {
+                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
+                    if (refundAmount > 0.0) {
+                        detailBuilder.append("(\u9000\u6B3E")
+                        detailBuilder.append(symbol)
+                        detailBuilder.append(String.format(Locale.getDefault(), "%.2f", refundAmount))
+                        detailBuilder.append(")")
+                    }
                 }
             }
-            if (detailStr.isNotEmpty()) {
-                tvDetail.text = detailStr
+            if (bill.remark.isNotEmpty()) {
+                if (detailBuilder.isNotEmpty()) detailBuilder.append(" | ")
+                detailBuilder.append(bill.remark)
+            }
+            val suffix = detailSuffixProvider?.invoke(bill).orEmpty()
+            if (suffix.isNotEmpty()) {
+                if (detailBuilder.isNotEmpty()) detailBuilder.append(" | ")
+                detailBuilder.append(suffix)
+            }
+            if (detailBuilder.isNotEmpty()) {
+                tvDetail.text = detailBuilder
                 tvDetail.visibility = View.VISIBLE
             } else {
                 tvDetail.visibility = View.GONE
@@ -600,7 +600,6 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             val iconLookupName = if (isRefund) baseCategoryName else bill.categoryName
             val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
             val iconCacheKey = buildIconCacheKey(iconLookupName, iconLookupType)
-            // 取消上一次图标加载（ViewHolder 复用时防止旧协程回调覆盖新图标）
             iconJob?.cancel()
             ivIcon.setImageDrawable(null)
             val cachedIconUrl = getCachedIconUrl(iconCacheKey)

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 账单卡片子项（在AI消息气泡内，每一笔账单一个卡片） -->
+<!-- AI 账单卡片（聊天流样式） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -15,7 +15,7 @@
         android:background="@drawable/bg_bill_item_chat"
         android:padding="12dp">
 
-        <!-- 第一行：图标 + 分类名 + 金额 -->
+    <!-- 图标 + 分类详情 + 金额 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -63,19 +63,45 @@
                     android:layout_marginTop="3dp" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_chat_bill_amount"
+            <FrameLayout
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_chat_bill_amount_tag"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#D32F2F" />
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/tv_chat_bill_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="76dp"
+                    android:background="@drawable/bg_chat_bill_amount_tag"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp"
+                    android:gravity="center"
+                    android:textSize="17sp"
+                    android:letterSpacing="0.01"
+                    android:textStyle="bold"
+                    android:textColor="#D32F2F" />
+
+                <EditText
+                    android:id="@+id/et_chat_bill_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="76dp"
+                    android:background="@drawable/bg_chat_bill_amount_tag"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp"
+                    android:textSize="17sp"
+                    android:letterSpacing="0.01"
+                    android:textStyle="bold"
+                    android:textColor="#D32F2F"
+                    android:inputType="numberDecimal"
+                    android:maxLines="1"
+                    android:gravity="center"
+                    android:imeOptions="actionDone"
+                    android:visibility="gone" />
+            </FrameLayout>
         </LinearLayout>
 
-        <!-- 时间行 -->
+    <!-- 时间 -->
         <TextView
             android:id="@+id/tv_chat_bill_time"
             android:layout_width="wrap_content"
@@ -84,7 +110,7 @@
             android:textSize="11sp" />
     </LinearLayout>
 
-    <!-- 操作按钮行 -->
+    <!-- 操作按钮 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -98,7 +124,7 @@
             android:layout_height="34dp"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="修改分类"
+            android:text="&#x4FEE;&#x6539;&#x5206;&#x7C7B;"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#1F5FC8"
@@ -114,7 +140,7 @@
             android:layout_height="34dp"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="删除"
+            android:text="&#x5220;&#x9664;"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#C13E4A"

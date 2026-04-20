@@ -956,7 +956,13 @@ class StatsFragment : Fragment() {
 
         dialog.setContentView(view)
         dialog.setOnShowListener {
-            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet) ?: return@setOnShowListener
+            val bottomSheetId = resources.getIdentifier(
+                "design_bottom_sheet",
+                "id",
+                "com.google.android.material"
+            )
+            if (bottomSheetId == 0) return@setOnShowListener
+            val bottomSheet = dialog.findViewById<View>(bottomSheetId) ?: return@setOnShowListener
             bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
                 height = (resources.displayMetrics.heightPixels * 0.82f).toInt()
             }

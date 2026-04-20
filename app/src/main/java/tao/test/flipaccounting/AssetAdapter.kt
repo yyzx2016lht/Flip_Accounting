@@ -1,4 +1,4 @@
-package tao.test.flipaccounting
+﻿package tao.test.flipaccounting
 
 import android.view.LayoutInflater
 import android.view.View
@@ -28,25 +28,24 @@ class AssetAdapter(
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = list[position]
         holder.tvName.text = item.name
-        holder.tvType.text = "${item.type} · ${item.currency}"
-        // 加载图标，如果有 URL 就加载，没有就用默认占位
-        if (item.icon.isNotEmpty()) {
-            Glide.with(holder.itemView)
-                .load(item.icon)
-                .transform(CircleCrop()) // 圆形图标更好看
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .error(android.R.drawable.ic_menu_gallery)
-                .into(holder.ivIcon)
-        } else {
-            holder.ivIcon.setImageResource(android.R.drawable.ic_menu_gallery)
-        }
+        holder.tvType.text = "${item.type} 路 ${item.currency}"
+
+        Glide.with(holder.itemView)
+            .load(AssetIconDefaults.withDefault(item.icon))
+            .transform(CircleCrop())
+            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+            .placeholder(R.drawable.ic_placeholder)
+            .error(R.drawable.ic_placeholder)
+            .into(holder.ivIcon)
+
         holder.itemView.setOnLongClickListener {
             onLongClick(item)
             true
         }
     }
+
     override fun getItemCount() = list.size
+
     fun updateData(newList: List<Asset>) {
         list.clear()
         list.addAll(newList)

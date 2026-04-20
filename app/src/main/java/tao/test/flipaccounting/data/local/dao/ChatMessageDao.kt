@@ -48,6 +48,12 @@ interface ChatMessageDao {
     @Query("UPDATE chat_messages SET bookName = :bookName, conversationId = :conversationId WHERE (bookName IS NULL OR bookName = '' OR conversationId IS NULL OR conversationId = '')")
     suspend fun migrateLegacyBookAndConversation(bookName: String, conversationId: String)
 
+    @Query("UPDATE chat_messages SET conversationId = :conversationId WHERE conversationId IS NULL OR conversationId = ''")
+    suspend fun migrateLegacyConversationId(conversationId: String)
+
+    @Query("UPDATE chat_messages SET bookName = :bookName WHERE bookName IS NULL OR bookName = ''")
+    suspend fun migrateLegacyBookName(bookName: String)
+
     @Update
     suspend fun update(msg: ChatMessage)
 

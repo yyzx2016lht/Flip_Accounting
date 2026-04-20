@@ -207,11 +207,11 @@ class AddAssetActivity : AppCompatActivity() {
             tvTypeName.text = item.name
             tvTypeName.setTextColor(Color.parseColor("#2196F3"))
             Glide.with(this)
-                .load(item.icon)
+                .load(AssetIconDefaults.withDefault(item.icon))
                 .transform(CircleCrop())
                 .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .error(android.R.drawable.ic_menu_gallery)
+                .placeholder(R.drawable.ic_placeholder)
+                .error(R.drawable.ic_placeholder)
                 .into(ivTypeIcon)
 
             val currentName = etName.text.toString()
@@ -259,7 +259,7 @@ class AddAssetActivity : AppCompatActivity() {
                 tvTypeName.text = it.type
                 tvTypeName.setTextColor(Color.parseColor("#2196F3"))
                 selectedType = it.type
-                selectedIcon = it.icon
+                selectedIcon = AssetIconDefaults.withDefault(it.icon)
                 selectedCurrency = it.currency
                 tvCurrency.text = it.currency
                 swIncludeNet.isChecked = it.includeInNetAsset
@@ -268,15 +268,13 @@ class AddAssetActivity : AppCompatActivity() {
                 originalPickerSortOrder = it.pickerSortOrder
                 updateAssetCategoryUI()
 
-                if (it.icon.isNotEmpty()) {
-                    Glide.with(this@AddAssetActivity)
-                        .load(it.icon)
-                        .transform(CircleCrop())
-                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                        .placeholder(android.R.drawable.ic_menu_gallery)
-                        .error(android.R.drawable.ic_menu_gallery)
-                        .into(ivTypeIcon)
-                }
+                Glide.with(this@AddAssetActivity)
+                    .load(AssetIconDefaults.withDefault(it.icon))
+                    .transform(CircleCrop())
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .placeholder(R.drawable.ic_placeholder)
+                    .error(R.drawable.ic_placeholder)
+                    .into(ivTypeIcon)
             }
         }
     }
@@ -342,7 +340,7 @@ class AddAssetActivity : AppCompatActivity() {
                 balance = currentBalance,
                 initialBalance = if (assetId == -1L) currentBalance else (existingAsset?.initialBalance ?: 0.0),
                 currency = selectedCurrency,
-                icon = selectedIcon,
+                icon = AssetIconDefaults.withDefault(selectedIcon),
                 remark = etRemark.text.toString(),
                 includeInNetAsset = swIncludeNet.isChecked,
                 assetCategory = selectedAssetCategory,
@@ -574,10 +572,11 @@ class AddAssetActivity : AppCompatActivity() {
             val item = icons[position]
             holder.tv.text = item.name
             Glide.with(holder.itemView)
-                .load(item.icon)
+                .load(AssetIconDefaults.withDefault(item.icon))
                 .transform(CircleCrop())
                 .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .placeholder(android.R.drawable.ic_menu_gallery)
+                .placeholder(R.drawable.ic_placeholder)
+                .error(R.drawable.ic_placeholder)
                 .into(holder.iv)
             holder.itemView.setOnClickListener { onSelect(item) }
         }

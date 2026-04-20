@@ -1,89 +1,118 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="#F6F8FC"
     android:orientation="vertical"
     android:paddingHorizontal="14dp"
-    android:paddingTop="18dp"
-    android:paddingBottom="14dp">
+    android:paddingTop="14dp"
+    android:paddingBottom="12dp">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="4dp"
-        android:text="对话记录"
-        android:textColor="#24364D"
-        android:textSize="19sp"
-        android:textStyle="bold" />
+        android:background="@drawable/bg_chat_dialog_panel"
+        android:orientation="vertical"
+        android:padding="12dp">
 
-    <TextView
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="会话中心"
+            android:textColor="#21324B"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="在这里切换会话、调整对话风格和管理聊天背景。"
+            android:textColor="#7A8AA3"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/et_session_search"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_model_search_field"
+            android:hint="搜索历史会话"
+            android:paddingHorizontal="12dp"
+            android:singleLine="true"
+            android:textColor="#25344A"
+            android:textColorHint="#92A1B5"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:paddingHorizontal="4dp"
-        android:text="切换会话、调整回复风格，或者更换当前聊天背景。"
-        android:textColor="#8A98AD"
-        android:textSize="12sp" />
-
-    <EditText
-        android:id="@+id/et_session_search"
-        android:layout_width="match_parent"
-        android:layout_height="42dp"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/bg_model_search_field"
-        android:hint="搜索聊天记录"
-        android:paddingHorizontal="12dp"
-        android:singleLine="true"
-        android:textColor="#25344A"
-        android:textColorHint="#92A1B5"
-        android:textSize="14sp" />
-
-    <TextView
-        android:id="@+id/btn_new_session"
-        android:layout_width="match_parent"
-        android:layout_height="46dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_dialog_action_item"
-        android:gravity="center"
-        android:text="新建对话"
-        android:textColor="#2A3A53"
-        android:textSize="14sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/btn_reply_style"
-        android:layout_width="match_parent"
-        android:layout_height="46dp"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_dialog_action_item"
-        android:gravity="center"
-        android:text="回复风格"
-        android:textColor="#2A3A53"
-        android:textSize="14sp"
-        android:textStyle="bold" />
+        <TextView
+            android:id="@+id/btn_new_session"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_dialog_action_item"
+            android:gravity="center"
+            android:text="新建会话"
+            android:textColor="#2A3A53"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_reply_style"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_dialog_action_item"
+            android:gravity="center"
+            android:text="回复风格"
+            android:textColor="#2A3A53"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/btn_change_chat_bg"
         android:layout_width="match_parent"
-        android:layout_height="46dp"
+        android:layout_height="44dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_dialog_action_item"
         android:gravity="center"
-        android:text="更换背景"
+        android:text="更换聊天背景"
         android:textColor="#2A3A53"
-        android:textSize="14sp"
+        android:textSize="13sp"
         android:textStyle="bold" />
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:paddingHorizontal="4dp"
-        android:text="历史会话"
-        android:textColor="#8A98AD"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="2dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="历史会话"
+            android:textColor="#53637B"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="按时间倒序"
+            android:textColor="#94A2B5"
+            android:textSize="11sp" />
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_session_list"
@@ -92,7 +121,7 @@
         android:layout_marginTop="8dp"
         android:layout_weight="1"
         android:clipToPadding="false"
-        android:paddingBottom="6dp" />
+        android:paddingBottom="8dp" />
 
     <TextView
         android:id="@+id/btn_clear_current_session"
@@ -101,7 +130,7 @@
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_dialog_action_item_danger"
         android:gravity="center"
-        android:text="清空当前对话"
+        android:text="清空当前会话"
         android:textColor="#B3261E"
         android:textSize="14sp"
         android:textStyle="bold" />

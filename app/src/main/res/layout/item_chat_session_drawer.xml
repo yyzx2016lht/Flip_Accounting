@@ -1,11 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
     android:background="@drawable/bg_chat_session_item"
     android:gravity="center_vertical"
-    android:minHeight="92dp"
+    android:minHeight="98dp"
     android:orientation="horizontal"
     android:paddingHorizontal="14dp"
     android:paddingVertical="13dp">
@@ -27,10 +27,24 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/tv_session_book"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_dialog_action_item"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:textColor="#4665A9"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
             android:id="@+id/tv_session_preview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
+            android:layout_marginTop="7dp"
             android:ellipsize="end"
             android:lineSpacingExtra="1dp"
             android:maxLines="2"

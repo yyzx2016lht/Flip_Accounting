@@ -6,8 +6,6 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.dao.AssetDao
 import tao.test.flipaccounting.data.local.dao.BillDao
 import tao.test.flipaccounting.data.local.entity.Asset
-import tao.test.flipaccounting.data.local.entity.Bill
-import tao.test.flipaccounting.logic.BillDeleteHelper
 
 class AssetRepository(
     private val assetDao: AssetDao,
@@ -45,11 +43,7 @@ class AssetRepository(
         if (db != null) {
             db.withTransaction {
                 dao.backfillAssetLinksByName()
-                val relatedBills = dao.getBillsByAssetIdOrNameList(asset.id, asset.name)
-                val transferBills = relatedBills.filter { it.type == Bill.TYPE_TRANSFER }
-                if (transferBills.isNotEmpty()) {
-                    transferBills.forEach { BillDeleteHelper.deleteBillAndRevertBalance(db, it) }
-                }
+                // 删除资产时保留全部历史账单，仅解除资产关联并保留账户名快照（加“已删除”标记）。
                 dao.clearAccountId(asset.id)
                 dao.clearToAccountId(asset.id)
                 dao.markDeletedAccountName(asset.name, deletedNameLabel)
@@ -60,11 +54,7 @@ class AssetRepository(
         }
 
         dao.backfillAssetLinksByName()
-        val relatedBills = dao.getBillsByAssetIdOrNameList(asset.id, asset.name)
-        val transferBills = relatedBills.filter { it.type == Bill.TYPE_TRANSFER }
-        if (transferBills.isNotEmpty()) {
-            dao.delete(transferBills)
-        }
+        // 无事务兜底路径同样不删除任何账单，仅解除关联。
         dao.clearAccountId(asset.id)
         dao.clearToAccountId(asset.id)
         dao.markDeletedAccountName(asset.name, deletedNameLabel)
