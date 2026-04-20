@@ -6,16 +6,21 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingHorizontal="12dp"
-    android:paddingVertical="5dp">
+    android:paddingVertical="6dp">
 
     <TextView
         android:id="@+id/tv_user_time"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_chat_time_chip"
         android:gravity="center"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="3dp"
         android:textSize="11sp"
-        android:textColor="#90A0B6"
-        android:layout_marginBottom="4dp" />
+        android:textStyle="bold"
+        android:textColor="#6F8099"
+        android:layout_marginBottom="6dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -41,17 +46,17 @@
             android:gravity="end"
             android:layout_marginEnd="8dp"
             android:layout_weight="0"
-            android:maxWidth="280dp">
+            android:maxWidth="292dp">
 
         <!-- 文字气泡 -->
         <TextView
             android:id="@+id/tv_user_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="280dp"
+            android:maxWidth="292dp"
             android:background="@drawable/bg_chat_bubble_user"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
             android:textSize="15sp"
             android:textColor="#FFFFFF"
             android:lineSpacingExtra="2dp"
@@ -78,25 +83,25 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/bg_chat_voice_bubble"
-            android:minWidth="132dp"
-            android:paddingStart="10dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="8dp"
+            android:minWidth="118dp"
+            android:paddingStart="9dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="9dp"
+            android:paddingBottom="7dp"
             android:visibility="gone"
             android:clickable="true"
             android:focusable="true">
 
             <FrameLayout
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_marginEnd="10dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_marginEnd="8dp"
                 android:background="@drawable/bg_chat_voice_play_chip">
 
                 <ImageView
                     android:id="@+id/iv_voice_play"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_voice_play"
                     app:tint="#FFFFFF" />
@@ -105,44 +110,49 @@
             <LinearLayout
                 android:id="@+id/layout_voice_wave"
                 android:layout_width="wrap_content"
-                android:layout_height="20dp"
-                android:layout_marginEnd="10dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="8dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <View
                     android:id="@+id/view_voice_bar_1"
-                    android:layout_width="4dp"
-                    android:layout_height="8dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="#BFFFFFFF" />
+                    android:layout_width="3dp"
+                    android:layout_height="6dp"
+                    android:layout_marginEnd="3dp"
+                    android:background="@drawable/bg_chat_voice_wave_bar"
+                    android:alpha="0.64" />
 
                 <View
                     android:id="@+id/view_voice_bar_2"
-                    android:layout_width="4dp"
-                    android:layout_height="14dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="#E6FFFFFF" />
+                    android:layout_width="3dp"
+                    android:layout_height="11dp"
+                    android:layout_marginEnd="3dp"
+                    android:background="@drawable/bg_chat_voice_wave_bar"
+                    android:alpha="0.84" />
 
                 <View
                     android:id="@+id/view_voice_bar_3"
-                    android:layout_width="4dp"
-                    android:layout_height="10dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="#CCFFFFFF" />
+                    android:layout_width="3dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="3dp"
+                    android:background="@drawable/bg_chat_voice_wave_bar"
+                    android:alpha="0.74" />
 
                 <View
                     android:id="@+id/view_voice_bar_4"
-                    android:layout_width="4dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="#F2FFFFFF" />
+                    android:layout_width="3dp"
+                    android:layout_height="13dp"
+                    android:layout_marginEnd="3dp"
+                    android:background="@drawable/bg_chat_voice_wave_bar"
+                    android:alpha="0.92" />
 
                 <View
                     android:id="@+id/view_voice_bar_5"
-                    android:layout_width="4dp"
-                    android:layout_height="9dp"
-                    android:background="#CCFFFFFF" />
+                    android:layout_width="3dp"
+                    android:layout_height="7dp"
+                    android:background="@drawable/bg_chat_voice_wave_bar"
+                    android:alpha="0.72" />
             </LinearLayout>
 
             <TextView
@@ -150,7 +160,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="1''"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#F7FAFF" />
         </LinearLayout>
@@ -211,8 +221,8 @@
     <!-- 用户头像 -->
     <ImageView
         android:id="@+id/iv_user_avatar"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
         android:src="@drawable/ic_user_avatar_default"
         android:scaleType="centerCrop"
         android:background="@drawable/bg_circle_soft"

@@ -496,6 +496,10 @@ object LocalAsrService {
         return null
     }
 
+    fun resetStreamingBuffer() {
+        streamSamples.clear()
+    }
+
     fun finishStreaming(): String? {
         val rec = sherpaRecognizer ?: return null
         return try {

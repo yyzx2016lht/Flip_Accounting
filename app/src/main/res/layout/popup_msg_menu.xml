@@ -1,107 +1,179 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 长按消息的气泡式弹出菜单，仿微信风格 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/popup_msg_menu_root"
+<HorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/popup_msg_menu_scroll"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:background="@drawable/bg_msg_popup_menu"
-    android:paddingHorizontal="4dp"
-    android:paddingVertical="2dp"
-    android:elevation="8dp">
+    android:fillViewport="false"
+    android:scrollbars="none"
+    android:background="@drawable/bg_msg_popup_menu">
 
-    <!-- 复制（文本消息显示） -->
     <LinearLayout
-        android:id="@+id/menu_item_copy"
-        android:layout_width="64dp"
+        android:id="@+id/popup_msg_menu_root"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:visibility="gone">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_copy"
-            android:tint="#FFFFFF" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="复制"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:layout_marginTop="3dp" />
-    </LinearLayout>
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="4dp">
 
-    <!-- 转文本（语音消息显示） -->
-    <LinearLayout
-        android:id="@+id/menu_item_transcribe"
-        android:layout_width="64dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:visibility="gone">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_mic"
-            android:tint="#FFFFFF" />
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/menu_item_copy"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
-            android:text="转文本"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:layout_marginTop="3dp" />
-    </LinearLayout>
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:visibility="gone">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_copy"
+                android:tint="#FFFFFF" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="复制"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:layout_marginTop="3dp" />
+        </LinearLayout>
 
-    <!-- 多选 -->
-    <LinearLayout
-        android:id="@+id/menu_item_multiselect"
-        android:layout_width="64dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_check_circle"
-            android:tint="#FFFFFF" />
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/menu_item_edit_resend"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
-            android:text="多选"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:layout_marginTop="3dp" />
-    </LinearLayout>
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:visibility="gone">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_edit"
+                android:tint="#FFFFFF" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="编辑发送"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:layout_marginTop="3dp" />
+        </LinearLayout>
 
-    <!-- 删除（单条快速删除） -->
-    <LinearLayout
-        android:id="@+id/menu_item_delete"
-        android:layout_width="64dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_delete"
-            android:tint="#FF6B6B" />
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/menu_item_transcribe"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
-            android:text="删除"
-            android:textColor="#FF6B6B"
-            android:textSize="11sp"
-            android:layout_marginTop="3dp" />
-    </LinearLayout>
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/iv_menu_transcribe"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_mic"
+                android:tint="#FFFFFF" />
+            <TextView
+                android:id="@+id/tv_menu_transcribe"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="转文字"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:layout_marginTop="3dp" />
+        </LinearLayout>
 
-</LinearLayout>
+        <LinearLayout
+            android:id="@+id/menu_item_retranscribe"
+            android:layout_width="64dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:visibility="gone">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_refresh_outline"
+                android:tint="#FFFFFF" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="重识别"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:layout_marginTop="3dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/menu_item_copy_transcript"
+            android:layout_width="64dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:visibility="gone">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_copy"
+                android:tint="#FFFFFF" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="复制转写"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:layout_marginTop="3dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/menu_item_multiselect"
+            android:layout_width="64dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_check_circle"
+                android:tint="#FFFFFF" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="多选"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:layout_marginTop="3dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/menu_item_delete"
+            android:layout_width="64dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_delete"
+                android:tint="#FF8E8E" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="删除"
+                android:textColor="#FF8E8E"
+                android:textSize="11sp"
+                android:layout_marginTop="3dp" />
+        </LinearLayout>
+    </LinearLayout>
+</HorizontalScrollView>

@@ -6,16 +6,21 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingHorizontal="12dp"
-    android:paddingVertical="4dp">
+    android:paddingVertical="6dp">
 
     <TextView
         android:id="@+id/tv_ai_time"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_chat_time_chip"
         android:gravity="center"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="3dp"
         android:textSize="11sp"
-        android:textColor="#90A0B6"
-        android:layout_marginBottom="4dp" />
+        android:textStyle="bold"
+        android:textColor="#6F8099"
+        android:layout_marginBottom="6dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -37,8 +42,8 @@
     <!-- AI 头像 -->
     <ImageView
         android:id="@+id/iv_ai_avatar_msg"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
         android:src="@drawable/ic_ai_default_avatar"
         android:scaleType="centerCrop"
         android:background="@drawable/bg_circle_soft"
@@ -65,12 +70,12 @@
             android:id="@+id/tv_ai_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="280dp"
+            android:maxWidth="292dp"
             android:background="@drawable/bg_chat_bubble_ai"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
             android:textSize="15sp"
-            android:textColor="#333333"
+            android:textColor="#2A364A"
             android:lineSpacingExtra="2dp"
             android:singleLine="false"
             android:scrollHorizontally="false"
@@ -85,8 +90,8 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/bg_chat_bubble_ai"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
             android:visibility="gone">
             <ProgressBar
                 android:layout_width="16dp"

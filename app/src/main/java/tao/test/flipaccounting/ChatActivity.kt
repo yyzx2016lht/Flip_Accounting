@@ -43,8 +43,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.yalantis.ucrop.UCrop
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -88,6 +91,7 @@ class ChatActivity : AppCompatActivity() {
         private const val REQ_CROP_AI_AVATAR = 105
         private const val REQ_CROP_USER_AVATAR = 106
         private const val DEPRECATED_BILL_IDS_PREFIX = "__deprecated__:"
+        private const val VOICE_PAYLOAD_V2_PREFIX = "__voice_v2__:"
     }
 
     private lateinit var rvMessages: RecyclerView
@@ -311,10 +315,10 @@ class ChatActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: android.text.Editable?) {
-                btnSend.alpha = if (s.isNullOrBlank()) 0.4f else 1f
+                updateInputActionUi()
             }
         })
-        btnSend.alpha = 0.4f
+        updateInputActionUi()
         btnVoiceSelectionCancel.setOnClickListener { exitVoiceSelectionMode() }
         btnVoiceSelectionDelete.setOnClickListener { deleteSelectedVoiceMessages() }
     }
@@ -332,22 +336,31 @@ class ChatActivity : AppCompatActivity() {
         updateVoiceModeUi()
         if (isVoiceMode) {
             etInput.clearFocus()
-            refreshVoiceSupportHint()
-            ensureModelAudioSupportProbed()
-        } else {
-            tvVoiceModelHint.visibility = View.GONE
         }
+        refreshVoiceSupportHint()
     }
 
     private fun updateVoiceModeUi() {
         etInput.visibility = if (isVoiceMode) View.GONE else View.VISIBLE
         btnVoiceHold.visibility = if (isVoiceMode) View.VISIBLE else View.GONE
-        btnSend.visibility = if (isVoiceMode) View.GONE else View.VISIBLE
-        btnMoreInput.visibility = if (isVoiceMode) View.GONE else View.VISIBLE
         btnVoiceToggle.setImageResource(if (isVoiceMode) android.R.drawable.ic_menu_edit else R.drawable.ic_mic)
-        btnVoiceToggle.setColorFilter(if (isVoiceMode) Color.parseColor("#5A6D90") else Color.parseColor("#4263B5"))
-        btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#EDF2FF"))
-        btnVoiceHold.text = "按住 说话"
+        btnVoiceToggle.setColorFilter(if (isVoiceMode) Color.parseColor("#5E5E5E") else Color.parseColor("#5E5E5E"))
+        btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F2F3F5"))
+        btnVoiceHold.text = "按住说话，松开发送"
+        updateInputActionUi()
+    }
+
+    private fun updateInputActionUi() {
+        val hasText = etInput.text?.toString()?.trim()?.isNotEmpty() == true
+        if (isVoiceMode) {
+            btnSend.visibility = View.GONE
+            btnMoreInput.visibility = View.VISIBLE
+            btnSend.alpha = 0.4f
+            return
+        }
+        btnSend.visibility = if (hasText) View.VISIBLE else View.GONE
+        btnMoreInput.visibility = if (hasText) View.GONE else View.VISIBLE
+        btnSend.alpha = if (hasText) 1f else 0.4f
     }
 
     private fun startRecordingButtonPulse() {
@@ -392,23 +405,18 @@ class ChatActivity : AppCompatActivity() {
                 if (!ensureAiVoiceFeatureEnabled()) return true
                 if (!ensureRecordPermission()) return true
                 clearPendingLongPress()
-                longPressTriggered = false
+                LocalAsrService.resetStreamingBuffer()
                 isFingerDown = true
                 isWannaCancel = false
                 btnVoiceHold.animate().scaleX(1.03f).scaleY(1.03f).setDuration(80).start()
-                val runnable = Runnable {
-                    if (!isFingerDown || isRecording) return@Runnable
-                        longPressTriggered = true
-                        Utils.vibrate(this)
-                        val started = startVoiceRecording()
-                        if (!started) {
-                            isRecording = false
-                            hideVoiceRecordOverlay()
-                            Utils.toast(this, "录音启动失败")
-                        }
-                    }
-                pendingLongPressRunnable = runnable
-                voiceHandler.postDelayed(runnable, 180)
+                longPressTriggered = true
+                Utils.vibrate(this, 10)
+                val started = startVoiceRecording()
+                if (!started) {
+                    isRecording = false
+                    hideVoiceRecordOverlay()
+                    Utils.toast(this, "录音启动失败")
+                }
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -427,18 +435,24 @@ class ChatActivity : AppCompatActivity() {
                 clearPendingLongPress()
                 isFingerDown = false
                 btnVoiceHold.animate().scaleX(1f).scaleY(1f).setDuration(80).start()
-                if (!longPressTriggered && !isRecording) return true
+                if (!isRecording) return true
                 if (isRecording) {
                     if (isWannaCancel) {
                         stopVoiceRecording { file, _ ->
                             file?.delete()
-                            LocalAsrService.finishStreaming()
-                            runOnUiThread { btnVoiceHold.text = "按住 说话" }
+                            LocalAsrService.resetStreamingBuffer()
+                            runOnUiThread { btnVoiceHold.text = "按住说话，松开发送" }
                         }
                         Utils.toast(this, "已取消")
                     } else {
+                        val holdDurationMs = (System.currentTimeMillis() - recordingStartAt).coerceAtLeast(0L)
                         stopVoiceRecording { file, durationSec ->
-                            runOnUiThread { btnVoiceHold.text = "按住 说话" }
+                            runOnUiThread { btnVoiceHold.text = "按住说话，松开发送" }
+                            if (holdDurationMs < 450L) {
+                                file?.delete()
+                                Utils.toast(this, "按住稍久一点再说话")
+                                return@stopVoiceRecording
+                            }
                             if (file == null) {
                                 runOnUiThread { Utils.toast(this, "未检测到清晰语音") }
                                 return@stopVoiceRecording
@@ -1183,10 +1197,9 @@ class ChatActivity : AppCompatActivity() {
             isRecording = true
             recordingStartAt = System.currentTimeMillis()
             btnVoiceHold.text = "松开发送"
-            btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#DDE7FF"))
+            btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#E6E6E6"))
             startRecordingButtonPulse()
             showVoiceRecordOverlay(false)
-            ensureModelAudioSupportProbed()
             recordingThread = Thread {
                 writeAudioDataToFile(tempFile)
             }
@@ -1201,12 +1214,6 @@ class ChatActivity : AppCompatActivity() {
 
     private fun writeAudioDataToFile(file: File) {
         val data = ByteArray(audioBufferSize)
-        val asrMode = Prefs.getAsrMode(this)
-        val useStreaming = asrMode == Prefs.ASR_MODE_WHISPER
-        var streamStarted = false
-        if (useStreaming) {
-            streamStarted = kotlinx.coroutines.runBlocking { LocalAsrService.startStreaming(this@ChatActivity) }
-        }
         try {
             FileOutputStream(file).use { os ->
                 os.write(ByteArray(44), 0, 44)
@@ -1217,9 +1224,6 @@ class ChatActivity : AppCompatActivity() {
                         read > 0 -> {
                             os.write(data, 0, read)
                             totalAudioLen += read
-                            if (streamStarted) {
-                                LocalAsrService.acceptStreamingData(data, read)
-                            }
                         }
                         read == AudioRecord.ERROR_BAD_VALUE || read == AudioRecord.ERROR_INVALID_OPERATION -> break
                     }
@@ -1289,12 +1293,12 @@ class ChatActivity : AppCompatActivity() {
         }
         isRecording = false
         stopRecordingButtonPulse()
-        btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#EDF2FF"))
+        btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F2F3F5"))
         hideVoiceRecordOverlay()
         try { audioRecord?.stop() } catch (_: Exception) {}
         try { audioRecord?.release() } catch (_: Exception) {}
         audioRecord = null
-        try { recordingThread?.join(500) } catch (_: Exception) {}
+        try { recordingThread?.join(1200) } catch (_: Exception) {}
         recordingThread = null
         val durationMs = (System.currentTimeMillis() - recordingStartAt).coerceAtLeast(400L)
         val durationSec = (durationMs / 1000.0).let { kotlin.math.ceil(it).toInt() }.coerceAtLeast(1)
@@ -1305,35 +1309,86 @@ class ChatActivity : AppCompatActivity() {
     private fun onVoiceRecorded(tempFile: File, durationSec: Int) {
         lifecycleScope.launch {
             val copiedFile = withContext(Dispatchers.IO) { copyVoiceFileToStorage(tempFile) }
-            appendUserVoiceMessage(copiedFile, durationSec, "")
-            if (currentChatModelSupportsDirectAudioInput()) {
-                callAiAccountingWithVoice(copiedFile)
-                return@launch
-            }
+            val added = appendUserVoiceMessage(copiedFile, durationSec, "")
+            val loadingIdx = appendAiTextMessage("正在听写语音...", isLoading = true)
             val transcript = withContext(Dispatchers.IO) {
-                val asrMode = Prefs.getAsrMode(this@ChatActivity)
-                if (asrMode == Prefs.ASR_MODE_WHISPER) {
-                    val finalResult = LocalAsrService.finishStreaming()
-                    when {
-                        !finalResult.isNullOrBlank() -> finalResult
-                        else -> LocalAsrService.speechToText(this@ChatActivity, copiedFile)
-                    }
-                } else {
-                    AIService.speechToText(this@ChatActivity, copiedFile)
-                }
-            }.orEmpty().trim()
-
-            if (transcript.isBlank() || transcript == "WHISPER_NOT_SETUP" || transcript == "MODEL_DOWNLOADING") {
-                Utils.toast(this@ChatActivity, "语音已发送，长按可转文字")
+                transcribeVoiceToTextWithFallback(copiedFile)
+            }.trim()
+            if (transcript.isBlank()) {
+                removeLoadingMessage(loadingIdx)
+                appendAiTextMessage("这段语音没有识别清楚，你可以再说一遍，我会继续按“语音转文字”方式发送。", isLoading = false)
                 return@launch
             }
-            callAiAccounting(transcript, appendUserBubble = false)
+            callAiAccounting(
+                userText = transcript,
+                appendUserBubble = false,
+                forceTextReply = true,
+                loadingIdxOverride = loadingIdx,
+                loadingBootstrapText = "正在理解你的消息..."
+            )
         }
     }
 
     private fun currentChatModelSupportsDirectAudioInput(): Boolean {
         val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiSingleModel(this) }
         return Prefs.getAiChatModelAudioSupport(this, model) == true
+    }
+
+    private suspend fun transcribeVoiceToTextWithFallback(audioFile: File): String {
+        fun normalize(raw: String?): String {
+            val text = raw.orEmpty().trim()
+            return if (
+                text.isBlank() ||
+                text == "WHISPER_NOT_SETUP" ||
+                text == "MODEL_DOWNLOADING"
+            ) "" else text
+        }
+        return coroutineScope {
+            val localDeferred = async(Dispatchers.IO) {
+                normalize(LocalAsrService.speechToText(this@ChatActivity, audioFile))
+            }
+            val cloudDeferred = async(Dispatchers.IO) {
+                normalize(AIService.speechToText(this@ChatActivity, audioFile))
+            }
+
+            var firstText = ""
+            var firstSource = ""
+            var waitRounds = 0
+            while (firstText.isBlank() && waitRounds < 80) {
+                if (localDeferred.isCompleted) {
+                    val local = runCatching { localDeferred.await() }.getOrDefault("")
+                    if (local.isNotBlank()) {
+                        firstText = local
+                        firstSource = "local"
+                        break
+                    }
+                }
+                if (cloudDeferred.isCompleted) {
+                    val cloud = runCatching { cloudDeferred.await() }.getOrDefault("")
+                    if (cloud.isNotBlank()) {
+                        firstText = cloud
+                        firstSource = "cloud"
+                        break
+                    }
+                }
+                if (localDeferred.isCompleted && cloudDeferred.isCompleted) break
+                waitRounds++
+                delay(60)
+            }
+
+            if (firstText.isBlank()) {
+                val local = withTimeoutOrNull(8000) { runCatching { localDeferred.await() }.getOrDefault("") }.orEmpty()
+                val cloud = withTimeoutOrNull(8000) { runCatching { cloudDeferred.await() }.getOrDefault("") }.orEmpty()
+                return@coroutineScope listOf(local, cloud).filter { it.isNotBlank() }.maxByOrNull { it.length }.orEmpty()
+            }
+
+            // 首条结果太短时，给另一条一个短窗口，优先更长文本，兼顾速度和完整度。
+            val maybeOther = withTimeoutOrNull(900) {
+                if (firstSource == "local") runCatching { cloudDeferred.await() }.getOrDefault("")
+                else runCatching { localDeferred.await() }.getOrDefault("")
+            }.orEmpty()
+            if (firstText.length < 10 && maybeOther.length > firstText.length) maybeOther else firstText
+        }
     }
 
     private fun copyVoiceFileToStorage(tempFile: File): File {
@@ -1345,24 +1400,61 @@ class ChatActivity : AppCompatActivity() {
         return dest
     }
 
-    private fun buildVoicePayload(audioPath: String, durationSec: Int, transcript: String): String =
-        JSONObject().apply {
+    private fun buildVoicePayload(audioPath: String, durationSec: Int, transcript: String): String {
+        val json = JSONObject().apply {
             put("audioPath", audioPath)
             put("durationSec", durationSec)
             put("transcript", transcript)
         }.toString()
+        return VOICE_PAYLOAD_V2_PREFIX + json
+    }
 
     private fun parseVoicePayload(content: String): VoicePayload {
+        val normalized = content.removePrefix(VOICE_PAYLOAD_V2_PREFIX).trim()
         return try {
-            val obj = JSONObject(content)
+            val obj = JSONObject(normalized)
             VoicePayload(
                 audioPath = obj.optString("audioPath"),
                 durationSec = obj.optInt("durationSec", 1).coerceAtLeast(1),
                 transcript = obj.optString("transcript")
             )
         } catch (_: Exception) {
-            VoicePayload(transcript = content)
+            parseLooseVoicePayload(normalized) ?: VoicePayload(transcript = content)
         }
+    }
+
+    private fun parseVoicePayloadStrict(content: String): VoicePayload? {
+        val normalized = content.removePrefix(VOICE_PAYLOAD_V2_PREFIX).trim()
+        return try {
+            val obj = JSONObject(normalized)
+            val audioPath = obj.optString("audioPath").trim()
+            val durationSec = obj.optInt("durationSec", -1)
+            if (audioPath.isBlank() || durationSec <= 0) return null
+            VoicePayload(
+                audioPath = audioPath,
+                durationSec = durationSec,
+                transcript = obj.optString("transcript").trim()
+            )
+        } catch (_: Exception) {
+            parseLooseVoicePayload(normalized)
+        }
+    }
+
+    private fun parseLooseVoicePayload(raw: String): VoicePayload? {
+        val text = raw.trim()
+        if (!text.contains("audioPath", ignoreCase = true)) return null
+        val audioPath = Regex("['\\\"]audioPath['\\\"]\\s*:\\s*['\\\"]([^'\\\"]+)['\\\"]")
+            .find(text)?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        val duration = Regex("['\\\"]durationSec['\\\"]\\s*:\\s*(\\d+)")
+            .find(text)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: -1
+        val transcript = Regex("['\\\"]transcript['\\\"]\\s*:\\s*['\\\"]([^'\\\"]*)['\\\"]")
+            .find(text)?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        if (audioPath.isBlank() || duration <= 0) return null
+        return VoicePayload(
+            audioPath = audioPath,
+            durationSec = duration.coerceAtLeast(1),
+            transcript = transcript
+        )
     }
 
     private fun playVoiceMessage(item: ChatDisplayItem) {
@@ -1432,11 +1524,37 @@ class ChatActivity : AppCompatActivity() {
         popup.isOutsideTouchable = true
 
         popupView.findViewById<View>(R.id.menu_item_copy).visibility = View.GONE
+        popupView.findViewById<View>(R.id.menu_item_edit_resend).visibility = View.GONE
         popupView.findViewById<View>(R.id.menu_item_transcribe).visibility = View.VISIBLE
+        popupView.findViewById<View>(R.id.menu_item_retranscribe).visibility = View.VISIBLE
+        val voice = item.voice ?: parseVoicePayload(item.content)
+        val hasTranscript = voice.transcript.trim().isNotBlank()
+        popupView.findViewById<View>(R.id.menu_item_copy_transcript).visibility =
+            if (hasTranscript) View.VISIBLE else View.GONE
+        val tvTranscribe = popupView.findViewById<TextView>(R.id.tv_menu_transcribe)
+        val ivTranscribe = popupView.findViewById<ImageView>(R.id.iv_menu_transcribe)
+        tvTranscribe.text = if (hasTranscript) "隐藏转写" else "转文字"
+        ivTranscribe.setImageResource(if (hasTranscript) R.drawable.ic_delete else R.drawable.ic_mic)
+        ivTranscribe.setColorFilter(if (hasTranscript) Color.parseColor("#FFB4B4") else Color.WHITE)
 
         popupView.findViewById<View>(R.id.menu_item_transcribe).setOnClickListener {
             popup.dismiss()
-            transcribeVoiceMessage(item, showResult = true)
+            if (hasTranscript) {
+                hideVoiceTranscript(item)
+            } else {
+                transcribeVoiceMessage(item, showResult = true)
+            }
+        }
+        popupView.findViewById<View>(R.id.menu_item_retranscribe).setOnClickListener {
+            popup.dismiss()
+            transcribeVoiceMessage(item, showResult = true, force = true)
+        }
+        popupView.findViewById<View>(R.id.menu_item_copy_transcript).setOnClickListener {
+            popup.dismiss()
+            val transcript = voice.transcript.trim()
+            if (transcript.isNotBlank()) {
+                copyToClipboard("voice_transcript", transcript, "已复制转写文本")
+            }
         }
         popupView.findViewById<View>(R.id.menu_item_multiselect).setOnClickListener {
             popup.dismiss()
@@ -1447,6 +1565,13 @@ class ChatActivity : AppCompatActivity() {
             deleteVoiceMessages(listOf(item.dbId))
         }
         popup.showAsDropDown(anchor, -40, -anchor.height - 16)
+    }
+
+    private fun hideVoiceTranscript(item: ChatDisplayItem) {
+        val voice = item.voice ?: parseVoicePayload(item.content)
+        if (voice.transcript.isBlank()) return
+        updateVoiceMessageContent(item, voice.copy(transcript = ""))
+        Utils.toast(this, "已隐藏转写")
     }
 
     private fun showTextMessageMenu(anchor: View, item: ChatDisplayItem) {
@@ -1461,7 +1586,10 @@ class ChatActivity : AppCompatActivity() {
         popup.isOutsideTouchable = true
 
         popupView.findViewById<View>(R.id.menu_item_copy).visibility = View.VISIBLE
+        popupView.findViewById<View>(R.id.menu_item_edit_resend).visibility = View.VISIBLE
         popupView.findViewById<View>(R.id.menu_item_transcribe).visibility = View.GONE
+        popupView.findViewById<View>(R.id.menu_item_retranscribe).visibility = View.GONE
+        popupView.findViewById<View>(R.id.menu_item_copy_transcript).visibility = View.GONE
 
         popupView.findViewById<View>(R.id.menu_item_copy).setOnClickListener {
             popup.dismiss()
@@ -1470,6 +1598,20 @@ class ChatActivity : AppCompatActivity() {
             val clipboard = getSystemService(ClipboardManager::class.java)
             clipboard?.setPrimaryClip(ClipData.newPlainText("chat_message", text))
             Utils.toast(this, "已复制")
+        }
+        popupView.findViewById<View>(R.id.menu_item_edit_resend).setOnClickListener {
+            popup.dismiss()
+            val text = item.content.trim()
+            if (text.isBlank()) return@setOnClickListener
+            if (isVoiceMode) {
+                isVoiceMode = false
+                updateVoiceModeUi()
+            }
+            etInput.setText(text)
+            etInput.setSelection(text.length)
+            etInput.requestFocus()
+            showSoftKeyboard(etInput)
+            updateInputActionUi()
         }
         popupView.findViewById<View>(R.id.menu_item_multiselect).setOnClickListener {
             popup.dismiss()
@@ -1482,7 +1624,7 @@ class ChatActivity : AppCompatActivity() {
         popup.showAsDropDown(anchor, -40, -anchor.height - 16)
     }
 
-    private fun transcribeVoiceMessage(item: ChatDisplayItem, showResult: Boolean) {
+    private fun transcribeVoiceMessage(item: ChatDisplayItem, showResult: Boolean, force: Boolean = false) {
         val voice = item.voice ?: parseVoicePayload(item.content)
         val path = voice.audioPath.takeIf { it.isNotBlank() } ?: run {
             Utils.toast(this, "未找到语音文件")
@@ -1494,12 +1636,17 @@ class ChatActivity : AppCompatActivity() {
             return
         }
         lifecycleScope.launch {
-            val text = withContext(Dispatchers.IO) {
-                if (Prefs.getAsrMode(this@ChatActivity) == Prefs.ASR_MODE_WHISPER) {
-                    LocalAsrService.speechToText(this@ChatActivity, file)
-                } else {
-                    AIService.speechToText(this@ChatActivity, file)
+            if (!force && voice.transcript.trim().isNotBlank()) {
+                if (showResult) {
+                    pendingTranscriptRevealAnimations += voice.audioPath
+                    val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
+                    if (idx >= 0) adapter.notifyItemChanged(idx)
+                    scrollToBottom()
                 }
+                return@launch
+            }
+            val text = withContext(Dispatchers.IO) {
+                transcribeVoiceToTextWithFallback(file)
             }.orEmpty().trim()
             if (text.isBlank()) {
                 Utils.toast(this@ChatActivity, "转文字失败，请稍后重试")
@@ -1517,10 +1664,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun updateVoiceTranscriptByPath(audioPath: String, transcript: String, revealTranscript: Boolean) {
-        val idx = displayMessages.indexOfLast {
-            it.msgType == MSG_TYPE_USER_VOICE &&
-                ((it.voice?.audioPath ?: parseVoicePayload(it.content).audioPath) == audioPath)
-        }
+        val idx = findVoiceItemIndex(targetDbId = 0L, targetAudioPath = audioPath)
         if (idx < 0) return
         val item = displayMessages[idx]
         val voice = item.voice ?: parseVoicePayload(item.content)
@@ -1530,22 +1674,42 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun updateVoiceMessageContent(item: ChatDisplayItem, voice: VoicePayload) {
-        val idx = displayMessages.indexOfFirst { it.dbId == item.dbId }
+        val idx = findVoiceItemIndex(
+            targetDbId = item.dbId,
+            targetAudioPath = voice.audioPath.ifBlank { item.voice?.audioPath.orEmpty() }
+        )
         if (idx >= 0) {
+            val dbId = displayMessages[idx].dbId
             displayMessages[idx] = displayMessages[idx].copy(
+                dbId = dbId,
                 content = buildVoicePayload(voice.audioPath, voice.durationSec, voice.transcript),
                 voice = voice
             )
             adapter.notifyItemChanged(idx)
         }
-        if (item.dbId > 0L) {
+        val persistedId = if (idx >= 0) displayMessages[idx].dbId else item.dbId
+        if (persistedId > 0L) {
             lifecycleScope.launch(Dispatchers.IO) {
-                db.chatMessageDao().getById(item.dbId)?.let { msg ->
+                db.chatMessageDao().getById(persistedId)?.let { msg ->
                     db.chatMessageDao().update(
                         msg.copy(content = buildVoicePayload(voice.audioPath, voice.durationSec, voice.transcript))
                     )
                 }
             }
+        }
+    }
+
+    private fun findVoiceItemIndex(targetDbId: Long, targetAudioPath: String): Int {
+        val normalizedPath = targetAudioPath.trim()
+        if (targetDbId > 0L) {
+            val byId = displayMessages.indexOfFirst { it.msgType == MSG_TYPE_USER_VOICE && it.dbId == targetDbId }
+            if (byId >= 0) return byId
+        }
+        if (normalizedPath.isBlank()) return -1
+        return displayMessages.indexOfLast {
+            if (it.msgType != MSG_TYPE_USER_VOICE) return@indexOfLast false
+            val voice = it.voice ?: parseVoicePayload(it.content)
+            voice.audioPath.trim() == normalizedPath
         }
     }
 
@@ -1651,37 +1815,11 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun refreshVoiceSupportHint() {
-        fun setInputRowTopMargin(visible: Boolean) {
-            val lp = layoutChatInputRow.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-            val target = if (visible) (resources.displayMetrics.density * 8).toInt() else 0
-            if (lp.topMargin != target) {
-                lp.topMargin = target
-                layoutChatInputRow.layoutParams = lp
-            }
-        }
-        if (!isVoiceMode) {
-            tvVoiceModelHint.visibility = View.GONE
-            setInputRowTopMargin(false)
-            return
-        }
-        val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiSingleModel(this) }
-        val support = Prefs.getAiChatModelAudioSupport(this, model)
-        when (support) {
-            true -> {
-                tvVoiceModelHint.text = "当前模型支持直接语音输入，将直接识别语音，不再先转文字。"
-                tvVoiceModelHint.visibility = View.VISIBLE
-                setInputRowTopMargin(true)
-            }
-            false -> {
-                tvVoiceModelHint.text = "当前模型不支持直接语音输入，会先转成文字，再进行记账分析。"
-                tvVoiceModelHint.visibility = View.VISIBLE
-                setInputRowTopMargin(true)
-            }
-            null -> {
-                tvVoiceModelHint.text = "正在检测当前模型是否支持直接语音输入..."
-                tvVoiceModelHint.visibility = View.VISIBLE
-                setInputRowTopMargin(true)
-            }
+        tvVoiceModelHint.visibility = View.GONE
+        val lp = layoutChatInputRow.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+        if (lp.topMargin != 0) {
+            lp.topMargin = 0
+            layoutChatInputRow.layoutParams = lp
         }
     }
 
@@ -1692,14 +1830,36 @@ class ChatActivity : AppCompatActivity() {
             return
         }
         etInput.setText("")
+        updateInputActionUi()
         appendUserMessage(text, MSG_TYPE_USER_TEXT)
         if (consumePendingHabitSuggestionReply(text)) return
         callAiAccounting(text, appendUserBubble = false)
     }
 
-    private fun callAiAccounting(userText: String, appendUserBubble: Boolean = true) {
+    private fun callAiAccounting(
+        userText: String,
+        appendUserBubble: Boolean = true,
+        forceTextReply: Boolean = false,
+        loadingIdxOverride: Int? = null,
+        loadingBootstrapText: String = ""
+    ) {
         if (appendUserBubble) appendUserMessage(userText, MSG_TYPE_USER_TEXT)
-        val loadingIdx = appendAiTextMessage("", isLoading = true)
+        val loadingIdx = loadingIdxOverride ?: appendAiTextMessage("正在理解你的消息...", isLoading = true)
+        var loadingStage = 1
+        fun pushLoadingStatus(raw: String) {
+            val (stage, text) = mapProgressToNaturalStatus(raw)
+            val nextStage = maxOf(loadingStage, stage)
+            loadingStage = nextStage
+            val stableText = when (nextStage) {
+                1 -> "正在理解你的消息..."
+                2 -> "正在生成回复..."
+                else -> text
+            }
+            updateLoadingMessage(loadingIdx, stableText)
+        }
+        if (loadingIdxOverride != null && loadingBootstrapText.isNotBlank()) {
+            updateLoadingMessage(loadingIdx, loadingBootstrapText)
+        }
         lifecycleScope.launch {
             try {
                 val analysisInput = buildAnalysisInput(userText)
@@ -1712,11 +1872,11 @@ class ChatActivity : AppCompatActivity() {
                             val mime = parts.getOrElse(1) { "image/jpeg" }
                             val visionResult = AIService.analyzeReceiptByImage(this@ChatActivity, base64, mime)
                             AIService.analyzeAccounting(this@ChatActivity, visionResult) { status ->
-                                runOnUiThread { updateLoadingMessage(loadingIdx, status) }
+                                runOnUiThread { pushLoadingStatus(status) }
                             }
                         } else {
                             AIService.analyzeAccounting(this@ChatActivity, analysisInput) { status ->
-                                runOnUiThread { updateLoadingMessage(loadingIdx, status) }
+                                runOnUiThread { pushLoadingStatus(status) }
                             }
                         }
                     }
@@ -1727,15 +1887,25 @@ class ChatActivity : AppCompatActivity() {
 
                 removeLoadingMessage(loadingIdx)
                 if (result == null) {
-                    appendAssistantCompanionReply(userText, billSummary = "", extractorReplyHint = "")
+                    val replied = appendAssistantCompanionReply(userText, billSummary = "", extractorReplyHint = "")
+                    if (forceTextReply && !replied) {
+                        appendAiTextMessage("我这次没能正确解析，但已经收到你的语音转写文本。你可以再说得更具体一点，我继续帮你记账。", isLoading = false)
+                    }
                     return@launch
                 }
                 if (result.optBoolean("no_bill", false)) {
-                    appendAssistantCompanionReply(
+                    val hint = result.optString("reply", "").trim()
+                    val replied = appendAssistantCompanionReply(
                         userText = userText,
                         billSummary = "",
-                        extractorReplyHint = result.optString("reply", "")
+                        extractorReplyHint = hint
                     )
+                    if (forceTextReply && !replied) {
+                        appendAiTextMessage(
+                            hint.ifBlank { "我暂时没识别到明确账单，你可以补充金额、分类或账户，我继续帮你完成。"},
+                            isLoading = false
+                        )
+                    }
                     return@launch
                 }
                 val savedBills = processBillResult(result, userText)
@@ -1767,14 +1937,21 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun callAiAccountingWithVoice(audioFile: File) {
-        val loadingIdx = appendAiTextMessage("", isLoading = true)
+        val loadingIdx = appendAiTextMessage("正在理解你的消息...", isLoading = true)
+        var loadingStage = 1
+        fun pushLoadingStatus(raw: String) {
+            val (stage, _) = mapProgressToNaturalStatus(raw)
+            loadingStage = maxOf(loadingStage, stage)
+            val stableText = if (loadingStage >= 2) "正在生成回复..." else "正在理解你的消息..."
+            updateLoadingMessage(loadingIdx, stableText)
+        }
         lifecycleScope.launch {
             try {
                 val voiceUserText = "[语音输入]"
                 val result = try {
                     withContext(Dispatchers.IO) {
                         AIService.analyzeAccountingByAudio(this@ChatActivity, audioFile) { status ->
-                            runOnUiThread { updateLoadingMessage(loadingIdx, status) }
+                            runOnUiThread { pushLoadingStatus(status) }
                         }
                     }
                 } catch (e: Exception) {
@@ -1784,15 +1961,22 @@ class ChatActivity : AppCompatActivity() {
 
                 removeLoadingMessage(loadingIdx)
                 if (result == null) {
-                    appendAssistantCompanionReply(voiceUserText, billSummary = "", extractorReplyHint = "")
+                    val replied = appendAssistantCompanionReply(voiceUserText, billSummary = "", extractorReplyHint = "")
+                    if (!replied) {
+                        appendAiTextMessage("我收到这段语音了，但这次没能正确解析。你可以再说得更具体一点。", isLoading = false)
+                    }
                     return@launch
                 }
                 if (result.optBoolean("no_bill", false)) {
-                    appendAssistantCompanionReply(
+                    val hint = result.optString("reply", "").trim()
+                    val replied = appendAssistantCompanionReply(
                         userText = voiceUserText,
                         billSummary = "",
-                        extractorReplyHint = result.optString("reply", "")
+                        extractorReplyHint = hint
                     )
+                    if (!replied) {
+                        appendAiTextMessage(hint.ifBlank { "我暂时没识别到明确账单，你可以补充金额、分类或账户。"}, isLoading = false)
+                    }
                     return@launch
                 }
                 val savedBills = processBillResult(result, voiceUserText)
@@ -1826,8 +2010,8 @@ class ChatActivity : AppCompatActivity() {
         userText: String,
         billSummary: String,
         extractorReplyHint: String
-    ) {
-        if (Prefs.getAiChatReplyStyle(this) == "off") return
+    ): Boolean {
+        if (Prefs.getAiChatReplyStyle(this) == "off") return false
         val editingIdx = appendAiTextMessage("", isLoading = true)
         val streamed = StringBuilder()
         val streamOk = try {
@@ -1853,7 +2037,7 @@ class ChatActivity : AppCompatActivity() {
 
         if (streamOk && streamed.isNotBlank()) {
             finalizeLoadingMessage(editingIdx, sanitizeAssistantReply(streamed.toString().trim()))
-            return
+            return true
         }
 
         val reply = try {
@@ -1871,7 +2055,11 @@ class ChatActivity : AppCompatActivity() {
         }
         removeLoadingMessage(editingIdx)
         val sanitized = sanitizeAssistantReply(reply)
-        if (sanitized.isNotBlank()) appendAiTextMessage(sanitized, isLoading = false)
+        if (sanitized.isNotBlank()) {
+            appendAiTextMessage(sanitized, isLoading = false)
+            return true
+        }
+        return false
     }
 
     private fun sanitizeAssistantReply(reply: String): String {
@@ -2286,6 +2474,20 @@ class ChatActivity : AppCompatActivity() {
             for (msg in dbMessages) {
                 when (msg.msgType) {
                     MSG_TYPE_USER_TEXT -> {
+                        val recoveredVoice = parseVoicePayloadStrict(msg.content)
+                        if (recoveredVoice != null) {
+                            hasRenderableUserAnchor = true
+                            displayMessages.add(
+                                ChatDisplayItem(
+                                    dbId = msg.id,
+                                    msgType = MSG_TYPE_USER_VOICE,
+                                    content = msg.content,
+                                    timestamp = msg.timestamp,
+                                    voice = recoveredVoice
+                                )
+                            )
+                            continue
+                        }
                         hasRenderableUserAnchor = true
                         displayMessages.add(
                             ChatDisplayItem(
@@ -2321,6 +2523,20 @@ class ChatActivity : AppCompatActivity() {
                         )
                     }
                     MSG_TYPE_AI_TEXT -> {
+                        val recoveredVoice = parseVoicePayloadStrict(msg.content)
+                        if (recoveredVoice != null) {
+                            hasRenderableUserAnchor = true
+                            displayMessages.add(
+                                ChatDisplayItem(
+                                    dbId = msg.id,
+                                    msgType = MSG_TYPE_USER_VOICE,
+                                    content = msg.content,
+                                    timestamp = msg.timestamp,
+                                    voice = recoveredVoice
+                                )
+                            )
+                            continue
+                        }
                         if (!hasRenderableUserAnchor) {
                             orphanIds.add(msg.id)
                             continue
@@ -2561,7 +2777,7 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun appendUserVoiceMessage(audioFile: File, durationSec: Int, transcript: String) {
+    private fun appendUserVoiceMessage(audioFile: File, durationSec: Int, transcript: String): ChatDisplayItem {
         val payload = buildVoicePayload(audioFile.absolutePath, durationSec, transcript)
         val item = ChatDisplayItem(
             msgType = MSG_TYPE_USER_VOICE,
@@ -2604,6 +2820,7 @@ class ChatActivity : AppCompatActivity() {
                 refreshSessionRows()
             }
         }
+        return item
     }
 
     private fun appendAiTextMessage(text: String, isLoading: Boolean): Int {
@@ -2648,6 +2865,33 @@ class ChatActivity : AppCompatActivity() {
             displayMessages.removeAt(idx)
             adapter.notifyItemRemoved(idx)
             scrollToBottom()
+        }
+    }
+
+    private fun mapProgressToNaturalStatus(raw: String): Pair<Int, String> {
+        val text = raw.trim()
+        if (text.isBlank()) return 1 to "正在理解你的消息..."
+        val lower = text.lowercase(Locale.getDefault())
+        return when {
+            lower.contains("reply") ||
+                lower.contains("respond") ||
+                lower.contains("output") ||
+                lower.contains("generate") ||
+                lower.contains("生成") ||
+                lower.contains("回复") -> 2 to "正在生成回复..."
+
+            lower.contains("upload") ||
+                lower.contains("audio") ||
+                lower.contains("image") ||
+                lower.contains("ocr") ||
+                lower.contains("parse") ||
+                lower.contains("extract") ||
+                lower.contains("analy") ||
+                lower.contains("thinking") ||
+                lower.contains("理解") ||
+                lower.contains("分析") -> 1 to "正在理解你的消息..."
+
+            else -> 1 to "正在理解你的消息..."
         }
     }
 
@@ -3397,15 +3641,23 @@ class ChatActivity : AppCompatActivity() {
         SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
 
     private fun formatChatMessageTime(ms: Long): String {
+        val nowMs = System.currentTimeMillis()
+        if (ms > nowMs) return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
+
+        val diffMs = nowMs - ms
+        if (diffMs < 60_000L) return "刚刚"
+        if (diffMs < 60L * 60L * 1000L) return "${diffMs / 60_000L} 分钟前"
+
         val now = java.util.Calendar.getInstance()
         val target = java.util.Calendar.getInstance().apply { timeInMillis = ms }
         val dayDiff = dayDiffFromToday(target)
         return when {
             dayDiff == 0L -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))
-            dayDiff == 1L -> "昨天"
+            dayDiff == 1L -> "昨天 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))}"
+            dayDiff in 2L..6L -> "${weekdayLabel(target)} ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))}"
             now.get(java.util.Calendar.YEAR) == target.get(java.util.Calendar.YEAR) ->
-                SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
-            else -> SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
+                SimpleDateFormat("M月d日 HH:mm", Locale.getDefault()).format(Date(ms))
+            else -> SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.getDefault()).format(Date(ms))
         }
     }
 
@@ -3429,6 +3681,17 @@ class ChatActivity : AppCompatActivity() {
         other.set(java.util.Calendar.MILLISECOND, 0)
         return (today.timeInMillis - other.timeInMillis) / (24L * 60L * 60L * 1000L)
     }
+
+    private fun weekdayLabel(calendar: java.util.Calendar): String =
+        when (calendar.get(java.util.Calendar.DAY_OF_WEEK)) {
+            java.util.Calendar.MONDAY -> "周一"
+            java.util.Calendar.TUESDAY -> "周二"
+            java.util.Calendar.WEDNESDAY -> "周三"
+            java.util.Calendar.THURSDAY -> "周四"
+            java.util.Calendar.FRIDAY -> "周五"
+            java.util.Calendar.SATURDAY -> "周六"
+            else -> "周日"
+        }
 
     override fun onDestroy() {
         super.onDestroy()
