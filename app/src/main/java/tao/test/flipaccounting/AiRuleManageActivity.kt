@@ -9,14 +9,17 @@ import android.text.Spanned
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.CheckBox
 import android.widget.Switch
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -79,6 +82,7 @@ class AiRuleManageActivity : AppCompatActivity() {
             isMultiSelectMode = { isMultiSelectMode },
             isSelected = { rule -> selectedRuleIds.contains(rule.id) }
         )
+
         rvRules.layoutManager = LinearLayoutManager(this)
         rvRules.adapter = adapter
 
@@ -106,9 +110,7 @@ class AiRuleManageActivity : AppCompatActivity() {
             }
         })
 
-        btnAddRule.setOnClickListener {
-            showEditDeleteDialog(null)
-        }
+        btnAddRule.setOnClickListener { showEditDeleteDialog(null) }
         btnRuleCancelMulti.setOnClickListener { exitMultiSelectMode() }
         btnRuleSelectAll.setOnClickListener { toggleSelectAllVisibleRules() }
         btnRuleDeleteMulti.setOnClickListener { deleteSelectedRules() }
@@ -119,9 +121,7 @@ class AiRuleManageActivity : AppCompatActivity() {
             allRules
         } else {
             val key = keyword.lowercase()
-            allRules.filter { rule ->
-                buildSearchSource(rule).contains(key)
-            }
+            allRules.filter { rule -> buildSearchSource(rule).contains(key) }
         }
         adapter.submitList(filtered)
         updateMultiSelectUi()
@@ -194,6 +194,7 @@ class AiRuleManageActivity : AppCompatActivity() {
     private fun updateMultiSelectUi() {
         layoutRuleMultiActions.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
         tvRuleSelectedCount.text = "已选择 ${selectedRuleIds.size} 条"
+
         val visibleIds = adapter.currentItems.map { it.id }.toSet()
         btnRuleSelectAll.text =
             if (visibleIds.isNotEmpty() && selectedRuleIds.containsAll(visibleIds) && selectedRuleIds.size == visibleIds.size) {
@@ -225,11 +226,9 @@ class AiRuleManageActivity : AppCompatActivity() {
         } else {
             layoutRuleMultiActions.measuredHeight
         }
-        return actionHeight + dp(12)
+        val extra = (12f * resources.displayMetrics.density).toInt()
+        return actionHeight + extra
     }
-
-    private fun dp(value: Int): Int =
-        (value * resources.displayMetrics.density).toInt()
 
     private fun deleteSelectedRules() {
         if (selectedRuleIds.isEmpty()) return
@@ -238,7 +237,8 @@ class AiRuleManageActivity : AppCompatActivity() {
             exitMultiSelectMode()
             return
         }
-        AlertDialog.Builder(this)
+
+        val dialog = AlertDialog.Builder(this)
             .setTitle("删除记账习惯")
             .setMessage("确定删除选中的 ${toDelete.size} 条记账习惯吗？")
             .setPositiveButton("删除") { _, _ ->
@@ -248,7 +248,8 @@ class AiRuleManageActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun showEditDeleteDialog(rule: AiRule?) {
@@ -281,6 +282,25 @@ class AiRuleManageActivity : AppCompatActivity() {
         super.onBackPressed()
     }
 
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
+    }
+
     inner class RuleAdapter(
         private val onClick: (AiRule) -> Unit,
         private val onLongClick: (AiRule) -> Unit,
@@ -309,11 +329,11 @@ class AiRuleManageActivity : AppCompatActivity() {
             holder.tvKeyword.text = rule.keyword
 
             if (rule.isEnabled) {
-                holder.tvStatus.text = "生效中"
+                holder.tvStatus.text = "已启用"
                 holder.tvStatus.setTextColor(Color.parseColor("#4CAF50"))
                 holder.tvStatus.setBackgroundResource(R.drawable.bg_status_active)
             } else {
-                holder.tvStatus.text = "已禁用"
+                holder.tvStatus.text = "已停用"
                 holder.tvStatus.setTextColor(Color.parseColor("#9E9E9E"))
                 holder.tvStatus.setBackgroundResource(R.drawable.bg_status_inactive)
             }
@@ -345,10 +365,11 @@ class AiRuleManageActivity : AppCompatActivity() {
             appendAction("账户", rule.targetAccount1)
             appendAction("目标账户", rule.targetAccount2)
 
-            holder.tvActions.text = if (sb.isEmpty()) "暂无强制约束，仅保留关键词" else sb
+            holder.tvActions.text = if (sb.isEmpty()) "未设置自动填充动作" else sb
             holder.cbSelect.visibility = if (isMultiSelectMode()) View.VISIBLE else View.GONE
             holder.cbSelect.isChecked = isSelected(rule)
             holder.itemView.alpha = if (isMultiSelectMode() && isSelected(rule)) 0.82f else 1f
+
             holder.switchEnabled.setOnCheckedChangeListener(null)
             holder.switchEnabled.isChecked = rule.isEnabled
             holder.switchEnabled.isEnabled = !isMultiSelectMode()

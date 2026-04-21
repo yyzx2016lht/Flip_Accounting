@@ -8,6 +8,7 @@ import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.local.entity.ChatMessage
+import tao.test.flipaccounting.logic.CategoryNameNormalizer
 
 class BackupRepository(private val db: AppDatabase) {
 
@@ -75,6 +76,7 @@ class BackupRepository(private val db: AppDatabase) {
                                 categoryId = remappedCategoryId,
                                 accountId = remappedAccountId,
                                 toAccountId = remappedToAccountId,
+                                categoryName = CategoryNameNormalizer.normalizeForStorage(bill.categoryName),
                                 relatedBillId = null
                             )
                         )
@@ -138,12 +140,10 @@ class BackupRepository(private val db: AppDatabase) {
     }
 
     private fun categoryNameCandidates(raw: String): List<String> {
-        val s = raw.trim()
+        val s = CategoryNameNormalizer.normalizeForStorage(raw)
         if (s.isBlank()) return emptyList()
         val set = linkedSetOf<String>()
         set.add(s)
-        val dot = s.substringAfterLast('路', "").trim()
-        if (dot.isNotBlank()) set.add(dot)
         val gt = s.substringAfterLast('>', "").trim()
         if (gt.isNotBlank()) set.add(gt)
         return set.toList()

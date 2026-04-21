@@ -1,11 +1,14 @@
-package tao.test.flipaccounting
+﻿package tao.test.flipaccounting
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Gravity
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.checkbox.MaterialCheckBox
@@ -159,12 +162,13 @@ class StorageCleanupActivity : AppCompatActivity() {
             return
         }
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("确认清理")
             .setMessage("将删除 $selectedCount 个文件，预计释放 ${formatBytes(selectedBytes)}。\n\n不会删除账单、分类、资产和设置等核心数据。")
             .setPositiveButton("开始清理") { _, _ -> runCleanup(selected) }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun runCleanup(selected: List<GroupStat>) {
@@ -221,5 +225,23 @@ class StorageCleanupActivity : AppCompatActivity() {
         if (mb < 1024) return String.format(Locale.getDefault(), "%.1f MB", mb)
         val gb = mb / 1024.0
         return String.format(Locale.getDefault(), "%.2f GB", gb)
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
     }
 }

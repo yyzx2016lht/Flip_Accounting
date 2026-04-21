@@ -7,9 +7,11 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -20,11 +22,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.data.local.AppDatabase
+import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.repository.CategoryRepository
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.min
 
 class SettingsActivity : AppCompatActivity() {
+    private data class OptionItem(
+        val title: String,
+        val desc: String,
+        val highRisk: Boolean = false,
+        val onClick: () -> Unit
+    )
 
     private lateinit var container: LinearLayout
     private lateinit var scrollNormalContent: View
@@ -409,59 +422,87 @@ class SettingsActivity : AppCompatActivity() {
     // --- 核心新功能：显示操作菜单 ---
     private fun showActionMenu(target: CategoryNode, parent: CategoryNode?, allCats: List<CategoryNode>) {
         val isSubCategory = parent != null
-        val options = buildList {
-            add("修改分类")
-            add("删除分类")
-            add("排序分类")
-            if (isSubCategory) {
-                add("升级为一级分类")
-            } else if (target.subs.isEmpty()) {
-                add("调整为子分类")
-            }
-        }.toTypedArray()
-
-        AlertDialog.Builder(this)
-            .setTitle("操作：${target.name}")
-            .setItems(options) { _, which ->
-                when (options[which]) {
-                    "修改分类" -> {
-                        val intent = Intent(this, AddCategoryActivity::class.java)
-                        intent.putExtra("type", currentType)
-                        intent.putExtra("parentName", parent?.name)
-                        intent.putExtra("isEdit", true)
-                        intent.putExtra("oldName", target.name)
-                        intent.putExtra("oldIcon", target.icon)
-                        intent.putExtra("editId", target.id)
-                        startActivity(intent)
-                    }
-                    "删除分类" -> handleDeleteCategory(target, parent)
-                    "排序分类" -> {
-                        enterSortMode(if (isSubCategory) parent?.id else null)
-                    }
-                    "升级为一级分类" -> showPromoteConfirm(target)
-                    "调整为子分类" -> showDemoteDialog(target, allCats)
+        val options = buildList<OptionItem> {
+            add(
+                OptionItem(
+                    title = "修改分类",
+                    desc = "编辑分类名称与图标"
+                ) {
+                    val intent = Intent(this@SettingsActivity, AddCategoryActivity::class.java)
+                    intent.putExtra("type", currentType)
+                    intent.putExtra("parentName", parent?.name)
+                    intent.putExtra("isEdit", true)
+                    intent.putExtra("oldName", target.name)
+                    intent.putExtra("oldIcon", target.icon)
+                    intent.putExtra("editId", target.id)
+                    startActivity(intent)
                 }
+            )
+            add(
+                OptionItem(
+                    title = "删除分类",
+                    desc = "删除前可选择账单迁移或一并删除",
+                    highRisk = true
+                ) {
+                    handleDeleteCategory(target, parent)
+                }
+            )
+            add(
+                OptionItem(
+                    title = "排序分类",
+                    desc = if (isSubCategory) "进入子分类排序模式" else "进入一级分类排序模式"
+                ) {
+                    enterSortMode(if (isSubCategory) parent?.id else null)
+                }
+            )
+            if (isSubCategory) {
+                add(
+                    OptionItem(
+                        title = "升级为一级分类",
+                        desc = "将当前子分类提升为独立一级分类"
+                    ) {
+                        showPromoteConfirm(target)
+                    }
+                )
+            } else if (target.subs.isEmpty()) {
+                add(
+                    OptionItem(
+                        title = "调整为子分类",
+                        desc = "将当前一级分类挂到其它一级分类下"
+                    ) {
+                        showDemoteDialog(target, allCats)
+                    }
+                )
             }
-            .show()
+        }
+
+        showOptionDialog(
+            title = "操作：${target.name}",
+            desc = "请选择要执行的操作",
+            options = options
+        )
     }
 
     /** 处理删除分类逻辑 */
     private fun handleDeleteCategory(target: CategoryNode, parent: CategoryNode?) {
     // 1. 一级分类有子分类时，禁止删除
         if (parent == null && target.subs.isNotEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle("无法删除")
-                .setMessage("“${target.name}”下还有 ${target.subs.size} 个子分类，请先处理完子分类后再删除。")
-                .setPositiveButton("确定", null)
-                .show()
+            showCustomConfirmDialog(
+                title = "无法删除",
+                message = "“${target.name}”下还有 ${target.subs.size} 个子分类，请先处理完子分类后再删除。",
+                confirmText = "我知道了",
+                onConfirm = {}
+            )
             return
         }
 
     // 2. 查询该分类下的账单数量，再弹出处理方式选择
         lifecycleScope.launch {
+            val loading = showLoadingDialog("正在统计关联账单...")
             val billCount = withContext(Dispatchers.IO) {
                 categoryRepository.countBillsUnderCategory(target.id)
             }
+            loading.dismiss()
             showDeleteWithBillHandlingDialog(target, billCount)
         }
     }
@@ -469,68 +510,34 @@ class SettingsActivity : AppCompatActivity() {
     /** 弹出“删除分类并处理账单”的对话框 */
     private fun showDeleteWithBillHandlingDialog(target: CategoryNode, billCount: Int) {
         val dbType = if (currentType == Prefs.TYPE_INCOME) 1 else 0
-
-    // 先选择如何处理所属账单
-        var selectedHandling: String? = null // "migrate" or "delete"
-        var targetCategoryId: Long? = null
-
-        val dialogView = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 16)
-        }
-
-    // 显示账单数量提示
-        val tvHint = TextView(this).apply {
-            text = "- 这个分类下已经有 $billCount 条账单了，如果要删除这个分类，请先选择这些账单如何处理。"
-            setTextColor(Color.parseColor("#B71C1C"))
-            textSize = 13f
-        }
-        dialogView.addView(tvHint)
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("所属账单如何处理？")
-            .setView(dialogView)
-            .setPositiveButton("确定删除", null) // 先不设置，稍后覆盖点击事件
-            .setNegativeButton("取消", null)
-            .create()
-
-        dialog.show()
-
-    // 覆盖确定按钮，避免自动关闭
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            if (billCount > 0 && selectedHandling == null) {
-                Utils.toast(this, "请先选择账单处理方式")
-                return@setOnClickListener
-            }
-            dialog.dismiss()
-            lifecycleScope.launch(Dispatchers.IO) {
-                when (selectedHandling) {
-                    "migrate" -> categoryRepository.deleteCategoryAndMigrateBills(target.id, targetCategoryId)
-                    "delete" -> categoryRepository.deleteCategoryAndBills(target.id, AppDatabase.getDatabase(this@SettingsActivity))
-                    else -> categoryRepository.deleteCategoryAndMigrateBills(target.id, null)
-                }
-                withContext(Dispatchers.Main) {
-                    if (expandedParentName == target.name) expandedParentName = null
-                    renderUI()
+        if (billCount <= 0) {
+            showFinalDeleteConfirm(target, "无所属账单，直接删除") {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    categoryRepository.deleteCategoryAndMigrateBills(target.id, null)
+                    withContext(Dispatchers.Main) {
+                        if (expandedParentName == target.name) expandedParentName = null
+                        renderUI()
+                    }
                 }
             }
+            return
         }
 
-        if (billCount > 0) {
-            // 显示两个选项（迁移或连同账单删除）
-            val options = arrayOf("迁移到新的分类", "连同账单一起删除")
-            val listView = ListView(this)
-            val optAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, options)
-            listView.adapter = optAdapter
-            listView.setOnItemClickListener { _, _, position, _ ->
-                selectedHandling = if (position == 0) "migrate" else "delete"
-                if (position == 0) {
-                    // 选择迁移：弹出目标分类选择
-                    dialog.dismiss()
+        showOptionDialog(
+            title = "所属账单如何处理？",
+            desc = "“${target.name}”下有 $billCount 条账单，请先选择处理方式",
+            options = listOf(
+                OptionItem(
+                    title = "迁移到新的分类",
+                    desc = "保留账单并迁移到目标分类"
+                ) {
                     showSelectTargetCategoryDialog(target, dbType)
-                } else {
-                    // 连同账单一起删除：直接确认
-                    selectedHandling = "delete"
+                },
+                OptionItem(
+                    title = "连同账单一起删除",
+                    desc = "删除分类与其所属账单，不可恢复",
+                    highRisk = true
+                ) {
                     showFinalDeleteConfirm(target, "连同账单一起删除") {
                         lifecycleScope.launch(Dispatchers.IO) {
                             categoryRepository.deleteCategoryAndBills(target.id, AppDatabase.getDatabase(this@SettingsActivity))
@@ -540,11 +547,9 @@ class SettingsActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    dialog.dismiss()
                 }
-            }
-            dialogView.addView(listView)
-        }
+            )
+        )
     }
 
     /** 选择迁移目标分类 */
@@ -595,20 +600,181 @@ class SettingsActivity : AppCompatActivity() {
 
     /** 最终确认删除 */
     private fun showFinalDeleteConfirm(target: CategoryNode, handling: String, onConfirm: () -> Unit) {
-        AlertDialog.Builder(this)
-            .setTitle("确定删除“${target.name}”？")
-            .setMessage("处理方式：$handling\n删除后不可恢复。")
-            .setPositiveButton("确定删除") { _, _ -> onConfirm() }
-            .setNegativeButton("取消", null)
-            .show()
+        lifecycleScope.launch {
+            val loading = showLoadingDialog("正在加载关联账单...")
+            val relatedBills = withContext(Dispatchers.IO) {
+                val dao = AppDatabase.getDatabase(this@SettingsActivity).billDao()
+                val byId = dao.getBillsByCategoryIdList(target.id)
+                val byName = dao.getBillsByCategoryNameList(target.name)
+                (byId + byName)
+                    .distinctBy { it.id }
+                    .sortedWith(
+                        compareByDescending<Bill> { normalizedTimeMillis(it.time) }
+                            .thenByDescending { it.id }
+                    )
+            }
+            loading.dismiss()
+            showCategoryDeleteConfirmDialog(target, handling, relatedBills, onConfirm)
+        }
+    }
+
+    private fun showLoadingDialog(message: String): AlertDialog {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            setBackgroundResource(R.drawable.bg_delete_dialog_panel)
+        }
+        val progress = ProgressBar(this).apply {
+            isIndeterminate = true
+        }
+        val text = TextView(this).apply {
+            this.text = message
+            setTextColor(Color.parseColor("#374151"))
+            textSize = 14f
+            setPadding(dp(12), 0, 0, 0)
+        }
+        panel.addView(progress)
+        panel.addView(text)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(panel)
+            .setCancelable(false)
+            .create()
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        showStyledCenterDialog(dialog, widthRatio = 0.72f)
+        return dialog
+    }
+
+    private fun showCategoryDeleteConfirmDialog(
+        target: CategoryNode,
+        handling: String,
+        relatedBills: List<Bill>,
+        onConfirm: () -> Unit
+    ) {
+        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_delete_followup_confirm, null, false)
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = "确定删除“${target.name}”？"
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "处理方式：$handling\n删除后不可恢复。"
+
+        if (relatedBills.isNotEmpty()) {
+            val root = panel as LinearLayout
+            val actionRow = root.getChildAt(root.childCount - 1)
+            root.removeView(actionRow)
+
+            val previewTitle = TextView(this).apply {
+                text = "关联账单（${relatedBills.size} 条）"
+                setTextColor(Color.parseColor("#374151"))
+                textSize = 12f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setPadding(0, dp(10), 0, dp(8))
+            }
+
+            val listWrap = ScrollView(this).apply {
+                isFillViewport = true
+                overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                setBackgroundResource(R.drawable.bg_delete_dialog_cancel_btn)
+                val rowHeight = dp(56)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    rowHeight * 3
+                )
+            }
+            val listContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+            }
+            val df = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+            var loadedCount = 0
+            var appending = false
+            val batchSize = 20
+            fun appendNextBatch() {
+                if (appending || loadedCount >= relatedBills.size) return
+                appending = true
+                val endExclusive = min(loadedCount + batchSize, relatedBills.size)
+                for (index in loadedCount until endExclusive) {
+                    val bill = relatedBills[index]
+                    val row = LayoutInflater.from(this).inflate(R.layout.item_delete_bill_preview, listContainer, false)
+                    val icon = row.findViewById<ImageView>(R.id.iv_delete_bill_icon)
+                    val title = row.findViewById<TextView>(R.id.tv_delete_bill_title)
+                    val subtitle = row.findViewById<TextView>(R.id.tv_delete_bill_subtitle)
+                    val amount = row.findViewById<TextView>(R.id.tv_delete_bill_amount)
+                    val time = row.findViewById<TextView>(R.id.tv_delete_bill_time)
+
+                    title.text = bill.remark.ifBlank { bill.categoryName.ifBlank { "未分类" } }
+                    subtitle.text = bill.categoryName.ifBlank { "未分类" }
+                    val amountPrefix = when (bill.type) {
+                        Bill.TYPE_INCOME -> "+"
+                        Bill.TYPE_TRANSFER -> ""
+                        else -> "-"
+                    }
+                    amount.text = "$amountPrefix${String.format(Locale.getDefault(), "%.2f", bill.amount)}"
+                    amount.setTextColor(
+                        when (bill.type) {
+                            Bill.TYPE_INCOME -> Color.parseColor("#2E7D32")
+                            Bill.TYPE_TRANSFER -> Color.parseColor("#5B6B80")
+                            else -> Color.parseColor("#D32F2F")
+                        }
+                    )
+                    time.text = df.format(Date(normalizedTimeMillis(bill.time)))
+                    when (bill.type) {
+                        Bill.TYPE_TRANSFER -> icon.setImageResource(R.drawable.ic_transfer)
+                        Bill.TYPE_INCOME -> icon.setImageResource(R.drawable.ic_trend_up)
+                        else -> icon.setImageResource(R.drawable.ic_trend_down)
+                    }
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val iconUrl = runCatching {
+                            CategoryIconHelper.findCategoryIcon(this@SettingsActivity, bill.categoryName, bill.type)
+                        }.getOrDefault("")
+                        if (iconUrl.isBlank()) return@launch
+                        withContext(Dispatchers.Main) {
+                            Glide.with(this@SettingsActivity)
+                                .load(iconUrl)
+                                .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                                .into(icon)
+                        }
+                    }
+                    listContainer.addView(row)
+                }
+                loadedCount = endExclusive
+                appending = false
+            }
+            appendNextBatch()
+            listWrap.viewTreeObserver.addOnScrollChangedListener {
+                val child = listWrap.getChildAt(0) ?: return@addOnScrollChangedListener
+                val reachBottom = listWrap.scrollY + listWrap.height >= child.height - dp(24)
+                if (reachBottom) appendNextBatch()
+            }
+            listWrap.addView(listContainer)
+            root.addView(previewTitle, root.childCount)
+            root.addView(listWrap, root.childCount)
+            root.addView(actionRow)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(panel)
+            .create()
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
+            text = "确定删除"
+            setBackgroundResource(R.drawable.bg_delete_followup_danger_btn)
+            setOnClickListener {
+                dialog.dismiss()
+                onConfirm()
+            }
+        }
+        showStyledCenterDialog(dialog, widthRatio = 0.88f)
     }
 
     /** 确认将二级分类提升为一级 */
     private fun showPromoteConfirm(target: CategoryNode) {
-        AlertDialog.Builder(this)
-            .setTitle("升级为一级分类")
-            .setMessage("将“${target.name}”升级为独立的一级分类？")
-            .setPositiveButton("确定") { _, _ ->
+        showCustomConfirmDialog(
+            title = "升级为一级分类",
+            message = "将“${target.name}”升级为独立的一级分类？",
+            confirmText = "确定",
+            onConfirm = {
                 lifecycleScope.launch(Dispatchers.IO) {
                     categoryRepository.promoteToParent(target.id)
                     withContext(Dispatchers.Main) {
@@ -616,8 +782,7 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
             }
-            .setNegativeButton("取消", null)
-            .show()
+        )
     }
 
     /** 选择目标父分类，将一级分类降级为子分类 */
@@ -629,15 +794,19 @@ class SettingsActivity : AppCompatActivity() {
             Utils.toast(this, "没有其它一级分类可作为父分类")
             return
         }
-        val names = candidates.map { it.name }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("选择所属的一级分类")
-            .setItems(names) { _, which ->
-                val newParent = candidates[which]
-                AlertDialog.Builder(this)
-                    .setTitle("调整为子分类")
-                    .setMessage("将“${target.name}”调整为“${newParent.name}”的子分类？")
-                    .setPositiveButton("确定") { _, _ ->
+        showOptionDialog(
+            title = "选择所属的一级分类",
+            desc = "将“${target.name}”调整到以下一级分类",
+            options = candidates.map { newParent ->
+                OptionItem(
+                    title = "调整到「${newParent.name}」",
+                    desc = "变更后将成为该分类的子分类"
+                ) {
+                    showCustomConfirmDialog(
+                        title = "调整为子分类",
+                        message = "将“${target.name}”调整为“${newParent.name}”的子分类？",
+                        confirmText = "确定"
+                    ) {
                         lifecycleScope.launch(Dispatchers.IO) {
                             categoryRepository.demoteToChild(target.id, newParent.id)
                             withContext(Dispatchers.Main) {
@@ -646,11 +815,104 @@ class SettingsActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    .setNegativeButton("取消", null)
-                    .show()
+                }
             }
-            .setNegativeButton("取消", null)
-            .show()
+        )
+    }
+
+    private fun showOptionDialog(
+        title: String,
+        desc: String,
+        options: List<OptionItem>
+    ) {
+        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_book_delete_options, null, false)
+        panel.findViewById<TextView>(R.id.tv_delete_book_title).text = title
+        panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = desc
+        val optionsScroll = panel.findViewById<ScrollView>(R.id.scroll_delete_book_options)
+        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+        val dialog = AlertDialog.Builder(this)
+            .setView(panel)
+            .create()
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        options.forEach { opt ->
+            val item = LayoutInflater.from(this)
+                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
+            item.findViewById<TextView>(R.id.tv_delete_option_title).text = opt.title
+            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = opt.desc
+            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility =
+                if (opt.highRisk) View.VISIBLE else View.GONE
+            item.setOnClickListener {
+                dialog.dismiss()
+                opt.onClick()
+            }
+            optionsContainer.addView(item)
+        }
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
+        optionsScroll.post {
+            val contentHeight = optionsContainer.measuredHeight
+            val targetHeight = min(maxHeight, contentHeight.coerceAtLeast(dp(1)))
+            optionsScroll.layoutParams = optionsScroll.layoutParams.apply {
+                height = targetHeight
+            }
+        }
+        panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
+        showStyledCenterDialog(dialog, widthRatio = 0.92f)
+    }
+
+    private fun showCustomConfirmDialog(
+        title: String,
+        message: String,
+        confirmText: String = "确定",
+        isDanger: Boolean = false,
+        onConfirm: () -> Unit
+    ) {
+        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_delete_followup_confirm, null, false)
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = title
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = message
+        val dialog = AlertDialog.Builder(this)
+            .setView(panel)
+            .create()
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
+            text = confirmText
+            setBackgroundResource(
+                if (isDanger) R.drawable.bg_delete_followup_danger_btn
+                else R.drawable.bg_delete_followup_primary_btn
+            )
+            setOnClickListener {
+                dialog.dismiss()
+                onConfirm()
+            }
+        }
+        showStyledCenterDialog(dialog, widthRatio = 0.86f)
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun normalizedTimeMillis(rawTime: Long): Long {
+        return if (rawTime in 1..9_999_999_999L) rawTime * 1000L else rawTime
     }
 
     override fun onBackPressed() {

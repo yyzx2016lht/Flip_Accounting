@@ -1,15 +1,18 @@
-package tao.test.flipaccounting
+﻿package tao.test.flipaccounting
 
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import tao.test.flipaccounting.logic.BillAssetImpactService
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.logic.CurrencyUtils
@@ -37,7 +40,7 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
     }
 
     private var includeInStats: Boolean = true
-    private var selectedCategoryName: String = "其它"
+    private var selectedCategoryName: String = "其他"
 
     private var assetId: Long = -1
     private var oldBalance: Double = 0.0
@@ -155,21 +158,22 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
         }
         val options = arrayOf("计入收支统计", "不计入收支统计")
         val currentIndex = if (includeInStats) 0 else 1
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("账单标记")
-            .setSingleChoiceItems(options, currentIndex) { dialog, which ->
+            .setSingleChoiceItems(options, currentIndex) { d, which ->
                 includeInStats = (which == 0)
                 updateTagSummary()
-                dialog.dismiss()
+                d.dismiss()
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun showCategoryDialog() {
         val type = if (!isCurrencyChanged && diff >= 0) 1 else 0
         OverlayDialogs.showGridCategoryPicker(this, selectedCategoryName, type) { selected ->
-            selectedCategoryName = selected.ifEmpty { "其它" }
+            selectedCategoryName = selected.ifEmpty { "其他" }
             tvCategory.text = selectedCategoryName
         }
     }
@@ -190,5 +194,23 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
         } else {
             "平账($oldStr -> $newStr)"
         }
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
     }
 }

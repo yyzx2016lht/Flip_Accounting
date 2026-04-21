@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.core.view.WindowCompat
 import android.view.WindowManager.BadTokenException
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -78,6 +79,59 @@ object OverlayDialogs {
             else
                 WindowManager.LayoutParams.TYPE_PHONE
         )
+    }
+
+    private fun styleDialogWindow(
+        dialog: AlertDialog,
+        ctx: Context,
+        widthRatio: Float = 0.86f,
+        gravity: Int = Gravity.CENTER,
+        y: Int = 0,
+        height: Int = WindowManager.LayoutParams.WRAP_CONTENT,
+        dimAmount: Float = 0.34f,
+        clearDecorPadding: Boolean = false
+    ) {
+        dialog.window?.let { window ->
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            window.setGravity(gravity)
+            window.setDimAmount(dimAmount)
+            if (clearDecorPadding) {
+                window.decorView.setPadding(0, 0, 0, 0)
+            }
+            val width = (ctx.resources.displayMetrics.widthPixels * widthRatio).toInt()
+            window.attributes = window.attributes.apply {
+                this.width = width
+                this.height = height
+                this.y = y
+            }
+        }
+    }
+
+    private fun showStyledDialog(
+        dialog: AlertDialog,
+        ctx: Context,
+        widthRatio: Float = 0.86f,
+        gravity: Int = Gravity.CENTER,
+        y: Int = 0,
+        height: Int = WindowManager.LayoutParams.WRAP_CONTENT,
+        dimAmount: Float = 0.34f,
+        clearDecorPadding: Boolean = false,
+        applyOverlayType: Boolean = true
+    ) {
+        styleDialogWindow(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = widthRatio,
+            gravity = gravity,
+            y = y,
+            height = height,
+            dimAmount = dimAmount,
+            clearDecorPadding = clearDecorPadding
+        )
+        if (applyOverlayType) applyOverlayTypeIfAllowed(dialog, ctx)
+        dialog.show()
     }
 
     fun showAnchoredMenu(ctx: Context, anchor: View, items: List<String>, onSelected: (String) -> Unit) {
@@ -178,17 +232,14 @@ object OverlayDialogs {
             render(categories)
         }
 
-        dialog.window?.let {
-            it.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
-            it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            it.decorView.setPadding(0, 0, 0, 0)
-            val lp = it.attributes
-            lp.width = (ctx.resources.displayMetrics.widthPixels * 0.9).toInt()
-            lp.y = 150
-            it.attributes = lp
-        }
-        applyOverlayTypeIfAllowed(dialog, ctx)
-        dialog.show()
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.9f,
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            y = 150,
+            clearDecorPadding = true
+        )
     }
 
     private fun createSubPanel(
@@ -448,7 +499,11 @@ object OverlayDialogs {
             flatList += all.filter { it.parentId != null && flatList.none { added -> added.id == it.id } }
             adapter.notifyDataSetChanged()
 
-            dialog.show()
+            showStyledDialog(
+                dialog = dialog,
+                ctx = ctx,
+                widthRatio = 0.92f
+            )
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 CoroutineScope(Dispatchers.IO).launch {
                     repo.saveOrderedCategoryTree(flatList.toList())
@@ -570,17 +625,14 @@ object OverlayDialogs {
             dialog.dismiss()
         }
 
-        dialog.window?.let {
-            it.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
-            it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            it.decorView.setPadding(0, 0, 0, 0)
-            val lp = it.attributes
-            lp.width = (ctx.resources.displayMetrics.widthPixels * 0.9).toInt()
-            lp.y = 150
-            it.attributes = lp
-        }
-        applyOverlayTypeIfAllowed(dialog, ctx)
-        dialog.show()
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.9f,
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            y = 150,
+            clearDecorPadding = true
+        )
     }
 
     fun showBookPickerDialog(ctx: Context, books: List<String>, currentBook: String, onConfirm: (String) -> Unit) {
@@ -589,6 +641,22 @@ object OverlayDialogs {
         val dialog = AlertDialog.Builder(themeContext).setView(view).create()
         val rv = view.findViewById<RecyclerView>(R.id.rv_books)
         val currentSelection = currentBook
+        val selectedIndex = books.indexOfFirst { it == currentSelection }
+
+        // 账本很多时限制列表高度，避免弹窗过长；列表内部保持可滚动
+        val density = ctx.resources.displayMetrics.density
+        val itemHeightPx = (52f * density).toInt()
+        val maxListHeightPx = (ctx.resources.displayMetrics.heightPixels * 0.46f).toInt()
+        val estimatedListHeight = books.size * itemHeightPx
+        rv.layoutParams = rv.layoutParams.apply {
+            height = if (estimatedListHeight > maxListHeightPx) {
+                maxListHeightPx
+            } else {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
+        rv.isNestedScrollingEnabled = true
+        rv.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
 
         val adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -621,18 +689,36 @@ object OverlayDialogs {
         }
         rv.layoutManager = LinearLayoutManager(themeContext)
         rv.adapter = adapter
-        view.findViewById<View>(R.id.btn_cancel_book_picker)?.setOnClickListener { dialog.dismiss() }
-        dialog.window?.let {
-            it.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
-            it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            it.decorView.setPadding(0, 0, 0, 0)
-            val lp = it.attributes
-            lp.width = (ctx.resources.displayMetrics.widthPixels * 0.9).toInt()
-            lp.y = 150
-            it.attributes = lp
+        dialog.setOnShowListener {
+            // 面板和列表做一次轻量入场动画，观感与分类/资产选择器一致
+            val offsetY = 18f * density
+            view.alpha = 0f
+            view.translationY = offsetY
+            rv.alpha = 0f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(220L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+            rv.animate()
+                .alpha(1f)
+                .setStartDelay(70L)
+                .setDuration(180L)
+                .start()
+
+            if (selectedIndex >= 0) {
+                rv.post { rv.smoothScrollToPosition(selectedIndex) }
+            }
         }
-        applyOverlayTypeIfAllowed(dialog, ctx)
-        dialog.show()
+         showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.9f,
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            y = 150,
+            clearDecorPadding = true
+        )
     }
 
     fun showCustomTimePicker(
@@ -815,14 +901,15 @@ object OverlayDialogs {
             dialog.dismiss()
         }
         view.findViewById<View>(R.id.btn_cancel_time)?.setOnClickListener { dialog.dismiss() }
-        dialog.window?.let {
-            it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            val lp = it.attributes
-            lp.width = (ctx.resources.displayMetrics.widthPixels * 0.9).toInt()
-            it.attributes = lp
-        }
-        applyOverlayTypeIfAllowed(dialog, ctx)
-        dialog.show()
+
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.9f,
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            y = 150,
+            clearDecorPadding = true
+        )
     }
 
     fun showGridAssetPicker(ctx: Context, currentSelectionText: String, title: String, onConfirm: (String) -> Unit) {
@@ -944,17 +1031,14 @@ object OverlayDialogs {
             }
         }
 
-        dialog.window?.let {
-            it.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
-            it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            it.decorView.setPadding(0, 0, 0, 0)
-            val lp = it.attributes
-            lp.width = (ctx.resources.displayMetrics.widthPixels * 0.9).toInt()
-            lp.y = 150
-            it.attributes = lp
-        }
-        applyOverlayTypeIfAllowed(dialog, ctx)
-        dialog.show()
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.9f,
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            y = 150,
+            clearDecorPadding = true
+        )
     }
 
     fun showShizukuPrompt(ctx: Context) {
@@ -963,8 +1047,7 @@ object OverlayDialogs {
             d.dismiss()
             try { ctx.startActivity(ctx.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Toast.makeText(ctx, "无法打开 Shizuku", Toast.LENGTH_SHORT).show() }
         }.setNegativeButton("取消", null).create()
-        applyOverlayTypeIfAllowed(dialog, ctx)
-        dialog.show()
+        showStyledDialog(dialog = dialog, ctx = ctx, widthRatio = 0.84f)
     }
 
     fun showExchangeRateDialog(
@@ -1092,9 +1175,12 @@ object OverlayDialogs {
             dialog.dismiss()
         }
 
-        dialog.window?.let {
-            it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-        }
+        styleDialogWindow(
+            dialog = dialog,
+            ctx = activityContext,
+            widthRatio = 0.9f
+        )
+        applyOverlayTypeIfAllowed(dialog, ctx)
         
         try {
             dialog.show()
@@ -1207,6 +1293,8 @@ object OverlayDialogs {
                 }
 
                 recoveryDialog.window?.let {
+                    WindowCompat.setDecorFitsSystemWindows(it, false)
+                    it.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
                     it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
                     // 悬浮窗 Service 场景下，必须设置 TYPE_APPLICATION_OVERLAY
                     // 否则 show() 会因为 token null 再次抛出 BadTokenException
@@ -1567,20 +1655,13 @@ object OverlayDialogs {
                     btnRow.addView(btnConfirm)
                     container.addView(btnRow)
 
-                    applyOverlayTypeIfAllowed(alertDialog, ctx)
-                    alertDialog.show()
-                    // window 背景透明，让 container 的圆角完整显示
-                    // 宽度 88%、高度 50% 屏幕，避免弹窗铺满全屏
-                    alertDialog.window?.let { win ->
-                        win.setBackgroundDrawable(
-                            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-                        val screenW = ctx.resources.displayMetrics.widthPixels
-                        val screenH = ctx.resources.displayMetrics.heightPixels
-                        win.setLayout(
-                            (screenW * 0.88).toInt(),
-                            (screenH * 0.50).toInt()
-                        )
-                    }
+                    val targetHeight = (ctx.resources.displayMetrics.heightPixels * 0.50f).toInt()
+                    showStyledDialog(
+                        dialog = alertDialog,
+                        ctx = ctx,
+                        widthRatio = 0.88f,
+                        height = targetHeight
+                    )
                 } catch (e: Exception) {
                     android.util.Log.e("OverlayDialogs", "showRefundBillPickerDialog show failed", e)
                 }

@@ -195,7 +195,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="PIN 自动：仅当备份 AI 核心且存在 API Key 时加密。"
+                            android:text="PIN 自动：首次备份将设置 PIN；覆盖已加密备份时需验证同一 PIN。"
                             android:textColor="#6E7D95"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -473,20 +473,24 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_do_backup"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:layout_marginTop="2dp"
+                        android:layout_height="52dp"
+                        android:layout_marginTop="4dp"
                         android:letterSpacing="0"
-                        android:text="覆盖默认备份"
+                        android:text="备份"
+                        android:textAllCaps="false"
+                        android:textStyle="bold"
                         android:textSize="15sp"
                         app:backgroundTint="#5C80EA"
-                        app:cornerRadius="12dp"
-                        app:icon="@android:drawable/ic_menu_save"
-                        app:iconGravity="textStart" />
+                        app:cornerRadius="14dp"
+                        app:icon="@drawable/ic_backup_action"
+                        app:iconGravity="textStart"
+                        app:iconPadding="10dp"
+                        app:iconTint="#FFFFFF" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="10dp"
                         android:orientation="horizontal"
                         android:weightSum="2">
 
@@ -494,37 +498,41 @@
                             android:id="@+id/btn_backup_save_as"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
-                            android:layout_height="48dp"
-                            android:layout_marginEnd="6dp"
+                            android:layout_height="50dp"
+                            android:layout_marginEnd="7dp"
                             android:layout_weight="1"
-                            android:text="另存为"
+                            android:text="覆盖"
                             android:textAllCaps="false"
                             android:textColor="#36507D"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             app:backgroundTint="#FFFFFF"
-                            app:cornerRadius="12dp"
-                            app:icon="@android:drawable/ic_menu_edit"
+                            app:cornerRadius="14dp"
+                            app:icon="@drawable/ic_backup_overwrite_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
                             app:iconTint="#4B73C8"
                             app:strokeColor="#CFE0FA"
-                            app:strokeWidth="1dp" />
+                            app:strokeWidth="1.2dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_change_backup_dir"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
-                            android:layout_height="48dp"
-                            android:layout_marginStart="6dp"
+                            android:layout_height="50dp"
+                            android:layout_marginStart="7dp"
                             android:layout_weight="1"
                             android:text="更换目录"
                             android:textAllCaps="false"
                             android:textColor="#36507D"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             app:backgroundTint="#FFFFFF"
-                            app:cornerRadius="12dp"
-                            app:icon="@android:drawable/ic_menu_set_as"
+                            app:cornerRadius="14dp"
+                            app:icon="@drawable/ic_backup_folder_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
                             app:iconTint="#4B73C8"
                             app:strokeColor="#CFE0FA"
-                            app:strokeWidth="1dp" />
+                            app:strokeWidth="1.2dp" />
                     </LinearLayout>
 
                 </LinearLayout>
@@ -573,8 +581,9 @@
                         android:textColor="#5C80EA"
                         android:textSize="15sp"
                         app:cornerRadius="12dp"
-                        app:icon="@android:drawable/ic_menu_upload"
+                        app:icon="@drawable/ic_restore_action"
                         app:iconGravity="textStart"
+                        app:iconPadding="10dp"
                         app:iconTint="#5C80EA"
                         app:strokeColor="#AFC1F4"
                         app:strokeWidth="1dp" />
@@ -698,7 +707,11 @@
                             android:textColor="#44556E"
                             android:textSize="13sp"
                             app:backgroundTint="#EAF0FB"
-                            app:cornerRadius="10dp" />
+                            app:cornerRadius="10dp"
+                            app:icon="@drawable/ic_cloud_save_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
+                            app:iconTint="#5F7088" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_test_cloud_connection"
@@ -711,7 +724,11 @@
                             android:textColor="#44556E"
                             android:textSize="13sp"
                             app:backgroundTint="#EAF0FB"
-                            app:cornerRadius="10dp" />
+                            app:cornerRadius="10dp"
+                            app:icon="@drawable/ic_cloud_test_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
+                            app:iconTint="#5F7088" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -730,7 +747,11 @@
                             android:text="手动上传"
                             android:textSize="13sp"
                             app:backgroundTint="#2E9F72"
-                            app:cornerRadius="10dp" />
+                            app:cornerRadius="10dp"
+                            app:icon="@drawable/ic_cloud_upload_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
+                            app:iconTint="#FFFFFF" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_manual_download"
@@ -743,6 +764,10 @@
                             android:textColor="#2E9F72"
                             android:textSize="13sp"
                             app:cornerRadius="10dp"
+                            app:icon="@drawable/ic_cloud_download_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
+                            app:iconTint="#2E9F72"
                             app:strokeColor="#8ED3B7"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
@@ -757,7 +782,11 @@
                         android:textColor="#44556E"
                         android:textSize="13sp"
                         app:backgroundTint="#EAF0FB"
-                        app:cornerRadius="10dp" />
+                        app:cornerRadius="10dp"
+                        app:icon="@drawable/ic_policy_action"
+                        app:iconGravity="textStart"
+                        app:iconPadding="8dp"
+                        app:iconTint="#5F7088" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -815,7 +844,9 @@
                             android:textSize="14sp"
                             app:backgroundTint="#EAF0FB"
                             app:cornerRadius="10dp"
-                            app:icon="@android:drawable/ic_menu_save"
+                            app:icon="@drawable/ic_csv_export_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
                             app:iconTint="#6C7F9B" />
 
                         <com.google.android.material.button.MaterialButton
@@ -831,7 +862,9 @@
                             android:textSize="14sp"
                             app:backgroundTint="#EAF0FB"
                             app:cornerRadius="10dp"
-                            app:icon="@android:drawable/ic_menu_upload"
+                            app:icon="@drawable/ic_csv_import_action"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
                             app:iconTint="#6C7F9B" />
                     </LinearLayout>
 

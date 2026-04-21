@@ -1,4 +1,4 @@
-package tao.test.flipaccounting.data.repository
+﻿package tao.test.flipaccounting.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import tao.test.flipaccounting.data.local.AppDatabase
@@ -16,11 +16,11 @@ class CategoryRepository(
     val expenseCategories: Flow<List<Category>> = categoryDao.getCategoriesByType(0)
     val incomeCategories: Flow<List<Category>> = categoryDao.getCategoriesByType(1)
 
-    /** 同步读取指定类型的分类列表（扁平，需在协程 IO 上下文中调用） */
+    /** 鍚屾璇诲彇鎸囧畾绫诲瀷鐨勫垎绫诲垪琛紙鎵佸钩锛岄渶鍦ㄥ崗绋?IO 涓婁笅鏂囦腑璋冪敤锛?*/
     suspend fun getCategoriesListByType(type: Int): List<Category> =
         categoryDao.getCategoriesListByType(type)
 
-    /** 把扁平 List<Category> 重建为父子嵌套的 List<CategoryNode>（兼容旧 UI） */
+    /** 鎶婃墎骞?List<Category> 閲嶅缓涓虹埗瀛愬祵濂楃殑 List<CategoryNode>锛堝吋瀹规棫 UI锛?*/
     fun buildCategoryTree(flatList: List<Category>): List<CategoryNode> {
         val roots = flatList.filter { it.parentId == null }
         val childrenByParent = flatList.filter { it.parentId != null }.groupBy { it.parentId }
@@ -28,7 +28,7 @@ class CategoryRepository(
             val node = CategoryNode(root.name, root.iconId)
             node.id = root.id
             childrenByParent[root.id]?.forEach { child ->
-                // 子分类 iconId 为空时，继承父分类的图标（避免子类显示红色占位块）
+                // 瀛愬垎绫?iconId 涓虹┖鏃讹紝缁ф壙鐖跺垎绫荤殑鍥炬爣锛堥伩鍏嶅瓙绫绘樉绀虹孩鑹插崰浣嶅潡锛?
                 val childIcon = if (child.iconId.isNotEmpty()) child.iconId else root.iconId
                 val childNode = CategoryNode(child.name, childIcon)
                 childNode.id = child.id
@@ -38,14 +38,14 @@ class CategoryRepository(
         }
     }
 
-    /** 按类型同步读取并返回 CategoryNode 树（需协程 IO 上下文） */
+    /** 鎸夌被鍨嬪悓姝ヨ鍙栧苟杩斿洖 CategoryNode 鏍戯紙闇€鍗忕▼ IO 涓婁笅鏂囷級 */
     suspend fun getCategoryTree(type: Int): List<CategoryNode> =
         buildCategoryTree(categoryDao.getCategoriesListByType(type))
 
     suspend fun findCategoryByDisplayName(type: Int, displayName: String): Category? {
         val parts = displayName
             .replace(" > ", "/::/")
-            .replace("·", "/::/")
+            .replace("路", "/::/")
             .split("/::/")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
@@ -117,40 +117,45 @@ class CategoryRepository(
     }
 
     /**
-     * 删除分类（原逻辑：同时删除子分类），现在改为：
-     * - 若该分类有子分类，禁止删除（调用方应先检查）
-     * - 处理该分类下账单（迁移或删除）由外部决策后传入 billHandling
+     * 鍒犻櫎鍒嗙被锛堝師閫昏緫锛氬悓鏃跺垹闄ゅ瓙鍒嗙被锛夛紝鐜板湪鏀逛负锛?
+     * - 鑻ヨ鍒嗙被鏈夊瓙鍒嗙被锛岀姝㈠垹闄わ紙璋冪敤鏂瑰簲鍏堟鏌ワ級
+     * - 澶勭悊璇ュ垎绫讳笅璐﹀崟锛堣縼绉绘垨鍒犻櫎锛夌敱澶栭儴鍐崇瓥鍚庝紶鍏?billHandling
      */
     suspend fun deleteById(id: Long) {
-        // 同时删除以该 id 为 parentId 的所有子分类
+        // 鍚屾椂鍒犻櫎浠ヨ id 涓?parentId 鐨勬墍鏈夊瓙鍒嗙被
         val children = categoryDao.getAllCategoriesList().filter { it.parentId == id }
         children.forEach { categoryDao.deleteById(it.id) }
         categoryDao.deleteById(id)
     }
 
     /**
-     * 统计指定分类（含所有子分类）下的账单数量
+     * 缁熻鎸囧畾鍒嗙被锛堝惈鎵€鏈夊瓙鍒嗙被锛変笅鐨勮处鍗曟暟閲?
      */
     suspend fun countBillsUnderCategory(categoryId: Long): Int {
         val dao = billDao ?: return 0
         val self = categoryDao.getAllCategoriesList().find { it.id == categoryId }
         val children = categoryDao.getChildrenByParentId(categoryId)
 
-        // 统计所有相关分类（自身 + 子分类）
+        // 统计所有相关分类（自身 + 子分类）并按账单 id 去重。
+        // 这里仅查询账单 id，避免把整条账单拉进内存导致删除前卡顿。
         val allCats = listOfNotNull(self) + children
-        var count = 0
+        val billIds = mutableSetOf<Long>()
         for (cat in allCats) {
-            // 按 id 统计
-            count += dao.countBillsByCategoryId(cat.id)
-            // 同时按 categoryName 文本统计（兼容未设置 categoryId 的旧账单）
-            count += dao.countBillsByCategoryName(cat.name)
+            dao.getBillIdsByCategoryIdList(cat.id)
+                .asSequence()
+                .filter { it > 0L }
+                .forEach { billIds.add(it) }
+            dao.getBillIdsByCategoryNameList(cat.name)
+                .asSequence()
+                .filter { it > 0L }
+                .forEach { billIds.add(it) }
         }
-        return count
+        return billIds.size
     }
 
     /**
-     * 删除叶子分类，并将该分类下账单迁移到 targetCategoryId。
-     * 若 targetCategoryId 为 null，则将账单的 categoryId 置 null。
+     * 鍒犻櫎鍙跺瓙鍒嗙被锛屽苟灏嗚鍒嗙被涓嬭处鍗曡縼绉诲埌 targetCategoryId銆?
+     * 鑻?targetCategoryId 涓?null锛屽垯灏嗚处鍗曠殑 categoryId 缃?null銆?
      */
     suspend fun deleteCategoryAndMigrateBills(categoryId: Long, targetCategoryId: Long?) {
         val dao = billDao
@@ -161,9 +166,9 @@ class CategoryRepository(
         if (dao != null) {
             for (cat in allCats) {
                 if (targetCategoryId != null) {
-                    // 按 id 迁移
+                    // 鎸?id 杩佺Щ
                     dao.migrateCategoryId(cat.id, targetCategoryId)
-                    // 按 categoryName 文本迁移（兼容旧账单）
+                    // 鎸?categoryName 鏂囨湰杩佺Щ锛堝吋瀹规棫璐﹀崟锛?
                     dao.migrateCategoryByName(cat.name, targetCategoryId)
                 } else {
                     dao.clearCategoryId(cat.id)
@@ -171,13 +176,13 @@ class CategoryRepository(
                 }
             }
         }
-        // 先删子分类，再删自身
+        // 鍏堝垹瀛愬垎绫伙紝鍐嶅垹鑷韩
         children.forEach { categoryDao.deleteById(it.id) }
         categoryDao.deleteById(categoryId)
     }
 
     /**
-     * 删除叶子分类，并连同该分类下的账单一起删除。
+     * 鍒犻櫎鍙跺瓙鍒嗙被锛屽苟杩炲悓璇ュ垎绫讳笅鐨勮处鍗曚竴璧峰垹闄ゃ€?
      */
     suspend fun deleteCategoryAndBills(categoryId: Long, db: AppDatabase? = null) {
         val dao = billDao
@@ -187,10 +192,10 @@ class CategoryRepository(
 
         if (dao != null) {
             for (cat in allCats) {
-                // 按 id 查出并删除
+                // 鎸?id 鏌ュ嚭骞跺垹闄?
                 val billsById = dao.getBillsByCategoryIdList(cat.id)
-                // 同时删除按 categoryName 关联但 categoryId 为 null 的旧账单
-                // （通过先查出再删除，避免无 @Query DELETE by name 方法）
+                // 鍚屾椂鍒犻櫎鎸?categoryName 鍏宠仈浣?categoryId 涓?null 鐨勬棫璐﹀崟
+                // 锛堥€氳繃鍏堟煡鍑哄啀鍒犻櫎锛岄伩鍏嶆棤 @Query DELETE by name 鏂规硶锛?
                 val billsByName = dao.getBillsByCategoryNameList(cat.name)
                 val billsToDelete = (billsById + billsByName)
                     .distinctBy { it.id }
@@ -209,7 +214,7 @@ class CategoryRepository(
     }
 
     /**
-     * 将二级分类提升为一级分类（parentId 置 null）。
+     * 灏嗕簩绾у垎绫绘彁鍗囦负涓€绾у垎绫伙紙parentId 缃?null锛夈€?
      */
     suspend fun promoteToParent(categoryId: Long) {
         val cat = categoryDao.getAllCategoriesList().find { it.id == categoryId } ?: return
@@ -217,15 +222,16 @@ class CategoryRepository(
     }
 
     /**
-     * 将一级分类降级为指定父分类的二级分类。
-     * 要求该一级分类没有子分类（调用方应先检查）。
+     * 灏嗕竴绾у垎绫婚檷绾т负鎸囧畾鐖跺垎绫荤殑浜岀骇鍒嗙被銆?
+     * 瑕佹眰璇ヤ竴绾у垎绫绘病鏈夊瓙鍒嗙被锛堣皟鐢ㄦ柟搴斿厛妫€鏌ワ級銆?
      */
     suspend fun demoteToChild(categoryId: Long, newParentId: Long) {
         val cat = categoryDao.getAllCategoriesList().find { it.id == categoryId } ?: return
         categoryDao.updateCategory(cat.copy(parentId = newParentId))
     }
 
-    /** 获取指定分类的子分类列表 */
+    /** 鑾峰彇鎸囧畾鍒嗙被鐨勫瓙鍒嗙被鍒楄〃 */
     suspend fun getChildren(parentId: Long): List<Category> =
         categoryDao.getChildrenByParentId(parentId)
 }
+

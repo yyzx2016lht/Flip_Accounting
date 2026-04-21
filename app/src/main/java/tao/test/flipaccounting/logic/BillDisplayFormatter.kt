@@ -11,20 +11,14 @@ import java.util.Locale
 
 object BillDisplayFormatter {
 
-    private val refundPrefixes = listOf("退款：", "退款·")
     private const val DELETED_ASSET_SUFFIX = "（已删除）"
 
     fun stripRefundPrefix(categoryName: String): String {
-        var normalized = categoryName.trim()
-        while (true) {
-            val prefix = refundPrefixes.firstOrNull { normalized.startsWith(it) } ?: break
-            normalized = normalized.removePrefix(prefix).trim()
-        }
-        return normalized
+        return CategoryNameNormalizer.stripRefundPrefix(categoryName)
     }
 
     fun hasRefundPrefix(categoryName: String): Boolean {
-        return refundPrefixes.any { categoryName.startsWith(it) }
+        return categoryName.trim().startsWith("退款：") || categoryName.trim().startsWith("退款·")
     }
 
     fun formatAccountNameWithDeletedTag(accountName: String): CharSequence {
@@ -101,7 +95,7 @@ object BillDisplayFormatter {
     fun buildRefundFlowRemark(baseRemark: String, refunds: List<Bill>): String {
         if (refunds.isEmpty()) return baseRemark.ifBlank { "无备注" }
         val refundSummary = refunds.joinToString("；") { refund ->
-            "退款${formatMoney(refund.amount, refund.currency)} -> ${refund.accountName.ifBlank { "未设置账户" }}"
+            "退款 ${formatMoney(refund.amount, refund.currency)} -> ${refund.accountName.ifBlank { "未设置账户" }}"
         }
         return if (baseRemark.isBlank()) refundSummary else "$baseRemark\n$refundSummary"
     }
@@ -119,6 +113,6 @@ object BillDisplayFormatter {
         if (bill.currency.equals(targetCurrency, ignoreCase = true)) return null
         if (bill.exchangeRate == 1.0) return null
         val targetAmount = bill.amount * bill.exchangeRate
-        return "≈${formatMoney(targetAmount, targetCurrency)}"
+        return "≈ ${formatMoney(targetAmount, targetCurrency)}"
     }
 }

@@ -735,7 +735,7 @@ class HomeFragment : Fragment() {
                 add("修改主题颜色")
             }.toTypedArray()
 
-            AlertDialog.Builder(requireContext())
+            val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("「$selectedBookName」外观设置")
                 .setItems(options) { _, which ->
                     when (options[which]) {
@@ -745,7 +745,9 @@ class HomeFragment : Fragment() {
                     }
                 }
                 .setNegativeButton("取消", null)
-                .show()
+                .create()
+            applyDialogMotion(dialog)
+            dialog.show()
             true
         }
     }
@@ -835,6 +837,7 @@ class HomeFragment : Fragment() {
             dialog.dismiss()
         }
 
+        applyDialogMotion(dialog)
         dialog.show()
     }
 
@@ -1180,7 +1183,6 @@ class HomeFragment : Fragment() {
                 db.billDao().countBillsByBookName(alias)
             }
             withContext(Dispatchers.Main) {
-                if (!isAdded) return@withContext
                 if (billCount == 0) {
                     // 账本下无账单，直接删除账本
                     performDeleteBook(target, BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL)
@@ -1270,7 +1272,6 @@ class HomeFragment : Fragment() {
         val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
         val popupDialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
         val targetWidth = (resources.displayMetrics.widthPixels * 0.92f).toInt()
-        panel.layoutParams = ViewGroup.LayoutParams(targetWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
         options.forEach { opt ->
             val item = LayoutInflater.from(requireContext())
                 .inflate(R.layout.item_book_delete_option, optionsContainer, false)
@@ -1288,12 +1289,8 @@ class HomeFragment : Fragment() {
 
         popupDialog.setContentView(panel)
         popupDialog.setCanceledOnTouchOutside(true)
-        popupDialog.window?.apply {
-            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            setGravity(Gravity.CENTER)
-        }
+        configureDialogWindow(popupDialog, width = targetWidth)
         popupDialog.show()
-        popupDialog.window?.setLayout(targetWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun dismissKeyboardForDialog() {
@@ -1302,6 +1299,27 @@ class HomeFragment : Fragment() {
         focus.clearFocus()
         val imm = act.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.hideSoftInputFromWindow(focus.windowToken, 0)
+    }
+
+    private fun applyDialogMotion(dialog: Dialog) {
+        dialog.window?.let { window ->
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+        }
+    }
+
+    private fun configureDialogWindow(dialog: Dialog, width: Int, dimAmount: Float = 0.34f) {
+        dialog.window?.apply {
+            WindowCompat.setDecorFitsSystemWindows(this, false)
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setDimAmount(dimAmount)
+            setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+            attributes = attributes.apply {
+                this.width = width
+                this.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
     }
 
     /** 让用户从 [transferCandidates] 中选一个目标账本，再执行迁移+删除 */
@@ -1337,13 +1355,8 @@ class HomeFragment : Fragment() {
         panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
         dialog.setContentView(panel)
         dialog.setCanceledOnTouchOutside(true)
-        dialog.window?.apply {
-            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            setGravity(Gravity.CENTER)
-            setDimAmount(0.34f)
-        }
+        configureDialogWindow(dialog, width = width)
         dialog.show()
-        dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun showDeleteFollowupConfirmDialog(
@@ -1376,13 +1389,8 @@ class HomeFragment : Fragment() {
         }
         dialog.setContentView(panel)
         dialog.setCanceledOnTouchOutside(true)
-        dialog.window?.apply {
-            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            setGravity(Gravity.CENTER)
-            setDimAmount(0.34f)
-        }
+        configureDialogWindow(dialog, width = width)
         dialog.show()
-        dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     /** 执行删除账本的核心逻辑，根据 [mode] 对账单做不同处理 */
@@ -1523,7 +1531,7 @@ class HomeFragment : Fragment() {
     /** 弹出账本选择对话框，将选中账单批量移动到目标账本 */
     private fun showMoveToBookDialog(bills: List<Bill>) {
         val books = availableBookNames.toTypedArray()
-        AlertDialog.Builder(requireContext())
+        val dialog = AlertDialog.Builder(requireContext())
             .setTitle("移动到账本")
             .setItems(books) { _, which ->
                 val targetBook = books[which]
@@ -1555,7 +1563,9 @@ class HomeFragment : Fragment() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        applyDialogMotion(dialog)
+        dialog.show()
     }
 
     private fun setupRecyclerView() {

@@ -4,9 +4,11 @@ import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.NumberPicker
@@ -14,6 +16,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -587,14 +590,15 @@ class StatsFragment : Fragment() {
             pickerLayout.addView(npYear)
             pickerLayout.addView(npMonth)
 
-            AlertDialog.Builder(requireContext())
+            val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("选择月份")
                 .setView(pickerLayout)
                 .setPositiveButton("确定") { _, _ ->
                     viewModel.setYearMonth(npYear.value, npMonth.value - 1)
                 }
                 .setNegativeButton("取消", null)
-                .show()
+                .create()
+            showStyledCenterDialog(dialog)
         } else {
             val npYear = NumberPicker(requireContext()).apply {
                 minValue = 2000
@@ -602,14 +606,15 @@ class StatsFragment : Fragment() {
                 value = state.year
             }
 
-            AlertDialog.Builder(requireContext())
+            val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("选择年份")
                 .setView(npYear)
                 .setPositiveButton("确定") { _, _ ->
                     viewModel.setYearMonth(npYear.value, state.month)
                 }
                 .setNegativeButton("取消", null)
-                .show()
+                .create()
+            showStyledCenterDialog(dialog)
         }
     }
 
@@ -653,7 +658,7 @@ class StatsFragment : Fragment() {
                 val current = viewModel.uiState.value.selectedCurrency
                 val checkedIndex = if (current == null) 0 else options.indexOf(current).takeIf { it >= 0 } ?: 0
 
-                AlertDialog.Builder(requireContext())
+                val dialog = AlertDialog.Builder(requireContext())
                     .setTitle("选择币种")
                     .setSingleChoiceItems(options.toTypedArray(), checkedIndex) { dialog, which ->
                         val selected = if (which == 0) null else options[which]
@@ -661,7 +666,8 @@ class StatsFragment : Fragment() {
                         dialog.dismiss()
                     }
                     .setNegativeButton("取消", null)
-                    .show()
+                    .create()
+                showStyledCenterDialog(dialog)
             }
         }
     }
@@ -908,7 +914,7 @@ class StatsFragment : Fragment() {
             options.addAll(availableBooks)
             val checked = if (selectedBook == null) 0 else options.indexOf(selectedBook).takeIf { it >= 0 } ?: 0
 
-            AlertDialog.Builder(requireContext())
+            val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("\u9009\u62e9\u8d26\u672c")
                 .setSingleChoiceItems(options.toTypedArray(), checked) { d, which ->
                     selectedBook = if (which == 0) null else options[which]
@@ -916,7 +922,8 @@ class StatsFragment : Fragment() {
                     d.dismiss()
                 }
                 .setNegativeButton("\u53d6\u6d88", null)
-                .show()
+                .create()
+            showStyledCenterDialog(dialog)
         }
 
         btnClose.setOnClickListener {
@@ -1039,6 +1046,25 @@ class StatsFragment : Fragment() {
             }
         }
         sheet.show(childFragmentManager, "sub_categories")
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
     }
 }
 

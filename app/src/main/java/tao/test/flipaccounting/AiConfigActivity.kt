@@ -6,8 +6,10 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -18,6 +20,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -256,11 +259,6 @@ class AiConfigActivity : AppCompatActivity() {
                 .setView(dialogLayout)
                 .create()
 
-            dialog.window?.setLayout(
-                (resources.displayMetrics.widthPixels * 0.9).toInt(),
-                (resources.displayMetrics.heightPixels * 0.7).toInt()
-            )
-
             etSearch.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -283,7 +281,7 @@ class AiConfigActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
 
-            dialog.show()
+            showStyledCenterDialog(dialog, widthRatio = 0.9f, heightRatio = 0.7f)
         }
 
         layoutModelSelector.setOnClickListener {
@@ -477,5 +475,33 @@ class AiConfigActivity : AppCompatActivity() {
         }
 
         updateUI()
+    }
+
+    private fun showStyledCenterDialog(
+        dialog: AlertDialog,
+        widthRatio: Float = 0.88f,
+        heightRatio: Float? = null
+    ) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                val targetHeight = if (heightRatio != null) {
+                    (resources.displayMetrics.heightPixels * heightRatio).toInt()
+                } else {
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                }
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = targetHeight
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
     }
 }

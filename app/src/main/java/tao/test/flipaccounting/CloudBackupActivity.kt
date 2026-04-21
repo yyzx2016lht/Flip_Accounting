@@ -1,10 +1,13 @@
-package tao.test.flipaccounting
+﻿package tao.test.flipaccounting
 
 import android.os.Bundle
+import android.view.Gravity
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.google.android.material.button.MaterialButton
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -63,7 +66,7 @@ class CloudBackupActivity : AppCompatActivity() {
         }
 
         findViewById<MaterialButton>(R.id.btn_show_cleanup_policy).setOnClickListener {
-            AlertDialog.Builder(this)
+            val dialog = AlertDialog.Builder(this)
                 .setTitle("云端保留策略")
                 .setMessage(
                     "每台设备保留最近 10 份轻量备份 + 3 份完整备份。\n" +
@@ -71,7 +74,8 @@ class CloudBackupActivity : AppCompatActivity() {
                         "当前为手动同步模式，不会后台自动上传。"
                 )
                 .setPositiveButton("我知道了", null)
-                .show()
+                .create()
+            showStyledCenterDialog(dialog)
         }
     }
 
@@ -93,5 +97,22 @@ class CloudBackupActivity : AppCompatActivity() {
         etDir.setText(sp.getString(KEY_WEBDAV_DIR, "FlipAccounting") ?: "FlipAccounting")
         etDevice.setText(sp.getString(KEY_DEVICE_NAME, android.os.Build.MODEL ?: "android") ?: "android")
     }
-}
 
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
+    }
+}

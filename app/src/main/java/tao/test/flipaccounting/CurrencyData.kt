@@ -1,4 +1,4 @@
-package tao.test.flipaccounting
+﻿package tao.test.flipaccounting
 
 import java.util.Currency
 import java.util.Locale
@@ -68,7 +68,12 @@ object CurrencyData {
         "EUR" to "欧盟"
     )
 
-    // Some currencies still fall back to code under non-native locales, so keep a tiny local override list.
+    // For currencies that don't map cleanly to a single country locale.
+    private val preferredFlagOverrides = mapOf(
+        "EUR" to "🇪🇺"
+    )
+
+    // Some currencies still fall back to code under non-native locales.
     private val symbolOverrides = mapOf(
         "PLN" to "zł",
         "CZK" to "Kč",
@@ -81,12 +86,47 @@ object CurrencyData {
         "INR" to "₹"
     )
 
+    // Withdrawn / obsolete currency codes should not appear in picker lists.
+    // This list can be extended whenever we find additional legacy codes in runtime data.
+    private val deprecatedCurrencyCodes = setOf(
+        "AFA", "ALK", "AOK", "AON", "AOR", "ARA", "ARP", "ARY", "ATS", "AZM",
+        "BAD", "BEC", "BEF", "BEL", "BGL", "BOP", "BRB", "BRC", "BRE", "BRN", "BRR",
+        "BYB", "BYR", "CLE", "CSJ", "CSK", "CYP", "DDM", "DEM", "EEK", "ESA", "ESB", "ESP",
+        "FIM", "FRF", "GEK", "GHC", "GNE", "GNS", "GQE", "GRD", "GWE", "GWP", "HRD", "IEP",
+        "ILP", "ILR", "ILY", "ISJ", "ITL", "LTL", "LTT", "LUC", "LUF", "LUL", "LVL", "LVR",
+        "MGF", "MLF", "MRO", "MTL", "MTP", "MVP", "MXP", "MZE", "MZM", "NIC", "NLG", "PEH",
+        "PEI", "PES", "PLZ", "PTE", "RHD", "ROL", "RUR", "SDD", "SDP", "SIT", "SKK", "SRG",
+        "SUR", "TJR", "TMM", "TPE", "TRL", "UAK", "UGS", "USN", "USS", "UYP", "VEB", "VEF",
+        "VNC", "XEU", "XFO", "XFU", "YDD", "YUD", "YUM", "YUN", "ZAL", "ZMK", "ZRN", "ZRZ",
+        "ZWC", "ZWD", "ZWL"
+    )
+
     private fun localeToFlag(country: String): String {
         if (country.length != 2) return ""
         val upper = country.uppercase(Locale.ROOT)
         val first = Character.codePointAt(upper, 0) - 0x41 + 0x1F1E6
         val second = Character.codePointAt(upper, 1) - 0x41 + 0x1F1E6
         return String(Character.toChars(first)) + String(Character.toChars(second))
+    }
+
+    private fun resolveFlagEmoji(code: String, localeCountry: String?): String {
+        val upper = code.uppercase()
+        preferredFlagOverrides[upper]?.let { return it }
+        val localeFlag = localeCountry
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::localeToFlag)
+            .orEmpty()
+        if (localeFlag.isNotBlank()) return localeFlag
+        // X** are usually supranational/basket/precious-metal units with no single national flag.
+        if (upper.startsWith("X")) return "🌐"
+        return "🏳️"
+    }
+
+    fun isSelectableCurrencyCode(code: String): Boolean {
+        val upper = code.trim().uppercase()
+        if (upper.length != 3) return false
+        if (!upper.all { it in 'A'..'Z' }) return false
+        return !deprecatedCurrencyCodes.contains(upper)
     }
 
     private fun bestLocaleFor(code: String): Locale? {
@@ -117,7 +157,7 @@ object CurrencyData {
             countryZh = preferredCountryZh[upper]
                 ?: locale?.getDisplayCountry(zhLocale)?.takeIf { it.isNotBlank() }
                 ?: upper,
-            flagEmoji = locale?.country?.takeIf { it.isNotBlank() }?.let(::localeToFlag).orEmpty(),
+            flagEmoji = resolveFlagEmoji(upper, locale?.country),
             symbol = resolveSymbol(currency, upper, locale)
         )
     }
@@ -135,7 +175,7 @@ object CurrencyData {
             code = upper,
             nameZh = currency.getDisplayName(zhLocale).ifBlank { upper },
             countryZh = countryZh,
-            flagEmoji = locale?.country?.takeIf { it.isNotBlank() }?.let(::localeToFlag).orEmpty(),
+            flagEmoji = resolveFlagEmoji(upper, locale?.country),
             symbol = resolveSymbol(currency, upper, locale)
         )
     }
@@ -143,6 +183,7 @@ object CurrencyData {
     fun getInfo(code: String): CurrencyInfo? {
         val upper = code.trim().uppercase()
         if (upper.isEmpty()) return null
+        if (!isSelectableCurrencyCode(upper)) return null
         return infoCache.getOrPut(upper) { buildInfo(upper) }
     }
 

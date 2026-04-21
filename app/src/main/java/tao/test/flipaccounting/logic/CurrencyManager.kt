@@ -88,8 +88,18 @@ object CurrencyManager {
         val popular = listOf("CNY", "USD", "EUR", "PLN", "HKD", "JPY", "GBP")
         val all = linkedSetOf<String>()
         all.addAll(popular)
-        all.addAll(java.util.Currency.getAvailableCurrencies().map { it.currencyCode.uppercase() }.sorted())
-        all.addAll(rates.keys.map { it.uppercase() }.sorted())
+        all.addAll(
+            java.util.Currency.getAvailableCurrencies()
+                .map { it.currencyCode.uppercase() }
+                .filter { tao.test.flipaccounting.CurrencyData.isSelectableCurrencyCode(it) }
+                .sorted()
+        )
+        all.addAll(
+            rates.keys
+                .map { it.uppercase() }
+                .filter { tao.test.flipaccounting.CurrencyData.isSelectableCurrencyCode(it) }
+                .sorted()
+        )
         return all.toList()
     }
 

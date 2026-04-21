@@ -39,6 +39,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
@@ -259,6 +260,11 @@ class ChatActivity : AppCompatActivity() {
         drawerContainer.updateLayoutParams<ViewGroup.LayoutParams> {
             width = (resources.displayMetrics.widthPixels * 0.76f).toInt()
         }
+        drawerSessions.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+            override fun onDrawerClosed(drawerView: View) {
+                sessionAdapter.closeSwipeActions()
+            }
+        })
         rvSessionList.layoutManager = LinearLayoutManager(this)
         rvSessionList.adapter = sessionAdapter
         rvSessionList.itemAnimator = null
@@ -490,35 +496,35 @@ class ChatActivity : AppCompatActivity() {
 
     private fun ensureAiVoiceFeatureEnabled(): Boolean {
         if (Prefs.isShowAiVoice(this)) return true
-        AlertDialog.Builder(this)
-            .setTitle("请先开启语音记账")
-            .setMessage("你在 AI 对话里发送语音前，需要先到设置中心开启“语音记账”功能。")
-            .setPositiveButton("去开启") { _, _ ->
+        showCustomConfirmDialog(
+            title = "请先开启语音记账",
+            message = "你在 AI 对话里发送语音前，需要先到设置中心开启“语音记账”功能。",
+            confirmText = "去开启",
+            onConfirm = {
                 startActivity(
                     Intent(this, MainActivity::class.java)
                         .putExtra(MainActivity.EXTRA_OPEN_TAB_INDEX, 3)
                         .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 )
             }
-            .setNegativeButton("取消", null)
-            .show()
+        )
         return false
     }
 
     private fun ensureAiImageFeatureEnabled(): Boolean {
         if (Prefs.isShowAiImage(this)) return true
-        AlertDialog.Builder(this)
-            .setTitle("请先开启图片记账")
-            .setMessage("你在 AI 对话里发送图片前，需要先到设置中心开启“图片记账”功能。")
-            .setPositiveButton("去开启") { _, _ ->
+        showCustomConfirmDialog(
+            title = "请先开启图片记账",
+            message = "你在 AI 对话里发送图片前，需要先到设置中心开启“图片记账”功能。",
+            confirmText = "去开启",
+            onConfirm = {
                 startActivity(
                     Intent(this, MainActivity::class.java)
                         .putExtra(MainActivity.EXTRA_OPEN_TAB_INDEX, 3)
                         .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 )
             }
-            .setNegativeButton("取消", null)
-            .show()
+        )
         return false
     }
 
@@ -564,7 +570,7 @@ class ChatActivity : AppCompatActivity() {
             startActivityForResult(Intent(Intent.ACTION_PICK).apply { type = "image/*" }, REQ_PICK_AI_AVATAR)
         }
 
-        dialog.show()
+        showStyledCenterDialog(dialog, widthRatio = 0.88f)
     }
 
     private fun setupKeyboardInsets() {
@@ -648,11 +654,39 @@ class ChatActivity : AppCompatActivity() {
             val sessionBills = withContext(Dispatchers.IO) {
                 loadSessionActiveBills(row.bookName, row.conversationId)
             }
-            AlertDialog.Builder(this@ChatActivity)
-                .setTitle("删除会话")
-                .setMessage(buildDeleteSessionMessage(row, sessionBills))
-                .setNegativeButton("取消", null)
-                .setNeutralButton("保留账单") { _, _ ->
+            val panel = LayoutInflater.from(this@ChatActivity)
+                .inflate(R.layout.dialog_book_delete_options, null)
+            panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "删除会话"
+            panel.findViewById<TextView>(R.id.tv_delete_book_desc).text =
+                "将删除该会话聊天记录（关联账单 ${sessionBills.size} 条）"
+            val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+
+            fun addOption(
+                title: String,
+                desc: String,
+                showRisk: Boolean = false,
+                onClick: () -> Unit
+            ) {
+                val item = LayoutInflater.from(this@ChatActivity)
+                    .inflate(R.layout.item_book_delete_option, optionsContainer, false)
+                item.findViewById<TextView>(R.id.tv_delete_option_title).text = title
+                item.findViewById<TextView>(R.id.tv_delete_option_desc).text = desc
+                item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility =
+                    if (showRisk) View.VISIBLE else View.GONE
+                item.setOnClickListener { onClick() }
+                optionsContainer.addView(item)
+            }
+
+            val dialog = AlertDialog.Builder(ContextThemeWrapper(this@ChatActivity, R.style.Theme_FlipAccounting))
+                .setView(panel)
+                .create()
+            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+            addOption(
+                title = "仅删除会话",
+                desc = "保留关联账单，只删除本会话聊天记录",
+                onClick = {
+                    dialog.dismiss()
                     lifecycleScope.launch {
                         withContext(Dispatchers.IO) {
                             db.chatMessageDao().deleteByBookAndConversation(row.bookName, row.conversationId)
@@ -660,10 +694,21 @@ class ChatActivity : AppCompatActivity() {
                         onSessionDeleted(row)
                     }
                 }
-                .setPositiveButton("删除账单") { _, _ ->
+            )
+            addOption(
+                title = "删除会话并删除账单",
+                desc = "进入账单选择后删除，影响账本数据",
+                showRisk = true,
+                onClick = {
+                    dialog.dismiss()
                     showDeleteSessionBillsConfirmDialog(row, sessionBills)
                 }
-                .show()
+            )
+
+            panel.findViewById<View>(R.id.btn_delete_book_cancel).setOnClickListener {
+                dialog.dismiss()
+            }
+            showStyledCenterDialog(dialog, widthRatio = 0.9f)
         }
     }
 
@@ -683,23 +728,77 @@ class ChatActivity : AppCompatActivity() {
             }
             val selectedIndexes = sortedBills.indices.toMutableSet()
             val previewView = buildDeleteBillsPreviewView(sortedBills, iconUrls, selectedIndexes)
-            AlertDialog.Builder(this@ChatActivity)
-                .setTitle("选择要删除的账单")
-                .setView(previewView)
-                .setNegativeButton("返回", null)
-                .setPositiveButton("确认删除") { _, _ ->
-                    lifecycleScope.launch {
-                        withContext(Dispatchers.IO) {
-                            val selectedBills = sortedBills.filterIndexed { index, _ -> selectedIndexes.contains(index) }
-                            selectedBills.forEach { bill ->
-                                tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
-                            }
-                            db.chatMessageDao().deleteByBookAndConversation(row.bookName, row.conversationId)
+            val density = resources.displayMetrics.density
+            fun dp(v: Int): Int = (v * density).toInt()
+
+            val panel = LinearLayout(this@ChatActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundResource(R.drawable.bg_overlay_accounting_panel)
+                setPadding(dp(18), dp(16), dp(18), dp(14))
+            }
+            val titleView = TextView(this@ChatActivity).apply {
+                text = "选择要删除的账单"
+                textSize = 18f
+                setTextColor(Color.parseColor("#1F2937"))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            }
+            val tipView = TextView(this@ChatActivity).apply {
+                text = "仅删除你勾选的账单，并同步删除该会话聊天记录"
+                textSize = 12f
+                setTextColor(Color.parseColor("#7B8798"))
+                setPadding(0, dp(6), 0, dp(10))
+            }
+            panel.addView(titleView)
+            panel.addView(tipView)
+            panel.addView(previewView)
+
+            val actionRow = LinearLayout(this@ChatActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(12), 0, 0)
+            }
+            val btnBack = TextView(this@ChatActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginEnd = dp(6) }
+                gravity = android.view.Gravity.CENTER
+                text = "返回"
+                textSize = 14f
+                setTextColor(Color.parseColor("#5A677C"))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setBackgroundResource(R.drawable.bg_delete_dialog_cancel_btn)
+            }
+            val btnDelete = TextView(this@ChatActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(6) }
+                gravity = android.view.Gravity.CENTER
+                text = "确认删除"
+                textSize = 14f
+                setTextColor(Color.WHITE)
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setBackgroundResource(R.drawable.bg_delete_followup_danger_btn)
+            }
+            actionRow.addView(btnBack)
+            actionRow.addView(btnDelete)
+            panel.addView(actionRow)
+
+            val dialog = AlertDialog.Builder(ContextThemeWrapper(this@ChatActivity, R.style.Theme_FlipAccounting))
+                .setView(panel)
+                .create()
+            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+            btnBack.setOnClickListener { dialog.dismiss() }
+            btnDelete.setOnClickListener {
+                dialog.dismiss()
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        val selectedBills = sortedBills.filterIndexed { index, _ -> selectedIndexes.contains(index) }
+                        selectedBills.forEach { bill ->
+                            tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
                         }
-                        onSessionDeleted(row)
+                        db.chatMessageDao().deleteByBookAndConversation(row.bookName, row.conversationId)
                     }
+                    onSessionDeleted(row)
                 }
-                .show()
+            }
+
+            showStyledCenterDialog(dialog, widthRatio = 0.92f)
         }
     }
 
@@ -881,10 +980,12 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun confirmClearHistory() {
-        AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
-            .setTitle("清空聊天记录")
-            .setMessage("该操作只会清空当前对话的聊天内容，不会删除对应账单。如果需要删除账单，请使用历史会话里的“删除会话”。")
-            .setPositiveButton("清空") { _, _ ->
+        showCustomConfirmDialog(
+            title = "清空聊天记录",
+            message = "该操作只会清空当前对话的聊天内容，不会删除对应账单。如果需要删除账单，请使用历史会话里的“删除会话”。",
+            confirmText = "清空",
+            isDanger = true,
+            onConfirm = {
                 lifecycleScope.launch {
                     val voiceFiles = displayMessages
                         .mapNotNull { it.voice?.audioPath?.takeIf { path -> path.isNotBlank() } }
@@ -898,8 +999,7 @@ class ChatActivity : AppCompatActivity() {
                     refreshSessionRows()
                 }
             }
-            .setNegativeButton("取消", null)
-            .show()
+        )
     }
 
     private suspend fun refreshSessionRows() {
@@ -1065,7 +1165,7 @@ class ChatActivity : AppCompatActivity() {
             hint = "输入会话名称"
             setPadding(40, 28, 40, 28)
         }
-        AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
             .setTitle("重命名对话")
             .setView(input)
             .setPositiveButton("保存") { _, _ ->
@@ -1079,7 +1179,8 @@ class ChatActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
     }
 
     private fun renameSessionInline(row: ChatSessionRow, newTitle: String) {
@@ -1139,9 +1240,9 @@ class ChatActivity : AppCompatActivity() {
             .setView(view)
             .create()
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.setOnShowListener { styleChatPanelWindow(dialog) }
+        styleChatPanelWindow(dialog)
         btnCancel.setOnClickListener { dialog.dismiss() }
-        dialog.show()
+        showStyledBottomDialog(dialog)
     }
 
     private fun showCustomReplyStyleDialog() {
@@ -1157,7 +1258,7 @@ class ChatActivity : AppCompatActivity() {
             .setView(view)
             .create()
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.setOnShowListener { styleChatPanelWindow(dialog) }
+        styleChatPanelWindow(dialog)
 
         btnSave.setOnClickListener {
             val prompt = input.text?.toString().orEmpty().trim()
@@ -1172,11 +1273,13 @@ class ChatActivity : AppCompatActivity() {
             dialog.dismiss()
         }
         btnCancel.setOnClickListener { dialog.dismiss() }
-        dialog.show()
+        showStyledBottomDialog(dialog)
     }
 
     private fun styleChatPanelWindow(dialog: AlertDialog) {
         dialog.window?.let { win ->
+            WindowCompat.setDecorFitsSystemWindows(win, false)
+            win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
             win.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             win.setGravity(android.view.Gravity.BOTTOM)
             val margin = (12 * resources.displayMetrics.density).toInt()
@@ -1226,7 +1329,7 @@ class ChatActivity : AppCompatActivity() {
             }
         })
         btnCancel.setOnClickListener { dialog.dismiss() }
-        dialog.show()
+        showStyledBottomDialog(dialog)
     }
 
     private fun pickImage() {
@@ -1235,20 +1338,26 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun pickBgImage() {
-        val options = arrayOf("恢复默认背景", "选择图片")
-        AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
-            .setTitle("设置聊天背景")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> {
-                        Prefs.setAiChatBgPath(this, "")
-                        Glide.with(this).clear(ivChatBg)
-                        ivChatBg.visibility = View.INVISIBLE
-                    }
-                    1 -> startActivityForResult(Intent(Intent.ACTION_PICK).apply { type = "image/*" }, REQ_PICK_BG)
-                }
-            }
-            .show()
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_chat_bg_setting, null)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
+            .setView(view)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        view.findViewById<TextView>(R.id.item_bg_pick_image).setOnClickListener {
+            dialog.dismiss()
+            startActivityForResult(Intent(Intent.ACTION_PICK).apply { type = "image/*" }, REQ_PICK_BG)
+        }
+        view.findViewById<TextView>(R.id.item_bg_reset_default).setOnClickListener {
+            Prefs.setAiChatBgPath(this, "")
+            Glide.with(this).clear(ivChatBg)
+            ivChatBg.visibility = View.INVISIBLE
+            dialog.dismiss()
+        }
+        view.findViewById<TextView>(R.id.btn_bg_setting_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
     }
 
     private fun refreshAiProfile() {
@@ -1859,7 +1968,7 @@ class ChatActivity : AppCompatActivity() {
         popupView.findViewById<View>(R.id.menu_item_copy).setOnClickListener {
             popup.dismiss()
             val text = item.content.trim()
-            if (text.isBlank()) return@setOnClickListener
+            if (text.isEmpty()) return@setOnClickListener
             val clipboard = getSystemService(ClipboardManager::class.java)
             clipboard?.setPrimaryClip(ClipData.newPlainText("chat_message", text))
             Utils.toast(this, "已复制")
@@ -1867,7 +1976,7 @@ class ChatActivity : AppCompatActivity() {
         popupView.findViewById<View>(R.id.menu_item_edit_resend).setOnClickListener {
             popup.dismiss()
             val text = item.content.trim()
-            if (text.isBlank()) return@setOnClickListener
+            if (text.isEmpty()) return@setOnClickListener
             if (isVoiceMode) {
                 isVoiceMode = false
                 updateVoiceModeUi()
@@ -2030,10 +2139,12 @@ class ChatActivity : AppCompatActivity() {
 
     private fun deleteVoiceMessages(ids: List<Long>) {
         if (ids.isEmpty()) return
-        AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
-            .setTitle("删除消息")
-            .setMessage("确定删除选中的消息吗？")
-            .setPositiveButton("删除") { _, _ ->
+        showCustomConfirmDialog(
+            title = "删除消息",
+            message = "确定删除选中的消息吗？",
+            confirmText = "删除",
+            isDanger = true,
+            onConfirm = {
                 lifecycleScope.launch {
                     val extraAssistantMessageIds = findDependentAssistantMessageIds(ids)
                     val allIds = (ids + extraAssistantMessageIds).distinct()
@@ -2050,8 +2161,64 @@ class ChatActivity : AppCompatActivity() {
                     refreshSessionRows()
                 }
             }
-            .setNegativeButton("取消", null)
-            .show()
+        )
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
+        dialog.window?.let { win ->
+            WindowCompat.setDecorFitsSystemWindows(win, false)
+            win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+            val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+            win.attributes = win.attributes.apply {
+                width = targetWidth
+                height = WindowManager.LayoutParams.WRAP_CONTENT
+            }
+        }
+        dialog.show()
+    }
+
+    private fun showCustomConfirmDialog(
+        title: String,
+        message: String,
+        confirmText: String = "确定",
+        isDanger: Boolean = false,
+        onConfirm: () -> Unit
+    ) {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_delete_followup_confirm, null)
+        view.findViewById<TextView>(R.id.tv_followup_confirm_title).text = title
+        view.findViewById<TextView>(R.id.tv_followup_confirm_message).text = message
+        
+        val btnOk = view.findViewById<TextView>(R.id.btn_followup_confirm_ok)
+        btnOk.text = confirmText
+        btnOk.setBackgroundResource(
+            if (isDanger) R.drawable.bg_delete_followup_danger_btn
+            else R.drawable.bg_delete_followup_primary_btn
+        )
+
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
+            .setView(view)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val btnCancel = view.findViewById<TextView>(R.id.btn_followup_confirm_cancel)
+        btnCancel.text = "取消"
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+        btnOk.setOnClickListener {
+            dialog.dismiss()
+            onConfirm()
+        }
+
+        showStyledCenterDialog(dialog)
+    }
+
+    private fun showStyledBottomDialog(dialog: AlertDialog) {
+        dialog.window?.let { win ->
+            WindowCompat.setDecorFitsSystemWindows(win, false)
+            win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+        }
+        dialog.show()
     }
 
     private fun findDependentAssistantMessageIds(ids: List<Long>): List<Long> {
@@ -2934,7 +3101,9 @@ class ChatActivity : AppCompatActivity() {
                             if (!deprecated && bills.isEmpty() && msg.id > 0L) {
                                 withContext(Dispatchers.IO) {
                                     db.chatMessageDao().getById(msg.id)?.let { oldMsg ->
-                                        db.chatMessageDao().update(oldMsg.copy(billIds = markBillIdsAsDeprecated(oldMsg.billIds)))
+                                        db.chatMessageDao().update(
+                                            oldMsg.copy(billIds = markBillIdsAsDeprecated(oldMsg.billIds))
+                                        )
                                     }
                                 }
                             }
@@ -3374,6 +3543,7 @@ class ChatActivity : AppCompatActivity() {
                     ivVoicePlay.setImageResource(
                         if (isPlaying) R.drawable.ic_voice_pause_telegram else R.drawable.ic_voice_play_telegram
                     )
+                    ivVoicePlay.setColorFilter(if (isPlaying) Color.parseColor("#FFB4B4") else Color.WHITE)
                     bindWaveBars(voice.audioPath, isPlaying)
                     bindVoiceTranscript(item, voice)
                     maybeAnimateFreshVoiceBubble(voice.audioPath)
@@ -3418,42 +3588,6 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        private fun bindVoiceTranscript(item: ChatDisplayItem, voice: VoicePayload) {
-            val transcript = voice.transcript.trim()
-            val isTranscribing = transcribingPaths.contains(voice.audioPath)
-            
-            if (transcript.isBlank() && !isTranscribing) {
-                layoutVoiceTranscript.visibility = View.GONE
-                layoutVoiceTranscript.alpha = 1f
-                layoutVoiceTranscript.translationY = 0f
-                ivVoiceTranscriptCopy.setOnClickListener(null)
-                layoutVoiceTranscript.setOnLongClickListener(null)
-                tvVoiceTranscript.setOnLongClickListener(null)
-                return
-            }
-            
-            layoutVoiceTranscript.visibility = View.VISIBLE
-            tvVoiceTranscript.text = if (isTranscribing) "正在转换文字，请稍候..." else transcript
-            ivVoiceTranscriptCopy.visibility = if (isTranscribing) View.GONE else View.VISIBLE
-            
-            if (isTranscribing) {
-                ivVoiceTranscriptCopy.setOnClickListener(null)
-                layoutVoiceTranscript.setOnLongClickListener(null)
-                tvVoiceTranscript.setOnLongClickListener(null)
-            } else {
-                ivVoiceTranscriptCopy.setOnClickListener {
-                    copyToClipboard("voice_transcript", transcript, "已复制转写文本")
-                }
-                val hideTranscriptLongClick = View.OnLongClickListener {
-                    if (isVoiceSelectionMode) return@OnLongClickListener false
-                    showVoiceMessageMenu(layoutVoiceTranscript, item)
-                    true
-                }
-                layoutVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
-                tvVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
-            }
-        }
-
         private fun updateWaveBarsForVoice(durationSec: Int, waveWidthPx: Int) {
             val density = itemView.resources.displayMetrics.density
             val barCount = calculateWaveBarCount(durationSec, waveWidthPx, density)
@@ -3478,6 +3612,42 @@ class ChatActivity : AppCompatActivity() {
                 params.marginEnd = if (index == waveBars.lastIndex) 0 else marginEnd
                 bar.layoutParams = params
                 bar.alpha = 0.6f + ((index + durationSec) % 5) * 0.07f
+            }
+        }
+
+        private fun bindVoiceTranscript(item: ChatDisplayItem, voice: VoicePayload) {
+            val transcript = voice.transcript.trim()
+            val isTranscribing = transcribingPaths.contains(voice.audioPath)
+
+            if (transcript.isBlank() && !isTranscribing) {
+                layoutVoiceTranscript.visibility = View.GONE
+                layoutVoiceTranscript.alpha = 1f
+                layoutVoiceTranscript.translationY = 0f
+                ivVoiceTranscriptCopy.setOnClickListener(null)
+                layoutVoiceTranscript.setOnLongClickListener(null)
+                tvVoiceTranscript.setOnLongClickListener(null)
+                return
+            }
+
+            layoutVoiceTranscript.visibility = View.VISIBLE
+            tvVoiceTranscript.text = if (isTranscribing) "正在转换文字，请稍候..." else transcript
+            ivVoiceTranscriptCopy.visibility = if (isTranscribing) View.GONE else View.VISIBLE
+
+            if (isTranscribing) {
+                ivVoiceTranscriptCopy.setOnClickListener(null)
+                layoutVoiceTranscript.setOnLongClickListener(null)
+                tvVoiceTranscript.setOnLongClickListener(null)
+            } else {
+                ivVoiceTranscriptCopy.setOnClickListener {
+                    copyToClipboard("voice_transcript", transcript, "已复制转写文本")
+                }
+                val hideTranscriptLongClick = View.OnLongClickListener {
+                    if (isVoiceSelectionMode) return@OnLongClickListener false
+                    showVoiceMessageMenu(layoutVoiceTranscript, item)
+                    true
+                }
+                layoutVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
+                tvVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
             }
         }
 

@@ -1,15 +1,18 @@
-package tao.test.flipaccounting
+﻿package tao.test.flipaccounting
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -100,8 +103,8 @@ class AssetActivity : AppCompatActivity() {
 
     private fun showAssetActionMenu(asset: Asset) {
         val options = arrayOf("编辑账户", "删除账户")
-        AlertDialog.Builder(this)
-            .setTitle("操作「${asset.name}」")
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("操作“${asset.name}”")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
@@ -112,11 +115,12 @@ class AssetActivity : AppCompatActivity() {
                     1 -> showDeleteAssetConfirm(asset)
                 }
             }
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun showDeleteAssetConfirm(asset: Asset) {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("删除账户")
             .setMessage(
                 "确定删除账户吗？相关账单将失去账户关联。\n" +
@@ -128,12 +132,31 @@ class AssetActivity : AppCompatActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     assetRepository.deleteAssetWithCleanup(asset)
                     withContext(Dispatchers.Main) {
-                        Utils.toast(this@AssetActivity, "账户「${asset.name}」已删除")
+                        Utils.toast(this@AssetActivity, "账户“${asset.name}”已删除")
                     }
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
     }
 
     inner class AssetListAdapter(

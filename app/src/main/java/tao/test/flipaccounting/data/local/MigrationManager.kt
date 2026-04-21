@@ -9,13 +9,14 @@ import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.Category
+import tao.test.flipaccounting.logic.CategoryNameNormalizer
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 object MigrationManager {
 
     private const val PREF_KEY_MIGRATED = "has_migrated_to_room"
+    private const val PREF_KEY_CATEGORY_NAME_NORMALIZED = "has_normalized_category_name_storage_v1"
 
     internal fun normalizeLegacyBillTypeAndSubtype(legacyType: Int): Pair<Int, Int> {
         return when (legacyType) {
@@ -29,92 +30,117 @@ object MigrationManager {
 
     suspend fun migrateIfNecessary(context: Context, database: AppDatabase) {
         val sharedPrefs = context.getSharedPreferences("flip_prefs", Context.MODE_PRIVATE)
-        if (sharedPrefs.getBoolean(PREF_KEY_MIGRATED, false)) {
-            // 已经迁移过了
+
+        if (!sharedPrefs.getBoolean(PREF_KEY_MIGRATED, false)) {
+            withContext(Dispatchers.IO) {
+                try {
+                    Log.d("Migration", "start migrating legacy data to Room")
+
+                    database.withTransaction {
+                        val assetMap = mutableMapOf<String, Long>()
+                        val categoryMap = mutableMapOf<String, Long>()
+
+                        val oldAssets = Prefs.getAssets(context)
+                        for (oldAsset in oldAssets) {
+                            val assetType = when (oldAsset.type) {
+                                "资金" -> "资金"
+                                "信用" -> "信用"
+                                "投资" -> "投资"
+                                else -> oldAsset.type.ifEmpty { "其他" }
+                            }
+                            val newAsset = Asset(
+                                name = oldAsset.name,
+                                type = assetType,
+                                currency = oldAsset.currency,
+                                icon = oldAsset.icon,
+                                balance = 0.0,
+                                initialBalance = 0.0,
+                                includeInNetAsset = true
+                            )
+                            val id = database.assetDao().insertAsset(newAsset)
+                            assetMap[oldAsset.name] = id
+                        }
+
+                        val oldExpenseCats = Prefs.getCategories(context, Prefs.TYPE_EXPENSE)
+                        migrateCategories(database, oldExpenseCats, 0, null, categoryMap)
+
+                        val oldIncomeCats = Prefs.getCategories(context, Prefs.TYPE_INCOME)
+                        migrateCategories(database, oldIncomeCats, 1, null, categoryMap)
+
+                        val oldBills = Prefs.getBills(context)
+                        val newBills = mutableListOf<Bill>()
+                        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                        val sdfShort = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+
+                        for (oldBill in oldBills) {
+                            var timeMillis = System.currentTimeMillis()
+                            try {
+                                val date = sdf.parse(oldBill.time) ?: sdfShort.parse(oldBill.time)
+                                if (date != null) timeMillis = date.time
+                            } catch (_: Exception) {
+                                Log.e("Migration", "failed to parse time: ${oldBill.time}")
+                            }
+
+                            val (type, subType) = normalizeLegacyBillTypeAndSubtype(oldBill.type)
+                            val normalizedCategoryName = CategoryNameNormalizer.normalizeForStorage(oldBill.categoryName)
+                            val bill = Bill(
+                                type = type,
+                                subType = subType,
+                                amount = oldBill.amount,
+                                originalAmount = oldBill.amount,
+                                currency = "CNY",
+                                exchangeRate = 1.0,
+                                categoryId = categoryMap[oldBill.categoryName],
+                                accountId = assetMap[oldBill.assetName],
+                                toAccountId = null,
+                                categoryName = normalizedCategoryName,
+                                accountName = oldBill.assetName,
+                                time = timeMillis,
+                                remark = oldBill.remarks,
+                                isSynced = true
+                            )
+                            newBills.add(bill)
+                        }
+
+                        if (newBills.isNotEmpty()) {
+                            database.billDao().insertBills(newBills)
+                        }
+                    }
+
+                    sharedPrefs.edit().putBoolean(PREF_KEY_MIGRATED, true).apply()
+                    Log.d("Migration", "legacy migration done")
+                } catch (e: Exception) {
+                    Log.e("Migration", "legacy migration failed", e)
+                }
+            }
+        }
+
+        normalizeStoredCategoryNamesIfNeeded(context, database)
+    }
+
+    private suspend fun normalizeStoredCategoryNamesIfNeeded(context: Context, database: AppDatabase) {
+        val sharedPrefs = context.getSharedPreferences("flip_prefs", Context.MODE_PRIVATE)
+        if (sharedPrefs.getBoolean(PREF_KEY_CATEGORY_NAME_NORMALIZED, false)) {
             return
         }
 
         withContext(Dispatchers.IO) {
             try {
-                Log.d("Migration", "开始迁移旧数据到 Room 数据库...")
-
+                var updatedCount = 0
                 database.withTransaction {
-                    val assetMap = mutableMapOf<String, Long>()
-                    val categoryMap = mutableMapOf<String, Long>()
-
-                    // 1. 迁移资产
-                    val oldAssets = Prefs.getAssets(context)
-                    for (oldAsset in oldAssets) {
-                        val assetType = when (oldAsset.type) {
-                            "资金" -> "资金"
-                            "信用" -> "信用"
-                            "投资" -> "投资"
-                            else -> oldAsset.type.ifEmpty { "其它" }
+                    val allBills = database.billDao().getAllBillsList()
+                    allBills.forEach { bill ->
+                        val normalized = CategoryNameNormalizer.normalizeForStorage(bill.categoryName)
+                        if (normalized != bill.categoryName) {
+                            database.billDao().updateBill(bill.copy(categoryName = normalized))
+                            updatedCount += 1
                         }
-                        val newAsset = Asset(
-                            name = oldAsset.name,
-                            type = assetType,
-                            currency = oldAsset.currency,
-                            icon = oldAsset.icon,
-                            balance = 0.0,
-                            initialBalance = 0.0,
-                            includeInNetAsset = true
-                        )
-                        val id = database.assetDao().insertAsset(newAsset)
-                        assetMap[oldAsset.name] = id
-                    }
-
-                    val oldExpenseCats = Prefs.getCategories(context, Prefs.TYPE_EXPENSE)
-                    migrateCategories(database, oldExpenseCats, 0, null, categoryMap)
-
-                    val oldIncomeCats = Prefs.getCategories(context, Prefs.TYPE_INCOME)
-                    migrateCategories(database, oldIncomeCats, 1, null, categoryMap)
-
-                    val oldBills = Prefs.getBills(context)
-                    val newBills = mutableListOf<Bill>()
-                    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                    val sdfShort = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-
-                    for (oldBill in oldBills) {
-                        var timeMillis = System.currentTimeMillis()
-                        try {
-                            val date = sdf.parse(oldBill.time) ?: sdfShort.parse(oldBill.time)
-                            if (date != null) timeMillis = date.time
-                        } catch (e: Exception) {
-                            Log.e("Migration", "无法解析时间: ${oldBill.time}")
-                        }
-
-                        val (type, subType) = normalizeLegacyBillTypeAndSubtype(oldBill.type)
-                        val bill = Bill(
-                            type = type,
-                            subType = subType,
-                            amount = oldBill.amount,
-                            originalAmount = oldBill.amount,
-                            currency = "CNY",
-                            exchangeRate = 1.0,
-                            categoryId = categoryMap[oldBill.categoryName],
-                            accountId = assetMap[oldBill.assetName],
-                            toAccountId = null,
-                            categoryName = oldBill.categoryName,
-                            accountName = oldBill.assetName,
-                            time = timeMillis,
-                            remark = oldBill.remarks,
-                            isSynced = true
-                        )
-                        newBills.add(bill)
-                    }
-
-                    if (newBills.isNotEmpty()) {
-                        database.billDao().insertBills(newBills)
                     }
                 }
-
-                // 标记为已迁移
-                sharedPrefs.edit().putBoolean(PREF_KEY_MIGRATED, true).apply()
-                Log.d("Migration", "数据迁移完成！")
-
+                sharedPrefs.edit().putBoolean(PREF_KEY_CATEGORY_NAME_NORMALIZED, true).apply()
+                Log.d("Migration", "category name normalization done, updated=$updatedCount")
             } catch (e: Exception) {
-                Log.e("Migration", "数据迁移失败", e)
+                Log.e("Migration", "category name normalization failed", e)
             }
         }
     }
@@ -135,8 +161,7 @@ object MigrationManager {
             )
             val id = database.categoryDao().insertCategory(category)
             categoryMap[node.name] = id
-            
-            // 递归子分类
+
             if (node.subs.isNotEmpty()) {
                 migrateCategories(database, node.subs, type, id, categoryMap)
             }

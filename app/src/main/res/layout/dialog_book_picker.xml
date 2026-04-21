@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_dialog_bottom_sheet_bg"
+    android:background="@drawable/bg_overlay_accounting_panel"
     android:orientation="vertical"
     android:paddingStart="16dp"
     android:paddingTop="14dp"
@@ -42,16 +42,5 @@
         android:maxHeight="320dp"
         android:clipToPadding="false"
         android:overScrollMode="never" />
-
-    <TextView
-        android:id="@+id/btn_cancel_book_picker"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/bg_search_box"
-        android:gravity="center"
-        android:text="取消"
-        android:textColor="#7A8799"
-        android:textSize="15sp" />
 
 </LinearLayout>

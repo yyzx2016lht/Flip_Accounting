@@ -2,6 +2,7 @@ package tao.test.flipaccounting.data.backup
 
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.logic.CategoryNameNormalizer
 import tao.test.flipaccounting.logic.CurrencyManager
 import java.io.InputStream
 import java.io.OutputStream
@@ -158,7 +159,7 @@ object CsvManager {
                     originalAmount = originalAmount,
                     currency = currency,
                     exchangeRate = exchangeRate ?: estimateExchangeRate(currency),
-                    categoryName = categoryName,
+                    categoryName = CategoryNameNormalizer.normalizeForStorage(categoryName),
                     accountName = accountName,
                     toAccountName = toAccountName,
                     time = timeMs,
@@ -218,7 +219,7 @@ object CsvManager {
                     originalAmount = amount,
                     currency = currency,
                     exchangeRate = estimateExchangeRate(currency),
-                    categoryName = categoryName,
+                    categoryName = CategoryNameNormalizer.normalizeForStorage(categoryName),
                     accountName = accountName,
                     toAccountName = toAccountName,
                     time = timeMs,

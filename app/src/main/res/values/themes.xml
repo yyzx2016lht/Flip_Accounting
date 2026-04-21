@@ -22,4 +22,9 @@
         <item name="android:backgroundDimEnabled">false</item>
     </style>
 
+    <style name="Animation_FlipAccounting_DialogSoft">
+        <item name="android:windowEnterAnimation">@anim/dialog_soft_enter</item>
+        <item name="android:windowExitAnimation">@anim/dialog_soft_exit</item>
+    </style>
+
 </resources>

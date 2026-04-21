@@ -167,12 +167,54 @@ interface BillDao {
     @Query("SELECT * FROM bills WHERE categoryId = :categoryId")
     suspend fun getBillsByCategoryIdList(categoryId: Long): List<Bill>
 
+    @Query("SELECT id FROM bills WHERE categoryId = :categoryId")
+    suspend fun getBillIdsByCategoryIdList(categoryId: Long): List<Long>
+
     @Query("""
         SELECT * FROM bills
         WHERE categoryId IS NULL
-          AND (categoryName = :name OR categoryName LIKE '%> ' || :name)
+          AND (
+              categoryName = :name
+              OR categoryName LIKE '%> ' || :name
+              OR categoryName LIKE '%>' || :name
+              OR categoryName LIKE '%·' || :name
+              OR categoryName LIKE '%/::/' || :name
+              OR categoryName = '退款：' || :name
+              OR categoryName = '退款·' || :name
+              OR categoryName LIKE '退款：%> ' || :name
+              OR categoryName LIKE '退款：%>' || :name
+              OR categoryName LIKE '退款：%·' || :name
+              OR categoryName LIKE '退款：%/::/' || :name
+              OR categoryName LIKE '退款·%> ' || :name
+              OR categoryName LIKE '退款·%>' || :name
+              OR categoryName LIKE '退款·%·' || :name
+              OR categoryName LIKE '退款·%/::/' || :name
+          )
     """)
     suspend fun getBillsByCategoryNameList(name: String): List<Bill>
+
+    @Query("""
+        SELECT id FROM bills
+        WHERE categoryId IS NULL
+          AND (
+              categoryName = :name
+              OR categoryName LIKE '%> ' || :name
+              OR categoryName LIKE '%>' || :name
+              OR categoryName LIKE '%路' || :name
+              OR categoryName LIKE '%/::/' || :name
+              OR categoryName = '退款：' || :name
+              OR categoryName = '退款·' || :name
+              OR categoryName LIKE '退款：%> ' || :name
+              OR categoryName LIKE '退款：%>' || :name
+              OR categoryName LIKE '退款：%·' || :name
+              OR categoryName LIKE '退款：%/::/' || :name
+              OR categoryName LIKE '退款·%> ' || :name
+              OR categoryName LIKE '退款·%>' || :name
+              OR categoryName LIKE '退款·%·' || :name
+              OR categoryName LIKE '退款·%/::/' || :name
+          )
+    """)
+    suspend fun getBillIdsByCategoryNameList(name: String): List<Long>
 
     /** 将转账/还款类账单中该资产的 accountId 置 null（解除关联，不删除账单） */
     @Query("UPDATE bills SET accountId = NULL WHERE accountId = :assetId")
@@ -220,19 +262,78 @@ interface BillDao {
      * 统计 categoryName 精确匹配或以 "% > name" 结尾的账单数量
      * 用于补充统计 categoryId 为 null 但 categoryName 仍关联的旧账单
      */
-    @Query("SELECT COUNT(*) FROM bills WHERE categoryName = :name OR categoryName LIKE '%> ' || :name")
+    @Query("""
+        SELECT COUNT(*) FROM bills
+        WHERE categoryName = :name
+           OR categoryName LIKE '%> ' || :name
+           OR categoryName LIKE '%>' || :name
+           OR categoryName LIKE '%·' || :name
+           OR categoryName LIKE '%/::/' || :name
+           OR categoryName = '退款：' || :name
+           OR categoryName = '退款·' || :name
+           OR categoryName LIKE '退款：%> ' || :name
+           OR categoryName LIKE '退款：%>' || :name
+           OR categoryName LIKE '退款：%·' || :name
+           OR categoryName LIKE '退款：%/::/' || :name
+           OR categoryName LIKE '退款·%> ' || :name
+           OR categoryName LIKE '退款·%>' || :name
+           OR categoryName LIKE '退款·%·' || :name
+           OR categoryName LIKE '退款·%/::/' || :name
+    """)
     suspend fun countBillsByCategoryName(name: String): Int
 
     /**
      * 将 categoryName 精确匹配或以 "% > name" 结尾的账单 categoryId 迁移到新分类
      */
-    @Query("UPDATE bills SET categoryId = :newCategoryId WHERE categoryId IS NULL AND (categoryName = :name OR categoryName LIKE '%> ' || :name)")
+    @Query("""
+        UPDATE bills
+        SET categoryId = :newCategoryId
+        WHERE categoryId IS NULL
+          AND (
+              categoryName = :name
+              OR categoryName LIKE '%> ' || :name
+              OR categoryName LIKE '%>' || :name
+              OR categoryName LIKE '%·' || :name
+              OR categoryName LIKE '%/::/' || :name
+              OR categoryName = '退款：' || :name
+              OR categoryName = '退款·' || :name
+              OR categoryName LIKE '退款：%> ' || :name
+              OR categoryName LIKE '退款：%>' || :name
+              OR categoryName LIKE '退款：%·' || :name
+              OR categoryName LIKE '退款：%/::/' || :name
+              OR categoryName LIKE '退款·%> ' || :name
+              OR categoryName LIKE '退款·%>' || :name
+              OR categoryName LIKE '退款·%·' || :name
+              OR categoryName LIKE '退款·%/::/' || :name
+          )
+    """)
     suspend fun migrateCategoryByName(name: String, newCategoryId: Long)
 
     /**
      * 将 categoryName 精确匹配或以 "% > name" 结尾的账单 categoryId 置 null（解除关联）
      */
-    @Query("UPDATE bills SET categoryId = NULL WHERE categoryId IS NULL AND (categoryName = :name OR categoryName LIKE '%> ' || :name)")
+    @Query("""
+        UPDATE bills
+        SET categoryId = NULL
+        WHERE categoryId IS NULL
+          AND (
+              categoryName = :name
+              OR categoryName LIKE '%> ' || :name
+              OR categoryName LIKE '%>' || :name
+              OR categoryName LIKE '%·' || :name
+              OR categoryName LIKE '%/::/' || :name
+              OR categoryName = '退款：' || :name
+              OR categoryName = '退款·' || :name
+              OR categoryName LIKE '退款：%> ' || :name
+              OR categoryName LIKE '退款：%>' || :name
+              OR categoryName LIKE '退款：%·' || :name
+              OR categoryName LIKE '退款：%/::/' || :name
+              OR categoryName LIKE '退款·%> ' || :name
+              OR categoryName LIKE '退款·%>' || :name
+              OR categoryName LIKE '退款·%·' || :name
+              OR categoryName LIKE '退款·%/::/' || :name
+          )
+    """)
     suspend fun clearCategoryByName(name: String)
 
     @Query("DELETE FROM bills")

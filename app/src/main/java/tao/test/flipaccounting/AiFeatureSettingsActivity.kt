@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.CompoundButton
 import android.widget.ScrollView
@@ -13,6 +15,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 
 class AiFeatureSettingsActivity : AppCompatActivity() {
 
@@ -116,7 +119,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                     btnDeleteModel.visibility = View.VISIBLE
                     (btnDeleteModel as? TextView)?.text = "删除模型"
                     btnDeleteModel.setOnClickListener {
-                        AlertDialog.Builder(this)
+                        val dialog = AlertDialog.Builder(this)
                             .setTitle("删除模型")
                             .setMessage("确定要删除本地模型数据释放空间吗？")
                             .setPositiveButton("删除") { _, _ ->
@@ -126,7 +129,8 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                                 updateAsrUi(Prefs.ASR_MODE_API)
                             }
                             .setNegativeButton("取消", null)
-                            .show()
+                            .create()
+                        showStyledCenterDialog(dialog)
                     }
                 } else {
                     tvAsrModelDesc.text = "未下载离线模型\n(推荐日常使用开启)"
@@ -134,7 +138,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                     btnDeleteModel.visibility = View.VISIBLE
                     (btnDeleteModel as? TextView)?.text = "下载模型"
                     btnDeleteModel.setOnClickListener {
-                        AlertDialog.Builder(this)
+                        val dialog = AlertDialog.Builder(this)
                             .setTitle("安装离线模型")
                             .setMessage("在线下载: 约45MB\n本地导入: 选择手机中的模型压缩文件")
                             .setPositiveButton("在线下载") { _, _ ->
@@ -150,7 +154,8 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                                 startActivityForResult(intent, 2001)
                             }
                             .setNegativeButton("取消", null)
-                            .show()
+                            .create()
+                        showStyledCenterDialog(dialog)
                     }
                 }
             } else {
@@ -294,7 +299,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             "${index + 1}. $time | ${item.source} | $preview"
         }.toTypedArray()
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("OCR 原文记录（共 ${records.size} 条）")
             .setItems(items) { _, which ->
                 showSingleOcrDebugRecordDialog(records, which)
@@ -304,7 +309,8 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 Prefs.clearOcrDebugRecords(this)
                 Utils.toast(this, "已清空 OCR 记录")
             }
-            .show()
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.92f)
     }
 
     private fun showSingleOcrDebugRecordDialog(records: List<OcrDebugRecord>, index: Int) {
@@ -344,7 +350,27 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             }
         }
 
-        builder.show()
+        val dialog = builder.create()
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

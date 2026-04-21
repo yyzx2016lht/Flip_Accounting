@@ -3,15 +3,20 @@ package tao.test.flipaccounting.data.repository
 import kotlinx.coroutines.flow.Flow
 import tao.test.flipaccounting.data.local.dao.BillDao
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.logic.CategoryNameNormalizer
 
 class BillRepository(private val billDao: BillDao) {
 
     suspend fun addBill(bill: Bill): Long {
-        return billDao.insertBill(bill)
+        return billDao.insertBill(
+            bill.copy(categoryName = CategoryNameNormalizer.normalizeForStorage(bill.categoryName))
+        )
     }
 
     suspend fun addBills(bills: List<Bill>) {
-        billDao.insertBills(bills)
+        billDao.insertBills(
+            bills.map { it.copy(categoryName = CategoryNameNormalizer.normalizeForStorage(it.categoryName)) }
+        )
     }
 
     fun getBillsBetweenTimes(startTime: Long, endTime: Long): Flow<List<Bill>> {

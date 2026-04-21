@@ -7,8 +7,6 @@ import tao.test.flipaccounting.data.local.entity.Bill
 object BillMutationService {
 
     private const val REFUND_CATEGORY_PREFIX = "\u9000\u6b3e\uff1a"
-    /** 兼容旧数据写入的另一种退款前缀 */
-    private const val REFUND_CATEGORY_PREFIX_ALT = "\u9000\u6b3e\u00b7"
 
     private fun baseOriginalAmount(bill: Bill): Double {
         return if (bill.originalAmount > 0.0) {
@@ -19,13 +17,11 @@ object BillMutationService {
     }
 
     private fun stripRefundPrefix(categoryName: String): String {
-        return when {
-            categoryName.startsWith(REFUND_CATEGORY_PREFIX) ->
-                categoryName.removePrefix(REFUND_CATEGORY_PREFIX).trim()
-            categoryName.startsWith(REFUND_CATEGORY_PREFIX_ALT) ->
-                categoryName.removePrefix(REFUND_CATEGORY_PREFIX_ALT).trim()
-            else -> categoryName.trim()
-        }
+        return CategoryNameNormalizer.stripRefundPrefix(categoryName)
+    }
+
+    private fun normalizeBillCategoryName(bill: Bill): Bill {
+        return bill.copy(categoryName = CategoryNameNormalizer.normalizeForStorage(bill.categoryName))
     }
 
     suspend fun insertBillAndApplyImpact(
@@ -34,10 +30,11 @@ object BillMutationService {
         applyAssetImpact: Boolean = true
     ): Bill {
         return db.withTransaction {
+            val normalizedInput = normalizeBillCategoryName(bill)
             if (applyAssetImpact) {
-                validateRequiredRatesForBill(db, bill)
+                validateRequiredRatesForBill(db, normalizedInput)
             }
-            val savedBill = bill.copy(id = db.billDao().insertBill(bill))
+            val savedBill = normalizedInput.copy(id = db.billDao().insertBill(normalizedInput))
             if (applyAssetImpact) {
                 BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
             }
@@ -87,12 +84,13 @@ object BillMutationService {
                     )
                 }
             }
+            val normalizedBillForStorage = normalizeBillCategoryName(normalizedBill)
 
             if (oldBill.subType == Bill.SUBTYPE_REFUND && oldBill.relatedBillId != null) {
                 val sourceBill = db.billDao().getBillById(oldBill.relatedBillId)
                 if (sourceBill != null) {
                     val sourceBaseOriginalAmount = baseOriginalAmount(sourceBill)
-                    val delta = normalizedBill.amount - oldBill.amount
+                    val delta = normalizedBillForStorage.amount - oldBill.amount
                     val newSourceActualAmount = (sourceBill.amount - delta).coerceIn(0.0, sourceBaseOriginalAmount)
                     db.billDao().updateBill(
                         sourceBill.copy(
@@ -104,17 +102,17 @@ object BillMutationService {
             }
 
             if (applyAssetImpact) {
-                validateRequiredRatesForBill(db, normalizedBill)
+                validateRequiredRatesForBill(db, normalizedBillForStorage)
             }
 
             BillAssetImpactService.revertBillBalanceImpact(db, oldBill)
 
             // 编辑路径：使用 updateBill 而非 insertBill，避免外键级联删除/重建
-            val savedBill = if (normalizedBill.id > 0L) {
-                db.billDao().updateBill(normalizedBill)
-                normalizedBill
+            val savedBill = if (normalizedBillForStorage.id > 0L) {
+                db.billDao().updateBill(normalizedBillForStorage)
+                normalizedBillForStorage
             } else {
-                normalizedBill.copy(id = db.billDao().insertBill(normalizedBill))
+                normalizedBillForStorage.copy(id = db.billDao().insertBill(normalizedBillForStorage))
             }
             if (applyAssetImpact) {
                 BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
@@ -173,16 +171,17 @@ object BillMutationService {
                 bookName = latestOriginal.bookName,
                 originalAmount = refundBill.amount
             )
+            val normalizedRefundForStorage = normalizeBillCategoryName(normalizedRefundBill)
 
             // 编辑已有退款账单时用 updateBill，新建时才用 insertBill
-            validateRequiredRatesForBill(db, normalizedRefundBill)
+            validateRequiredRatesForBill(db, normalizedRefundForStorage)
             existingRefund?.let { BillAssetImpactService.revertBillBalanceImpact(db, it) }
 
-            val savedRefundBill = if (normalizedRefundBill.id > 0L) {
-                db.billDao().updateBill(normalizedRefundBill)
-                normalizedRefundBill
+            val savedRefundBill = if (normalizedRefundForStorage.id > 0L) {
+                db.billDao().updateBill(normalizedRefundForStorage)
+                normalizedRefundForStorage
             } else {
-                normalizedRefundBill.copy(id = db.billDao().insertBill(normalizedRefundBill))
+                normalizedRefundForStorage.copy(id = db.billDao().insertBill(normalizedRefundForStorage))
             }
             BillAssetImpactService.applyBillBalanceImpact(db, savedRefundBill)
             savedRefundBill

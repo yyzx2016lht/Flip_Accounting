@@ -6,8 +6,10 @@ import android.os.Bundle
 import android.text.InputFilter
 import android.text.InputType
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -16,6 +18,7 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
@@ -35,6 +38,7 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.ChatMessage
 import tao.test.flipaccounting.data.repository.BackupRepository
+import tao.test.flipaccounting.logic.CategoryNameNormalizer
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -123,14 +127,6 @@ class BackupActivity : AppCompatActivity() {
         setupCloudSettingsUi()
 
         findViewById<MaterialButton>(R.id.btn_do_backup).setOnClickListener {
-            val treeUri = getBackupTreeUri()
-            if (treeUri == null) {
-                Utils.toast(this, "请先点击“更换默认目录”设置备份位置")
-            } else {
-                performBackupToDefaultTree(treeUri)
-            }
-        }
-        findViewById<MaterialButton>(R.id.btn_backup_save_as).setOnClickListener {
             val fileName = "FlipAccounting_Backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.bak"
             val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -138,6 +134,14 @@ class BackupActivity : AppCompatActivity() {
                 putExtra(Intent.EXTRA_TITLE, fileName)
             }
             saveBackupAsLauncher.launch(intent)
+        }
+        findViewById<MaterialButton>(R.id.btn_backup_save_as).setOnClickListener {
+            val treeUri = getBackupTreeUri()
+            if (treeUri == null) {
+                Utils.toast(this, "请先点击“更换默认目录”设置备份位置")
+            } else {
+                performBackupToDefaultTree(treeUri)
+            }
         }
         findViewById<MaterialButton>(R.id.btn_change_backup_dir).setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
@@ -248,7 +252,7 @@ class BackupActivity : AppCompatActivity() {
 
     private fun updatePinModeHint() {
         findViewById<TextView>(R.id.tv_backup_pin_hint).text = when (currentPinMode()) {
-            BackupPinMode.AUTO -> "PIN 自动：仅当备份 AI 核心且存在 API Key 时加密。"
+            BackupPinMode.AUTO -> "PIN 自动：首次备份将设置 PIN；覆盖已加密备份时需验证同一 PIN。"
             BackupPinMode.FORCE -> "PIN 强制：只要勾选 AI 核心配置，就要求输入 PIN。"
             BackupPinMode.PLAIN -> "不加密：不会对 API Key 做 PIN 加密，请注意安全风险。"
         }
@@ -263,7 +267,7 @@ class BackupActivity : AppCompatActivity() {
                 findViewById<MaterialButton>(R.id.btn_do_restore).performClick()
             }
             SECTION_SAVE_AS -> {
-                findViewById<MaterialButton>(R.id.btn_backup_save_as).performClick()
+                findViewById<MaterialButton>(R.id.btn_do_backup).performClick()
             }
             SECTION_CSV -> {
                 if (isQuickOneShot()) {
@@ -305,7 +309,7 @@ class BackupActivity : AppCompatActivity() {
                 Utils.toast(this, "请至少选择一个备份模块")
                 return@setOnClickListener
             }
-            resolvePinForBackup(options) { pin ->
+            resolvePinForBackup(options, existingBackupEncryptedApi = false, existingBackupUri = null) { pin ->
                 if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
                 performCloudUpload(config, options, pin, modeTag)
             }
@@ -316,7 +320,7 @@ class BackupActivity : AppCompatActivity() {
             performCloudDownload(config)
         }
         findViewById<MaterialButton>(R.id.btn_show_cleanup_policy).setOnClickListener {
-            AlertDialog.Builder(this)
+            val dialog = AlertDialog.Builder(this)
                 .setTitle("云端保留策略")
                 .setMessage(
                     "每台设备保留最近 10 份轻量 + 最近 3 份完整备份。\n" +
@@ -324,7 +328,8 @@ class BackupActivity : AppCompatActivity() {
                         "当前建议手动同步，避免后台持续增长占用空间。"
                 )
                 .setPositiveButton("我知道了", null)
-                .show()
+                .create()
+            showStyledCenterDialog(dialog)
         }
     }
 
@@ -427,7 +432,7 @@ class BackupActivity : AppCompatActivity() {
     }
 
     private fun showCsvQuickActionDialog() {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("CSV 工具")
             .setItems(arrayOf("导出 CSV", "导入账单")) { _, which ->
                 when (which) {
@@ -435,7 +440,8 @@ class BackupActivity : AppCompatActivity() {
                     1 -> findViewById<MaterialButton>(R.id.btn_import_csv).performClick()
                 }
             }
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun performBackup(uri: Uri) {
@@ -444,13 +450,18 @@ class BackupActivity : AppCompatActivity() {
             Utils.toast(this, "请至少选择一个备份模块")
             return
         }
-        resolvePinForBackup(options) { pin ->
+        resolvePinForBackup(options, existingBackupEncryptedApi = false, existingBackupUri = null) { pin ->
             if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
             performBackupInternal(uri, options, pin)
         }
     }
 
-    private fun resolvePinForBackup(options: BackupOptions, onResolved: (String?) -> Unit) {
+    private fun resolvePinForBackup(
+        options: BackupOptions,
+        existingBackupEncryptedApi: Boolean,
+        existingBackupUri: Uri?,
+        onResolved: (String?) -> Unit
+    ) {
         val hasApiKey = Prefs.getAiKey(this).isNotBlank()
         val sensitiveSelected = options.backupSettingsAiCore && hasApiKey
         val mode = currentPinMode()
@@ -472,13 +483,11 @@ class BackupActivity : AppCompatActivity() {
                 }
             }
             else -> {
-                showPinChoiceDialog(
-                    allowPlain = true,
-                    hasLastPin = !lastPin.isNullOrBlank(),
-                    onUseLastPin = { onResolved(lastPin) },
-                    onSetNewPin = { promptPinSetupForBackup(onResolved) },
-                    onSkipEncryption = { onResolved(null) }
-                )
+                if (existingBackupEncryptedApi && existingBackupUri != null) {
+                    promptPinVerifyForOverwrite(existingBackupUri) { pin -> onResolved(pin) }
+                } else {
+                    promptPinSetupForBackup(onResolved)
+                }
             }
         }
     }
@@ -503,12 +512,13 @@ class BackupActivity : AppCompatActivity() {
             actions += onSkipEncryption
         }
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("备份加密方式")
             .setMessage("检测到将备份 AI 核心配置（含 API Key），请选择本次加密方式。")
             .setItems(labels.toTypedArray()) { _, which -> actions[which].invoke() }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun getLastBackupPin(): String? =
@@ -526,13 +536,31 @@ class BackupActivity : AppCompatActivity() {
             Utils.toast(this, "默认目录不可写，请重新选择")
             return
         }
-        val backupDoc = targetFolder.findFile(LATEST_BACKUP_FILE_NAME)
-            ?: targetFolder.createFile("application/octet-stream", LATEST_BACKUP_FILE_NAME)
+        val options = collectBackupOptions()
+        if (!options.hasAnyModuleSelected()) {
+            Utils.toast(this, "请至少选择一个备份模块")
+            return
+        }
+        val existingDoc = targetFolder.findFile(LATEST_BACKUP_FILE_NAME)
+        val backupDoc = existingDoc ?: targetFolder.createFile("application/octet-stream", LATEST_BACKUP_FILE_NAME)
         if (backupDoc == null) {
             Utils.toast(this, "无法创建默认备份文件")
             return
         }
-        performBackup(backupDoc.uri)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val existingEncrypted = if (existingDoc != null) hasEncryptedApiInBackupUri(existingDoc.uri) else false
+            withContext(Dispatchers.Main) {
+                resolvePinForBackup(
+                    options = options,
+                    existingBackupEncryptedApi = existingEncrypted,
+                    existingBackupUri = existingDoc?.uri
+                ) { pin ->
+                    if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
+                    performBackupInternal(backupDoc.uri, options, pin)
+                }
+            }
+        }
     }
 
     private fun collectBackupOptions(): BackupOptions {
@@ -630,7 +658,7 @@ class BackupActivity : AppCompatActivity() {
     private fun updateBackupModeHint() {
         val hasDefaultDir = getBackupTreeUri() != null
         findViewById<TextView>(R.id.tv_backup_mode_hint).text = if (hasDefaultDir) {
-            "默认目录已设置：点击“覆盖默认备份”会覆盖同名文件。"
+            "默认目录已设置：点击“覆盖”会覆盖同名文件。"
         } else {
             "默认目录未设置：请先点击“更换默认目录”。"
         }
@@ -730,7 +758,7 @@ class BackupActivity : AppCompatActivity() {
                 return@withContext
             }
 
-            AlertDialog.Builder(this@BackupActivity)
+            val dialog = AlertDialog.Builder(this@BackupActivity)
                 .setView(view)
                 .setPositiveButton("开始恢复") { _, _ ->
                     val options = RestoreOptions(
@@ -753,7 +781,8 @@ class BackupActivity : AppCompatActivity() {
                     if (options.restoreSettingsAiCore && settingsNeedsPin) promptPinForRestore(action) else action(null)
                 }
                 .setNegativeButton("取消", null)
-                .show()
+                .create()
+            showStyledCenterDialog(dialog, widthRatio = 0.92f)
         }
     }
 
@@ -904,6 +933,44 @@ class BackupActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun hasEncryptedApiInBackupUri(uri: Uri): Boolean {
+        val tempFile = File(cacheDir, "temp_pin_check_${System.currentTimeMillis()}.bak")
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+            } ?: return false
+            val dataMap = BackupManager.restore(tempFile)
+            val raw = dataMap["settings_ai_core"] ?: return false
+            val root = runCatching { parseSettingsRoot(raw) }.getOrNull() ?: return false
+            runCatching { BackupPinCrypto.hasEncryptedApi(root) }.getOrDefault(false)
+        } catch (_: Exception) {
+            false
+        } finally {
+            runCatching { tempFile.delete() }
+        }
+    }
+
+    private suspend fun verifyPinForExistingBackup(uri: Uri, pin: String): Boolean {
+        val tempFile = File(cacheDir, "temp_pin_verify_${System.currentTimeMillis()}.bak")
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+            } ?: return false
+            val dataMap = BackupManager.restore(tempFile)
+            val raw = dataMap["settings_ai_core"] ?: return false
+            val root = runCatching { parseSettingsRoot(raw) }.getOrNull() ?: return false
+            if (!BackupPinCrypto.hasEncryptedApi(root)) return false
+            runCatching {
+                BackupPinCrypto.decryptApiKeyInSettings(root, pin)
+                true
+            }.getOrDefault(false)
+        } catch (_: Exception) {
+            false
+        } finally {
+            runCatching { tempFile.delete() }
+        }
+    }
+
     private fun visibleIfAny(vararg views: View): Int =
         if (views.any { it.visibility == View.VISIBLE }) View.VISIBLE else View.GONE
 
@@ -925,7 +992,7 @@ class BackupActivity : AppCompatActivity() {
         }
         container.addView(etPin)
         container.addView(etPinConfirm)
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("设置备份 PIN")
             .setMessage("检测到要备份 AI 核心配置，其中包含 API Key。请设置 4 位数字 PIN 用于加密。")
             .setView(container)
@@ -939,7 +1006,8 @@ class BackupActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
     }
 
     private fun promptPinForRestore(onPinConfirmed: (String) -> Unit) {
@@ -948,7 +1016,7 @@ class BackupActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             filters = arrayOf(InputFilter.LengthFilter(4))
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("输入备份 PIN")
             .setMessage("该备份中的 API Key 已用 PIN 保护，请输入 4 位数字 PIN。")
             .setView(etPin)
@@ -961,7 +1029,8 @@ class BackupActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
     }
 
     private fun performCsvExport(uri: Uri) {
@@ -987,7 +1056,7 @@ class BackupActivity : AppCompatActivity() {
         }
         val selectedBook = BookAccountManager.getSelectedBook(this, books)
         var selectedIndex = books.indexOf(selectedBook).coerceAtLeast(0)
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("选择导入账本")
             .setSingleChoiceItems(books.toTypedArray(), selectedIndex) { _, which -> selectedIndex = which }
             .setMessage("当 CSV 中缺少 bookName 时，将导入到你选择的账本。")
@@ -996,7 +1065,8 @@ class BackupActivity : AppCompatActivity() {
                 performCsvImportInternal(uri, targetBook)
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun performCsvImportInternal(uri: Uri, targetBook: String) {
@@ -1008,7 +1078,7 @@ class BackupActivity : AppCompatActivity() {
                     return@launch
                 }
                 withContext(Dispatchers.Main) {
-                    AlertDialog.Builder(this@BackupActivity)
+                    val dialog = AlertDialog.Builder(this@BackupActivity)
                         .setTitle("确认导入")
                         .setMessage("共解析到 ${bills.size} 条账单，导入后将追加到现有数据（不会清空原有账单）。\n\n缺失账本字段将落到：$targetBook\n是否继续？")
                         .setPositiveButton("导入") { _, _ ->
@@ -1026,10 +1096,64 @@ class BackupActivity : AppCompatActivity() {
                             }
                         }
                         .setNegativeButton("取消", null)
-                        .show()
+                        .create()
+                    showStyledCenterDialog(dialog)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "解析 CSV 失败: ${e.message}") }
+            }
+        }
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
+    }
+
+    private fun promptPinVerifyForOverwrite(existingBackupUri: Uri, onPinConfirmed: (String) -> Unit) {
+        val etPin = EditText(this).apply {
+            hint = "输入现有备份PIN"
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            filters = arrayOf(InputFilter.LengthFilter(4))
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("验证备份 PIN")
+            .setMessage("检测到当前默认备份已启用 PIN 保护。请输入同一 PIN，验证一致后继续覆盖。")
+            .setView(etPin)
+            .setPositiveButton("验证并继续", null)
+            .setNegativeButton("取消", null)
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val pin = etPin.text?.toString().orEmpty().trim()
+            if (!pin.matches(Regex("^\\d{4}$"))) {
+                Utils.toast(this, "PIN 必须是 4 位数字")
+                return@setOnClickListener
+            }
+            lifecycleScope.launch(Dispatchers.IO) {
+                val matched = verifyPinForExistingBackup(existingBackupUri, pin)
+                withContext(Dispatchers.Main) {
+                    if (matched) {
+                        dialog.dismiss()
+                        onPinConfirmed(pin)
+                    } else {
+                        Utils.toast(this@BackupActivity, "PIN 与当前备份不一致")
+                    }
+                }
             }
         }
     }
@@ -1043,6 +1167,7 @@ class BackupActivity : AppCompatActivity() {
             val newId = db.billDao().insertBill(
                 bill.copy(
                     id = 0L,
+                    categoryName = CategoryNameNormalizer.normalizeForStorage(bill.categoryName),
                     relatedBillId = null
                 )
             )

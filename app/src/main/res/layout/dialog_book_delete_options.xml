@@ -25,12 +25,20 @@
         android:textColor="#7B8798"
         android:textSize="12sp" />
 
-    <LinearLayout
-        android:id="@+id/layout_delete_book_options"
+    <ScrollView
+        android:id="@+id/scroll_delete_book_options"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:orientation="vertical" />
+        android:overScrollMode="ifContentScrolls"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/layout_delete_book_options"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
 
     <View
         android:layout_width="match_parent"

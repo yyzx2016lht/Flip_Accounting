@@ -19,8 +19,10 @@ import android.content.Context
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.ui.CurrencyManagerActivity
 import com.google.android.material.button.MaterialButton
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.*
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +36,7 @@ import android.view.ViewTreeObserver
 import com.google.android.material.appbar.AppBarLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowCompat
 import androidx.core.widget.NestedScrollView
 import com.yalantis.ucrop.UCrop
 import java.io.File
@@ -601,7 +604,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     btnDeleteModel.visibility = View.VISIBLE
                     (btnDeleteModel as? TextView)?.text = "删除模型"
                     btnDeleteModel.setOnClickListener {
-                        AlertDialog.Builder(requireContext())
+                        val dialog = AlertDialog.Builder(requireContext())
                             .setTitle("删除模型")
                             .setMessage("确定要删除本地模型数据释放空间吗？")
                             .setPositiveButton("删除") { _, _ ->
@@ -611,7 +614,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                                 updateAsrUi(Prefs.ASR_MODE_API)
                             }
                             .setNegativeButton("取消", null)
-                            .show()
+                            .create()
+                        showStyledCenterDialog(dialog)
                     }
                 } else {
                     tvAsrModelDesc.text = "未下载离线模型\n(推荐日常使用开启)"
@@ -619,7 +623,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     btnDeleteModel.visibility = View.VISIBLE
                     (btnDeleteModel as? TextView)?.text = "下载模型"
                     btnDeleteModel.setOnClickListener {
-                        AlertDialog.Builder(requireContext())
+                        val dialog = AlertDialog.Builder(requireContext())
                             .setTitle("安装离线模型")
                             .setMessage("在线下载: 约45MB\n本地导入: 选择手机中的模型压缩文件")
                             .setPositiveButton("在线下载") { _, _ ->
@@ -635,7 +639,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                                 startActivityForResult(intent, 2001)
                             }
                             .setNegativeButton("取消", null)
-                            .show()
+                            .create()
+                        showStyledCenterDialog(dialog)
                     }
                 }
             } else {
@@ -858,7 +863,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     private fun promptOverlayPermissionDialog() {
         if (!isAdded) return
-        AlertDialog.Builder(requireContext())
+        val dialog = AlertDialog.Builder(requireContext())
             .setTitle("需要悬浮窗权限")
             .setMessage("已开启翻转记账。请先授予悬浮窗权限，否则无法正常弹出记账界面。")
             .setPositiveButton("去开启") { _, _ ->
@@ -868,7 +873,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 requireActivity().startActivity(intent)
             }
             .setNegativeButton("稍后", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog)
     }
 
     private fun showPromptDebugDialog() {
@@ -891,7 +897,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
 
             withContext(Dispatchers.Main) {
-                AlertDialog.Builder(requireContext())
+                val dialog = AlertDialog.Builder(requireContext())
                     .setTitle("当前 Prompt 数据源")
                     .setMessage(msg)
                     .setPositiveButton("复制") { _, _ ->
@@ -900,7 +906,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                         Utils.toast(requireContext(), "已复制")
                     }
                     .setNegativeButton("关闭", null)
-                    .show()
+                    .create()
+                showStyledCenterDialog(dialog, widthRatio = 0.9f)
             }
         }
     }
@@ -919,7 +926,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             "${index + 1}. $time | ${item.source} | $preview"
         }.toTypedArray()
 
-        AlertDialog.Builder(requireContext())
+        val dialog = AlertDialog.Builder(requireContext())
             .setTitle("OCR 原文记录（共 ${records.size} 条）")
             .setItems(items) { _, which ->
                 showSingleOcrDebugRecordDialog(records, which)
@@ -929,7 +936,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 Prefs.clearOcrDebugRecords(requireContext())
                 Utils.toast(requireContext(), "已清空 OCR 记录")
             }
-            .show()
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.92f)
     }
 
     private fun showSingleOcrDebugRecordDialog(records: List<OcrDebugRecord>, index: Int) {
@@ -971,7 +979,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
         }
 
-        builder.show()
+        showStyledCenterDialog(builder.create(), widthRatio = 0.9f)
     }
 
     private fun checkAndRequestPermissions() {
@@ -1048,7 +1056,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
             .create()
         dialog.setOnDismissListener { pendingEditUserAvatarView = null }
-        dialog.show()
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
     }
 
     private fun startUserAvatarCrop(sourceUri: Uri) {
@@ -1102,7 +1110,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private fun checkBatteryOptimization() {
         val powerManager = requireContext().getSystemService(Context.POWER_SERVICE) as PowerManager
         if (!powerManager.isIgnoringBatteryOptimizations(requireContext().packageName)) {
-            AlertDialog.Builder(requireContext())
+            val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("需要忽略电池优化")
                 .setMessage("为了保证翻转记账在后台不被系统休眠中断，请允许应用忽略电池优化。")
                 .setPositiveButton("去设置") { _, _ ->
@@ -1112,8 +1120,28 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     requireActivity().startActivity(intent)
                 }
                 .setNegativeButton("取消", null)
-                .show()
+                .create()
+            showStyledCenterDialog(dialog)
         }
+    }
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        dialog.show()
+        applyWindowStyle()
     }
 
     private fun updateFlipService(isEnabled: Boolean) {
