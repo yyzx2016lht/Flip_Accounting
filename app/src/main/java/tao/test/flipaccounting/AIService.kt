@@ -319,6 +319,10 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
         var p = if (isMultiMode) Prefs.getMultiBillPrompt(ctx) else Prefs.getAiPrompt(ctx)
         if (p.isEmpty()) p = if (isMultiMode) getDefaultMultiBillPrompt(ctx) else getDefaultSingleBillPrompt(ctx)
+        p = adaptPromptForCategoryDepth(
+            prompt = p,
+            hasSecondLevel = hasSecondLevelCategories(expenseCats, incomeCats)
+        )
 
         p += if (assetFeatureEnabled) {
             "\n\n【类型白名单硬约束】`type` 仅允许四种取值：0=支出，1=收入，2=转账，3=还款。严禁输出其他数字。\n"
@@ -505,6 +509,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
                 if (assetFeatureEnabled) {
                     val assetNames = dbAssets.map { it.name }.filter { it.isNotBlank() }
+                    normalizeMisplacedAssetOnExpenseOrIncome(root, assetNames)
                     enforceTransferRequiresValidAssets(root, assetNames, expenseCats)
                 }
 
@@ -636,6 +641,10 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
         var p = if (isMultiMode) Prefs.getMultiBillPrompt(ctx) else Prefs.getAiPrompt(ctx)
         if (p.isEmpty()) p = if (isMultiMode) getDefaultMultiBillPrompt(ctx) else getDefaultSingleBillPrompt(ctx)
+        p = adaptPromptForCategoryDepth(
+            prompt = p,
+            hasSecondLevel = hasSecondLevelCategories(expenseCats, incomeCats)
+        )
 
         p += if (assetFeatureEnabled) {
             "\n\n【类型白名单硬约束】`type` 仅允许四种取值：0=支出，1=收入，2=转账，3=还款。严禁输出其他数字。\n"
@@ -815,6 +824,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
                 if (assetFeatureEnabled) {
                     val assetNames = dbAssets.map { it.name }.filter { it.isNotBlank() }
+                    normalizeMisplacedAssetOnExpenseOrIncome(root, assetNames)
                     enforceTransferRequiresValidAssets(root, assetNames, expenseCats)
                 }
             }
@@ -927,6 +937,10 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         val incomeLeafCats = promptContext.incomeCats.map { it.substringAfterLast("/::/") }.distinct()
 
         var p = Prefs.getScreenAccountingPrompt(ctx).ifBlank { SCREEN_ACCOUNTING_PROMPT_DEFAULT }
+        p = adaptPromptForCategoryDepth(
+            prompt = p,
+            hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
+        )
         p += buildRemarksRichnessRule()
         p += buildIncomeCategoryHardRule()
 
@@ -1057,6 +1071,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
                 } else if (root.has("amount")) {
                     fixBill(root)
                 }
+                normalizeMisplacedAssetOnExpenseOrIncome(root, assetNames)
                 enforceTransferRequiresValidAssets(root, assetNames, expenseCats)
                 if (!promptContext.assetFeatureEnabled) enforceNoAssetMode(root)
             }
@@ -1884,6 +1899,39 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
      * 仅当转出/转入都命中本地资产时，才允许保留转账；否则回退为支出。
      * 这可避免“给小王转200买菜”这类外部转款被误记为内部账户转账。
      */
+    private fun normalizeMisplacedAssetOnExpenseOrIncome(
+        root: JSONObject,
+        assetNames: List<String>
+    ) {
+        if (assetNames.isEmpty()) return
+        fun isKnownAsset(name: String): Boolean =
+            assetNames.any { it.equals(name, ignoreCase = true) }
+
+        fun normalize(json: JSONObject) {
+            val type = normalizeBillType(json.optInt("type", 0))
+            if (type != Bill.TYPE_EXPENSE && type != Bill.TYPE_INCOME) return
+            val fromAsset = json.optString("asset_name", "").trim()
+            val toAsset = json.optString("to_asset_name", "").trim()
+            if (fromAsset.isNotBlank() || toAsset.isBlank()) return
+            if (!isKnownAsset(toAsset)) return
+            json.put("asset_name", toAsset)
+            json.put("to_asset_name", "")
+        }
+
+        if (root.has("bills")) {
+            val bills = root.getJSONArray("bills")
+            for (i in 0 until bills.length()) {
+                normalize(bills.getJSONObject(i))
+            }
+        } else if (root.has("amount")) {
+            normalize(root)
+        }
+    }
+
+    /**
+     * 仅当转出/转入都命中本地资产时，才允许保留转账；否则回退为支出。
+     * 这可避免“给小王转200买菜”这类外部转款被误记为内部账户转账。
+     */
     private fun enforceTransferRequiresValidAssets(
         root: JSONObject,
         assetNames: List<String>,
@@ -1948,6 +1996,34 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         } else if (root.has("amount")) {
             normalizeBill(root)
         }
+    }
+
+    private fun hasSecondLevelCategories(
+        expenseCats: List<String>,
+        incomeCats: List<String>
+    ): Boolean {
+        return expenseCats.any { it.contains("/::/") } || incomeCats.any { it.contains("/::/") }
+    }
+
+    private fun adaptPromptForCategoryDepth(prompt: String, hasSecondLevel: Boolean): String {
+        val removableKeywords = listOf(
+            "优先命中更细的子分类",
+            "子分类格式固定为 一级/::/二级",
+            "子分类格式必须为 一级/::/二级",
+            "子分类格式必须输出 一级/::/二级",
+            "一级/::/二级"
+        )
+        val normalized = prompt
+            .lineSequence()
+            .filterNot { line -> removableKeywords.any { key -> line.contains(key) } }
+            .joinToString("\n")
+            .trim()
+        val rule = if (hasSecondLevel) {
+            "\n【分类层级约束】当前分类库包含二级分类：优先命中更细的子分类；命中子分类时 category_name 必须输出“一级/::/二级”。\n"
+        } else {
+            "\n【分类层级约束】当前分类库没有二级分类，category_name 只能输出一级分类名；禁止输出“一级/::/二级”格式。\n"
+        }
+        return normalized + rule
     }
 
     private fun cleanJsonString(input: String): String {

@@ -99,7 +99,7 @@
                 android:layout_marginEnd="6dp"
                 android:text="1&quot;"
                 android:textSize="15sp"
-                android:textColor="#333333" />
+                android:textColor="#FFFFFF" />
 
             <LinearLayout
                 android:id="@+id/layout_voice_wave"
@@ -115,7 +115,7 @@
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:src="@drawable/ic_voice_play_telegram"
-                app:tint="#333333" />
+                app:tint="#FFFFFF" />
 
         </LinearLayout>
 

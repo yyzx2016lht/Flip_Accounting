@@ -285,7 +285,7 @@ class SettingsActivity : AppCompatActivity() {
         val borderCutHeight = (2 * density).toInt().coerceAtLeast(1)
         val borderCutLeft = (((anchorIndexInRow + 0.5f) * cellWidth) - (borderCutWidth / 2f)).toInt().coerceAtLeast(0)
         val allItems = parent.subs.toMutableList()
-    val totalItems = allItems + listOf(null) // null 代表添加按钮
+        val totalItems = allItems + listOf(null) // null 代表添加按钮
 
         totalItems.chunked(spanCount).forEach { rowItems ->
             val rowLayout = createRowLayout(spanCount)
