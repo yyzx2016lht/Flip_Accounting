@@ -1,52 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_delete_dialog_panel"
+    android:background="@drawable/bg_delete_followup_dialog"
     android:orientation="vertical"
     android:paddingStart="18dp"
-    android:paddingTop="16dp"
+    android:paddingTop="18dp"
     android:paddingEnd="18dp"
     android:paddingBottom="14dp">
 
     <TextView
-        android:id="@+id/tv_delete_book_title"
+        android:id="@+id/tv_followup_picker_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="#1F2937"
-        android:textSize="19sp"
+        android:textSize="18sp"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/tv_delete_book_desc"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="7dp"
-        android:textColor="#7B8798"
-        android:textSize="12sp" />
-
     <LinearLayout
-        android:id="@+id/layout_delete_book_options"
+        android:id="@+id/layout_followup_picker_options"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:orientation="vertical" />
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="12dp"
-        android:background="#E8EEF7" />
-
     <TextView
-        android:id="@+id/btn_delete_book_cancel"
+        android:id="@+id/btn_followup_picker_cancel"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="44dp"
         android:layout_marginTop="12dp"
         android:background="@drawable/bg_delete_dialog_cancel_btn"
         android:gravity="center"
-        android:minHeight="44dp"
-        android:paddingHorizontal="14dp"
         android:text="取消"
         android:textColor="#5A677C"
         android:textSize="14sp"

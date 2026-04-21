@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_followup_picker_option"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:background="@drawable/bg_delete_option_item"
+    android:gravity="center_vertical"
+    android:minHeight="52dp"
+    android:paddingHorizontal="14dp"
+    android:textColor="#243146"
+    android:textSize="14sp"
+    android:textStyle="bold" />

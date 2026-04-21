@@ -1,4 +1,4 @@
-package tao.test.flipaccounting.ui.main.home
+﻿package tao.test.flipaccounting.ui.main.home
 
 import android.Manifest
 import android.app.AlertDialog
@@ -1221,14 +1221,14 @@ class HomeFragment : Fragment() {
                 title = "仅删除账本",
                 desc = "账单归档到“全部账本”，不会丢失记录",
                 onClick = {
-                    AlertDialog.Builder(requireContext())
-                        .setTitle("确认删除账本")
-                        .setMessage("删除后，「$target」内账单会归档到「全部账本」。")
-                        .setNegativeButton("取消", null)
-                        .setPositiveButton("确认删除") { _, _ ->
+                    showDeleteFollowupConfirmDialog(
+                        title = "确认删除账本",
+                        message = "删除后，「$target」内账单会归档到「全部账本」。",
+                        confirmText = "确认删除",
+                        isDanger = false
+                    ) {
                             performDeleteBook(target, BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL)
-                        }
-                        .show()
+                    }
                 }
             ),
             DeleteOption(
@@ -1236,14 +1236,14 @@ class HomeFragment : Fragment() {
                 desc = "删除账单，但不回退资产余额",
                 highRisk = true,
                 onClick = {
-                    AlertDialog.Builder(requireContext())
-                        .setTitle("高风险操作确认")
-                        .setMessage("将永久删除「$target」内所有账单，且不会回退资产余额。")
-                        .setNegativeButton("取消", null)
-                        .setPositiveButton("仍要删除") { _, _ ->
+                    showDeleteFollowupConfirmDialog(
+                        title = "高风险操作确认",
+                        message = "将永久删除「$target」内所有账单，且不会回退资产余额。",
+                        confirmText = "仍要删除",
+                        isDanger = true
+                    ) {
                             performDeleteBook(target, BookDeleteMode.DELETE_BILLS_KEEP_ASSETS)
-                        }
-                        .show()
+                    }
                 }
             ),
             DeleteOption(
@@ -1251,14 +1251,14 @@ class HomeFragment : Fragment() {
                 desc = "删除账单并回退相关资产余额",
                 highRisk = true,
                 onClick = {
-                    AlertDialog.Builder(requireContext())
-                        .setTitle("高风险操作确认")
-                        .setMessage("将删除「$target」内所有账单并回退资产余额，此操作不可撤销。")
-                        .setNegativeButton("取消", null)
-                        .setPositiveButton("仍要删除") { _, _ ->
+                    showDeleteFollowupConfirmDialog(
+                        title = "高风险操作确认",
+                        message = "将删除「$target」内所有账单并回退资产余额，此操作不可撤销。",
+                        confirmText = "仍要删除",
+                        isDanger = true
+                    ) {
                             performDeleteBook(target, BookDeleteMode.DELETE_BILLS_AND_REVERT_ASSETS)
-                        }
-                        .show()
+                    }
                 }
             )
         )
@@ -1306,26 +1306,83 @@ class HomeFragment : Fragment() {
 
     /** 让用户从 [transferCandidates] 中选一个目标账本，再执行迁移+删除 */
     private fun showTransferTargetPickerAndDelete(target: String, transferCandidates: List<String>) {
-        val labels = transferCandidates.map { "迁移到「$it」" }.toTypedArray()
-        AlertDialog.Builder(requireContext())
-            .setTitle("选择迁移目标")
-            .setItems(labels) { _, which ->
-                val targetBook = transferCandidates[which]
-                AlertDialog.Builder(requireContext())
-                    .setTitle("确认迁移并删除")
-                    .setMessage("删除后，「$target」账本内的所有账单将迁移到「$targetBook」。")
-                    .setNegativeButton("取消", null)
-                    .setPositiveButton("迁移并删除") { _, _ ->
-                        performDeleteBook(
-                            target = target,
-                            mode = BookDeleteMode.MOVE_TO_OTHER_BOOK,
-                            transferToBook = targetBook
-                        )
-                    }
-                    .show()
+        dismissKeyboardForDialog()
+        val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
+        val panel = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_delete_followup_picker, null, false)
+        val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
+        panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "选择迁移目标"
+        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
+        transferCandidates.forEach { candidate ->
+            val item = LayoutInflater.from(requireContext())
+                .inflate(R.layout.item_delete_followup_picker_option, optionsContainer, false)
+            item.findViewById<TextView>(R.id.tv_followup_picker_option).text = "迁移到「$candidate」"
+            item.setOnClickListener {
+                dialog.dismiss()
+                showDeleteFollowupConfirmDialog(
+                    title = "确认迁移并删除",
+                    message = "删除后，「$target」账本内的所有账单将迁移到「$candidate」。",
+                    confirmText = "迁移并删除",
+                    isDanger = false
+                ) {
+                    performDeleteBook(
+                        target = target,
+                        mode = BookDeleteMode.MOVE_TO_OTHER_BOOK,
+                        transferToBook = candidate
+                    )
+                }
             }
-            .setNegativeButton("取消", null)
-            .show()
+            optionsContainer.addView(item)
+        }
+        panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
+        dialog.setContentView(panel)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setDimAmount(0.34f)
+        }
+        dialog.show()
+        dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun showDeleteFollowupConfirmDialog(
+        title: String,
+        message: String,
+        confirmText: String,
+        isDanger: Boolean,
+        onConfirm: () -> Unit
+    ) {
+        dismissKeyboardForDialog()
+        val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
+        val panel = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_delete_followup_confirm, null, false)
+        val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = title
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = message
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
+            text = confirmText
+            setBackgroundResource(
+                if (isDanger) R.drawable.bg_delete_followup_danger_btn
+                else R.drawable.bg_delete_followup_primary_btn
+            )
+            setOnClickListener {
+                dialog.dismiss()
+                onConfirm()
+            }
+        }
+        dialog.setContentView(panel)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setDimAmount(0.34f)
+        }
+        dialog.show()
+        dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     /** 执行删除账本的核心逻辑，根据 [mode] 对账单做不同处理 */

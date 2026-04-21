@@ -2,13 +2,13 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="8dp"
-    android:background="@drawable/bg_book_item_normal"
+    android:layout_marginTop="10dp"
+    android:background="@drawable/bg_delete_option_item"
     android:gravity="center_vertical"
-    android:minHeight="58dp"
+    android:minHeight="66dp"
     android:orientation="horizontal"
     android:paddingHorizontal="14dp"
-    android:paddingVertical="10dp">
+    android:paddingVertical="11dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -20,7 +20,7 @@
             android:id="@+id/tv_delete_option_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#2F3748"
+            android:textColor="#243146"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -28,8 +28,8 @@
             android:id="@+id/tv_delete_option_desc"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:textColor="#8A93A6"
+            android:layout_marginTop="4dp"
+            android:textColor="#7F8B9D"
             android:textSize="12sp" />
     </LinearLayout>
 
@@ -39,10 +39,17 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_delete_risk_tag"
         android:paddingHorizontal="8dp"
-        android:paddingVertical="3dp"
-        android:text="高风险"
-        android:textColor="#C13A2A"
+        android:paddingVertical="4dp"
+        android:text="风险"
+        android:textColor="#B42318"
         android:textSize="11sp"
         android:visibility="gone" />
+
+    <ImageView
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="10dp"
+        android:alpha="0.65"
+        android:src="@drawable/ic_chevrons_right" />
 
 </LinearLayout>
