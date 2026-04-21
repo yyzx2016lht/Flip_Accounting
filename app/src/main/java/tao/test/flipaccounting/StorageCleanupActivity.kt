@@ -2,19 +2,17 @@
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.Gravity
-import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.checkbox.MaterialCheckBox
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.util.Locale
 
@@ -228,20 +226,13 @@ class StorageCleanupActivity : AppCompatActivity() {
     }
 
     private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        fun applyWindowStyle() {
-            dialog.window?.let { win ->
-                WindowCompat.setDecorFitsSystemWindows(win, false)
-                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                win.setGravity(Gravity.CENTER)
-                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
-                win.attributes = win.attributes.apply {
-                    width = targetWidth
-                    height = WindowManager.LayoutParams.WRAP_CONTENT
-                }
-            }
-        }
-        dialog.setOnShowListener { applyWindowStyle() }
-        dialog.show()
-        applyWindowStyle()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = widthRatio,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 }

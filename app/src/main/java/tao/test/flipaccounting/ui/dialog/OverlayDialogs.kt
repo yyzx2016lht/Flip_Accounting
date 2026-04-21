@@ -141,7 +141,7 @@ object OverlayDialogs {
         cancelOnTouchOutside: Boolean = true,
         dimAmount: Float = 0.34f,
         applyOverlayType: Boolean = true,
-        useSolidPanelBackground: Boolean = false
+        useSolidPanelBackground: Boolean = true
     ) {
         dialog.setCanceledOnTouchOutside(cancelOnTouchOutside)
         showStyledDialog(

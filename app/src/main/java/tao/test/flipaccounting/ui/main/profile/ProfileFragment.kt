@@ -19,10 +19,8 @@ import android.content.Context
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.ui.CurrencyManagerActivity
 import com.google.android.material.button.MaterialButton
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.*
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
@@ -36,11 +34,11 @@ import android.view.ViewTreeObserver
 import com.google.android.material.appbar.AppBarLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowCompat
 import androidx.core.widget.NestedScrollView
 import com.yalantis.ucrop.UCrop
 import java.io.File
 import java.io.FileOutputStream
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 
 class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
@@ -504,247 +502,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
         }
 
-        // --- AI 相关设置 ---
-        val layoutAiMain = view.findViewById<View>(R.id.layout_ai_main_entry)
-        val switchAiChatMode = view.findViewById<CompoundButton>(R.id.switch_ai_chat_mode)
-        val switchShowAiChatEntry = view.findViewById<CompoundButton>(R.id.switch_show_ai_chat_entry)
-        val showAiChatEntryRow = switchShowAiChatEntry.parent as? View
-        val layoutOpenAiChatPage = view.findViewById<View>(R.id.layout_open_ai_chat_page)
-
-        view.findViewById<CompoundButton>(R.id.switch_show_ai).apply {
-            text = "启用 AI 功能"
-            isChecked = Prefs.isShowAiText(requireContext())
-            layoutAiMain.visibility = if (isChecked) View.VISIBLE else View.GONE
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setShowAiText(requireContext(), isChecked)
-                layoutAiMain.visibility = if (isChecked) View.VISIBLE else View.GONE
-            }
-        }
-
-        // 首页“+”按钮入口模式：传统弹窗 / AI对话页面
-        switchAiChatMode.isChecked = Prefs.getAiEntryMode(requireContext()) == Prefs.AI_ENTRY_MODE_CHAT
-        switchAiChatMode.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiEntryMode(
-                requireContext(),
-                if (isChecked) Prefs.AI_ENTRY_MODE_CHAT else Prefs.AI_ENTRY_MODE_TRADITIONAL
-            )
-        }
-        layoutOpenAiChatPage.setOnClickListener { switchAiChatMode.performClick() }
-
-        // 该开关已下线：入口统一由首页 "+" 的 AI_ENTRY_MODE 决定。
-        Prefs.setShowAiChatEntry(requireContext(), false)
-        showAiChatEntryRow?.visibility = View.GONE
-
-        val switchMultiBillNotSync = view.findViewById<CompoundButton>(R.id.switch_multi_bill_not_sync)
-        val tvMultiBillNotSyncDesc = view.findViewById<View>(R.id.tv_multi_bill_not_sync_desc)
-        view.findViewById<CompoundButton>(R.id.switch_show_multi_bill).apply {
-            isChecked = Prefs.isMultiBillEnabled(requireContext())
-            switchMultiBillNotSync.visibility = if (isChecked) View.VISIBLE else View.GONE
-            tvMultiBillNotSyncDesc.visibility = if (isChecked) View.VISIBLE else View.GONE
-        }
-
-        switchMultiBillNotSync.apply {
-            isChecked = Prefs.isMultiBillNotSync(requireContext())
-            setOnCheckedChangeListener { _, isChecked -> Prefs.setMultiBillNotSync(requireContext(), isChecked) }
-        }
-
-        val layoutMultiBillFastMode = view.findViewById<View>(R.id.layout_multi_bill_fast_mode)
-        val switchMultiBillFastMode = view.findViewById<CompoundButton>(R.id.switch_multi_bill_fast_mode)
-        layoutMultiBillFastMode?.visibility = if (Prefs.isMultiBillEnabled(requireContext())) View.VISIBLE else View.GONE
-        switchMultiBillFastMode?.apply {
-            isChecked = Prefs.isMultiBillFastMode(requireContext())
-            setOnCheckedChangeListener { _, isChecked -> Prefs.setMultiBillFastMode(requireContext(), isChecked) }
-        }
-        // 多账单开关联动：显示/隐藏极简记账行
-        view.findViewById<CompoundButton>(R.id.switch_show_multi_bill).setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setMultiBillEnabled(requireContext(), isChecked)
-            switchMultiBillNotSync.visibility = if (isChecked) View.VISIBLE else View.GONE
-            tvMultiBillNotSyncDesc.visibility = if (isChecked) View.VISIBLE else View.GONE
-            layoutMultiBillFastMode?.visibility = if (isChecked) View.VISIBLE else View.GONE
-        }
-
-        view.findViewById<CompoundButton>(R.id.switch_show_book_entry)?.apply {
-            isChecked = Prefs.isShowBookEntry(requireContext())
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setShowBookEntry(requireContext(), isChecked)
-            }
-        }
-
-        view.findViewById<CompoundButton>(R.id.switch_ai_prompt_correction)?.apply {
-            text = "动态提示词纠错"
-            isChecked = Prefs.isAiPromptCorrectionEnabled(requireContext())
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setAiPromptCorrectionEnabled(requireContext(), isChecked)
-            }
-        }
-
-        view.findViewById<CompoundButton>(R.id.switch_local_rule_override)?.apply {
-            isChecked = Prefs.isLocalRuleOverrideEnabled(requireContext())
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setLocalRuleOverrideEnabled(requireContext(), isChecked)
-            }
-        }
-
-        // --- 语音识别引擎 ---
-        val layoutAsrMode = view.findViewById<View>(R.id.layout_asr_mode)
-        val layoutAsrModel = view.findViewById<View>(R.id.layout_asr_model_info)
-        val spinnerAsr = view.findViewById<Spinner>(R.id.spinner_asr_mode)
-        val layoutOcrMode = view.findViewById<View>(R.id.layout_ocr_mode)
-        val layoutReceiptLang = view.findViewById<View>(R.id.layout_receipt_lang)
-        val spinnerOcrMode = view.findViewById<Spinner>(R.id.spinner_ocr_mode)
-        val spinnerReceiptLang = view.findViewById<Spinner>(R.id.spinner_receipt_lang)
-        val tvAsrModelDesc = view.findViewById<TextView>(R.id.tv_asr_model_desc)
-        val btnDeleteModel = view.findViewById<View>(R.id.btn_delete_offline_model)
-
-        fun updateAsrUi(mode: Int) {
-            if (mode == Prefs.ASR_MODE_WHISPER) {
-                if (LocalAsrService.isModelReady(requireContext())) {
-                    tvAsrModelDesc.text = "离线版阿里SenseVoice\n模型 (识别精准，约140M大小)"
-                    tvAsrModelDesc.setTextColor(android.graphics.Color.parseColor("#5C6BC0"))
-                    btnDeleteModel.visibility = View.VISIBLE
-                    (btnDeleteModel as? TextView)?.text = "删除模型"
-                    btnDeleteModel.setOnClickListener {
-                        val dialog = AlertDialog.Builder(requireContext())
-                            .setTitle("删除模型")
-                            .setMessage("确定要删除本地模型数据释放空间吗？")
-                            .setPositiveButton("删除") { _, _ ->
-                                LocalAsrService.deleteModel(requireContext())
-                                Prefs.setAsrMode(requireContext(), Prefs.ASR_MODE_API)
-                                spinnerAsr.setSelection(Prefs.ASR_MODE_API)
-                                updateAsrUi(Prefs.ASR_MODE_API)
-                            }
-                            .setNegativeButton("取消", null)
-                            .create()
-                        showStyledCenterDialog(dialog)
-                    }
-                } else {
-                    tvAsrModelDesc.text = "未下载离线模型\n(推荐日常使用开启)"
-                    tvAsrModelDesc.setTextColor(android.graphics.Color.parseColor("#607D8B"))
-                    btnDeleteModel.visibility = View.VISIBLE
-                    (btnDeleteModel as? TextView)?.text = "下载模型"
-                    btnDeleteModel.setOnClickListener {
-                        val dialog = AlertDialog.Builder(requireContext())
-                            .setTitle("安装离线模型")
-                            .setMessage("在线下载: 约45MB\n本地导入: 选择手机中的模型压缩文件")
-                            .setPositiveButton("在线下载") { _, _ ->
-                                LocalAsrService.downloadModelWithUI(requireContext()) {
-                                    requireActivity().runOnUiThread {
-                                        updateAsrUi(Prefs.ASR_MODE_WHISPER)
-                                        Utils.toast(requireContext(), "模型下载完成已部署")
-                                    }
-                                }
-                            }
-                            .setNeutralButton("本地导入") { _, _ ->
-                                val intent = Intent(Intent.ACTION_GET_CONTENT).apply { type = "*/*" }
-                                startActivityForResult(intent, 2001)
-                            }
-                            .setNegativeButton("取消", null)
-                            .create()
-                        showStyledCenterDialog(dialog)
-                    }
-                }
-            } else {
-                tvAsrModelDesc.text = "云端 (仅需联网)"
-                tvAsrModelDesc.setTextColor(android.graphics.Color.parseColor("#5C6BC0"))
-                btnDeleteModel.visibility = View.VISIBLE
-                btnDeleteModel.setOnClickListener {
-                    Utils.toast(requireContext(), "正在使用的是在线 API 服务")
-                }
-            }
-        }
-
-        view.findViewById<CompoundButton>(R.id.switch_show_voice).apply {
-            isChecked = Prefs.isShowAiVoice(requireContext())
-            layoutAsrMode.visibility = if (isChecked) View.VISIBLE else View.GONE
-            layoutAsrModel.visibility = if (isChecked) View.VISIBLE else View.GONE
-            setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked && ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                    requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 101)
-                }
-                Prefs.setShowAiVoice(requireContext(), isChecked)
-                layoutAsrMode.visibility = if (isChecked) View.VISIBLE else View.GONE
-                layoutAsrModel.visibility = if (isChecked) View.VISIBLE else View.GONE
-            }
-        }
-
-        val layoutOcrDebugPanel = view.findViewById<View>(R.id.layout_ocr_debug_panel)
-        view.findViewById<CompoundButton>(R.id.switch_show_ai_image).apply {
-            isChecked = Prefs.isShowAiImage(requireContext())
-            layoutOcrMode.visibility = if (isChecked) View.VISIBLE else View.GONE
-            layoutReceiptLang.visibility = if (isChecked) View.VISIBLE else View.GONE
-            layoutOcrDebugPanel.visibility = if (isChecked) View.VISIBLE else View.GONE
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setShowAiImage(requireContext(), isChecked)
-                layoutOcrMode.visibility = if (isChecked) View.VISIBLE else View.GONE
-                layoutReceiptLang.visibility = if (isChecked) View.VISIBLE else View.GONE
-                layoutOcrDebugPanel.visibility = if (isChecked) View.VISIBLE else View.GONE
-            }
-        }
-
-        val btnViewOcrDebug = view.findViewById<View>(R.id.btn_view_ocr_debug)
-        view.findViewById<CompoundButton>(R.id.switch_save_ocr_debug).apply {
-            isChecked = Prefs.isSaveOcrDebugEnabled(requireContext())
-            btnViewOcrDebug.visibility = if (isChecked) View.VISIBLE else View.GONE
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setSaveOcrDebugEnabled(requireContext(), isChecked)
-                btnViewOcrDebug.visibility = if (isChecked) View.VISIBLE else View.GONE
-            }
-        }
-        
-        spinnerAsr.setSelection(Prefs.getAsrMode(requireContext()))
-        updateAsrUi(Prefs.getAsrMode(requireContext()))
-        spinnerAsr.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                val currentMode = Prefs.getAsrMode(requireContext())
-                if (currentMode != pos) {
-                    if (pos == Prefs.ASR_MODE_WHISPER && !LocalAsrService.isModelReady(requireContext())) {
-                        Prefs.setAsrMode(requireContext(), pos)
-                        updateAsrUi(pos)
-                        Utils.toast(requireContext(), "请点击下方下载模型使用离线语音")
-                    } else {
-                        Prefs.setAsrMode(requireContext(), pos)
-                        updateAsrUi(pos)
-                    }
-                }
-            }
-            override fun onNothingSelected(p0: AdapterView<*>?) {}
-        }
-
-        spinnerOcrMode.setSelection(Prefs.getOcrMode(requireContext()))
-        spinnerOcrMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (Prefs.getOcrMode(requireContext()) != position) {
-                    Prefs.setOcrMode(requireContext(), position)
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        spinnerReceiptLang.setSelection(Prefs.getReceiptLangMode(requireContext()))
-        spinnerReceiptLang.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (Prefs.getReceiptLangMode(requireContext()) != position) {
-                    Prefs.setReceiptLangMode(requireContext(), position)
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        btnViewOcrDebug.setOnClickListener {
-            showOcrDebugRecordsDialog()
-        }
-
-        view.findViewById<View>(R.id.btn_manage_ai_rules).setOnClickListener {
-            requireActivity().startActivity(Intent(requireContext(), AiRuleManageActivity::class.java))
-        }
-
-        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_ai_detailed_config).apply {
-            text = "AI 详细配置"
-            setOnClickListener {
-                requireActivity().startActivity(Intent(requireContext(), AiConfigActivity::class.java))
-            }
-        }
-
         // --- 高级留存设置 ---
         view.findViewById<CompoundButton>(R.id.switch_show_multi_cur).apply {
             isChecked = Prefs.isShowMultiCurrency(requireContext())
@@ -791,17 +548,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 R.id.switch_vibrate_feedback,
                 R.id.switch_show_home_trend_card,
                 R.id.switch_enable_ai_in_prefs,
-                R.id.switch_show_ai,
-                R.id.switch_ai_chat_mode,
-                R.id.switch_show_ai_chat_entry,
-                R.id.switch_show_multi_bill,
-                R.id.switch_multi_bill_not_sync,
-                R.id.switch_show_book_entry,
-                R.id.switch_ai_prompt_correction,
-                R.id.switch_local_rule_override,
-                R.id.switch_show_voice,
-                R.id.switch_show_ai_image,
-                R.id.switch_save_ocr_debug,
                 R.id.switch_show_multi_cur,
                 R.id.switch_logging,
                 R.id.switch_permanent_wakelock,
@@ -875,111 +621,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             .setNegativeButton("稍后", null)
             .create()
         showStyledCenterDialog(dialog)
-    }
-
-    private fun showPromptDebugDialog() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val expenseCats = mutableListOf<String>()
-            Prefs.getCategories(requireContext(), Prefs.TYPE_EXPENSE).forEach { parentNode ->
-                if (parentNode.subs.isEmpty()) expenseCats.add(parentNode.name)
-                else parentNode.subs.forEach { childNode -> expenseCats.add("${parentNode.name}/::/${childNode.name}") }
-            }
-            
-            val incomeCats = mutableListOf<String>()
-            Prefs.getCategories(requireContext(), Prefs.TYPE_INCOME).forEach { parentNode ->
-                if (parentNode.subs.isEmpty()) incomeCats.add(parentNode.name)
-                else parentNode.subs.forEach { childNode -> incomeCats.add("${parentNode.name}/::/${childNode.name}") }
-            }
-            
-            val msg = buildString {
-                append("【EXPENSE_CATS】\n").append(expenseCats.joinToString()).append("\n\n")
-                append("【INCOME_CATS】\n").append(incomeCats.joinToString())
-            }
-
-            withContext(Dispatchers.Main) {
-                val dialog = AlertDialog.Builder(requireContext())
-                    .setTitle("当前 Prompt 数据源")
-                    .setMessage(msg)
-                    .setPositiveButton("复制") { _, _ ->
-                        val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        cm.setPrimaryClip(android.content.ClipData.newPlainText("prompt_data", msg))
-                        Utils.toast(requireContext(), "已复制")
-                    }
-                    .setNegativeButton("关闭", null)
-                    .create()
-                showStyledCenterDialog(dialog, widthRatio = 0.9f)
-            }
-        }
-    }
-
-    private fun showOcrDebugRecordsDialog() {
-        val records = Prefs.getOcrDebugRecords(requireContext())
-        if (records.isEmpty()) {
-            Utils.toast(requireContext(), "暂无 OCR 原文记录")
-            return
-        }
-
-        val formatter = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
-        val items = records.mapIndexed { index, item ->
-            val time = formatter.format(java.util.Date(item.timestamp))
-            val preview = item.text.replace("\n", " ").take(24)
-            "${index + 1}. $time | ${item.source} | $preview"
-        }.toTypedArray()
-
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle("OCR 原文记录（共 ${records.size} 条）")
-            .setItems(items) { _, which ->
-                showSingleOcrDebugRecordDialog(records, which)
-            }
-            .setPositiveButton("关闭", null)
-            .setNeutralButton("清空记录") { _, _ ->
-                Prefs.clearOcrDebugRecords(requireContext())
-                Utils.toast(requireContext(), "已清空 OCR 记录")
-            }
-            .create()
-        showStyledCenterDialog(dialog, widthRatio = 0.92f)
-    }
-
-    private fun showSingleOcrDebugRecordDialog(records: List<OcrDebugRecord>, index: Int) {
-        if (index !in records.indices) return
-
-        val item = records[index]
-        val formatter = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
-        val content = buildString {
-            append("时间：${formatter.format(java.util.Date(item.timestamp))}\n")
-            append("来源：${item.source}\n\n")
-            append(item.text)
-        }
-
-        val textView = TextView(requireContext()).apply {
-            text = content
-            setPadding(32, 24, 32, 24)
-            textSize = 13f
-            setTextIsSelectable(true)
-        }
-        val scrollView = ScrollView(requireContext()).apply {
-            addView(textView)
-        }
-
-        val builder = AlertDialog.Builder(requireContext())
-            .setTitle("OCR 记录 ${index + 1}/${records.size}")
-            .setView(scrollView)
-            .setPositiveButton("复制这条") { _, _ ->
-                val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                cm.setPrimaryClip(android.content.ClipData.newPlainText("ocr_debug_record_$index", item.text))
-                Utils.toast(requireContext(), "已复制第 ${index + 1} 条")
-            }
-            .setNegativeButton("返回列表") { _, _ ->
-                showOcrDebugRecordsDialog()
-            }
-
-        if (index < records.lastIndex) {
-            builder.setNeutralButton("下一条") { _, _ ->
-                showSingleOcrDebugRecordDialog(records, index + 1)
-            }
-        }
-
-        showStyledCenterDialog(builder.create(), widthRatio = 0.9f)
     }
 
     private fun checkAndRequestPermissions() {
@@ -1126,22 +767,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     }
 
     private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        fun applyWindowStyle() {
-            dialog.window?.let { win ->
-                WindowCompat.setDecorFitsSystemWindows(win, false)
-                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
-                win.setGravity(Gravity.CENTER)
-                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
-                win.attributes = win.attributes.apply {
-                    width = targetWidth
-                    height = WindowManager.LayoutParams.WRAP_CONTENT
-                }
-            }
-        }
-        dialog.setOnShowListener { applyWindowStyle() }
-        dialog.show()
-        applyWindowStyle()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = requireContext(),
+            widthRatio = widthRatio,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun updateFlipService(isEnabled: Boolean) {
@@ -1159,15 +792,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val visibility = if (shizukuEnabled) View.VISIBLE else View.GONE
         view.findViewById<View>(R.id.layout_shizuku_persistence)?.visibility = visibility
         view.findViewById<View>(R.id.divider_shizuku_persistence)?.visibility = visibility
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 2001 && resultCode == android.app.Activity.RESULT_OK && data?.data != null) {
-            LocalAsrService.installLocalModelWithUI(requireContext(), data.data!!) {
-                requireActivity().recreate()
-            }
-        }
     }
 
 }

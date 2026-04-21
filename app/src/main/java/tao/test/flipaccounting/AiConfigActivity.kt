@@ -94,22 +94,6 @@ class AiConfigActivity : AppCompatActivity() {
         val tvEditPrompt = findViewById<TextView>(R.id.tv_edit_prompt)
         val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
 
-        // ---- 隐藏重复的 AI 智能功能入口 ----
-        Prefs.setShowAiChatEntry(this, false)
-        val legacyEntryModeCard = findViewById<View>(R.id.layout_mode_traditional)?.parent as? View
-        val legacyChatEntryCard = findViewById<View>(R.id.switch_show_ai_chat_entry)?.parent as? View
-        val scroll = findViewById<android.widget.ScrollView>(R.id.root_scroll_view)
-        val content = scroll.getChildAt(0) as? LinearLayout
-        val legacySectionTitle = content?.let { container ->
-            val card = legacyEntryModeCard ?: return@let null
-            val idx = container.indexOfChild(card)
-            if (idx > 0) container.getChildAt(idx - 1) else null
-        }
-        legacySectionTitle?.visibility = View.GONE
-        legacyEntryModeCard?.visibility = View.GONE
-        legacyChatEntryCard?.visibility = View.GONE
-        // ---- end ----
-
         val providerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providers)
         spinnerProviders.adapter = providerAdapter
         spinnerProviders.setSelection(providers.indexOf(Prefs.getAiProvider(this)).coerceAtLeast(0))

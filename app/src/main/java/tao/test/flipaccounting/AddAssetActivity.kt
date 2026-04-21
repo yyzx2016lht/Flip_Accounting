@@ -666,7 +666,8 @@ class AddAssetActivity : AppCompatActivity() {
             ctx = this,
             widthRatio = widthRatio,
             cancelOnTouchOutside = true,
-            applyOverlayType = false
+            applyOverlayType = false,
+            useSolidPanelBackground = false
         )
     }
 
