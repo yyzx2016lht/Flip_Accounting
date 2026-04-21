@@ -2,7 +2,6 @@
 
 import android.animation.ObjectAnimator
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -18,6 +17,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.ContextThemeWrapper
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import kotlinx.coroutines.*
@@ -1520,7 +1521,7 @@ class AccountingFormController(
         if (isMissingRateDialogShowing) return
         isMissingRateDialogShowing = true
 
-        AlertDialog.Builder(safeContext)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(safeContext, R.style.Theme_FlipAccounting))
             .setTitle("缺少汇率，暂无法保存")
             .setMessage(message)
             .setCancelable(true)
@@ -1547,7 +1548,15 @@ class AccountingFormController(
             .setOnDismissListener {
                 isMissingRateDialogShowing = false
             }
-            .show()
+            .create()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = safeContext,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private var hasFinishedSaveFlow = false
@@ -1568,7 +1577,7 @@ class AccountingFormController(
             return
         }
 
-        val dialog = AlertDialog.Builder(safeContext)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(safeContext, R.style.Theme_FlipAccounting))
             .setTitle("检测到识别偏差")
             .setMessage("你修改了 AI 识别结果，是否将本次修正保存为规则，下次自动纠正？")
             .setNegativeButton("不需要") { dialog, _ ->
@@ -1589,15 +1598,14 @@ class AccountingFormController(
             .setCancelable(false)
             .create()
 
-        if (isOverlayContext) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
-            } else {
-                @Suppress("DEPRECATION")
-                dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_PHONE)
-            }
-        }
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = safeContext,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = false,
+            applyOverlayType = isOverlayContext,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun showCreateRuleDialog(
@@ -1707,7 +1715,7 @@ class AccountingFormController(
         val existingLabel = existingCategory?.takeIf { it.isNotBlank() } ?: "未设置分类"
         val newLabel = newCategory?.takeIf { it.isNotBlank() } ?: "未设置分类"
 
-        val dialog = AlertDialog.Builder(safeContext)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(safeContext, R.style.Theme_FlipAccounting))
             .setTitle("检测到重复关键词")
             .setMessage("关键词“$keyword”已有规则（分类：$existingLabel），本次分类为“$newLabel”。\n\n请选择：覆盖旧规则，或取消本次规则保存。")
             .setPositiveButton("覆盖") { d, _ ->
@@ -1723,7 +1731,14 @@ class AccountingFormController(
             }
             .create()
 
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = safeContext,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun normalizeRuleCategory(category: String?): String {

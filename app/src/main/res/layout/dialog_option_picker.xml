@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_overlay_accounting_panel"
+    android:orientation="vertical"
+    android:paddingStart="16dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="14dp">
+
+    <TextView
+        android:id="@+id/tv_option_picker_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#1F2A38"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tv_option_picker_desc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="10dp"
+        android:textColor="#66788F"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/lv_option_picker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:cacheColorHint="@android:color/transparent"
+        android:clipToPadding="false"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="0dp"
+        android:listSelector="?attr/selectableItemBackground"
+        android:overScrollMode="ifContentScrolls" />
+
+    <TextView
+        android:id="@+id/btn_option_picker_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_delete_dialog_cancel_btn"
+        android:gravity="center"
+        android:text="取消"
+        android:textColor="#5A677C"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+</LinearLayout>

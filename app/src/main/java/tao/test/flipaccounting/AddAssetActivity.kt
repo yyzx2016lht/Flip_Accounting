@@ -1,6 +1,7 @@
 package tao.test.flipaccounting
 
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
@@ -10,12 +11,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.BaseAdapter
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.room.withTransaction
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -31,6 +36,7 @@ import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillAssetImpactService
 import tao.test.flipaccounting.logic.BillMutationService
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.NumberFormat
@@ -116,6 +122,15 @@ class AddAssetActivity : AppCompatActivity() {
         initViews()
         setupTypePicker()
 
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (!handleBackAction()) {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
         if (assetId != -1L) {
             loadAssetData()
         }
@@ -134,7 +149,9 @@ class AddAssetActivity : AppCompatActivity() {
         tvAssetCategory = findViewById(R.id.tv_asset_category)
         refreshCurrencyDisplay()
 
-        findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
+        findViewById<View>(R.id.btn_back).setOnClickListener {
+            if (!handleBackAction()) finish()
+        }
         findViewById<View>(R.id.btn_save).setOnClickListener { saveAsset() }
 
         etRemark.dismissKeyboardOnEnter()
@@ -191,6 +208,15 @@ class AddAssetActivity : AppCompatActivity() {
             ).show()
             assetUiPrefs.edit().putBoolean(KEY_SKIP_NET_ASSET_TIP_SHOWN, true).apply()
         }
+    }
+
+    private fun handleBackAction(): Boolean {
+        if (layoutTypePicker.visibility == View.VISIBLE) {
+            layoutTypePicker.visibility = View.GONE
+            etSearchType.setText("")
+            return true
+        }
+        return false
     }
 
     private fun setupTypePicker() {
@@ -451,15 +477,35 @@ class AddAssetActivity : AppCompatActivity() {
     }
 
     private fun showCurrencyDialog() {
-        val currencies = CurrencyManager.getEnabledCurrencies(this).toTypedArray()
-        val labels = currencies.map { formatCurrencyDisplay(it) }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("选择币种")
-            .setItems(labels) { _, which ->
-                selectedCurrency = currencies[which]
-                refreshCurrencyDisplay()
+        val currencies = CurrencyManager.getEnabledCurrencies(this)
+        if (currencies.isEmpty()) return
+
+        val selected = selectedCurrency.trim().uppercase(Locale.ROOT)
+        val selectedIndex = currencies.indexOfFirst { it.trim().uppercase(Locale.ROOT) == selected }
+            .takeIf { it >= 0 } ?: 0
+
+        val options = currencies.map { code ->
+            val normalized = code.trim().uppercase(Locale.ROOT)
+            val info = CurrencyData.getInfo(normalized)
+            if (info != null) {
+                DialogOption(
+                    title = "${info.symbol} ${info.code}",
+                    subtitle = "${info.nameZh} (${info.countryZh})"
+                )
+            } else {
+                DialogOption(title = normalized)
             }
-            .show()
+        }
+
+        showOptionPickerDialog(
+            title = "选择币种",
+            options = options,
+            selectedIndex = selectedIndex,
+            widthRatio = 0.9f
+        ) { which ->
+            selectedCurrency = currencies[which]
+            refreshCurrencyDisplay()
+        }
     }
 
     private fun refreshCurrencyDisplay() {
@@ -476,23 +522,28 @@ class AddAssetActivity : AppCompatActivity() {
     }
 
     private fun showAssetCategoryDialog() {
-        val options = arrayOf("资金（普通账户）", "信用卡", "充值账户", "投资理财")
         val categories = arrayOf(
             Asset.CATEGORY_FUND,
             Asset.CATEGORY_CREDIT_CARD,
             Asset.CATEGORY_RECHARGE,
             Asset.CATEGORY_INVESTMENT
         )
+        val options = listOf(
+            DialogOption(title = "资金（普通账户）", subtitle = "用于现金、储蓄、借记卡等日常账户"),
+            DialogOption(title = "信用卡", subtitle = "用于记录信用消费与还款"),
+            DialogOption(title = "充值账户", subtitle = "用于余额钱包、礼品卡、平台储值"),
+            DialogOption(title = "投资理财", subtitle = "用于基金、股票等投资类账户")
+        )
         val currentIndex = categories.indexOf(selectedAssetCategory).takeIf { it >= 0 } ?: 0
-        AlertDialog.Builder(this)
-            .setTitle("选择资产类别")
-            .setSingleChoiceItems(options, currentIndex) { dialog, which ->
-                selectedAssetCategory = categories[which]
-                updateAssetCategoryUI()
-                dialog.dismiss()
-            }
-            .setNegativeButton("取消", null)
-            .show()
+        showOptionPickerDialog(
+            title = "选择资产类别",
+            options = options,
+            selectedIndex = currentIndex,
+            widthRatio = 0.9f
+        ) { which ->
+            selectedAssetCategory = categories[which]
+            updateAssetCategoryUI()
+        }
     }
 
     private fun updateAssetCategoryUI() {
@@ -552,7 +603,8 @@ class AddAssetActivity : AppCompatActivity() {
         newCurrency: String,
         onConfirm: () -> Unit
     ) {
-        AlertDialog.Builder(this)
+        val themeContext = ContextThemeWrapper(this, R.style.Theme_FlipAccounting)
+        val dialog = AlertDialog.Builder(themeContext)
             .setTitle("确认修改币种")
             .setMessage(
                 "确定要把这个资产的币种从 $oldCurrency 改成 $newCurrency 吗？\n\n" +
@@ -560,7 +612,105 @@ class AddAssetActivity : AppCompatActivity() {
             )
             .setNegativeButton("取消", null)
             .setPositiveButton("确定") { _, _ -> onConfirm() }
-            .show()
+            .create()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private data class DialogOption(
+        val title: String,
+        val subtitle: String = ""
+    )
+
+    private fun showOptionPickerDialog(
+        title: String,
+        options: List<DialogOption>,
+        selectedIndex: Int,
+        widthRatio: Float,
+        onSelected: (Int) -> Unit
+    ) {
+        val themeContext = ContextThemeWrapper(this, R.style.Theme_FlipAccounting)
+        val contentView = LayoutInflater.from(themeContext).inflate(R.layout.dialog_option_picker, null)
+        contentView.findViewById<TextView>(R.id.tv_option_picker_title).text = title
+        contentView.findViewById<TextView>(R.id.tv_option_picker_desc).visibility = View.GONE
+        contentView.findViewById<TextView>(R.id.btn_option_picker_cancel).visibility = View.GONE
+
+        val listView = contentView.findViewById<ListView>(R.id.lv_option_picker)
+        val adapter = OptionPickerAdapter(options, selectedIndex)
+        listView.adapter = adapter
+        listView.divider = ColorDrawable(Color.parseColor("#12000000"))
+        listView.dividerHeight = 1
+        adjustOptionListHeight(listView, options.size)
+
+        val dialog = AlertDialog.Builder(themeContext)
+            .setView(contentView)
+            .create()
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            if (position in options.indices) {
+                adapter.selectedIndex = position
+                adapter.notifyDataSetChanged()
+                onSelected(position)
+                dialog.dismiss()
+            }
+        }
+
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = widthRatio,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false
+        )
+    }
+
+    private fun adjustOptionListHeight(listView: ListView, itemCount: Int) {
+        val density = resources.displayMetrics.density
+        val itemHeightPx = (64f * density).toInt()
+        val maxHeightPx = (320f * density).toInt()
+        val minHeightPx = (136f * density).toInt()
+        val targetHeight = (itemHeightPx * itemCount).coerceAtMost(maxHeightPx).coerceAtLeast(minHeightPx)
+        listView.layoutParams = listView.layoutParams.apply { height = targetHeight }
+    }
+
+    private inner class OptionPickerAdapter(
+        private val options: List<DialogOption>,
+        var selectedIndex: Int
+    ) : BaseAdapter() {
+        override fun getCount(): Int = options.size
+
+        override fun getItem(position: Int): DialogOption = options[position]
+
+        override fun getItemId(position: Int): Long = position.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = convertView ?: LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_dialog_option_picker, parent, false)
+            val titleView = view.findViewById<TextView>(R.id.tv_option_title)
+            val subtitleView = view.findViewById<TextView>(R.id.tv_option_subtitle)
+            val checkView = view.findViewById<TextView>(R.id.tv_option_check)
+            val riskView = view.findViewById<TextView>(R.id.tv_option_risk)
+            val arrowView = view.findViewById<ImageView>(R.id.iv_option_arrow)
+
+            val option = getItem(position)
+            val isSelected = position == selectedIndex
+
+            titleView.text = option.title
+            titleView.setTextColor(if (isSelected) Color.parseColor("#1762C5") else Color.parseColor("#1F2A38"))
+            subtitleView.text = option.subtitle
+            subtitleView.visibility = if (option.subtitle.isBlank()) View.GONE else View.VISIBLE
+            checkView.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
+            riskView.visibility = View.GONE
+            arrowView.visibility = View.GONE
+            view.setBackgroundColor(if (isSelected) Color.parseColor("#0F2F80ED") else Color.TRANSPARENT)
+            return view
+        }
     }
 
     inner class IconPickerAdapter(

@@ -17,6 +17,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -240,7 +241,8 @@ class AssetDetailActivity : AppCompatActivity() {
     }
 
     private fun showDeleteConfirmDialog() {
-        AlertDialog.Builder(this)
+        val themeContext = ContextThemeWrapper(this, R.style.Theme_FlipAccounting)
+        val dialog = AlertDialog.Builder(themeContext)
             .setTitle("\u5220\u9664\u8D26\u6237")
             .setMessage("\u786E\u5B9A\u5220\u9664\u8BE5\u8D26\u6237\u5417\uFF1F\u76F8\u5173\u7684\u8D26\u5355\u5C06\u5931\u53BB\u8D26\u6237\u5173\u8054\u3002")
             .setPositiveButton("\u5220\u9664") { _, _ ->
@@ -250,7 +252,15 @@ class AssetDetailActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("\u53D6\u6D88", null)
-            .show()
+            .create()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog,
+            this,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     inner class TransactionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -843,7 +853,8 @@ class AssetDetailActivity : AppCompatActivity() {
 
         view.findViewById<View>(R.id.btn_delete).setOnClickListener {
             bottomSheet.dismiss()
-            AlertDialog.Builder(this)
+            val themeContext = ContextThemeWrapper(this, R.style.Theme_FlipAccounting)
+            val dialog = AlertDialog.Builder(themeContext)
                 .setTitle("\u5220\u9664\u8D26\u5355")
                 .setMessage("\u786E\u5B9A\u5220\u9664\u8FD9\u7B14\u8D26\u5355\u5417\uFF1F")
                 .setPositiveButton("\u5220\u9664") { _, _ ->
@@ -855,7 +866,15 @@ class AssetDetailActivity : AppCompatActivity() {
                     }
                 }
                 .setNegativeButton("\u53D6\u6D88", null)
-                .show()
+                .create()
+            OverlayDialogs.showStyledCenterDialog(
+                dialog,
+                this@AssetDetailActivity,
+                widthRatio = 0.88f,
+                cancelOnTouchOutside = true,
+                applyOverlayType = false,
+                useSolidPanelBackground = true
+            )
         }
 
         bottomSheet.setContentView(view)

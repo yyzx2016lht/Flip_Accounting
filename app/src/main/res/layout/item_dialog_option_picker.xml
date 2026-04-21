@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="64dp"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="10dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/tv_option_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#1F2A38"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_option_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="#66788F"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_option_check"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:text="✓"
+        android:textColor="#1762C5"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="invisible" />
+
+    <TextView
+        android:id="@+id/tv_option_risk"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_delete_risk_tag"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:text="风险"
+        android:textColor="#B42318"
+        android:textSize="11sp"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/iv_option_arrow"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:alpha="0.65"
+        android:src="@drawable/ic_chevrons_right" />
+
+</LinearLayout>

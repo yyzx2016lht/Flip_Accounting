@@ -134,6 +134,32 @@ object OverlayDialogs {
         dialog.show()
     }
 
+    fun showStyledCenterDialog(
+        dialog: AlertDialog,
+        ctx: Context,
+        widthRatio: Float = 0.88f,
+        cancelOnTouchOutside: Boolean = true,
+        dimAmount: Float = 0.34f,
+        applyOverlayType: Boolean = true,
+        useSolidPanelBackground: Boolean = false
+    ) {
+        dialog.setCanceledOnTouchOutside(cancelOnTouchOutside)
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = widthRatio,
+            gravity = Gravity.CENTER,
+            y = 0,
+            height = WindowManager.LayoutParams.WRAP_CONTENT,
+            dimAmount = dimAmount,
+            clearDecorPadding = false,
+            applyOverlayType = applyOverlayType
+        )
+        if (useSolidPanelBackground) {
+            dialog.window?.setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
+        }
+    }
+
     fun showAnchoredMenu(ctx: Context, anchor: View, items: List<String>, onSelected: (String) -> Unit) {
         val popup = ListPopupWindow(ctx).apply {
             setAdapter(ArrayAdapter(ctx, android.R.layout.simple_list_item_1, items))

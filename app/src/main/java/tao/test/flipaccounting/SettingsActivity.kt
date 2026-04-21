@@ -7,11 +7,10 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
-import android.view.WindowManager
+import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -25,6 +24,7 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.repository.CategoryRepository
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -825,37 +825,34 @@ class SettingsActivity : AppCompatActivity() {
         desc: String,
         options: List<OptionItem>
     ) {
-        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_book_delete_options, null, false)
-        panel.findViewById<TextView>(R.id.tv_delete_book_title).text = title
-        panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = desc
-        val optionsScroll = panel.findViewById<ScrollView>(R.id.scroll_delete_book_options)
-        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_option_picker, null, false)
+        panel.findViewById<TextView>(R.id.tv_option_picker_title).text = title
+        panel.findViewById<TextView>(R.id.tv_option_picker_desc).apply {
+            text = desc
+            visibility = View.VISIBLE
+        }
+        val listView = panel.findViewById<ListView>(R.id.lv_option_picker)
+        val adapter = OptionActionAdapter(options)
+        listView.adapter = adapter
+        listView.divider = android.graphics.drawable.ColorDrawable(Color.parseColor("#12000000"))
+        listView.dividerHeight = 1
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
+        val estimatedItemHeight = (74 * resources.displayMetrics.density).toInt()
+        val estimatedContentHeight = (options.size * estimatedItemHeight).coerceAtLeast(dp(1))
+        listView.layoutParams = listView.layoutParams.apply {
+            height = min(maxHeight, estimatedContentHeight)
+        }
         val dialog = AlertDialog.Builder(this)
             .setView(panel)
             .create()
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-        options.forEach { opt ->
-            val item = LayoutInflater.from(this)
-                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
-            item.findViewById<TextView>(R.id.tv_delete_option_title).text = opt.title
-            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = opt.desc
-            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility =
-                if (opt.highRisk) View.VISIBLE else View.GONE
-            item.setOnClickListener {
+        listView.setOnItemClickListener { _, _, position, _ ->
+            if (position in options.indices) {
                 dialog.dismiss()
-                opt.onClick()
+                options[position].onClick()
             }
-            optionsContainer.addView(item)
         }
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
-        val estimatedItemHeight = ((66 + 10) * resources.displayMetrics.density).toInt()
-        val estimatedContentHeight = (options.size * estimatedItemHeight).coerceAtLeast(dp(1))
-        val targetHeight = min(maxHeight, estimatedContentHeight)
-        optionsScroll.layoutParams = optionsScroll.layoutParams.apply {
-            height = targetHeight
-        }
-        panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
-        showStyledCenterDialog(dialog, widthRatio = 0.92f)
+        panel.findViewById<TextView>(R.id.btn_option_picker_cancel).setOnClickListener { dialog.dismiss() }
+        showStyledCenterDialog(dialog, widthRatio = 0.9f)
     }
 
     private fun showCustomConfirmDialog(
@@ -890,27 +887,43 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
-        fun applyWindowStyle() {
-            dialog.window?.let { win ->
-                WindowCompat.setDecorFitsSystemWindows(win, false)
-                win.decorView?.fitsSystemWindows = false
-                win.setSoftInputMode(
-                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
-                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
-                )
-                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
-                win.setGravity(Gravity.CENTER)
-                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
-                win.attributes = win.attributes.apply {
-                    width = targetWidth
-                    height = WindowManager.LayoutParams.WRAP_CONTENT
-                }
-            }
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = widthRatio,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false
+        )
+    }
+
+    private inner class OptionActionAdapter(
+        private val options: List<OptionItem>
+    ) : BaseAdapter() {
+        override fun getCount(): Int = options.size
+
+        override fun getItem(position: Int): OptionItem = options[position]
+
+        override fun getItemId(position: Int): Long = position.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+            val context = parent?.context ?: this@SettingsActivity
+            val view = convertView ?: LayoutInflater.from(context)
+                .inflate(R.layout.item_dialog_option_picker, parent, false)
+            val titleView = view.findViewById<TextView>(R.id.tv_option_title)
+            val subtitleView = view.findViewById<TextView>(R.id.tv_option_subtitle)
+            val checkView = view.findViewById<TextView>(R.id.tv_option_check)
+            val riskView = view.findViewById<TextView>(R.id.tv_option_risk)
+
+            val item = getItem(position)
+            titleView.text = item.title
+            titleView.setTextColor(if (item.highRisk) Color.parseColor("#B42318") else Color.parseColor("#1F2A38"))
+            subtitleView.text = item.desc
+            subtitleView.visibility = if (item.desc.isBlank()) View.GONE else View.VISIBLE
+            checkView.visibility = View.GONE
+            riskView.visibility = if (item.highRisk) View.VISIBLE else View.GONE
+            view.setBackgroundColor(Color.TRANSPARENT)
+            return view
         }
-        dialog.setOnShowListener { applyWindowStyle() }
-        dialog.show()
-        applyWindowStyle()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
