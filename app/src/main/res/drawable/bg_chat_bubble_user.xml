@@ -2,7 +2,7 @@
 <!-- 用户消息气泡背景（右侧，蓝绿色） -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#5AA8F7" />
+    <solid android:color="#3390EC" />
     <corners
         android:topLeftRadius="16dp"
         android:topRightRadius="6dp"

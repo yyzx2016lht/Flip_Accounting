@@ -261,6 +261,7 @@ class ChatActivity : AppCompatActivity() {
         }
         rvSessionList.layoutManager = LinearLayoutManager(this)
         rvSessionList.adapter = sessionAdapter
+        rvSessionList.itemAnimator = null
 
         etSessionSearch.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -642,34 +643,233 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun showDeleteSessionDialog(row: ChatSessionRow) {
-        AlertDialog.Builder(this)
-            .setTitle("删除会话")
-            .setMessage("请选择删除方式。你可以只删除这条历史会话，也可以连同该会话生成的账单一起删除。")
-            .setNegativeButton("取消", null)
-            .setNeutralButton("保留账单") { _, _ ->
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        db.chatMessageDao().deleteByBookAndConversation(row.bookName, row.conversationId)
-                    }
-                    onSessionDeleted(row)
-                }
+        sessionAdapter.closeSwipeActions()
+        lifecycleScope.launch {
+            val sessionBills = withContext(Dispatchers.IO) {
+                loadSessionActiveBills(row.bookName, row.conversationId)
             }
-            .setPositiveButton("删除账单") { _, _ ->
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        val sessionBills = loadSessionActiveBills(row.bookName, row.conversationId)
-                        sessionBills.forEach { bill ->
-                            tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
+            AlertDialog.Builder(this@ChatActivity)
+                .setTitle("删除会话")
+                .setMessage(buildDeleteSessionMessage(row, sessionBills))
+                .setNegativeButton("取消", null)
+                .setNeutralButton("保留账单") { _, _ ->
+                    lifecycleScope.launch {
+                        withContext(Dispatchers.IO) {
+                            db.chatMessageDao().deleteByBookAndConversation(row.bookName, row.conversationId)
                         }
-                        db.chatMessageDao().deleteByBookAndConversation(row.bookName, row.conversationId)
+                        onSessionDeleted(row)
                     }
-                    onSessionDeleted(row)
+                }
+                .setPositiveButton("删除账单") { _, _ ->
+                    showDeleteSessionBillsConfirmDialog(row, sessionBills)
+                }
+                .show()
+        }
+    }
+
+    private fun buildDeleteSessionMessage(row: ChatSessionRow, bills: List<Bill>): String {
+        return "关联账单 ${bills.size} 条"
+    }
+
+    private fun showDeleteSessionBillsConfirmDialog(row: ChatSessionRow, bills: List<Bill>) {
+        lifecycleScope.launch {
+            val sortedBills = bills.sortedByDescending { it.time }
+            val iconUrls = withContext(Dispatchers.IO) {
+                sortedBills.map { bill ->
+                    runCatching {
+                        CategoryIconHelper.findCategoryIcon(this@ChatActivity, bill.categoryName, bill.type)
+                    }.getOrDefault("")
                 }
             }
-            .show()
+            val selectedIndexes = sortedBills.indices.toMutableSet()
+            val previewView = buildDeleteBillsPreviewView(sortedBills, iconUrls, selectedIndexes)
+            AlertDialog.Builder(this@ChatActivity)
+                .setTitle("选择要删除的账单")
+                .setView(previewView)
+                .setNegativeButton("返回", null)
+                .setPositiveButton("确认删除") { _, _ ->
+                    lifecycleScope.launch {
+                        withContext(Dispatchers.IO) {
+                            val selectedBills = sortedBills.filterIndexed { index, _ -> selectedIndexes.contains(index) }
+                            selectedBills.forEach { bill ->
+                                tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
+                            }
+                            db.chatMessageDao().deleteByBookAndConversation(row.bookName, row.conversationId)
+                        }
+                        onSessionDeleted(row)
+                    }
+                }
+                .show()
+        }
+    }
+
+    private fun buildDeleteBillsPreviewView(
+        bills: List<Bill>,
+        iconUrls: List<String>,
+        selectedIndexes: MutableSet<Int>
+    ): View {
+        val density = resources.displayMetrics.density
+        fun dp(v: Int): Int = (v * density).toInt()
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+        }
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(2), dp(4), dp(8))
+        }
+        val topHint = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            textSize = 12f
+            setTextColor(Color.parseColor("#5D6E84"))
+        }
+        val refreshTopHint: () -> Unit = {
+            topHint.text = if (bills.isEmpty()) {
+                "暂无可删除账单"
+            } else {
+                "已选 ${selectedIndexes.size}/${bills.size}"
+            }
+        }
+        val btnSelectAll = TextView(this).apply {
+            text = "全选"
+            textSize = 12f
+            setTextColor(Color.parseColor("#4D79C7"))
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnClickListener {
+                selectedIndexes.clear()
+                selectedIndexes.addAll(bills.indices)
+                refreshDeleteBillsPreviewRows(container, bills, iconUrls, selectedIndexes, refreshTopHint)
+            }
+        }
+        val btnClearAll = TextView(this).apply {
+            text = "清空"
+            textSize = 12f
+            setTextColor(Color.parseColor("#7B8798"))
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnClickListener {
+                selectedIndexes.clear()
+                refreshDeleteBillsPreviewRows(container, bills, iconUrls, selectedIndexes, refreshTopHint)
+            }
+        }
+        topBar.addView(topHint)
+        if (bills.isNotEmpty()) {
+            topBar.addView(btnSelectAll)
+            topBar.addView(btnClearAll)
+        }
+        refreshTopHint()
+        container.addView(topBar)
+        refreshDeleteBillsPreviewRows(container, bills, iconUrls, selectedIndexes, refreshTopHint)
+
+        return android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            addView(container)
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(320))
+        }
+    }
+
+    private fun refreshDeleteBillsPreviewRows(
+        container: LinearLayout,
+        bills: List<Bill>,
+        iconUrls: List<String>,
+        selectedIndexes: MutableSet<Int>,
+        onChanged: (() -> Unit)? = null
+    ) {
+        val density = resources.displayMetrics.density
+        fun dp(v: Int): Int = (v * density).toInt()
+        while (container.childCount > 1) container.removeViewAt(1)
+        if (bills.isEmpty()) return
+        bills.forEachIndexed { index, bill ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+                background = getDrawable(R.drawable.bg_book_item_normal)
+            }
+            val checkbox = android.widget.CheckBox(this).apply {
+                isChecked = selectedIndexes.contains(index)
+                setOnCheckedChangeListener { _, checked ->
+                    if (checked) selectedIndexes.add(index) else selectedIndexes.remove(index)
+                    onChanged?.invoke()
+                }
+            }
+            val iconWrap = android.widget.FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(30), dp(30))
+                background = getDrawable(R.drawable.bg_circle_soft)
+            }
+            val icon = ImageView(this).apply {
+                layoutParams = android.widget.FrameLayout.LayoutParams(dp(16), dp(16), android.view.Gravity.CENTER)
+                val typeColor = when (bill.type) {
+                    Bill.TYPE_INCOME -> Color.parseColor("#2E7D32")
+                    Bill.TYPE_TRANSFER -> Color.parseColor("#7A8598")
+                    else -> Color.parseColor("#D32F2F")
+                }
+                setImageResource(android.R.drawable.ic_menu_info_details)
+                setColorFilter(typeColor)
+                val iconUrl = iconUrls.getOrNull(index).orEmpty()
+                if (iconUrl.isNotBlank()) {
+                    Glide.with(this@ChatActivity).load(iconUrl).into(this)
+                } else {
+                    when (bill.type) {
+                        Bill.TYPE_TRANSFER -> setImageResource(R.drawable.ic_transfer)
+                        Bill.TYPE_INCOME -> setImageResource(R.drawable.ic_trend_up)
+                        else -> setImageResource(R.drawable.ic_trend_down)
+                    }
+                }
+            }
+            iconWrap.addView(icon)
+            val mid = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(10)
+                }
+            }
+            val title = TextView(this).apply {
+                text = bill.remark.ifBlank { bill.categoryName.ifBlank { "未分类" } }
+                textSize = 13f
+                setTextColor(Color.parseColor("#24364D"))
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+            val date = TextView(this).apply {
+                text = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.time))
+                textSize = 11f
+                setTextColor(Color.parseColor("#8A97AB"))
+            }
+            val amount = TextView(this).apply {
+                val prefix = when (bill.type) {
+                    Bill.TYPE_INCOME -> "+"
+                    Bill.TYPE_TRANSFER -> ""
+                    else -> "-"
+                }
+                text = "$prefix${String.format(Locale.getDefault(), "%.2f", bill.amount)}"
+                textSize = 13f
+                setTextColor(
+                    when (bill.type) {
+                        Bill.TYPE_INCOME -> Color.parseColor("#2E7D32")
+                        Bill.TYPE_TRANSFER -> Color.parseColor("#7A8598")
+                        else -> Color.parseColor("#D32F2F")
+                    }
+                )
+            }
+            mid.addView(title)
+            mid.addView(date)
+            row.addView(checkbox)
+            row.addView(iconWrap)
+            row.addView(mid)
+            row.addView(amount)
+            row.setOnClickListener { checkbox.isChecked = !checkbox.isChecked }
+            container.addView(row)
+            container.addView(View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(6))
+            })
+        }
+        onChanged?.invoke()
     }
 
     private suspend fun onSessionDeleted(row: ChatSessionRow) {
+        sessionAdapter.closeSwipeActions()
         if (currentBookName == row.bookName && currentConversationId == row.conversationId) {
             switchToLatestConversationOrNew(row.bookName)
             loadHistoryMessages()
@@ -704,8 +904,7 @@ class ChatActivity : AppCompatActivity() {
 
     private suspend fun refreshSessionRows() {
         val msgs = withContext(Dispatchers.IO) {
-            val currentBookMsgs = db.chatMessageDao().getAllByBook(currentBookName)
-            if (currentBookMsgs.any { it.conversationId.isNotBlank() }) currentBookMsgs else db.chatMessageDao().getAll()
+            db.chatMessageDao().getAllByBook(currentBookName)
         }
         val grouped = msgs
             .groupBy { (it.bookName.ifBlank { BookAccountManager.DEFAULT_BOOK }) to it.conversationId }
