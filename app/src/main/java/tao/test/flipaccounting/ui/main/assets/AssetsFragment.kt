@@ -39,6 +39,8 @@ class AssetsFragment : Fragment() {
 
     private val db by lazy { AppDatabase.getDatabase(requireContext()) }
     private var hasTriggeredInitialRateRefresh = false
+    private var fabHiddenByScroll = false
+    private var fabScrollAccumulator = 0
     private var dragAutoScrollActive = false
     private var dragAutoScrollDirection = 0
     private var dragAutoScrollSpeedPx = 0
@@ -74,10 +76,9 @@ class AssetsFragment : Fragment() {
 
         // 上滑隐藏 FAB，下滑显示 FAB
         nsvAssets.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
-                val dy = scrollY - oldScrollY
-                if (dy > 8) fabAddAsset.hide()
-                else if (dy < -8) fabAddAsset.show()
-            }
+            val dy = scrollY - oldScrollY
+            applyFabScrollBehavior(dy, scrollY)
+        }
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
@@ -92,12 +93,33 @@ class AssetsFragment : Fragment() {
 
     fun showAssetFab() {
         if (!isAdded || !::fabAddAsset.isInitialized) return
+        fabHiddenByScroll = false
+        fabScrollAccumulator = 0
         fabAddAsset.show()
     }
 
     fun hideAssetFab() {
         if (!::fabAddAsset.isInitialized) return
+        fabHiddenByScroll = true
+        fabScrollAccumulator = 0
         fabAddAsset.hide()
+    }
+
+    private fun applyFabScrollBehavior(dy: Int, scrollY: Int) {
+        if (dy == 0) return
+        if (scrollY <= 0) {
+            showAssetFab()
+            return
+        }
+
+        fabScrollAccumulator += dy
+        if (!fabHiddenByScroll && fabScrollAccumulator > 20) {
+            hideAssetFab()
+            return
+        }
+        if (fabHiddenByScroll && fabScrollAccumulator < -8) {
+            showAssetFab()
+        }
     }
 
     private fun observeData() {
@@ -161,9 +183,9 @@ class AssetsFragment : Fragment() {
         val netText = CurrencyUtils.formatAmount(netAssetCny, "CNY")
         val totalText = CurrencyUtils.formatAmount(totalAssetCny, "CNY")
         val shouldMarkEstimated = (hasForeignIncludedAsset && !hasSyncedRates) || hasMissingIncludedRates
-        tvNetAsset.text = if (shouldMarkEstimated) "$netText（估算）" else netText
-        tvTotalAsset.text = if (shouldMarkEstimated) "$totalText（估算）" else totalText
-        tvTotalDebt.text = if (creditCardDebtCny == 0.0) "无"
+        tvNetAsset.text = if (shouldMarkEstimated) "${netText}（估算）" else netText
+        tvTotalAsset.text = if (shouldMarkEstimated) "${totalText}（估算）" else totalText
+        tvTotalDebt.text = if (creditCardDebtCny == 0.0) "暂无"
         else CurrencyUtils.formatAmount(creditCardDebtCny, "CNY")
     }
 
@@ -463,6 +485,7 @@ class AssetsFragment : Fragment() {
 
             val remarkTexts = mutableListOf<String>()
             if (!asset.includeInNetAsset) remarkTexts.add("不计入总资产")
+            if (asset.remark.isNotBlank()) remarkTexts.add(asset.remark.trim())
             if (remarkTexts.isNotEmpty()) {
                 holder.tvRemark.visibility = View.VISIBLE
                 holder.tvRemark.text = remarkTexts.joinToString(" · ")

@@ -1,4 +1,4 @@
-package tao.test.flipaccounting.ui.main.home
+﻿package tao.test.flipaccounting.ui.main.home
 
 import android.app.AlertDialog
 import android.content.Context
@@ -8,10 +8,12 @@ import android.graphics.drawable.GradientDrawable
 import android.icu.util.ChineseCalendar
 import android.os.Bundle
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -20,6 +22,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -171,6 +174,15 @@ class CalendarActivity : AppCompatActivity() {
         loadDataForMonth()
     }
 
+    override fun onResume() {
+        super.onResume()
+        val latestBook = BookAccountManager.normalizeBookName(BookAccountManager.getSelectedBook(this))
+        if (latestBook != selectedBookName) {
+            selectedBookName = latestBook
+            loadDataForMonth()
+        }
+    }
+
     private fun initViews() {
         findViewById<View>(R.id.btnBack).setOnClickListener { finish() }
         tvMonthSelector = findViewById(R.id.tvMonthSelector)
@@ -316,18 +328,21 @@ class CalendarActivity : AppCompatActivity() {
         val values = arrayOf(Calendar.MONDAY, Calendar.SATURDAY, Calendar.SUNDAY)
         val checkedItem = values.indexOf(firstDayOfWeekOption).takeIf { it >= 0 } ?: 0
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("每周第一天")
-            .setSingleChoiceItems(options, checkedItem) { dialog, which ->
+            .setSingleChoiceItems(options, checkedItem) { d, which ->
                 firstDayOfWeekOption = values[which]
-                getSharedPreferences("flip_prefs", Context.MODE_PRIVATE).edit().putInt("first_day_of_week", firstDayOfWeekOption).apply()
+                getSharedPreferences("flip_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putInt("first_day_of_week", firstDayOfWeekOption)
+                    .apply()
                 updateWeekdaysHeader()
                 calendarAdapter.buildCalendar()
-                dialog.dismiss()
+                d.dismiss()
             }
-            .show()
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.86f)
     }
-
     private fun setDisplayMode(mode: Int) {
         currentMode = mode
 
@@ -352,7 +367,7 @@ class CalendarActivity : AppCompatActivity() {
     private fun showMonthYearPicker() {
         val pickerLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER
+            gravity = Gravity.CENTER
             setPadding(0, 50, 0, 50)
         }
 
@@ -372,7 +387,7 @@ class CalendarActivity : AppCompatActivity() {
         pickerLayout.addView(npYear)
         pickerLayout.addView(npMonth)
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("选择月份")
             .setView(pickerLayout)
             .setPositiveButton("确定") { _, _ ->
@@ -384,9 +399,9 @@ class CalendarActivity : AppCompatActivity() {
                 loadDataForMonth()
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        showStyledCenterDialog(dialog, widthRatio = 0.86f)
     }
-
     private fun setupCalendar() {
         rvCalendar.layoutManager = GridLayoutManager(this, 7)
         calendarAdapter = CalendarAdapter()
@@ -1149,6 +1164,31 @@ class CalendarActivity : AppCompatActivity() {
         return names.getOrElse((day - 1).coerceIn(0, 29)) { "" }
     }
 
+
+    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
+        fun applyWindowStyle() {
+            dialog.window?.let { win ->
+                WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.decorView?.fitsSystemWindows = false
+                win.setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+                )
+                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
+                win.setGravity(Gravity.CENTER)
+                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+                win.attributes = win.attributes.apply {
+                    width = targetWidth
+                    height = WindowManager.LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+        dialog.setOnShowListener { applyWindowStyle() }
+        applyWindowStyle()
+        dialog.show()
+        applyWindowStyle()
+    }
     private fun buildCellBackgroundColor(dateStr: String, summary: DailySummary): Int {
         if (currentMode == MODE_BOTH) {
             return Color.parseColor("#F5F6F8")

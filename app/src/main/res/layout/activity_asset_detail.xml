@@ -120,6 +120,16 @@
                 android:textColor="#333333"
                 android:textSize="@dimen/text_size_28"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_asset_remark"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="#8E98A3"
+                android:textSize="@dimen/text_size_12"
+                android:visibility="gone"
+                tools:text="报销专用 · 不计入总资产" />
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 

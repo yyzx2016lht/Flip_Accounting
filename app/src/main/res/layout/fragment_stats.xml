@@ -26,13 +26,14 @@
                 android:layout_height="30dp">
 
                 <ImageView
-                    android:id="@+id/btn_currency"
+                    android:id="@+id/btn_book_switch"
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_money"
+                    android:contentDescription="切换账本"
+                    android:src="@drawable/ic_switch_book"
                     app:tint="#1F2937" />
 
                 <TextView

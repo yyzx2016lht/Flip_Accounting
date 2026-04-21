@@ -1,11 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:color/white"
+    android:background="#F6F8FC"
     android:orientation="vertical"
-    android:paddingBottom="24dp">
+    android:paddingBottom="20dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,23 +15,23 @@
         android:paddingTop="10dp">
 
         <View
-            android:layout_width="42dp"
+            android:layout_width="44dp"
             android:layout_height="5dp"
             android:background="@drawable/bg_segmented_container" />
     </LinearLayout>
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:paddingHorizontal="20dp">
+        android:layout_height="72dp"
+        android:paddingHorizontal="18dp">
 
         <ImageView
             android:id="@+id/btn_close_filter_sheet"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_centerVertical="true"
-            android:background="@drawable/bg_segmented_container"
-            android:padding="8dp"
+            android:background="@drawable/bg_rule_page_section"
+            android:padding="9dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             app:tint="#23324A" />
 
@@ -47,21 +47,21 @@
                 android:layout_height="wrap_content"
                 android:text="自定义筛选"
                 android:textColor="#142033"
-                android:textSize="20sp"
+                android:textSize="19sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="调整统计的时间范围与账本"
+                android:text="调整统计时间和币种"
                 android:textColor="#7B8698"
                 android:textSize="12sp" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/btn_confirm_filter_sheet"
-            android:layout_width="84dp"
+            android:layout_width="92dp"
             android:layout_height="40dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
@@ -83,7 +83,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="20dp">
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="6dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -104,14 +105,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="快速切到常用的统计区间"
+                    android:text="一键切换到常用统计区间"
                     android:textColor="#7B8698"
                     android:textSize="12sp" />
 
                 <com.google.android.material.chip.ChipGroup
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="12dp"
                     android:isScrollContainer="false"
                     app:chipSpacingHorizontal="8dp"
                     app:chipSpacingVertical="10dp"
@@ -122,108 +123,108 @@
                         android:id="@+id/chip_filter_today"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:text="&#20170;&#22825;"
+                        android:layout_height="38dp"
+                        android:text="今天"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_yesterday"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:text="&#26152;&#22825;"
+                        android:layout_height="38dp"
+                        android:text="昨天"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_this_week"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:text="&#26412;&#21608;"
+                        android:layout_height="38dp"
+                        android:text="本周"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_last_week"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:text="&#19978;&#21608;"
+                        android:layout_height="38dp"
+                        android:text="上周"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_this_month"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="38dp"
                         android:text="本月"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_last_month"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="38dp"
                         android:text="上月"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_this_year"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="38dp"
                         android:text="今年"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_last_year"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="38dp"
                         android:text="去年"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_filter_all"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="38dp"
                         android:text="全部"
                         android:textColor="#23324A"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="20dp"
+                        app:chipCornerRadius="19dp"
                         app:checkedIconVisible="false" />
                 </com.google.android.material.chip.ChipGroup>
             </LinearLayout>
@@ -231,7 +232,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/bg_rule_page_section"
                 android:orientation="vertical"
                 android:padding="16dp">
@@ -248,21 +249,21 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="选择开始和结束日期，精确筛选统计范围"
+                    android:text="选择开始和结束日期，精准筛选统计范围"
                     android:textColor="#7B8698"
                     android:textSize="12sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="12dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <LinearLayout
                         android:id="@+id/tv_filter_start_date"
                         android:layout_width="0dp"
-                        android:layout_height="56dp"
+                        android:layout_height="60dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_segmented_container"
                         android:gravity="center_vertical"
@@ -298,7 +299,7 @@
                     <LinearLayout
                         android:id="@+id/tv_filter_end_date"
                         android:layout_width="0dp"
-                        android:layout_height="56dp"
+                        android:layout_height="60dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_segmented_container"
                         android:gravity="center_vertical"
@@ -328,7 +329,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/bg_rule_page_section"
                 android:orientation="vertical"
                 android:padding="16dp">
@@ -336,7 +337,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="账本范围"
+                    android:text="币种范围"
                     android:textColor="#152238"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -345,21 +346,21 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="按账本筛选统计结果"
+                    android:text="按币种筛选统计结果"
                     android:textColor="#7B8698"
                     android:textSize="12sp" />
 
                 <TextView
-                    android:id="@+id/tv_filter_book_selector"
+                    android:id="@+id/tv_filter_currency_selector"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="12dp"
                     android:background="@drawable/bg_segmented_container"
-                    android:drawableEnd="@android:drawable/arrow_down_float"
+                    android:drawableEnd="@drawable/ic_chevron_down_small"
                     android:drawablePadding="8dp"
                     android:gravity="center_vertical"
                     android:paddingHorizontal="14dp"
-                    android:text="全部账本"
+                    android:text="全部币种"
                     android:textColor="#22324A"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -369,7 +370,7 @@
                 android:id="@+id/btn_reset_filter_sheet"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="14dp"
                 android:background="@drawable/bg_btn_outline_blue"
                 android:gravity="center"
                 android:text="重置筛选"

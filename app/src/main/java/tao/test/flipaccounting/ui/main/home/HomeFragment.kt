@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.util.DisplayMetrics
 import android.view.LayoutInflater
 import android.view.Gravity
 import android.view.View
@@ -45,6 +46,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.room.InvalidationTracker
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -528,6 +530,9 @@ class HomeFragment : Fragment() {
         updateChartTitleLabel()
         refreshTrendCardVisibility(forceResubmit = true)
         syncDateFromSessionIfNeeded()
+        selectedBookName = BookAccountManager.normalizeBookName(
+            BookAccountManager.getSelectedBook(requireContext())
+        )
         // 先同步渲染已缓存的 Banner，消除从其它 Tab 切回时的闪白
         updateHeaderBanner()
         if (skipNextResume) {
@@ -571,6 +576,11 @@ class HomeFragment : Fragment() {
             updateChartTitleLabel()
             refreshTrendCardVisibility(forceResubmit = true)
             syncDateFromSessionIfNeeded()
+            selectedBookName = BookAccountManager.normalizeBookName(
+                BookAccountManager.getSelectedBook(requireContext())
+            )
+            // 统计页可能已切换全局账本，这里补一次账本同步与数据刷新。
+            refreshBookAccounts(reloadTransactions = true)
             return
         }
     }
@@ -668,6 +678,7 @@ class HomeFragment : Fragment() {
                 bookAccountAdapter.closeSwipeActions()
                 updateHomeFabVisibilityByDrawerState()
                 adjustBookListBottomPaddingForWholeRows()
+                scrollBookListToSelected(animate = true)
             }
 
             override fun onDrawerClosed(drawerView: View) {
@@ -704,6 +715,55 @@ class HomeFragment : Fragment() {
             insets
         }
         ViewCompat.requestApplyInsets(layoutBookDrawer)
+    }
+
+    private fun scrollBookListToSelected(animate: Boolean = false) {
+        if (!::rvBookAccounts.isInitialized) return
+        val layoutManager = rvBookAccounts.layoutManager as? LinearLayoutManager ?: return
+        val selectedIndex = availableBookNames.indexOfFirst {
+            BookAccountManager.normalizeBookName(it) == selectedBookName
+        }
+        if (selectedIndex < 0) return
+
+        rvBookAccounts.post {
+            if (!isAdded) return@post
+            val density = resources.displayMetrics.density
+            val estimatedRowHeight = ((60f + 8f) * density).toInt()
+            val itemHeight = layoutManager.findViewByPosition(selectedIndex)?.height
+                ?: estimatedRowHeight.coerceAtLeast(1)
+            val offset = ((rvBookAccounts.height - itemHeight) / 2).coerceAtLeast(0)
+            if (!animate) {
+                layoutManager.scrollToPositionWithOffset(selectedIndex, offset)
+                return@post
+            }
+
+            val smoothScroller = object : LinearSmoothScroller(rvBookAccounts.context) {
+                override fun getVerticalSnapPreference(): Int = SNAP_TO_ANY
+
+                override fun calculateDtToFit(
+                    viewStart: Int,
+                    viewEnd: Int,
+                    boxStart: Int,
+                    boxEnd: Int,
+                    snapPreference: Int
+                ): Int {
+                    val viewCenter = (viewStart + viewEnd) / 2
+                    val boxCenter = (boxStart + boxEnd) / 2
+                    return boxCenter - viewCenter
+                }
+
+                override fun calculateSpeedPerPixel(displayMetrics: DisplayMetrics): Float {
+                    // 数值越小速度越快；这里偏慢一点，接近手势滑动观感。
+                    return 110f / displayMetrics.densityDpi
+                }
+
+                override fun calculateTimeForDeceleration(dx: Int): Int {
+                    return (super.calculateTimeForDeceleration(dx) * 1.15f).toInt()
+                }
+            }
+            smoothScroller.targetPosition = selectedIndex
+            layoutManager.startSmoothScroll(smoothScroller)
+        }
     }
 
     /**
@@ -1107,6 +1167,9 @@ class HomeFragment : Fragment() {
                 BookAccountManager.setSelectedBook(requireContext(), selectedBookName)
                 availableBookNames = mergedBooks
                 bookAccountAdapter.submitList(availableBookNames, selectedBookName)
+                if (isBookDrawerOpen()) {
+                    scrollBookListToSelected(animate = false)
+                }
                 // 每次刷新账本列表后都同步横幅（处理新建 Fragment 时 selectedBookName 初始为 DEFAULT_BOOK 的情况）
                 updateHeaderBanner()
                 // reloadTransactions=true 时按原逻辑加载；

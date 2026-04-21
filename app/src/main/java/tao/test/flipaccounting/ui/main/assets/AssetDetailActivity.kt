@@ -4,9 +4,12 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -50,12 +53,18 @@ import java.util.Locale
 class AssetDetailActivity : AppCompatActivity() {
 
     private lateinit var tvBalance: TextView
+    private lateinit var tvAssetRemark: TextView
     private lateinit var tvToolbarAssetName: TextView
     private lateinit var rvTransactions: RecyclerView
+    private lateinit var tvBtnSearch: TextView
+    private lateinit var layoutSearchBar: View
+    private lateinit var etBillSearch: EditText
     private lateinit var adapter: TransactionAdapter
 
     private var assetId: Long = -1
     private var currentAsset: Asset? = null
+    private var allAssetBills: List<Bill> = emptyList()
+    private var searchQuery: String = ""
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val assetRepository by lazy { AssetRepository(db.assetDao(), db.billDao(), db) }
     private val dfDetailTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -85,12 +94,25 @@ class AssetDetailActivity : AppCompatActivity() {
 
     private fun initViews() {
         tvBalance = findViewById(R.id.tv_asset_balance)
+        tvAssetRemark = findViewById(R.id.tv_asset_remark)
         tvToolbarAssetName = findViewById(R.id.tv_toolbar_asset_name)
         rvTransactions = findViewById(R.id.rv_transactions)
+        tvBtnSearch = findViewById(R.id.tv_btn_search)
+        layoutSearchBar = findViewById(R.id.layout_asset_search_bar)
+        etBillSearch = findViewById(R.id.et_asset_bill_search)
 
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         toolbar.setNavigationOnClickListener { finish() }
         toolbar.title = ""
+        tvBtnSearch.setOnClickListener { toggleSearchPanel() }
+        etBillSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                searchQuery = s?.toString().orEmpty()
+                applyBillSearch()
+            }
+        })
 
         findViewById<View>(R.id.tv_btn_edit).setOnClickListener {
             val intent = Intent(this, AddAssetActivity::class.java)
@@ -126,14 +148,71 @@ class AssetDetailActivity : AppCompatActivity() {
             }
             val assetName = currentAsset?.name.orEmpty()
             db.billDao().getBillsByAssetIdOrName(assetId, assetName).collectLatest { bills ->
-                adapter.submitList(bills)
+                allAssetBills = bills
+                applyBillSearch()
             }
         }
+    }
+
+    private fun toggleSearchPanel() {
+        val showing = layoutSearchBar.visibility == View.VISIBLE
+        if (!showing) {
+            layoutSearchBar.visibility = View.VISIBLE
+            tvBtnSearch.text = "取消"
+            etBillSearch.requestFocus()
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.showSoftInput(etBillSearch, InputMethodManager.SHOW_IMPLICIT)
+            return
+        }
+
+        layoutSearchBar.visibility = View.GONE
+        tvBtnSearch.text = "搜索"
+        etBillSearch.setText("")
+        searchQuery = ""
+        applyBillSearch()
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.hideSoftInputFromWindow(etBillSearch.windowToken, 0)
+    }
+
+    private fun applyBillSearch() {
+        val keyword = searchQuery.trim()
+        if (keyword.isEmpty()) {
+            adapter.submitList(allAssetBills)
+            return
+        }
+        adapter.submitList(allAssetBills.filter { billMatchesQuery(it, keyword) })
+    }
+
+    private fun billMatchesQuery(bill: Bill, keyword: String): Boolean {
+        val query = keyword.lowercase(Locale.ROOT)
+        val amountText = String.format(Locale.getDefault(), "%.2f", bill.amount).lowercase(Locale.ROOT)
+        val category = bill.categoryName.lowercase(Locale.ROOT)
+        val remark = bill.remark.lowercase(Locale.ROOT)
+        val account = bill.accountName.lowercase(Locale.ROOT)
+        val toAccount = bill.toAccountName.lowercase(Locale.ROOT)
+        val bookName = bill.bookName.lowercase(Locale.ROOT)
+        val currency = bill.currency.lowercase(Locale.ROOT)
+        return amountText.contains(query) ||
+            category.contains(query) ||
+            remark.contains(query) ||
+            account.contains(query) ||
+            toAccount.contains(query) ||
+            bookName.contains(query) ||
+            currency.contains(query)
     }
 
     private fun updateAssetUI(asset: Asset) {
         tvToolbarAssetName.text = asset.name
         tvBalance.text = CurrencyUtils.formatAmount(asset.balance, asset.currency)
+        val noteParts = mutableListOf<String>()
+        if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
+        if (!asset.includeInNetAsset) noteParts += "不计入总资产"
+        if (noteParts.isEmpty()) {
+            tvAssetRemark.visibility = View.GONE
+        } else {
+            tvAssetRemark.visibility = View.VISIBLE
+            tvAssetRemark.text = noteParts.joinToString(" · ")
+        }
     }
 
     private fun showAddBillForAsset() {

@@ -32,15 +32,17 @@
             android:textColor="#333333"/>
         <TextView
             android:id="@+id/btn_save"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="60dp"
+            android:layout_height="30dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
+            android:background="@drawable/bg_add_asset_save_btn"
+            android:gravity="center"
             android:text="保存"
-            android:textColor="#2196F3"
-            android:textSize="@dimen/text_size_16"
+            android:textColor="#1E6FE8"
+            android:textSize="@dimen/text_size_14"
             android:textStyle="bold"
-            android:padding="8dp"/>
+            android:paddingHorizontal="10dp"/>
     </RelativeLayout>
 
     <ScrollView
@@ -77,31 +79,36 @@
                         android:paddingHorizontal="16dp"
                         android:background="?android:attr/selectableItemBackground">
                         <TextView
-                            android:layout_width="0dp"
+                            android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:text="账户类型"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_16"/>
-                        <ImageView
-                            android:id="@+id/iv_type_icon"
-                            android:layout_width="@dimen/icon_size_24"
-                            android:layout_height="@dimen/icon_size_24"
-                            android:layout_marginEnd="8dp"
-                            android:src="@android:drawable/ic_menu_gallery"/>
-                        <TextView
-                            android:id="@+id/tv_type_name"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="请选择"
-                            android:textColor="#999999"
-                            android:textSize="@dimen/text_size_16"
-                            android:layout_marginEnd="4dp"/>
-                        <ImageView
-                            android:layout_width="@dimen/icon_size_16"
-                            android:layout_height="@dimen/icon_size_16"
-                            android:src="@android:drawable/ic_media_play"
-                            app:tint="#CCCCCC"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center_vertical|end">
+                            <ImageView
+                                android:id="@+id/iv_type_icon"
+                                android:layout_width="@dimen/icon_size_24"
+                                android:layout_height="@dimen/icon_size_24"
+                                android:layout_marginEnd="8dp"
+                                android:src="@android:drawable/ic_menu_gallery"/>
+                            <TextView
+                                android:id="@+id/tv_type_name"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="请选择"
+                                android:textColor="#999999"
+                                android:textSize="@dimen/text_size_16"
+                                android:layout_marginEnd="4dp"/>
+                            <ImageView
+                                android:layout_width="@dimen/icon_size_16"
+                                android:layout_height="@dimen/icon_size_16"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="#CCCCCC"/>
+                        </LinearLayout>
                     </LinearLayout>
 
                     <!-- Name -->
@@ -120,6 +127,7 @@
                             android:id="@+id/et_name"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
+                            android:layout_marginEnd="20dp"
                             android:background="@null"
                             android:hint="请输入名称"
                             android:textColor="#2196F3"
@@ -144,6 +152,7 @@
                             android:id="@+id/et_balance"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
+                            android:layout_marginEnd="20dp"
                             android:background="@null"
                             android:hint="0.00"
                             android:inputType="numberDecimal|numberSigned"
@@ -161,25 +170,30 @@
                         android:paddingHorizontal="16dp"
                         android:background="?android:attr/selectableItemBackground">
                         <TextView
-                            android:layout_width="0dp"
+                            android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:text="资产类别"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_16"/>
-                        <TextView
-                            android:id="@+id/tv_asset_category"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="资金"
-                            android:textColor="#2196F3"
-                            android:textSize="@dimen/text_size_16"
-                            android:layout_marginEnd="4dp"/>
-                        <ImageView
-                            android:layout_width="@dimen/icon_size_16"
-                            android:layout_height="@dimen/icon_size_16"
-                            android:src="@android:drawable/ic_media_play"
-                            app:tint="#CCCCCC"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center_vertical|end">
+                            <TextView
+                                android:id="@+id/tv_asset_category"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="资金"
+                                android:textColor="#2196F3"
+                                android:textSize="@dimen/text_size_16"
+                                android:layout_marginEnd="4dp"/>
+                            <ImageView
+                                android:layout_width="@dimen/icon_size_16"
+                                android:layout_height="@dimen/icon_size_16"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="#CCCCCC"/>
+                        </LinearLayout>
                     </LinearLayout>
 
                 </LinearLayout>
@@ -208,33 +222,38 @@
                         android:orientation="vertical"
                         android:padding="16dp"
                         android:background="?android:attr/selectableItemBackground">
-                        <RelativeLayout
+                        <LinearLayout
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content">
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
                             <TextView
-                                android:layout_width="wrap_content"
+                                android:layout_width="100dp"
                                 android:layout_height="wrap_content"
                                 android:text="币种"
                                 android:textColor="#333333"
                                 android:textSize="@dimen/text_size_16"/>
-                            <TextView
-                                android:id="@+id/tv_currency"
-                                android:layout_width="wrap_content"
+                            <LinearLayout
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_toStartOf="@id/iv_arrow_cur"
-                                android:text="人民币（CNY）"
-                                android:textColor="#2196F3"
-                                android:textSize="@dimen/text_size_16"
-                                android:layout_marginEnd="4dp"/>
-                            <ImageView
-                                android:id="@+id/iv_arrow_cur"
-                                android:layout_width="@dimen/icon_size_16"
-                                android:layout_height="@dimen/icon_size_16"
-                                android:layout_alignParentEnd="true"
-                                android:layout_centerVertical="true"
-                                android:src="@android:drawable/ic_media_play"
-                                app:tint="#CCCCCC"/>
-                        </RelativeLayout>
+                                android:layout_weight="1"
+                                android:gravity="center_vertical|end">
+                                <TextView
+                                    android:id="@+id/tv_currency"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="¥ CNY"
+                                    android:textColor="#2196F3"
+                                    android:textSize="@dimen/text_size_16"
+                                    android:layout_marginEnd="4dp"/>
+                                <ImageView
+                                    android:id="@+id/iv_arrow_cur"
+                                    android:layout_width="@dimen/icon_size_16"
+                                    android:layout_height="@dimen/icon_size_16"
+                                    android:src="@drawable/ic_chevron_right"
+                                    app:tint="#CCCCCC"/>
+                            </LinearLayout>
+                        </LinearLayout>
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -248,15 +267,18 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:minHeight="64dp"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:paddingTop="4dp"
+                        android:paddingBottom="8dp">
                         <RelativeLayout
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content">
+                            android:layout_height="56dp"
+                            android:gravity="center_vertical"
+                            android:paddingHorizontal="16dp">
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:layout_centerVertical="true"
                                 android:text="计入总资产"
                                 android:textColor="#333333"
                                 android:textSize="@dimen/text_size_16"/>
@@ -265,15 +287,19 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_alignParentEnd="true"
+                                android:layout_centerVertical="true"
                                 android:checked="true"/>
                         </RelativeLayout>
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="开启：金额计入总资产；关闭：余额变化不计入净资产，但流水仍正常记录"
+                            android:layout_marginStart="16dp"
+                            android:layout_marginEnd="16dp"
+                            android:text="关闭后不计入净资产，流水仍正常记录"
                             android:textColor="#999999"
                             android:textSize="@dimen/text_size_12"
-                            android:layout_marginTop="2dp"/>
+                            android:maxLines="1"
+                            android:ellipsize="end"/>
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

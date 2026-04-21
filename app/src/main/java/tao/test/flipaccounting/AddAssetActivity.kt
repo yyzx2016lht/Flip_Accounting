@@ -132,6 +132,7 @@ class AddAssetActivity : AppCompatActivity() {
         layoutTypePicker = findViewById(R.id.layout_type_picker)
         etSearchType = findViewById(R.id.et_search_type)
         tvAssetCategory = findViewById(R.id.tv_asset_category)
+        refreshCurrencyDisplay()
 
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
         findViewById<View>(R.id.btn_save).setOnClickListener { saveAsset() }
@@ -261,7 +262,7 @@ class AddAssetActivity : AppCompatActivity() {
                 selectedType = it.type
                 selectedIcon = AssetIconDefaults.withDefault(it.icon)
                 selectedCurrency = it.currency
-                tvCurrency.text = it.currency
+                refreshCurrencyDisplay()
                 swIncludeNet.isChecked = it.includeInNetAsset
                 selectedAssetCategory = it.assetCategory
                 originalSortOrder = it.sortOrder
@@ -451,13 +452,27 @@ class AddAssetActivity : AppCompatActivity() {
 
     private fun showCurrencyDialog() {
         val currencies = CurrencyManager.getEnabledCurrencies(this).toTypedArray()
+        val labels = currencies.map { formatCurrencyDisplay(it) }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle("选择币种")
-            .setItems(currencies) { _, which ->
+            .setItems(labels) { _, which ->
                 selectedCurrency = currencies[which]
-                tvCurrency.text = selectedCurrency
+                refreshCurrencyDisplay()
             }
             .show()
+    }
+
+    private fun refreshCurrencyDisplay() {
+        tvCurrency.text = formatCurrencyDisplay(selectedCurrency)
+    }
+
+    private fun formatCurrencyDisplay(code: String): String {
+        val normalized = code.trim().uppercase(Locale.ROOT)
+        if (normalized.isBlank()) return code
+
+        val info = CurrencyData.getInfo(normalized)
+        val symbol = info?.symbol?.takeIf { it.isNotBlank() } ?: normalized
+        return "$symbol $normalized"
     }
 
     private fun showAssetCategoryDialog() {

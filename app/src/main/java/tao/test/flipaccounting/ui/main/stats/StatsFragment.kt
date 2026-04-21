@@ -41,6 +41,7 @@ import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import tao.test.flipaccounting.ui.main.home.HomeViewModel
 import java.text.SimpleDateFormat
@@ -120,20 +121,13 @@ class StatsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         syncDateFromHomeIfNeeded()
-        // 初始化时立即按当前账本过滤，避免 ViewModel init 时用的是 null 账本
-        viewModel.setBookFilter(BookAccountManager.getSelectedBook(requireContext()))
+        syncBookFromGlobalIfNeeded()
     }
 
     override fun onResume() {
         super.onResume()
         syncDateFromHomeIfNeeded()
-        val selectedBook = BookAccountManager.getSelectedBook(requireContext())
-        val currentBook = viewModel.uiState.value.selectedBookName
-        // 用 normalizeBookName 做比较，避免空字符串和 null 被判断为不同
-        if (BookAccountManager.normalizeBookName(currentBook) !=
-            BookAccountManager.normalizeBookName(selectedBook)) {
-            viewModel.setBookFilter(selectedBook)
-        }
+        syncBookFromGlobalIfNeeded()
     }
 
     /**
@@ -145,12 +139,7 @@ class StatsFragment : Fragment() {
         if (!hidden) {
             // Fragment 从隐藏变为可见（即切换到统计 Tab）
             syncDateFromHomeIfNeeded()
-            val selectedBook = BookAccountManager.getSelectedBook(requireContext())
-            val currentBook = viewModel.uiState.value.selectedBookName
-            if (BookAccountManager.normalizeBookName(currentBook) !=
-                BookAccountManager.normalizeBookName(selectedBook)) {
-                viewModel.setBookFilter(selectedBook)
-            }
+            syncBookFromGlobalIfNeeded()
         }
     }
 
@@ -248,8 +237,8 @@ class StatsFragment : Fragment() {
     }
 
     private fun setupListeners(root: View) {
-        root.findViewById<View>(R.id.btn_currency).setOnClickListener {
-            showCurrencyFilterDialog()
+        root.findViewById<View>(R.id.btn_book_switch).setOnClickListener {
+            showBookFilterDialog()
         }
 
         root.findViewById<View>(R.id.btn_filter).setOnClickListener {
@@ -618,6 +607,17 @@ class StatsFragment : Fragment() {
         }
     }
 
+    private fun syncBookFromGlobalIfNeeded() {
+        val globalBook = BookAccountManager.normalizeBookName(BookAccountManager.getSelectedBook(requireContext()))
+        val targetBookFilter = if (globalBook == BookAccountManager.ALL_BOOK) null else globalBook
+        val currentBookFilter = viewModel.uiState.value.selectedBookName
+            ?.let { BookAccountManager.normalizeBookName(it) }
+
+        if (currentBookFilter != targetBookFilter) {
+            viewModel.setBookFilter(targetBookFilter)
+        }
+    }
+
     private fun showUnifiedMonthYearPicker() {
         val state = viewModel.uiState.value
         if (state.isMonthMode) {
@@ -642,32 +642,35 @@ class StatsFragment : Fragment() {
         }
     }
 
-    private fun showCurrencyFilterDialog() {
+    private fun showBookFilterDialog() {
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
-            val currencies = db.assetDao().getAllAssetsList()
-                .map { it.currency }
-                .filter { it.isNotBlank() }
+            val books = db.billDao().getAllBookNames()
+            val mergedBooks = BookAccountManager.getBookAccounts(requireContext().applicationContext, books)
+            val normalizedBooks = mergedBooks
+                .map { BookAccountManager.normalizeBookName(it) }
+                .filter { it.isNotBlank() && it != BookAccountManager.ALL_BOOK }
                 .distinct()
-                .sorted()
 
             withContext(Dispatchers.Main) {
-                val options = mutableListOf("全部")
-                options.addAll(currencies)
+                val options = mutableListOf(BookAccountManager.ALL_BOOK).apply {
+                    addAll(normalizedBooks)
+                }
+                val currentSelection = viewModel.uiState.value.selectedBookName
+                    ?.let { BookAccountManager.normalizeBookName(it) }
+                    ?.takeIf { it.isNotBlank() && options.contains(it) }
+                    ?: BookAccountManager.ALL_BOOK
 
-                val current = viewModel.uiState.value.selectedCurrency
-                val checkedIndex = if (current == null) 0 else options.indexOf(current).takeIf { it >= 0 } ?: 0
-
-                val dialog = AlertDialog.Builder(requireContext())
-                    .setTitle("选择币种")
-                    .setSingleChoiceItems(options.toTypedArray(), checkedIndex) { dialog, which ->
-                        val selected = if (which == 0) null else options[which]
-                        viewModel.setCurrencyFilter(selected)
-                        dialog.dismiss()
-                    }
-                    .setNegativeButton("取消", null)
-                    .create()
-                showStyledCenterDialog(dialog)
+                OverlayDialogs.showBookPickerDialog(
+                    ctx = requireContext(),
+                    books = options,
+                    currentBook = currentSelection
+                ) { chosen ->
+                    BookAccountManager.setSelectedBook(requireContext(), chosen)
+                    viewModel.setBookFilter(
+                        if (chosen == BookAccountManager.ALL_BOOK) null else chosen
+                    )
+                }
             }
         }
     }
@@ -690,7 +693,7 @@ class StatsFragment : Fragment() {
         val cardEnd = view.findViewById<View>(R.id.tv_filter_end_date)
         val tvStart = view.findViewById<TextView>(R.id.tv_filter_start_date_text)
         val tvEnd = view.findViewById<TextView>(R.id.tv_filter_end_date_text)
-        val tvBook = view.findViewById<TextView>(R.id.tv_filter_book_selector)
+        val tvCurrency = view.findViewById<TextView>(R.id.tv_filter_currency_selector)
 
         val btnClose = view.findViewById<View>(R.id.btn_close_filter_sheet)
         val btnConfirm = view.findViewById<View>(R.id.btn_confirm_filter_sheet)
@@ -699,8 +702,8 @@ class StatsFragment : Fragment() {
         val state = viewModel.uiState.value
         var customStart: Long? = null
         var customEnd: Long? = null
-        var selectedBook: String? = state.selectedBookName
-        var availableBooks: List<String> = emptyList()
+        var selectedCurrency: String? = state.selectedCurrency
+        var availableCurrencies: List<String> = emptyList()
         var suppressQuickSync = false
 
         fun clearQuickChips() {
@@ -839,7 +842,7 @@ class StatsFragment : Fragment() {
             resetDateLabels()
         }
 
-        tvBook.text = selectedBook ?: "\u5168\u90e8\u8d26\u672c"
+        tvCurrency.text = selectedCurrency ?: "全部币种"
         resetDateLabels()
 
         when (state.forcedLabel) {
@@ -898,30 +901,33 @@ class StatsFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             val context = requireContext().applicationContext
-            val books = AppDatabase.getDatabase(context).billDao().getAllBookNames()
-            val mergedBooks = BookAccountManager.getBookAccounts(context, books)
+            val currencies = AppDatabase.getDatabase(context).assetDao().getAllAssetsList()
+                .map { it.currency }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .sorted()
             withContext(Dispatchers.Main) {
-                availableBooks = mergedBooks
-                if (selectedBook != null && !availableBooks.contains(selectedBook)) {
-                    selectedBook = null
-                    tvBook.text = "\u5168\u90e8\u8d26\u672c"
+                availableCurrencies = currencies
+                if (selectedCurrency != null && !availableCurrencies.contains(selectedCurrency)) {
+                    selectedCurrency = null
+                    tvCurrency.text = "全部币种"
                 }
             }
         }
 
-        tvBook.setOnClickListener {
-            val options = mutableListOf("\u5168\u90e8\u8d26\u672c")
-            options.addAll(availableBooks)
-            val checked = if (selectedBook == null) 0 else options.indexOf(selectedBook).takeIf { it >= 0 } ?: 0
+        tvCurrency.setOnClickListener {
+            val options = mutableListOf("全部币种")
+            options.addAll(availableCurrencies)
+            val checked = if (selectedCurrency == null) 0 else options.indexOf(selectedCurrency).takeIf { it >= 0 } ?: 0
 
             val dialog = AlertDialog.Builder(requireContext())
-                .setTitle("\u9009\u62e9\u8d26\u672c")
+                .setTitle("选择币种")
                 .setSingleChoiceItems(options.toTypedArray(), checked) { d, which ->
-                    selectedBook = if (which == 0) null else options[which]
-                    tvBook.text = selectedBook ?: "\u5168\u90e8\u8d26\u672c"
+                    selectedCurrency = if (which == 0) null else options[which]
+                    tvCurrency.text = selectedCurrency ?: "全部币种"
                     d.dismiss()
                 }
-                .setNegativeButton("\u53d6\u6d88", null)
+                .setNegativeButton("取消", null)
                 .create()
             showStyledCenterDialog(dialog)
         }
@@ -934,9 +940,9 @@ class StatsFragment : Fragment() {
             clearQuickChips()
             customStart = null
             customEnd = null
-            selectedBook = null
+            selectedCurrency = null
             resetDateLabels()
-            tvBook.text = "\u5168\u90e8\u8d26\u672c"
+            tvCurrency.text = "全部币种"
         }
 
         btnConfirm.setOnClickListener {
@@ -957,7 +963,7 @@ class StatsFragment : Fragment() {
                 }
             }
 
-            viewModel.setBookFilter(selectedBook)
+            viewModel.setCurrencyFilter(selectedCurrency)
             dialog.dismiss()
         }
 
