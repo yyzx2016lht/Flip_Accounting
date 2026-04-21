@@ -848,12 +848,11 @@ class SettingsActivity : AppCompatActivity() {
             optionsContainer.addView(item)
         }
         val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
-        optionsScroll.post {
-            val contentHeight = optionsContainer.measuredHeight
-            val targetHeight = min(maxHeight, contentHeight.coerceAtLeast(dp(1)))
-            optionsScroll.layoutParams = optionsScroll.layoutParams.apply {
-                height = targetHeight
-            }
+        val estimatedItemHeight = ((66 + 10) * resources.displayMetrics.density).toInt()
+        val estimatedContentHeight = (options.size * estimatedItemHeight).coerceAtLeast(dp(1))
+        val targetHeight = min(maxHeight, estimatedContentHeight)
+        optionsScroll.layoutParams = optionsScroll.layoutParams.apply {
+            height = targetHeight
         }
         panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
         showStyledCenterDialog(dialog, widthRatio = 0.92f)
@@ -894,6 +893,11 @@ class SettingsActivity : AppCompatActivity() {
         fun applyWindowStyle() {
             dialog.window?.let { win ->
                 WindowCompat.setDecorFitsSystemWindows(win, false)
+                win.decorView?.fitsSystemWindows = false
+                win.setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+                )
                 win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
                 win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
                 win.setGravity(Gravity.CENTER)

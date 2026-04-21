@@ -17,12 +17,14 @@ import android.view.LayoutInflater
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -537,6 +539,9 @@ class HomeFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        if (isMultiSelectModeActive) {
+            homeAdapter.clearSelection()
+        }
         // 注意：不要在 onPause 里切换 decorFitsSystemWindows。
         // 打开设置/分类等新 Activity 时，onPause 也会触发，
         // 此处若切到 decorFits=true 会导致当前窗口根视图瞬时整体下移（用户可见“抖一下”）。
@@ -552,6 +557,9 @@ class HomeFragment : Fragment() {
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
         if (hidden) {
+            if (isMultiSelectModeActive) {
+                homeAdapter.clearSelection()
+            }
             // 切离账单 Tab：仅更新状态栏颜色/图标，不切换 decorFits，
             // 避免下一页（如设置页）首次进入首帧整体下移。
             restoreDefaultStatusBarForOtherTabs()
@@ -728,25 +736,37 @@ class HomeFragment : Fragment() {
     /** 为顶部横幅区域设置长按事件，弹出操作菜单 */
     private fun setupBannerLongPress() {
         headerBannerLayout.setOnLongClickListener {
+            dismissKeyboardForDialog()
             val hasBanner = BookAccountManager.getBookBannerPath(requireContext(), selectedBookName) != null
-            val options = buildList {
-                add(if (hasBanner) "更换封面图" else "设置封面图")
-                if (hasBanner) add("移除封面图")
-                add("修改主题颜色")
-            }.toTypedArray()
+            val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
+            val panel = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_delete_followup_picker, null, false)
+            val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
+            panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "「$selectedBookName」外观设置"
+            val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
 
-            val dialog = AlertDialog.Builder(requireContext())
-                .setTitle("「$selectedBookName」外观设置")
-                .setItems(options) { _, which ->
-                    when (options[which]) {
-                        "设置封面图", "更换封面图" -> pickBannerImage()
-                        "移除封面图"              -> removeBanner()
-                        "修改主题颜色"            -> showColorPickerDialog()
-                    }
+            fun addOption(label: String, onClick: () -> Unit) {
+                val item = LayoutInflater.from(requireContext())
+                    .inflate(R.layout.item_delete_followup_picker_option, optionsContainer, false)
+                item.findViewById<TextView>(R.id.tv_followup_picker_option).text = label
+                item.setOnClickListener {
+                    dialog.dismiss()
+                    onClick()
                 }
-                .setNegativeButton("取消", null)
-                .create()
-            applyDialogMotion(dialog)
+                optionsContainer.addView(item)
+            }
+
+            addOption(if (hasBanner) "更换封面图" else "设置封面图") { pickBannerImage() }
+            if (hasBanner) {
+                addOption("移除封面图") { removeBanner() }
+            }
+            addOption("修改主题颜色") { showColorPickerDialog() }
+
+            panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
+            panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
+            dialog.setContentView(panel)
+            dialog.setCanceledOnTouchOutside(true)
+            configureDialogWindow(dialog, width = width)
             dialog.show()
             true
         }
@@ -754,8 +774,11 @@ class HomeFragment : Fragment() {
 
     /** 显示预设颜色选择对话框 */
     private fun showColorPickerDialog() {
+        dismissKeyboardForDialog()
         val ctx = requireContext()
         val currentColor = BookAccountManager.getBookColor(ctx, selectedBookName)
+        val density = resources.displayMetrics.density
+        fun px(value: Int): Int = (value * density).toInt()
 
         // 16 种精心挑选的预设色（名称 + ARGB）
         val colorOptions = listOf(
@@ -777,67 +800,66 @@ class HomeFragment : Fragment() {
             "炭黑"   to 0xFF222222.toInt(),
         )
 
-        // 用 GridView 展示色块
-        val gridView = android.widget.GridView(ctx).apply {
-            numColumns = 4
-            horizontalSpacing = 16
-            verticalSpacing   = 16
-            setPadding(24, 24, 24, 8)
-            stretchMode = android.widget.GridView.STRETCH_COLUMN_WIDTH
-        }
+        val dialog = Dialog(ctx, R.style.Theme_FlipAccounting)
+        val panel = LayoutInflater.from(ctx).inflate(R.layout.dialog_delete_followup_picker, null, false)
+        val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
+        panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "选择主题颜色"
+        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
 
-        val dialog = AlertDialog.Builder(ctx)
-            .setTitle("选择主题颜色")
-            .setView(gridView)
-            .setNegativeButton("取消", null)
-            .create()
-
-        gridView.adapter = object : android.widget.BaseAdapter() {
-            override fun getCount() = colorOptions.size
-            override fun getItem(pos: Int) = colorOptions[pos]
-            override fun getItemId(pos: Int) = pos.toLong()
-            override fun getView(pos: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
-                val (name, color) = colorOptions[pos]
-                val dp = ctx.resources.displayMetrics.density
-                val container = android.widget.FrameLayout(ctx)
-                // 色块主体
-                val swatch = android.view.View(ctx).apply {
-                    layoutParams = android.widget.FrameLayout.LayoutParams(
-                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                        (52 * dp).toInt()
-                    )
-                    background = android.graphics.drawable.GradientDrawable().apply {
-                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                        cornerRadius = 10 * dp
-                        setColor(color)
-                    }
-                }
-                // 当前选中标记（白色对勾）
-                val check = android.widget.TextView(ctx).apply {
-                    layoutParams = android.widget.FrameLayout.LayoutParams(
-                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-                    )
-                    gravity = android.view.Gravity.CENTER
-                    text   = if (color == currentColor) "✓" else ""
-                    textSize = 22f
-                    setTextColor(android.graphics.Color.WHITE)
-                }
-                container.addView(swatch)
-                container.addView(check)
-                container.contentDescription = name
-                return container
+        colorOptions.forEach { (name, color) ->
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setBackgroundResource(R.drawable.bg_delete_option_item)
+                minimumHeight = px(52)
+                setPadding(px(12), px(10), px(12), px(10))
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                lp.topMargin = px(8)
+                layoutParams = lp
             }
+
+            val swatch = View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(px(20), px(20))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(color)
+                }
+            }
+            val nameView = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f
+                ).apply { marginStart = px(10) }
+                text = name
+                setTextColor(Color.parseColor("#243146"))
+                textSize = 14f
+            }
+            val checkView = TextView(ctx).apply {
+                text = if (color == currentColor) "✓" else ""
+                setTextColor(Color.parseColor("#1F2937"))
+                textSize = 16f
+            }
+
+            row.addView(swatch)
+            row.addView(nameView)
+            row.addView(checkView)
+            row.setOnClickListener {
+                BookAccountManager.setBookColor(ctx, selectedBookName, color)
+                updateHeaderBanner()
+                dialog.dismiss()
+            }
+            optionsContainer.addView(row)
         }
 
-        gridView.setOnItemClickListener { _, _, pos, _ ->
-            val (_, color) = colorOptions[pos]
-            BookAccountManager.setBookColor(ctx, selectedBookName, color)
-            updateHeaderBanner()
-            dialog.dismiss()
-        }
-
-        applyDialogMotion(dialog)
+        panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
+        panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
+        dialog.setContentView(panel)
+        dialog.setCanceledOnTouchOutside(true)
+        configureDialogWindow(dialog, width = width)
         dialog.show()
     }
 
@@ -1302,24 +1324,38 @@ class HomeFragment : Fragment() {
     }
 
     private fun applyDialogMotion(dialog: Dialog) {
-        dialog.window?.let { window ->
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+        fun applyWindowStyle() {
+            dialog.window?.let { window ->
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                window.decorView?.fitsSystemWindows = false
+                window.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+            }
         }
+        dialog.setOnShowListener { applyWindowStyle() }
+        applyWindowStyle()
     }
 
     private fun configureDialogWindow(dialog: Dialog, width: Int, dimAmount: Float = 0.34f) {
-        dialog.window?.apply {
-            WindowCompat.setDecorFitsSystemWindows(this, false)
-            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-            setGravity(Gravity.CENTER)
-            setDimAmount(dimAmount)
-            setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-            attributes = attributes.apply {
-                this.width = width
-                this.height = ViewGroup.LayoutParams.WRAP_CONTENT
+        fun applyWindowStyle() {
+            dialog.window?.apply {
+                WindowCompat.setDecorFitsSystemWindows(this, false)
+                decorView?.fitsSystemWindows = false
+                setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+                )
+                setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+                setGravity(Gravity.CENTER)
+                setDimAmount(dimAmount)
+                setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+                attributes = attributes.apply {
+                    this.width = width
+                    this.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                }
             }
         }
+        dialog.setOnShowListener { applyWindowStyle() }
+        applyWindowStyle()
     }
 
     /** 让用户从 [transferCandidates] 中选一个目标账本，再执行迁移+删除 */
@@ -1530,12 +1566,23 @@ class HomeFragment : Fragment() {
 
     /** 弹出账本选择对话框，将选中账单批量移动到目标账本 */
     private fun showMoveToBookDialog(bills: List<Bill>) {
-        val books = availableBookNames.toTypedArray()
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle("移动到账本")
-            .setItems(books) { _, which ->
-                val targetBook = books[which]
-                // 校验：若所有选中账单都已在目标账本，则不允许转移
+        dismissKeyboardForDialog()
+        val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
+        val panel = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_book_delete_options, null, false)
+        val width = (resources.displayMetrics.widthPixels * 0.92f).toInt()
+        panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "移动到账本"
+        panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "选择目标账本"
+        val optionsScroll = panel.findViewById<ScrollView>(R.id.scroll_delete_book_options)
+        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+
+        availableBookNames.forEach { targetBook ->
+            val item = LayoutInflater.from(requireContext())
+                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
+            item.findViewById<TextView>(R.id.tv_delete_option_title).text = targetBook
+            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = "将所选账单迁移到该账本"
+            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
+            item.setOnClickListener {
                 val normalized = BookAccountManager.normalizeBookName(targetBook)
                 val allSameBook = bills.all {
                     BookAccountManager.normalizeBookName(it.bookName) == normalized
@@ -1546,8 +1593,9 @@ class HomeFragment : Fragment() {
                         "账单已在「$targetBook」中，无需转移",
                         Toast.LENGTH_SHORT
                     ).show()
-                    return@setItems
+                    return@setOnClickListener
                 }
+                dialog.dismiss()
                 val ids = bills.map { it.id }
                 lifecycleScope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(requireContext())
@@ -1562,9 +1610,18 @@ class HomeFragment : Fragment() {
                     }
                 }
             }
-            .setNegativeButton("取消", null)
-            .create()
-        applyDialogMotion(dialog)
+            optionsContainer.addView(item)
+        }
+
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
+        val estimatedItemHeight = ((66 + 10) * resources.displayMetrics.density).toInt()
+        val estimatedContentHeight = (availableBookNames.size * estimatedItemHeight).coerceAtLeast(1)
+        val targetHeight = min(maxHeight, estimatedContentHeight)
+        optionsScroll.layoutParams = optionsScroll.layoutParams.apply { height = targetHeight }
+        panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
+        dialog.setContentView(panel)
+        dialog.setCanceledOnTouchOutside(true)
+        configureDialogWindow(dialog, width = width)
         dialog.show()
     }
 
