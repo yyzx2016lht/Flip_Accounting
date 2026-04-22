@@ -1,6 +1,6 @@
 ﻿package tao.test.flipaccounting.ui.main.home
 
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -13,7 +13,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -22,7 +21,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -341,7 +339,7 @@ class CalendarActivity : AppCompatActivity() {
                 d.dismiss()
             }
             .create()
-        showStyledCenterDialog(dialog, widthRatio = 0.86f)
+        OverlayDialogs.showStyledCenterDialog(dialog, this, widthRatio = 0.86f)
     }
     private fun setDisplayMode(mode: Int) {
         currentMode = mode
@@ -400,7 +398,7 @@ class CalendarActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        showStyledCenterDialog(dialog, widthRatio = 0.86f)
+        OverlayDialogs.showStyledCenterDialog(dialog, this, widthRatio = 0.86f)
     }
     private fun setupCalendar() {
         rvCalendar.layoutManager = GridLayoutManager(this, 7)
@@ -1162,32 +1160,6 @@ class CalendarActivity : AppCompatActivity() {
             "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"
         )
         return names.getOrElse((day - 1).coerceIn(0, 29)) { "" }
-    }
-
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
-        fun applyWindowStyle() {
-            dialog.window?.let { win ->
-                WindowCompat.setDecorFitsSystemWindows(win, false)
-                win.decorView?.fitsSystemWindows = false
-                win.setSoftInputMode(
-                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
-                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
-                )
-                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
-                win.setGravity(Gravity.CENTER)
-                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
-                win.attributes = win.attributes.apply {
-                    width = targetWidth
-                    height = WindowManager.LayoutParams.WRAP_CONTENT
-                }
-            }
-        }
-        dialog.setOnShowListener { applyWindowStyle() }
-        applyWindowStyle()
-        dialog.show()
-        applyWindowStyle()
     }
     private fun buildCellBackgroundColor(dateStr: String, summary: DailySummary): Int {
         if (currentMode == MODE_BOTH) {

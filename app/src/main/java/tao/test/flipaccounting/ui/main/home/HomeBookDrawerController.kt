@@ -20,6 +20,7 @@ import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
@@ -65,6 +66,7 @@ internal class HomeBookDrawerController(
     private val configureDialogWindow: (Dialog, Int, Float) -> Unit,
 ) {
     private lateinit var bookAccountAdapter: BookAccountAdapter
+    private var bookOrderTouchHelper: ItemTouchHelper? = null
 
     private enum class BookDeleteMode {
         MOVE_TO_OTHER_BOOK,
@@ -90,9 +92,17 @@ internal class HomeBookDrawerController(
                 } else {
                     deleteBook(name)
                 }
+            },
+            onOrderChanged = { newOrder ->
+                BookAccountManager.reorderBookAccounts(fragment.requireContext(), newOrder)
+                setAvailableBookNames(BookAccountManager.withAllBookOption(newOrder))
+            },
+            onStartDrag = { viewHolder ->
+                bookOrderTouchHelper?.startDrag(viewHolder)
             }
         )
         rvBookAccounts.adapter = bookAccountAdapter
+        setupBookDrawerReorder()
         rvBookAccounts.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             adjustBookListBottomPaddingForWholeRows()
         }
@@ -156,6 +166,72 @@ internal class HomeBookDrawerController(
                 }
             }
         })
+    }
+
+    private fun setupBookDrawerReorder() {
+        val callback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+            0
+        ) {
+            private var dragFrom = RecyclerView.NO_POSITION
+            private var dragTo = RecyclerView.NO_POSITION
+
+            override fun isLongPressDragEnabled(): Boolean = false
+
+            override fun getMovementFlags(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder
+            ): Int {
+                // 第一项「全部账本」固定，不参与拖拽
+                if (viewHolder.adapterPosition == 0) return makeMovementFlags(0, 0)
+                return makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+            }
+
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val from = viewHolder.adapterPosition
+                val to = target.adapterPosition
+                if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
+                if (to == 0) return false
+                if (dragFrom == RecyclerView.NO_POSITION) dragFrom = from
+                dragTo = to
+                return bookAccountAdapter.onItemMove(from, to)
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    bookAccountAdapter.closeSwipeActions()
+                    viewHolder?.itemView?.animate()
+                        ?.scaleX(1.02f)
+                        ?.scaleY(1.02f)
+                        ?.alpha(0.93f)
+                        ?.setDuration(100L)
+                        ?.start()
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                if (dragFrom != RecyclerView.NO_POSITION &&
+                    dragTo != RecyclerView.NO_POSITION &&
+                    dragFrom != dragTo
+                ) {
+                    bookAccountAdapter.onDragEnd()
+                }
+                dragFrom = RecyclerView.NO_POSITION
+                dragTo = RecyclerView.NO_POSITION
+                viewHolder.itemView.scaleX = 1f
+                viewHolder.itemView.scaleY = 1f
+                viewHolder.itemView.alpha = 1f
+            }
+        }
+        bookOrderTouchHelper = ItemTouchHelper(callback).also { it.attachToRecyclerView(rvBookAccounts) }
     }
 
     fun setupBookDrawerImeInsets() {

@@ -2,17 +2,14 @@
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -25,6 +22,7 @@ import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.repository.AssetRepository
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.util.Locale
 
 class AssetActivity : AppCompatActivity() {
@@ -116,7 +114,7 @@ class AssetActivity : AppCompatActivity() {
                 }
             }
             .create()
-        showStyledCenterDialog(dialog)
+        OverlayDialogs.showStyledCenterDialog(dialog, this)
     }
 
     private fun showDeleteAssetConfirm(asset: Asset) {
@@ -138,25 +136,7 @@ class AssetActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        showStyledCenterDialog(dialog)
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        fun applyWindowStyle() {
-            dialog.window?.let { win ->
-                WindowCompat.setDecorFitsSystemWindows(win, false)
-                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                win.setGravity(Gravity.CENTER)
-                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
-                win.attributes = win.attributes.apply {
-                    width = targetWidth
-                    height = WindowManager.LayoutParams.WRAP_CONTENT
-                }
-            }
-        }
-        dialog.setOnShowListener { applyWindowStyle() }
-        dialog.show()
-        applyWindowStyle()
+        OverlayDialogs.showStyledCenterDialog(dialog, this)
     }
 
     inner class AssetListAdapter(

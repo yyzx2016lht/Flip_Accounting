@@ -1,22 +1,19 @@
 ﻿package tao.test.flipaccounting.ui.main.stats
 
-import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -587,7 +584,7 @@ class StatsFragment : Fragment() {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            showStyledCenterDialog(dialog)
+            OverlayDialogs.showStyledCenterDialog(dialog, requireContext())
         } else {
             val npYear = NumberPicker(requireContext()).apply {
                 minValue = 2000
@@ -603,7 +600,7 @@ class StatsFragment : Fragment() {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            showStyledCenterDialog(dialog)
+            OverlayDialogs.showStyledCenterDialog(dialog, requireContext())
         }
     }
 
@@ -929,7 +926,7 @@ class StatsFragment : Fragment() {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            showStyledCenterDialog(dialog)
+            OverlayDialogs.showStyledCenterDialog(dialog, requireContext())
         }
 
         btnClose.setOnClickListener {
@@ -1052,25 +1049,6 @@ class StatsFragment : Fragment() {
             }
         }
         sheet.show(childFragmentManager, "sub_categories")
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        fun applyWindowStyle() {
-            dialog.window?.let { win ->
-                WindowCompat.setDecorFitsSystemWindows(win, false)
-                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                win.setBackgroundDrawableResource(R.drawable.bg_overlay_accounting_panel)
-                win.setGravity(Gravity.CENTER)
-                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
-                win.attributes = win.attributes.apply {
-                    width = targetWidth
-                    height = WindowManager.LayoutParams.WRAP_CONTENT
-                }
-            }
-        }
-        dialog.setOnShowListener { applyWindowStyle() }
-        dialog.show()
-        applyWindowStyle()
     }
 }
 

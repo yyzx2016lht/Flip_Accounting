@@ -3,16 +3,13 @@
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
-import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import tao.test.flipaccounting.logic.BillAssetImpactService
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.logic.CurrencyUtils
@@ -167,7 +164,7 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        showStyledCenterDialog(dialog)
+        OverlayDialogs.showStyledCenterDialog(dialog, this)
     }
 
     private fun showCategoryDialog() {
@@ -194,23 +191,5 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
         } else {
             "平账($oldStr -> $newStr)"
         }
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        fun applyWindowStyle() {
-            dialog.window?.let { win ->
-                WindowCompat.setDecorFitsSystemWindows(win, false)
-                win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                win.setGravity(Gravity.CENTER)
-                val targetWidth = (resources.displayMetrics.widthPixels * widthRatio).toInt()
-                win.attributes = win.attributes.apply {
-                    width = targetWidth
-                    height = WindowManager.LayoutParams.WRAP_CONTENT
-                }
-            }
-        }
-        dialog.setOnShowListener { applyWindowStyle() }
-        dialog.show()
-        applyWindowStyle()
     }
 }

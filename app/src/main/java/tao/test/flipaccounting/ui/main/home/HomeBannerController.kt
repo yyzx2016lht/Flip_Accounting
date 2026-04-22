@@ -89,9 +89,9 @@ internal class HomeBannerController(
                 ivHeaderBanner.visibility = View.VISIBLE
                 // 拆分上下遮罩：顶部保护胶囊/图标，底部保护文本，避免“一层糊全局”
                 vBannerTopScrim.visibility = View.VISIBLE
-                vBannerTopScrim.alpha = 1f
+                vBannerTopScrim.alpha = 0.82f
                 vBannerGradient.visibility = View.VISIBLE
-                vBannerGradient.alpha = 1f
+                vBannerGradient.alpha = 0.78f
                 applyTopBarChipBackgroundStyle(useStrong = true)
                 applyBannerTextColor(useLightText = true)
                 applyBannerTextContrastEnhancement(enabled = true)

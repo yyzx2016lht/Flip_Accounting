@@ -20,7 +20,9 @@ import kotlin.math.abs
 class BookAccountAdapter(
     private val onItemClick: (String) -> Unit,
     private val onRenameClick: (oldName: String, newName: String) -> Unit,
-    private val onDeleteClick: (name: String) -> Unit
+    private val onDeleteClick: (name: String) -> Unit,
+    private val onOrderChanged: (newOrder: List<String>) -> Unit,
+    private val onStartDrag: (RecyclerView.ViewHolder) -> Unit
 ) : RecyclerView.Adapter<BookAccountAdapter.BookViewHolder>() {
 
     private val items = mutableListOf<String>()
@@ -42,6 +44,21 @@ class BookAccountAdapter(
         openedPosition = books.indexOf(openedName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
         editingPosition = books.indexOf(editingName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
         notifyDataSetChanged()
+    }
+
+    fun onItemMove(fromPos: Int, toPos: Int): Boolean {
+        if (fromPos == RecyclerView.NO_POSITION || toPos == RecyclerView.NO_POSITION) return false
+        // 第一项「全部账本」固定，不参与拖拽排序
+        if (fromPos == 0 || toPos == 0) return false
+        if (fromPos !in items.indices || toPos !in items.indices) return false
+        val item = items.removeAt(fromPos)
+        items.add(toPos, item)
+        notifyItemMoved(fromPos, toPos)
+        return true
+    }
+
+    fun onDragEnd() {
+        onOrderChanged(items.toList())
     }
 
     fun closeSwipeActions() {
@@ -84,6 +101,8 @@ class BookAccountAdapter(
         private var startTx = 0f
         private var dragging = false
         private var movedBeyondTapSlop = false
+        private var longPressRunnable: Runnable? = null
+        private var dragStartedByLongPress = false
 
         init {
             foreground.setOnTouchListener { _, ev -> onForegroundTouch(ev) }
@@ -145,10 +164,26 @@ class BookAccountAdapter(
                     startTx = foreground.translationX
                     dragging = false
                     movedBeyondTapSlop = false
+                    dragStartedByLongPress = false
                     if (openedPosition != RecyclerView.NO_POSITION && openedPosition != pos) {
                         val old = openedPosition
                         openedPosition = RecyclerView.NO_POSITION
                         notifyItemChanged(old)
+                    }
+                    longPressRunnable?.let { foreground.removeCallbacks(it) }
+                    if (pos != 0) {
+                        val runnable = Runnable {
+                            val currentPos = adapterPosition
+                            if (currentPos == RecyclerView.NO_POSITION || currentPos == 0) return@Runnable
+                            if (editingPosition == currentPos || movedBeyondTapSlop || dragging) return@Runnable
+                            dragStartedByLongPress = true
+                            closeSwipeActions()
+                            foreground.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                            itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                            onStartDrag(this)
+                        }
+                        longPressRunnable = runnable
+                        foreground.postDelayed(runnable, ViewConfiguration.getLongPressTimeout().toLong())
                     }
                     // 提前告知父容器不要拦截，确保 MOVE 能持续送达
                     itemView.parent?.requestDisallowInterceptTouchEvent(true)
@@ -160,6 +195,15 @@ class BookAccountAdapter(
                     val dy = ev.rawY - downY
                     if (abs(dx) > slop || abs(dy) > slop) {
                         movedBeyondTapSlop = true
+                        longPressRunnable?.let {
+                            foreground.removeCallbacks(it)
+                            longPressRunnable = null
+                        }
+                    }
+                    if (dragStartedByLongPress) {
+                        // 长按进入排序后，事件交还给 RecyclerView + ItemTouchHelper 处理拖拽
+                        itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                        return false
                     }
                     if (!dragging) {
                         when {
@@ -185,7 +229,15 @@ class BookAccountAdapter(
                 }
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    longPressRunnable?.let {
+                        foreground.removeCallbacks(it)
+                        longPressRunnable = null
+                    }
                     itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                    if (dragStartedByLongPress) {
+                        dragStartedByLongPress = false
+                        return false
+                    }
                     if (dragging) {
                         settleSwipe(pos)
                         dragging = false
