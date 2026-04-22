@@ -642,7 +642,14 @@ class SettingsActivity : AppCompatActivity() {
             .setCancelable(false)
             .create()
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-        showStyledCenterDialog(dialog, widthRatio = 0.72f)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.72f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
         return dialog
     }
 
@@ -765,7 +772,14 @@ class SettingsActivity : AppCompatActivity() {
                 onConfirm()
             }
         }
-        showStyledCenterDialog(dialog, widthRatio = 0.88f)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
     }
 
     /** 确认将二级分类提升为一级 */
@@ -852,7 +866,14 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         panel.findViewById<TextView>(R.id.btn_option_picker_cancel).setOnClickListener { dialog.dismiss() }
-        showStyledCenterDialog(dialog, widthRatio = 0.9f)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.9f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
     }
 
     private fun showCustomConfirmDialog(
@@ -883,14 +904,10 @@ class SettingsActivity : AppCompatActivity() {
                 onConfirm()
             }
         }
-        showStyledCenterDialog(dialog, widthRatio = 0.86f)
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
         OverlayDialogs.showStyledCenterDialog(
             dialog = dialog,
             ctx = this,
-            widthRatio = widthRatio,
+            widthRatio = 0.86f,
             cancelOnTouchOutside = true,
             applyOverlayType = false,
             useSolidPanelBackground = false

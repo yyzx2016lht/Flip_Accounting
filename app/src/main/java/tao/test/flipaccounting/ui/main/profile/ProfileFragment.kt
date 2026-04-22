@@ -628,7 +628,13 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
             .setNegativeButton("稍后", null)
             .create()
-        showStyledCenterDialog(dialog)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = requireContext(),
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun checkAndRequestPermissions() {
@@ -705,7 +711,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
             .create()
         dialog.setOnDismissListener { pendingEditUserAvatarView = null }
-        showStyledCenterDialog(dialog, widthRatio = 0.9f)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.9f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun startUserAvatarCrop(sourceUri: Uri) {
@@ -770,19 +783,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            showStyledCenterDialog(dialog)
+            OverlayDialogs.showStyledCenterDialog(
+                dialog = dialog,
+                ctx = requireContext(),
+                cancelOnTouchOutside = true,
+                applyOverlayType = false,
+                useSolidPanelBackground = true
+            )
         }
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        OverlayDialogs.showStyledCenterDialog(
-            dialog = dialog,
-            ctx = requireContext(),
-            widthRatio = widthRatio,
-            cancelOnTouchOutside = true,
-            applyOverlayType = false,
-            useSolidPanelBackground = true
-        )
     }
 
     private fun updateFlipService(isEnabled: Boolean) {

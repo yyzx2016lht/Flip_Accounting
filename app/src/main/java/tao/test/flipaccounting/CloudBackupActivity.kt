@@ -73,7 +73,13 @@ class CloudBackupActivity : AppCompatActivity() {
                 )
                 .setPositiveButton("我知道了", null)
                 .create()
-            showStyledCenterDialog(dialog)
+            OverlayDialogs.showStyledCenterDialog(
+                dialog = dialog,
+                ctx = this,
+                cancelOnTouchOutside = true,
+                applyOverlayType = false,
+                useSolidPanelBackground = true
+            )
         }
     }
 
@@ -94,16 +100,5 @@ class CloudBackupActivity : AppCompatActivity() {
         etPass.setText(sp.getString(KEY_WEBDAV_PASS, "") ?: "")
         etDir.setText(sp.getString(KEY_WEBDAV_DIR, "FlipAccounting") ?: "FlipAccounting")
         etDevice.setText(sp.getString(KEY_DEVICE_NAME, android.os.Build.MODEL ?: "android") ?: "android")
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        OverlayDialogs.showStyledCenterDialog(
-            dialog = dialog,
-            ctx = this,
-            widthRatio = widthRatio,
-            cancelOnTouchOutside = true,
-            applyOverlayType = false,
-            useSolidPanelBackground = true
-        )
     }
 }

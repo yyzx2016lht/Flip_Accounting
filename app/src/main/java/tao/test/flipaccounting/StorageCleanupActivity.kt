@@ -166,7 +166,13 @@ class StorageCleanupActivity : AppCompatActivity() {
             .setPositiveButton("开始清理") { _, _ -> runCleanup(selected) }
             .setNegativeButton("取消", null)
             .create()
-        showStyledCenterDialog(dialog)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun runCleanup(selected: List<GroupStat>) {
@@ -223,16 +229,5 @@ class StorageCleanupActivity : AppCompatActivity() {
         if (mb < 1024) return String.format(Locale.getDefault(), "%.1f MB", mb)
         val gb = mb / 1024.0
         return String.format(Locale.getDefault(), "%.2f GB", gb)
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        OverlayDialogs.showStyledCenterDialog(
-            dialog = dialog,
-            ctx = this,
-            widthRatio = widthRatio,
-            cancelOnTouchOutside = true,
-            applyOverlayType = false,
-            useSolidPanelBackground = true
-        )
     }
 }

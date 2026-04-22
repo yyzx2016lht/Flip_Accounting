@@ -121,7 +121,13 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                             }
                             .setNegativeButton("取消", null)
                             .create()
-                        showStyledCenterDialog(dialog)
+                        OverlayDialogs.showStyledCenterDialog(
+                            dialog = dialog,
+                            ctx = this,
+                            cancelOnTouchOutside = true,
+                            applyOverlayType = false,
+                            useSolidPanelBackground = true
+                        )
                     }
                 } else {
                     tvAsrModelDesc.text = "未下载离线模型\n(推荐日常使用开启)"
@@ -146,7 +152,13 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                             }
                             .setNegativeButton("取消", null)
                             .create()
-                        showStyledCenterDialog(dialog)
+                        OverlayDialogs.showStyledCenterDialog(
+                            dialog = dialog,
+                            ctx = this,
+                            cancelOnTouchOutside = true,
+                            applyOverlayType = false,
+                            useSolidPanelBackground = true
+                        )
                     }
                 }
             } else {
@@ -300,7 +312,14 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 Utils.toast(this, "已清空 OCR 记录")
             }
             .create()
-        showStyledCenterDialog(dialog, widthRatio = 0.92f)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.92f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun showSingleOcrDebugRecordDialog(records: List<OcrDebugRecord>, index: Int) {
@@ -341,14 +360,10 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         }
 
         val dialog = builder.create()
-        showStyledCenterDialog(dialog, widthRatio = 0.9f)
-    }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
         OverlayDialogs.showStyledCenterDialog(
             dialog = dialog,
             ctx = this,
-            widthRatio = widthRatio,
+            widthRatio = 0.9f,
             cancelOnTouchOutside = true,
             applyOverlayType = false,
             useSolidPanelBackground = true

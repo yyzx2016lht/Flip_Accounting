@@ -247,7 +247,13 @@ class AiRuleManageActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        showStyledCenterDialog(dialog)
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun showEditDeleteDialog(rule: AiRule?) {
@@ -279,18 +285,6 @@ class AiRuleManageActivity : AppCompatActivity() {
         }
         super.onBackPressed()
     }
-
-    private fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.88f) {
-        OverlayDialogs.showStyledCenterDialog(
-            dialog = dialog,
-            ctx = this,
-            widthRatio = widthRatio,
-            cancelOnTouchOutside = true,
-            applyOverlayType = false,
-            useSolidPanelBackground = true
-        )
-    }
-
     inner class RuleAdapter(
         private val onClick: (AiRule) -> Unit,
         private val onLongClick: (AiRule) -> Unit,
