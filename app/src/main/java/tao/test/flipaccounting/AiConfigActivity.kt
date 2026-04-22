@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.MotionEvent
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -67,14 +66,6 @@ class AiConfigActivity : AppCompatActivity() {
         val tvSelectedModel = findViewById<TextView>(R.id.tv_selected_model)
         val layoutModelSelector = findViewById<View>(R.id.layout_model_selector)
 
-        val etSingle = findViewById<EditText>(R.id.et_custom_prompt)
-        val etMulti = findViewById<EditText>(R.id.et_multi_prompt)
-        val etRule = findViewById<EditText>(R.id.et_rule_prompt)
-        val etReceipt = findViewById<EditText>(R.id.et_receipt_prompt)
-        val etReceiptVision = findViewById<EditText>(R.id.et_receipt_vision_prompt)
-        val etScreenAccounting = findViewById<EditText>(R.id.et_screen_accounting_prompt)
-        val etOcrRefine = findViewById<EditText>(R.id.et_receipt_ocr_refine_prompt)
-
         val btnSingle = findViewById<Chip>(R.id.btn_single_prompt)
         val btnMulti = findViewById<Chip>(R.id.btn_multi_prompt)
         val btnRule = findViewById<Chip>(R.id.btn_rule_prompt)
@@ -85,9 +76,8 @@ class AiConfigActivity : AppCompatActivity() {
         val btnSpeech = findViewById<Chip>(R.id.btn_speech_prompt)
         val promptModeGrid = findViewById<GridLayout>(R.id.chip_group_prompt_modes)
 
-        val btnReset = findViewById<MaterialButton>(R.id.btn_reset_prompt)
         val btnTest = findViewById<MaterialButton>(R.id.btn_test_conn)
-        val btnSave = findViewById<MaterialButton>(R.id.btn_save_config)
+        val btnSave = findViewById<View>(R.id.btn_save_config)
         val tvToggleExpand = findViewById<TextView>(R.id.tv_toggle_expand)
         val tvEditPrompt = findViewById<TextView>(R.id.tv_edit_prompt)
         val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
@@ -98,13 +88,6 @@ class AiConfigActivity : AppCompatActivity() {
 
         etUrl.setText(Prefs.getAiUrl(this))
         etKey.setText(Prefs.getAiKey(this))
-        etSingle.setText(Prefs.getAiPrompt(this).ifBlank { AIService.getDefaultSingleBillPrompt(this) })
-        etMulti.setText(Prefs.getMultiBillPrompt(this).ifBlank { AIService.getDefaultMultiBillPrompt(this) })
-        etRule.setText(Prefs.getRulePrompt(this).ifBlank { AIService.RULE_EXTRACT_PROMPT_DEFAULT })
-        etReceipt.setText(Prefs.getReceiptBillPrompt(this).ifBlank { AIService.RECEIPT_BILL_PROMPT })
-        etReceiptVision.setText(Prefs.getReceiptVisionPrompt(this).ifBlank { AIService.RECEIPT_VISION_RETRY_PROMPT_DEFAULT })
-        etScreenAccounting.setText(Prefs.getScreenAccountingPrompt(this).ifBlank { AIService.SCREEN_ACCOUNTING_PROMPT_DEFAULT })
-        etOcrRefine.setText(Prefs.getReceiptOcrRefinePrompt(this).ifBlank { AIService.RECEIPT_OCR_REFINE_PROMPT_DEFAULT })
 
         switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)
         switchEnableReceiptOcrRefine.setOnCheckedChangeListener { _, isChecked ->
@@ -124,8 +107,6 @@ class AiConfigActivity : AppCompatActivity() {
         )
 
         val allModelsList = mutableListOf<String>()
-        var isEditMode = false
-        var isExpanded = false
         val canShowScreenAccounting = Prefs.isShizukuModeEnabled(this) && ShizukuSafe.isReady(this)
 
         btnScreenAccounting.visibility = if (canShowScreenAccounting) View.VISIBLE else View.GONE
@@ -138,70 +119,20 @@ class AiConfigActivity : AppCompatActivity() {
             promptModeGrid.removeView(btnScreenAccounting)
         }
 
-        fun modeHasPrompt(mode: String): Boolean = mode != "speech"
-
-        fun updateLockState() {
-            val promptEnabled = isEditMode && modeHasPrompt(currentMode)
-            etSingle.isEnabled = isEditMode
-            etMulti.isEnabled = isEditMode
-            etRule.isEnabled = isEditMode
-            etReceipt.isEnabled = isEditMode
-            etReceiptVision.isEnabled = isEditMode
-            etScreenAccounting.isEnabled = isEditMode
-            etOcrRefine.isEnabled = isEditMode
-
-            val alpha = if (promptEnabled) 1.0f else 0.7f
-            etSingle.alpha = alpha
-            etMulti.alpha = alpha
-            etRule.alpha = alpha
-            etReceipt.alpha = alpha
-            etReceiptVision.alpha = alpha
-            etScreenAccounting.alpha = alpha
-            etOcrRefine.alpha = alpha
-
-            tvEditPrompt.text = if (isEditMode) "锁定内容" else "启用编辑"
-            tvEditPrompt.setTextColor(if (isEditMode) Color.parseColor("#4CAF50") else Color.parseColor("#F44336"))
-            val promptControlsVisible = if (modeHasPrompt(currentMode)) View.VISIBLE else View.GONE
-            tvEditPrompt.visibility = promptControlsVisible
-            tvToggleExpand.visibility = promptControlsVisible
-            btnReset.visibility = if (isEditMode && modeHasPrompt(currentMode)) View.VISIBLE else View.GONE
-        }
-
-        updateLockState()
-
         tvEditPrompt.setOnClickListener {
-            isEditMode = !isEditMode
-            updateLockState()
-            Utils.toast(this, if (isEditMode) "提示词已解锁，可以编辑" else "提示词已锁定，防止误改")
+            startActivity(Intent(this, AiPromptEditorActivity::class.java))
         }
-
-        val touchListener = View.OnTouchListener { v, event ->
-            v.parent.requestDisallowInterceptTouchEvent(true)
-            if ((event.action and MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
-                v.parent.requestDisallowInterceptTouchEvent(false)
-            }
-            false
-        }
-        etSingle.setOnTouchListener(touchListener)
-        etMulti.setOnTouchListener(touchListener)
-        etRule.setOnTouchListener(touchListener)
-        etReceipt.setOnTouchListener(touchListener)
-        etReceiptVision.setOnTouchListener(touchListener)
-        etScreenAccounting.setOnTouchListener(touchListener)
-        etOcrRefine.setOnTouchListener(touchListener)
-
-        tvToggleExpand.setOnClickListener {
-            isExpanded = !isExpanded
-            val maxLines = if (isExpanded) 100 else 8
-            etSingle.maxLines = maxLines
-            etMulti.maxLines = maxLines
-            etRule.maxLines = maxLines
-            etReceipt.maxLines = maxLines
-            etReceiptVision.maxLines = maxLines
-            etScreenAccounting.maxLines = maxLines
-            etOcrRefine.maxLines = maxLines
-            tvToggleExpand.text = if (isExpanded) "收起内容" else "展开内容"
-        }
+        tvEditPrompt.text = "编辑提示词"
+        tvEditPrompt.setTextColor(Color.parseColor("#1A73E8"))
+        tvToggleExpand.visibility = View.GONE
+        findViewById<View>(R.id.btn_reset_prompt).visibility = View.GONE
+        findViewById<View>(R.id.et_custom_prompt).visibility = View.GONE
+        findViewById<View>(R.id.et_multi_prompt).visibility = View.GONE
+        findViewById<View>(R.id.et_rule_prompt).visibility = View.GONE
+        findViewById<View>(R.id.et_receipt_prompt).visibility = View.GONE
+        findViewById<View>(R.id.et_receipt_vision_prompt).visibility = View.GONE
+        findViewById<View>(R.id.et_screen_accounting_prompt).visibility = View.GONE
+        findViewById<View>(R.id.et_receipt_ocr_refine_prompt).visibility = View.GONE
 
         val cachedModels = Prefs.getAiModelsCache(this).map { it.trim() }.filter { it.isNotEmpty() }
         if (cachedModels.isNotEmpty()) {
@@ -283,15 +214,6 @@ class AiConfigActivity : AppCompatActivity() {
         updateModelDisplay()
 
         fun updateUI() {
-            etSingle.visibility = if (currentMode == "single") View.VISIBLE else View.GONE
-            etMulti.visibility = if (currentMode == "multi") View.VISIBLE else View.GONE
-            etRule.visibility = if (currentMode == "rule") View.VISIBLE else View.GONE
-            etReceipt.visibility = if (currentMode == "receipt") View.VISIBLE else View.GONE
-            etReceiptVision.visibility = if (currentMode == "receipt_vision") View.VISIBLE else View.GONE
-            etScreenAccounting.visibility = if (canShowScreenAccounting && currentMode == "screen_accounting") View.VISIBLE else View.GONE
-            etOcrRefine.visibility = if (currentMode == "ocr_refine") View.VISIBLE else View.GONE
-            updateLockState()
-
             btnSingle.isChecked = currentMode == "single"
             btnMulti.isChecked = currentMode == "multi"
             btnRule.isChecked = currentMode == "rule"
@@ -321,21 +243,6 @@ class AiConfigActivity : AppCompatActivity() {
         btnScreenAccounting.setOnClickListener { switchMode("screen_accounting") }
         btnOcrRefine.setOnClickListener { switchMode("ocr_refine") }
         btnSpeech.setOnClickListener { switchMode("speech") }
-
-        btnReset.setOnClickListener {
-            when (currentMode) {
-                "single" -> etSingle.setText(AIService.getDefaultSingleBillPrompt(this))
-                "multi" -> etMulti.setText(AIService.getDefaultMultiBillPrompt(this))
-                "rule" -> etRule.setText(AIService.RULE_EXTRACT_PROMPT_DEFAULT)
-                "receipt" -> etReceipt.setText(AIService.RECEIPT_BILL_PROMPT)
-                "receipt_vision" -> etReceiptVision.setText(AIService.RECEIPT_VISION_RETRY_PROMPT_DEFAULT)
-                "screen_accounting" -> etScreenAccounting.setText(AIService.SCREEN_ACCOUNTING_PROMPT_DEFAULT)
-                "ocr_refine" -> etOcrRefine.setText(AIService.RECEIPT_OCR_REFINE_PROMPT_DEFAULT)
-                "speech" -> modeModels["speech"] = PrefsAiSupport.defaultSpeechModelForUrl(etUrl.text.toString().trim())
-            }
-            updateModelDisplay()
-            Utils.toast(this, if (currentMode == "speech") "已恢复云端语音默认模型" else "已恢复当前模式默认提示词")
-        }
 
         spinnerProviders.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -435,31 +342,6 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiScreenModel(this, if (canShowScreenAccounting) (modeModels["screen_accounting"] ?: "") else "")
             Prefs.setAiReceiptOcrRefineModel(this, modeModels["ocr_refine"] ?: "")
             Prefs.setAiSpeechModel(this, modeModels["speech"] ?: "")
-
-            val singleText = etSingle.text.toString().trim()
-            val multiText = etMulti.text.toString().trim()
-            val ruleText = etRule.text.toString().trim()
-            val receiptText = etReceipt.text.toString().trim()
-            val receiptVisionText = etReceiptVision.text.toString().trim()
-            val screenText = etScreenAccounting.text.toString().trim()
-            val ocrRefineText = etOcrRefine.text.toString().trim()
-
-            val singleDefault = AIService.getDefaultSingleBillPrompt(this).trim()
-            val multiDefault = AIService.getDefaultMultiBillPrompt(this).trim()
-            val ruleDefault = AIService.RULE_EXTRACT_PROMPT_DEFAULT.trim()
-            val receiptDefault = AIService.RECEIPT_BILL_PROMPT.trim()
-            val receiptVisionDefault = AIService.RECEIPT_VISION_RETRY_PROMPT_DEFAULT.trim()
-            val screenDefault = AIService.SCREEN_ACCOUNTING_PROMPT_DEFAULT.trim()
-            val ocrRefineDefault = AIService.RECEIPT_OCR_REFINE_PROMPT_DEFAULT.trim()
-
-            // 与默认提示词一致时不落库存储，运行时自动走“默认提示词 + 代码拼接规则”。
-            Prefs.setAiPrompt(this, if (singleText == singleDefault) "" else singleText)
-            Prefs.setMultiBillPrompt(this, if (multiText == multiDefault) "" else multiText)
-            Prefs.setRulePrompt(this, if (ruleText == ruleDefault) "" else ruleText)
-            Prefs.setReceiptBillPrompt(this, if (receiptText == receiptDefault) "" else receiptText)
-            Prefs.setReceiptVisionPrompt(this, if (receiptVisionText == receiptVisionDefault) "" else receiptVisionText)
-            Prefs.setScreenAccountingPrompt(this, if (screenText == screenDefault) "" else screenText)
-            Prefs.setReceiptOcrRefinePrompt(this, if (ocrRefineText == ocrRefineDefault) "" else ocrRefineText)
             Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
 
             Utils.toast(this, "所有 AI 配置已保存")

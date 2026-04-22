@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F8F9FA"
+    android:orientation="vertical">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardElevation="2dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="#FFFFFF"
+            android:paddingHorizontal="12dp">
+
+            <ImageView
+                android:id="@+id/btn_back_prompt_editor"
+                android:layout_width="@dimen/icon_size_40"
+                android:layout_height="@dimen/icon_size_40"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="8dp"
+                android:src="@drawable/ic_chevron_left"
+                app:tint="#333333" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="提示词编辑"
+                android:textColor="#333333"
+                android:textSize="@dimen/text_size_18"
+                android:textStyle="bold" />
+        </RelativeLayout>
+    </androidx.cardview.widget.CardView>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_ai_input_modern"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="按模式管理提示词"
+                    android:textColor="#666666"
+                    android:textSize="@dimen/text_size_12" />
+
+                <GridLayout
+                    android:id="@+id/chip_group_prompt_modes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:alignmentMode="alignMargins"
+                    android:columnCount="3"
+                    android:rowOrderPreserved="false"
+                    android:useDefaultMargins="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_single_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="单笔记账"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_multi_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="多笔账单"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_receipt_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="小票记账"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_receipt_vision_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="视觉重试"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_screen_accounting_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="屏幕识别"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_rule_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="规则生成"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_ocr_refine_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="识别整理"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+                </GridLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="系统提示词"
+                        android:textColor="#666666"
+                        android:textSize="@dimen/text_size_12" />
+
+                    <TextView
+                        android:id="@+id/tv_edit_prompt"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="?attr/selectableItemBackground"
+                        android:padding="4dp"
+                        android:text="启用编辑"
+                        android:textColor="#F44336"
+                        android:textSize="@dimen/text_size_12" />
+
+                    <TextView
+                        android:id="@+id/tv_toggle_expand"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="?attr/selectableItemBackground"
+                        android:padding="4dp"
+                        android:text="展开内容"
+                        android:textColor="#1A73E8"
+                        android:textSize="@dimen/text_size_12" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp">
+
+                    <EditText
+                        android:id="@+id/et_custom_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="单笔模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13" />
+
+                    <EditText
+                        android:id="@+id/et_multi_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="多账单模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13"
+                        android:visibility="gone" />
+
+                    <EditText
+                        android:id="@+id/et_rule_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="规则生成模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13"
+                        android:visibility="gone" />
+
+                    <EditText
+                        android:id="@+id/et_receipt_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="小票记账模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13"
+                        android:visibility="gone" />
+
+                    <EditText
+                        android:id="@+id/et_receipt_vision_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="视觉重试模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13"
+                        android:visibility="gone" />
+
+                    <EditText
+                        android:id="@+id/et_screen_accounting_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="屏幕识别模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13"
+                        android:visibility="gone" />
+
+                    <EditText
+                        android:id="@+id/et_receipt_ocr_refine_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="识别整理模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_reset_prompt"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_gravity="end"
+                    android:text="恢复默认提示词"
+                    android:textColor="#757575"
+                    android:textSize="@dimen/text_size_11"
+                    app:strokeColor="#DDDDDD" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_save_prompt"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="40dp"
+                android:backgroundTint="#2E7D32"
+                android:text="保存提示词"
+                android:textSize="@dimen/text_size_16"
+                android:textStyle="bold"
+                app:cornerRadius="12dp" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -335,7 +335,8 @@ class AddAssetActivity : AppCompatActivity() {
             val oldCurrency = existingAsset?.currency ?: selectedCurrency
             val currencyChanged = assetId != -1L && !oldCurrency.equals(selectedCurrency, ignoreCase = true)
 
-            if (currencyChanged && !balanceEditedByUser) {
+            val isZeroBalance = abs(balance) <= 0.000001
+            if (currencyChanged && !balanceEditedByUser && !isZeroBalance) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@AddAssetActivity,

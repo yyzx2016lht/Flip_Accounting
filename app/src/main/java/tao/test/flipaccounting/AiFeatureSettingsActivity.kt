@@ -77,13 +77,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             layoutMultiBillFastMode.visibility = if (isChecked) View.VISIBLE else View.GONE
         }
 
-        findViewById<CompoundButton>(R.id.switch_show_book_entry)?.apply {
-            isChecked = Prefs.isShowBookEntry(this@AiFeatureSettingsActivity)
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setShowBookEntry(this@AiFeatureSettingsActivity, isChecked)
-            }
-        }
-
         findViewById<CompoundButton>(R.id.switch_ai_prompt_correction)?.apply {
             text = "动态提示词纠错"
             isChecked = Prefs.isAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity)
@@ -262,7 +255,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 R.id.switch_show_ai_chat_entry,
                 R.id.switch_show_multi_bill,
                 R.id.switch_multi_bill_not_sync,
-                R.id.switch_show_book_entry,
                 R.id.switch_ai_prompt_correction,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,

@@ -345,7 +345,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         // --- 翻转手势与白名单 ---
         val switchFlip = view.findViewById<CompoundButton>(R.id.switch_flip_trigger)
-    val switchFlipDisableLandscape = view.findViewById<CompoundButton>(R.id.switch_flip_disable_landscape)
+        val switchShowBookEntry = view.findViewById<CompoundButton>(R.id.switch_show_book_entry)
+        val switchFlipDisableLandscape = view.findViewById<CompoundButton>(R.id.switch_flip_disable_landscape)
         val switchShizukuMode = view.findViewById<CompoundButton>(R.id.switch_shizuku_mode)
         val layoutWhitelist = view.findViewById<View>(R.id.layout_whitelist_container)
         val layoutScreenAccounting = view.findViewById<View>(R.id.layout_screen_accounting_container)
@@ -414,6 +415,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             setOnCheckedChangeListener { _, isChecked ->
                 Prefs.setFlipDisableLandscape(requireContext(), isChecked)
                 Utils.toast(context, if (isChecked) "已开启横屏不检测" else "已关闭横屏不检测")
+            }
+        }
+        switchShowBookEntry.apply {
+            isChecked = Prefs.isShowBookEntry(requireContext())
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setShowBookEntry(requireContext(), isChecked)
             }
         }
         switchShizukuMode.apply {
@@ -541,6 +548,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         try {
             val toggleIds = intArrayOf(
                 R.id.switch_flip_trigger,
+                R.id.switch_show_book_entry,
                 R.id.switch_shizuku_mode,
                 R.id.switch_asset_feature,
                 R.id.switch_whitelist_mode,

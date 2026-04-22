@@ -141,6 +141,7 @@
     <activity android:name=".AiRuleManageActivity" android:label="AI规则管理" />
     <activity android:name=".AiFeatureSettingsActivity" android:label="AI智能功能" />
     <activity android:name=".AiConfigActivity" android:label="AI详细配置" />
+    <activity android:name=".AiPromptEditorActivity" android:label="AI提示词编辑" />
         <activity
             android:name=".ChatActivity"
             android:label="AI 瀵硅瘽璁拌处"
