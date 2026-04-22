@@ -645,18 +645,11 @@ class ChatAdapter(
                     showCustomConfirmDialog(
                         "确认删除",
                         "删除后不可恢复，是否继续？\n删除聊天记录不会删除附带账单。",
-                        "继续删除",
+                        "确认删除",
                         true
                     ) {
-                        showCustomConfirmDialog(
-                            "删除账单",
-                            "确定删除该账单吗？",
-                            "确认删除",
-                            true
-                        ) {
-                            finalDelete()
-                        }
-                        }
+                        finalDelete()
+                    }
                 }
 
                 container.addView(card)

@@ -78,7 +78,7 @@ object AIService {
 3. 只保留截图中真实存在且可确认的账单/交易信息，不要臆造金额、时间、商户、账户或分类。
 4. 金额必须与截图中真实交易对应，不能把汇总统计金额当作单条账单。
 5. 若截图中存在多条交易，按真实条目逐条提取；若只有一条明确交易，只提取这一条。
-6. remarks 要尽可能完整保留消费语义，优先保留时间/对象/事项（例如“中午吃兰州拉面”），不要只保留单个名词。
+6. remarks 仅保留最关键的消费语义关键词，尽量短（建议不超过 12 个字），不要写完整叙述句。
 7. 若无法确认截图里存在可记账内容，请返回 {"no_bill":true,"reply":"未识别到可记账内容"}。
 
 【资产识别规则（严格约束）】
@@ -362,13 +362,13 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
             if (isFastMode) {
                 p += "\n【极简多账单模式】直接在本轮输出所有账单及完整分类，不会有第二阶段。\n" +
                      "- 每条 bill 必须包含完整字段：amount、type、asset_name、category_name、to_asset_name、time、remarks、currency、fee。\n" +
-                     "- remarks 尽可能完整保留该条消费信息（优先保留时间/对象/事项）。\n" +
+                     "- remarks 仅保留该条消费的核心关键词，尽量简短（建议 <=12 字）。\n" +
                      "- category_name 从可选分类中选择最合适的一条，支出参考：${expenseLeafCats.joinToString("、")}；收入参考：${incomeLeafCats.joinToString("、")}。\n" +
                      "- 若无法确定分类，输出空字符串，不要瞎猜；优先保证金额和拆单准确。\n"
             } else {
                 p += "\n【多账单第一阶段职责】第一阶段只负责拆单和提取基础字段，不负责最终分类。\n" +
                      "- 每条 bill 必须优先保证 amount、type、asset_name、to_asset_name、time、remarks、currency、fee 正确。\n" +
-                     "- remarks 必须尽可能完整保留该条消费信息（时间/对象/事项），便于下一阶段按 remarks 单独分类。\n" +
+                     "- remarks 只保留能区分该条消费的核心关键词，尽量简短（建议 <=12 字），便于下一阶段分类。\n" +
                      "- category_name 在第一阶段可以留空，或仅在你非常确定时填写；不要为了凑字段而勉强分类，更不要把多条商品统一归成同一类。\n" +
                      "- 如果一句话里有多个商品/事项，先拆成多条，再交给下一阶段逐条分类。\n"
                 p += "\n【第二阶段分类提示】后续会按每条 remarks 单独判断最终分类。支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n"
@@ -377,7 +377,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
         if (isMultiMode && !Prefs.isMultiBillFastMode(ctx)) {
             p += "\n【多账单两阶段处理】当前为多账单模式。第一阶段的首要目标是把整段话拆成多条 bill，并尽量提取准确的 amount、type、asset_name、to_asset_name、time、remarks、currency、fee。\n" +
-                 "- remarks 必须尽可能完整保留该条消费信息（时间/对象/事项），避免只剩单个名词。\n" +
+                 "- remarks 仅保留关键语义词，避免长句描述（建议 <=12 字）。\n" +
                  "- 如果分类一时拿不准，优先保证拆单和 remarks 正确；后续会基于每条 remarks 再做逐条分类。\n"
         }
 
@@ -682,18 +682,18 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
             if (isFastMode) {
                 p += "\n【极简多账单模式】直接在本轮输出所有账单及完整分类，不会有第二阶段。\n" +
                      "- 每条 bill 必须包含完整字段：amount、type、asset_name、category_name、to_asset_name、time、remarks、currency、fee。\n" +
-                     "- remarks 尽可能完整保留该条消费信息（优先保留时间/对象/事项）。\n" +
+                     "- remarks 仅保留该条消费的核心关键词，尽量简短（建议 <=12 字）。\n" +
                      "- category_name 从可选分类中选择最合适的一条，支出参考：${expenseLeafCats.joinToString("、")}；收入参考：${incomeLeafCats.joinToString("、")}。\n" +
                      "- 若无法确定分类，输出空字符串，不要瞎猜；优先保证金额和拆单准确。\n"
             } else {
                 p += "\n【多账单第一阶段职责】第一阶段只负责拆单和提取基础字段，不负责最终分类。\n" +
                     "- 每条 bill 必须优先保证 amount、type、asset_name、to_asset_name、time、remarks、currency、fee 正确。\n" +
-                    "- remarks 必须尽可能完整保留该条消费信息（时间/对象/事项），便于下一阶段按 remarks 单独分类。\n" +
+                    "- remarks 只保留能区分该条消费的核心关键词，尽量简短（建议 <=12 字），便于下一阶段分类。\n" +
                     "- category_name 在第一阶段可以留空，或仅在你非常确定时填写；不要为了凑字段而勉强分类，更不要把多条商品统一归成同一类。\n" +
                     "- 如果一句话里有多个商品/事项，先拆成多条，再交给下一阶段逐条分类。\n"
                 p += "\n【第二阶段分类提示】后续会按每条 remarks 单独判断最终分类。支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n"
                 p += "\n【多账单两阶段处理】当前为多账单模式。第一阶段的首要目标是把整段话拆成多条 bill，并尽量提取准确的 amount、type、asset_name、to_asset_name、time、remarks、currency、fee。\n" +
-                    "- remarks 必须尽可能完整保留该条消费信息（时间/对象/事项），避免只剩单个名词。\n" +
+                    "- remarks 仅保留关键语义词，避免长句描述（建议 <=12 字）。\n" +
                     "- 如果分类一时拿不准，优先保证拆单和 remarks 正确；后续会基于每条 remarks 再做逐条分类。\n"
             }
         }
@@ -1872,10 +1872,10 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
     }
 
     private fun buildRemarksRichnessRule(): String =
-        "\n【remarks 完整性（高优先）】remarks 需尽可能完整保留消费语义，优先保留“时间线索 + 对象/场景 + 事项”。\n" +
-        "- 例如：\"中午吃兰州拉面\"、\"给小王买菜\"、\"昨晚和同事聚餐吃烧烤\"。\n" +
-        "- 禁止只写过短词（如 \"买菜\"、\"拉面\"）。\n" +
-        "- 不要重复金额、币种、账户名（这些由其他字段表达）。\n"
+        "\n【remarks 精简（高优先）】remarks 只保留该笔交易的核心语义关键词，默认短文本。\n" +
+        "- 建议长度：4~12 个字；尽量使用名词短语，不要写完整叙述句。\n" +
+        "- 优先保留“事项 + 对象/场景”，如：\"午餐拉面\"、\"超市买菜\"、\"打车通勤\"。\n" +
+        "- 禁止重复金额、币种、账户名（这些由其他字段表达）。\n"
 
     private fun buildIncomeCategoryHardRule(): String =
         "\n【收入分类硬约束】当 type=1（收入）时，category_name 必须从收入分类列表 {{INCOME_CATS}} 中原样选择。\n" +
