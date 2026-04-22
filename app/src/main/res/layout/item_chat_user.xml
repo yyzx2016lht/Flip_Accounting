@@ -40,20 +40,19 @@
             android:visibility="gone" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="end"
             android:layout_marginEnd="8dp"
-            android:layout_weight="0"
-            android:maxWidth="292dp">
+            android:layout_weight="1">
 
         <!-- 文字气泡 -->
         <TextView
             android:id="@+id/tv_user_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="292dp"
+            android:maxWidth="252dp"
             android:background="@drawable/bg_chat_bubble_user"
             android:paddingHorizontal="14dp"
             android:paddingVertical="10dp"
@@ -153,7 +152,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:maxWidth="232dp"
+                    android:maxWidth="208dp"
                     android:textColor="#2B3547"
                     android:textSize="13sp"
                     android:lineSpacingExtra="2dp" />
@@ -179,7 +178,8 @@
         android:layout_height="34dp"
         android:src="@drawable/ic_user_avatar_default"
         android:scaleType="centerCrop"
-        android:background="@drawable/bg_circle_soft"
+        android:background="@drawable/bg_avatar_ring_white"
+        android:padding="1dp"
         android:clickable="true"
         android:focusable="true"
         android:contentDescription="用户头像"

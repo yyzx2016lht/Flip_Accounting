@@ -51,7 +51,7 @@
         android:layout_width="@dimen/icon_size_16"
         android:layout_height="@dimen/icon_size_16"
         android:layout_marginStart="8dp"
-        android:src="@android:drawable/ic_media_play"
+        android:src="@drawable/ic_chevron_right"
         android:rotation="0"
         app:tint="#CCCCCC"
         xmlns:app="http://schemas.android.com/apk/res-auto"/>

@@ -1233,8 +1233,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         ctx: Context,
         userInput: String,
         billSummary: String = "",
-        extractorReplyHint: String = "",
-        isCorrection: Boolean = false
+        extractorReplyHint: String = ""
     ): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
@@ -1248,7 +1247,6 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         val userPrompt = buildString {
             appendLine("场景：$scene")
             appendLine("用户原话：$safeUserInput")
-            if (isCorrection) appendLine("这是一次对上一笔账单的修改/纠错。")
             if (safeBillSummary.isNotBlank()) appendLine("账单摘要：$safeBillSummary")
             if (safeReplyHint.isNotBlank()) appendLine("上游识别备注：$safeReplyHint")
             appendLine(styleInstruction)
@@ -1278,7 +1276,6 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         userInput: String,
         billSummary: String = "",
         extractorReplyHint: String = "",
-        isCorrection: Boolean = false,
         onDelta: (String) -> Unit
     ): Boolean {
         val apiKey = Prefs.getAiKey(ctx)
@@ -1293,7 +1290,6 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         val userPrompt = buildString {
             appendLine("场景：$scene")
             appendLine("用户原话：$safeUserInput")
-            if (isCorrection) appendLine("这是一次对上一笔账单的修改/纠错。")
             if (safeBillSummary.isNotBlank()) appendLine("账单摘要：$safeBillSummary")
             if (safeReplyHint.isNotBlank()) appendLine("上游识别备注：$safeReplyHint")
             appendLine(styleInstruction)
