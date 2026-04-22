@@ -2,7 +2,10 @@ package tao.test.flipaccounting
 
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import android.view.MotionEvent
+import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import com.google.android.material.button.MaterialButton
@@ -14,7 +17,11 @@ class ChatVoiceInputController(
     private val btnMoreInputProvider: () -> ImageView,
     private val btnVoiceToggleProvider: () -> ImageView,
     private val btnVoiceHoldProvider: () -> MaterialButton,
-    private val tvVoiceRecordOverlayProvider: () -> TextView,
+    private val layoutVoiceRecordOverlayProvider: () -> View,
+    private val ivVoiceRecordStateProvider: () -> ImageView,
+    private val tvVoiceRecordTitleProvider: () -> TextView,
+    private val tvVoiceRecordSubtitleProvider: () -> TextView,
+    private val tvVoiceRecordTimerProvider: () -> TextView,
     private val isVoiceMode: () -> Boolean,
     private val setVoiceMode: (Boolean) -> Unit,
     private val isRecording: () -> Boolean,
@@ -34,6 +41,9 @@ class ChatVoiceInputController(
     private val ensureLastMessageVisible: () -> Unit,
     private val refreshVoiceSupportHint: () -> Unit
 ) {
+    private val overlayUiHandler = Handler(Looper.getMainLooper())
+    private var overlayTicker: Runnable? = null
+
     fun toggleVoiceMode() {
         if (!isVoiceMode() && !ensureAiVoiceFeatureEnabled()) return
         setVoiceMode(!isVoiceMode())
@@ -48,11 +58,13 @@ class ChatVoiceInputController(
         etInputProvider().visibility = if (isVoiceMode()) android.view.View.GONE else android.view.View.VISIBLE
         btnVoiceHoldProvider().visibility = if (isVoiceMode()) android.view.View.VISIBLE else android.view.View.GONE
         btnVoiceToggleProvider().setImageResource(
-            if (isVoiceMode()) android.R.drawable.ic_menu_edit else R.drawable.ic_mic
+            if (isVoiceMode()) R.drawable.ic_chat_edit else R.drawable.ic_chat_mic
         )
-        btnVoiceToggleProvider().setColorFilter(Color.parseColor("#5E5E5E"))
+        btnVoiceToggleProvider().isSelected = isVoiceMode()
+        btnVoiceToggleProvider().setColorFilter(Color.parseColor("#456387"))
         btnVoiceHoldProvider().backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F2F3F5"))
         btnVoiceHoldProvider().text = "按住说话，松开发送"
+        btnVoiceHoldProvider().alpha = 1f
         updateInputActionUi()
     }
 
@@ -71,9 +83,9 @@ class ChatVoiceInputController(
 
     fun startRecordingButtonPulse() {
         btnVoiceHoldProvider().animate().cancel()
-        btnVoiceHoldProvider().animate().scaleX(1.06f).scaleY(1.06f).alpha(0.92f).setDuration(180).withEndAction {
+        btnVoiceHoldProvider().animate().alpha(0.88f).setDuration(180).withEndAction {
             if (isRecording() && !isWannaCancel()) {
-                btnVoiceHoldProvider().animate().scaleX(1.02f).scaleY(1.02f).alpha(1f).setDuration(180).withEndAction {
+                btnVoiceHoldProvider().animate().alpha(1f).setDuration(180).withEndAction {
                     if (isRecording() && !isWannaCancel()) startRecordingButtonPulse()
                 }.start()
             }
@@ -82,28 +94,47 @@ class ChatVoiceInputController(
 
     fun stopRecordingButtonPulse() {
         btnVoiceHoldProvider().animate().cancel()
-        btnVoiceHoldProvider().animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(120).start()
+        btnVoiceHoldProvider().animate().alpha(1f).setDuration(120).start()
     }
 
     fun showVoiceRecordOverlay(isCancelState: Boolean) {
-        val overlay = tvVoiceRecordOverlayProvider()
-        overlay.text = if (isCancelState) "松开取消" else "松开发送，上滑取消"
-        overlay.setBackgroundResource(R.drawable.bg_msg_popup_menu)
+        val overlay = layoutVoiceRecordOverlayProvider()
+        val ivState = ivVoiceRecordStateProvider()
+        val tvTitle = tvVoiceRecordTitleProvider()
+        val tvSubtitle = tvVoiceRecordSubtitleProvider()
+        val tvTimer = tvVoiceRecordTimerProvider()
+
+        if (isCancelState) {
+            overlay.setBackgroundResource(R.drawable.bg_chat_voice_record_overlay_cancel)
+            ivState.setImageResource(R.drawable.ic_delete)
+            ivState.setColorFilter(Color.parseColor("#FFC4C4"))
+            tvTitle.text = "松开取消发送"
+            tvSubtitle.text = "手指下移可继续发送"
+        } else {
+            overlay.setBackgroundResource(R.drawable.bg_chat_voice_record_overlay)
+            ivState.setImageResource(R.drawable.ic_chat_mic)
+            ivState.setColorFilter(Color.WHITE)
+            tvTitle.text = "正在录音..."
+            tvSubtitle.text = "松开发送，上滑取消"
+        }
+        tvTimer.text = formatRecordingDuration()
+        ensureOverlayTicker()
         overlay.animate().cancel()
-        if (overlay.visibility != android.view.View.VISIBLE) {
+        if (overlay.visibility != View.VISIBLE) {
             overlay.alpha = 0f
             overlay.translationY = 12f
-            overlay.visibility = android.view.View.VISIBLE
+            overlay.visibility = View.VISIBLE
         }
         overlay.animate().alpha(1f).translationY(0f).setDuration(140).start()
     }
 
     fun hideVoiceRecordOverlay() {
-        val overlay = tvVoiceRecordOverlayProvider()
-        if (overlay.visibility != android.view.View.VISIBLE) return
+        val overlay = layoutVoiceRecordOverlayProvider()
+        stopOverlayTicker()
+        if (overlay.visibility != View.VISIBLE) return
         overlay.animate().cancel()
         overlay.animate().alpha(0f).translationY(12f).setDuration(120).withEndAction {
-            overlay.visibility = android.view.View.GONE
+            overlay.visibility = View.GONE
         }.start()
     }
 
@@ -116,7 +147,7 @@ class ChatVoiceInputController(
                 LocalAsrService.resetStreamingBuffer()
                 setIsFingerDown(true)
                 setIsWannaCancel(false)
-                btnVoiceHoldProvider().animate().scaleX(1.03f).scaleY(1.03f).setDuration(80).start()
+                btnVoiceHoldProvider().animate().alpha(0.94f).setDuration(80).start()
                 setLongPressTriggered(true)
                 Utils.vibrate(context, 10)
                 val started = startVoiceRecording()
@@ -124,6 +155,8 @@ class ChatVoiceInputController(
                     setIsRecording(false)
                     hideVoiceRecordOverlay()
                     Utils.toast(context, "录音启动失败")
+                } else {
+                    btnVoiceHoldProvider().text = "松开发送，上滑取消"
                 }
                 return true
             }
@@ -134,7 +167,7 @@ class ChatVoiceInputController(
                     if (shouldCancel != isWannaCancel()) {
                         setIsWannaCancel(shouldCancel)
                         Utils.vibrate(context, if (shouldCancel) 30 else 10)
-                        btnVoiceHoldProvider().text = if (shouldCancel) "松开取消" else "松开发送"
+                        btnVoiceHoldProvider().text = if (shouldCancel) "松开取消发送" else "松开发送，上滑取消"
                         showVoiceRecordOverlay(shouldCancel)
                     }
                 }
@@ -144,7 +177,7 @@ class ChatVoiceInputController(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 clearPendingLongPress()
                 setIsFingerDown(false)
-                btnVoiceHoldProvider().animate().scaleX(1f).scaleY(1f).setDuration(80).start()
+                btnVoiceHoldProvider().animate().alpha(1f).setDuration(80).start()
                 if (!isRecording()) return true
                 if (isWannaCancel()) {
                     stopVoiceRecording { file, _ ->
@@ -175,5 +208,31 @@ class ChatVoiceInputController(
             }
         }
         return false
+    }
+
+    private fun ensureOverlayTicker() {
+        stopOverlayTicker()
+        val ticker = object : Runnable {
+            override fun run() {
+                if (!isRecording()) return
+                tvVoiceRecordTimerProvider().text = formatRecordingDuration()
+                overlayUiHandler.postDelayed(this, 120L)
+            }
+        }
+        overlayTicker = ticker
+        overlayUiHandler.post(ticker)
+    }
+
+    private fun stopOverlayTicker() {
+        overlayTicker?.let { overlayUiHandler.removeCallbacks(it) }
+        overlayTicker = null
+    }
+
+    private fun formatRecordingDuration(): String {
+        val elapsedMs = (System.currentTimeMillis() - getRecordingStartAt()).coerceAtLeast(0L)
+        val totalSeconds = (elapsedMs / 1000L).toInt()
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%02d:%02d", minutes, seconds)
     }
 }

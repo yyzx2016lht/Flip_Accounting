@@ -322,22 +322,33 @@ internal class HomeBillSheetsController(
                             originalAmount = BillDisplayFormatter.originalAmountOfExpenseBill(bill),
                             currency = bill.currency
                         )
+                        tvAmountFormula.visibility = View.VISIBLE
+                        tvAmountFormula.text =
+                            "退款${HomeBillFormatHelper.formatMoney(refundedAmount, bill.currency)}，实际支出${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
                         renderRefundRecords(view, bill) { refundBill -> showBillDetailSheet(refundBill) }
                     } else {
                         tvAmount.text = "-${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
+                        fragment.lifecycleScope.launch(Dispatchers.IO) {
+                            val crossCurrencyText = HomeBillFormatHelper.buildCrossCurrencyDetailFormula(bill, "CNY")
+                            withContext(Dispatchers.Main) {
+                                if (!crossCurrencyText.isNullOrBlank()) {
+                                    tvAmountFormula.visibility = View.VISIBLE
+                                    tvAmountFormula.text = crossCurrencyText
+                                }
+                            }
+                        }
                     }
                     tvAmount.setTextColor(Color.parseColor("#FF3B30"))
                 } else {
                     tvAmount.text = "+${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
                     tvAmount.setTextColor(Color.parseColor("#4CAF50"))
-                }
-
-                fragment.lifecycleScope.launch(Dispatchers.IO) {
-                    val crossCurrencyText = HomeBillFormatHelper.buildCrossCurrencyDetailFormula(bill, "CNY")
-                    withContext(Dispatchers.Main) {
-                        if (!crossCurrencyText.isNullOrBlank()) {
-                            tvAmountFormula.visibility = View.VISIBLE
-                            tvAmountFormula.text = crossCurrencyText
+                    fragment.lifecycleScope.launch(Dispatchers.IO) {
+                        val crossCurrencyText = HomeBillFormatHelper.buildCrossCurrencyDetailFormula(bill, "CNY")
+                        withContext(Dispatchers.Main) {
+                            if (!crossCurrencyText.isNullOrBlank()) {
+                                tvAmountFormula.visibility = View.VISIBLE
+                                tvAmountFormula.text = crossCurrencyText
+                            }
                         }
                     }
                 }

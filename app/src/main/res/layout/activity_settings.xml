@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_home_page"
@@ -10,69 +11,23 @@
         android:layout_height="wrap_content"
         android:background="#FFFFFF"
         android:elevation="2dp"
-        android:orientation="vertical"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:paddingHorizontal="14dp">
+        android:orientation="vertical">
 
-        <RelativeLayout
+        <tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
+            android:id="@+id/secondary_header"
             android:layout_width="match_parent"
-            android:layout_height="52dp">
-
-            <ImageView
-                android:id="@+id/btn_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_centerVertical="true"
-                android:background="@drawable/bg_segmented_container"
-                android:padding="8dp"
-                android:src="@drawable/ic_chevron_left"
-                android:tint="#334155" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="分类管理"
-                    android:textColor="#1F2937"
-                    android:textSize="@dimen/text_size_18"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="管理一级分类、二级分类与排序"
-                    android:textColor="#6B7280"
-                    android:textSize="@dimen/text_size_11" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/btn_add_category"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:background="@drawable/bg_rule_primary_action"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="+ 添加"
-                android:textColor="#FFFFFF"
-                android:textSize="@dimen/text_size_13"
-                android:textStyle="bold" />
-        </RelativeLayout>
+            android:layout_height="wrap_content"
+            app:headerActionText="+ 添加"
+            app:headerSubtitle="管理一级分类、二级分类与排序"
+            app:headerTitle="分类管理" />
 
         <RadioGroup
             android:id="@+id/rg_type"
             android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="14dp"
+            android:layout_marginHorizontal="14dp"
             android:background="@drawable/bg_home_topbar_capsule"
             android:orientation="horizontal"
             android:padding="3dp">

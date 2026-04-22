@@ -2,5 +2,5 @@
 <!-- 图标徽章背景 - 橙色 (完全圆形) -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#FB8C00" />
+    <solid android:color="#FF8A1F" />
 </shape>

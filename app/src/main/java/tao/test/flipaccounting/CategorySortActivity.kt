@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.repository.CategoryRepository
+import tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
 import java.io.File
 
 class CategorySortActivity : AppCompatActivity() {
@@ -45,8 +46,7 @@ class CategorySortActivity : AppCompatActivity() {
     }
 
     private lateinit var rgType: RadioGroup
-    private lateinit var tvTitle: TextView
-    private lateinit var tvHint: TextView
+    private lateinit var secondaryHeader: SecondaryPageHeaderView
     private lateinit var rvCategories: RecyclerView
     private lateinit var btnSave: TextView
     private lateinit var btnCancel: TextView
@@ -118,8 +118,7 @@ class CategorySortActivity : AppCompatActivity() {
         }
         parentName = intent.getStringExtra(EXTRA_PARENT_NAME)
 
-        tvTitle = findViewById(R.id.tv_sort_title)
-        tvHint = findViewById(R.id.tv_sort_hint)
+        secondaryHeader = findViewById(R.id.secondary_header)
         rgType = findViewById(R.id.rg_sort_type)
         rvCategories = findViewById(R.id.rv_sort_categories)
         btnSave = findViewById(R.id.btn_save_sort_page)
@@ -180,12 +179,12 @@ class CategorySortActivity : AppCompatActivity() {
                 currentType = if (checkedId == R.id.rb_sort_income) Prefs.TYPE_INCOME else Prefs.TYPE_EXPENSE
                 loadData()
             }
-            tvTitle.text = "排序分类"
-            tvHint.text = "长按一级分类卡片进行排序，点击卡片进入对应的二级分类排序。"
+            secondaryHeader.setTitle("排序分类")
+            secondaryHeader.setSubtitle("长按一级分类卡片进行排序，点击卡片进入对应的二级分类排序。")
         } else {
             rgType.visibility = View.GONE
-            tvTitle.text = parentName ?: "排序二级分类"
-            tvHint.text = "这里只排序当前一级分类下的二级分类，不会和一级分类混在一起。"
+            secondaryHeader.setTitle(parentName ?: "排序二级分类")
+            secondaryHeader.setSubtitle("这里只排序当前一级分类下的二级分类，不会和一级分类混在一起。")
         }
 
         loadData()

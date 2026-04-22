@@ -55,7 +55,7 @@ class CurrencyManagerActivity : AppCompatActivity() {
 
     private fun initViews() {
         findViewById<ImageView>(R.id.btn_back).setOnClickListener { finish() }
-        findViewById<ImageView>(R.id.btn_settings).setOnClickListener { openExchangeRatePage() }
+        findViewById<ImageView>(R.id.btn_header_action).setOnClickListener { openExchangeRatePage() }
         findViewById<View>(R.id.layout_rate_settings_entry).setOnClickListener { openExchangeRatePage() }
         etSearch = findViewById(R.id.et_search)
         tvSelectedSummary = findViewById(R.id.tv_selected_summary)

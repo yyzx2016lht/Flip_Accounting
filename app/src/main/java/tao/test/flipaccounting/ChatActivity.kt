@@ -120,7 +120,11 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var btnClearCurrentSession: TextView
     private lateinit var rvSessionList: RecyclerView
     private lateinit var tvVoiceModelHint: TextView
-    private lateinit var tvVoiceRecordOverlay: TextView
+    private lateinit var layoutVoiceRecordOverlay: View
+    private lateinit var ivVoiceRecordState: ImageView
+    private lateinit var tvVoiceRecordTitle: TextView
+    private lateinit var tvVoiceRecordSubtitle: TextView
+    private lateinit var tvVoiceRecordTimer: TextView
     private lateinit var layoutVoiceSelectionBar: LinearLayout
     private lateinit var tvVoiceSelectionCount: TextView
     private lateinit var btnVoiceSelectionCancel: TextView
@@ -424,7 +428,11 @@ class ChatActivity : AppCompatActivity() {
             btnMoreInputProvider = { btnMoreInput },
             btnVoiceToggleProvider = { btnVoiceToggle },
             btnVoiceHoldProvider = { btnVoiceHold },
-            tvVoiceRecordOverlayProvider = { tvVoiceRecordOverlay },
+            layoutVoiceRecordOverlayProvider = { layoutVoiceRecordOverlay },
+            ivVoiceRecordStateProvider = { ivVoiceRecordState },
+            tvVoiceRecordTitleProvider = { tvVoiceRecordTitle },
+            tvVoiceRecordSubtitleProvider = { tvVoiceRecordSubtitle },
+            tvVoiceRecordTimerProvider = { tvVoiceRecordTimer },
             isVoiceMode = { isVoiceMode },
             setVoiceMode = { isVoiceMode = it },
             isRecording = { isRecording },
@@ -525,7 +533,11 @@ class ChatActivity : AppCompatActivity() {
         rvSessionList = findViewById(R.id.rv_session_list)
         tvVoiceModelHint = findViewById(R.id.tv_voice_model_hint)
         layoutChatInputRow = findViewById(R.id.layout_chat_input_row)
-        tvVoiceRecordOverlay = findViewById(R.id.tv_voice_record_overlay)
+        layoutVoiceRecordOverlay = findViewById(R.id.layout_voice_record_overlay)
+        ivVoiceRecordState = findViewById(R.id.iv_voice_record_state)
+        tvVoiceRecordTitle = findViewById(R.id.tv_voice_record_title)
+        tvVoiceRecordSubtitle = findViewById(R.id.tv_voice_record_subtitle)
+        tvVoiceRecordTimer = findViewById(R.id.tv_voice_record_timer)
         layoutVoiceSelectionBar = findViewById(R.id.layout_voice_selection_bar)
         tvVoiceSelectionCount = findViewById(R.id.tv_voice_selection_count)
         btnVoiceSelectionCancel = findViewById(R.id.btn_voice_selection_cancel)
@@ -771,6 +783,13 @@ class ChatActivity : AppCompatActivity() {
             val transcript = withContext(Dispatchers.IO) {
                 transcribeVoiceToTextWithFallback(copiedFile)
             }.trim()
+            if (transcript.isNotBlank()) {
+                updateVoiceTranscriptByPath(
+                    audioPath = added.voice?.audioPath ?: copiedFile.absolutePath,
+                    transcript = transcript,
+                    revealTranscript = false
+                )
+            }
             if (transcript.isBlank()) {
                 removeLoadingMessage(loadingIdx)
                 appendAiTextMessage("这段语音没有识别清楚，你可以再说一遍，我会继续按“语音转文字”方式发送。", isLoading = false)

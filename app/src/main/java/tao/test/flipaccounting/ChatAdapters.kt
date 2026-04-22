@@ -895,8 +895,10 @@ class SessionListAdapter(
             foreground.animate().cancel()
             foreground.translationX = if (opened) -actionsWidthPx else 0f
             val bgRes = when {
-                item.isCurrent -> R.drawable.bg_book_item_selected
-                else -> R.drawable.bg_book_item_normal
+                item.isCurrent && opened -> R.drawable.bg_chat_session_item_selected_opened
+                item.isCurrent -> R.drawable.bg_chat_session_item_selected
+                opened -> R.drawable.bg_chat_session_item_opened
+                else -> R.drawable.bg_chat_session_item
             }
             foreground.setBackgroundResource(bgRes)
             if (editing) {

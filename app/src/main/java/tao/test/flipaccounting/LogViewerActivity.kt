@@ -4,9 +4,9 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,18 +27,17 @@ class LogViewerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_log_viewer)
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        toolbar.setNavigationOnClickListener { finish() }
+        findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
 
         tvContent  = findViewById(R.id.tv_log_content)
         tabRuntime = findViewById(R.id.tab_runtime_log)
         tabCrash   = findViewById(R.id.tab_crash_log)
         tvContent.setTextIsSelectable(true)
 
-        val btnShare = findViewById<TextView>(R.id.btn_share_in_viewer)
-        val btnClear = findViewById<TextView>(R.id.btn_clear_in_viewer)
+        val btnShare = findViewById<View>(R.id.btn_header_action)
+        val btnClear = findViewById<View>(R.id.btn_header_action_secondary)
+        findViewById<ImageView>(R.id.btn_header_action).setColorFilter(0xFF5C6BC0.toInt())
+        findViewById<ImageView>(R.id.btn_header_action_secondary).setColorFilter(0xFFE53935.toInt())
 
         // 若从外部（如崩溃后重启）携带 extra 要求直接跳到崩溃日志
         if (intent.getBooleanExtra("show_crash", false)) {

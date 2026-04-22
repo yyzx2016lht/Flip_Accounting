@@ -104,7 +104,7 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:padding="8dp"
-                android:src="@android:drawable/ic_menu_sort_by_size"
+                android:src="@drawable/ic_more_vert"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 app:tint="#333333" />
         </LinearLayout>
@@ -124,30 +124,76 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <TextView
-            android:id="@+id/tv_voice_record_overlay"
+        <LinearLayout
+            android:id="@+id/layout_voice_record_overlay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_msg_popup_menu"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp"
-            android:text="松开发送，上滑取消"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold"
+            android:background="@drawable/bg_chat_voice_record_overlay"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="10dp"
             android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/layout_chat_bottom"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginBottom="12dp" />
+            android:layout_marginBottom="12dp">
+
+            <ImageView
+                android:id="@+id/iv_voice_record_state"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_chat_mic"
+                app:tint="#FFFFFF" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_voice_record_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="正在录音..."
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_voice_record_subtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="松开发送，上滑取消"
+                    android:textColor="#E6FFFFFF"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_voice_record_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_chat_voice_play_chip"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="00:00"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/layout_chat_bottom"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#F7F7F7"
-            android:elevation="4dp"
+            android:background="#F3F6FB"
+            android:elevation="3dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -155,7 +201,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#DDDDDD" />
+                android:background="#D5DDE8" />
 
             <LinearLayout
                 android:id="@+id/layout_voice_selection_bar"
@@ -207,13 +253,13 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_chat_input_bar"
-                android:layout_marginHorizontal="8dp"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="8dp"
+                android:background="@android:color/transparent"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="10dp"
                 android:orientation="vertical"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="8dp">
+                android:paddingHorizontal="0dp"
+                android:paddingVertical="0dp">
 
                 <TextView
                     android:id="@+id/tv_voice_model_hint"
@@ -231,18 +277,20 @@
                     android:id="@+id/layout_chat_input_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="4dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <ImageView
                         android:id="@+id/btn_voice_toggle"
-                        android:layout_width="38dp"
-                        android:layout_height="38dp"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_mic"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:padding="9dp"
+                        android:src="@drawable/ic_chat_mic"
                         android:background="@drawable/bg_input_icon_btn"
-                        app:tint="#5E5E5E"
+                        app:tint="#456387"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:layout_gravity="center_vertical" />
 
                     <EditText
@@ -250,7 +298,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginHorizontal="6dp"
+                        android:layout_marginHorizontal="8dp"
                         android:background="@drawable/bg_chat_input"
                         android:hint="说点什么，我来帮你记账"
                         android:textSize="15sp"
@@ -267,38 +315,46 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_voice_hold"
                         android:layout_width="0dp"
-                        android:layout_height="40dp"
+                        android:layout_height="42dp"
                         android:layout_weight="1"
-                        android:layout_marginHorizontal="4dp"
+                        android:layout_marginHorizontal="8dp"
                         android:text="按住说话"
                         android:textSize="14sp"
                         android:textAllCaps="false"
-                        app:cornerRadius="8dp"
-                        android:backgroundTint="#F2F3F5"
-                        android:textColor="#2F343B"
+                        app:cornerRadius="18dp"
+                        android:backgroundTint="#FFFFFF"
+                        android:strokeColor="#CBD5E1"
+                        app:strokeWidth="1dp"
+                        android:textColor="#2A4768"
                         android:visibility="gone"
                         android:layout_gravity="center_vertical"
                         style="@style/Widget.MaterialComponents.Button.UnelevatedButton" />
 
                     <ImageView
                         android:id="@+id/btn_chat_more_input"
-                        android:layout_width="38dp"
-                        android:layout_height="38dp"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_image"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="2dp"
+                        android:padding="9dp"
+                        android:src="@drawable/ic_chat_image"
                         android:background="@drawable/bg_input_icon_btn"
-                        app:tint="#5E5E5E"
+                        app:tint="#456387"
                         android:contentDescription="选择图片"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:layout_gravity="center_vertical" />
 
                     <ImageView
                         android:id="@+id/btn_chat_send"
-                        android:layout_width="38dp"
-                        android:layout_height="38dp"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_send"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="2dp"
+                        android:padding="9dp"
+                        android:src="@drawable/ic_chat_send"
                         android:background="@drawable/bg_send_btn"
                         app:tint="#FFFFFF"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:layout_gravity="center_vertical" />
                 </LinearLayout>
 
@@ -312,7 +368,7 @@
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:orientation="vertical"
-        android:background="#FFFFFF"
+        android:background="@drawable/bg_chat_sidebar_root"
         android:elevation="12dp">
 
         <include layout="@layout/dialog_chat_sessions_panel" />

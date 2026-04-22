@@ -46,17 +46,13 @@ class ChatMessageMenuController(
             if (hasTranscript) View.VISIBLE else View.GONE
         val tvTranscribe = popupView.findViewById<TextView>(R.id.tv_menu_transcribe)
         val ivTranscribe = popupView.findViewById<ImageView>(R.id.iv_menu_transcribe)
-        tvTranscribe.text = if (hasTranscript) "隐藏转写" else "转文字"
-        ivTranscribe.setImageResource(if (hasTranscript) R.drawable.ic_delete else R.drawable.ic_mic)
-        ivTranscribe.setColorFilter(if (hasTranscript) Color.parseColor("#FFB4B4") else Color.WHITE)
+        tvTranscribe.text = if (hasTranscript) "查看转写" else "转文字"
+        ivTranscribe.setImageResource(if (hasTranscript) R.drawable.ic_check_circle else R.drawable.ic_mic)
+        ivTranscribe.setColorFilter(Color.WHITE)
 
         popupView.findViewById<View>(R.id.menu_item_transcribe).setOnClickListener {
             popup.dismiss()
-            if (hasTranscript) {
-                hideVoiceTranscript(item)
-            } else {
-                transcribeVoiceMessage(item, true, false)
-            }
+            transcribeVoiceMessage(item, true, false)
         }
         popupView.findViewById<View>(R.id.menu_item_retranscribe).setOnClickListener {
             popup.dismiss()

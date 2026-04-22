@@ -16,27 +16,27 @@
 
         <ImageView
             android:id="@+id/btn_session_rename"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:background="@drawable/bg_book_action_edit"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/bg_chat_session_action_edit"
             android:clickable="true"
             android:contentDescription="rename"
             android:focusable="true"
-            android:padding="14dp"
-            android:src="@android:drawable/ic_menu_edit"
+            android:padding="13dp"
+            android:src="@drawable/ic_chat_edit"
             android:tint="#FFFFFF" />
 
         <ImageView
             android:id="@+id/btn_session_delete"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:layout_marginStart="8dp"
-            android:background="@drawable/bg_book_action_delete"
+            android:background="@drawable/bg_chat_session_action_delete"
             android:clickable="true"
             android:contentDescription="delete"
             android:focusable="true"
-            android:padding="14dp"
-            android:src="@android:drawable/ic_menu_delete"
+            android:padding="13dp"
+            android:src="@drawable/ic_delete"
             android:tint="#FFFFFF" />
     </LinearLayout>
 
@@ -44,14 +44,14 @@
         android:id="@+id/layout_session_foreground"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="68dp"
-        android:background="@drawable/bg_book_item_normal"
+        android:minHeight="70dp"
+        android:background="@drawable/bg_chat_session_item"
         android:gravity="center_vertical"
         android:orientation="vertical"
-        android:paddingStart="16dp"
+        android:paddingStart="15dp"
         android:paddingEnd="14dp"
-        android:paddingTop="7dp"
-        android:paddingBottom="7dp">
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
 
         <TextView
             android:id="@+id/tv_session_title"

@@ -6,48 +6,15 @@
     android:orientation="vertical"
     android:background="#F5F7FA">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+    <tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
+        android:id="@+id/secondary_header"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="#FFFFFF"
-        android:elevation="4dp"
-        app:title="日志查看器"
-        app:titleTextColor="#333333">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginEnd="16dp"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/btn_clear_in_viewer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="清空"
-                android:padding="8dp"
-                android:layout_marginEnd="8dp"
-                android:textColor="#E53935"
-                android:textStyle="bold"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true" />
-
-            <TextView
-                android:id="@+id/btn_share_in_viewer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="分享"
-                android:padding="8dp"
-                android:textColor="#5C6BC0"
-                android:textStyle="bold"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true" />
-        </LinearLayout>
-    </androidx.appcompat.widget.Toolbar>
+        android:layout_height="wrap_content"
+        app:headerActionIcon="@drawable/ic_action_share"
+        app:headerActionVisible="true"
+        app:headerSecondaryActionIcon="@drawable/ic_action_delete"
+        app:headerSecondaryActionVisible="true"
+        app:headerTitle="日志查看器" />
 
     <!-- Tab 切换：运行日志 / 崩溃日志 -->
     <LinearLayout

@@ -55,7 +55,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private const val COLOR_TEXT_DETAIL_REFUND = "#A1A8AF"
         private const val COLOR_TEXT_NORMAL = "#333333"
         private const val COLOR_TEXT_DETAIL_NORMAL = "#999999"
-        private const val COLOR_AMOUNT_EXPENSE = "#C62828"
+        private const val COLOR_AMOUNT_EXPENSE = "#FF5252"
         private const val COLOR_AMOUNT_INCOME = "#4CAF50"
         private const val COLOR_AMOUNT_REFUND = "#9AA1AA"
         private const val COLOR_AMOUNT_OTHER = "#757575"
@@ -374,6 +374,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     inner class ItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvCategory: TextView = itemView.findViewById(R.id.tv_bill_category)
         private val tvAmount: TextView = itemView.findViewById(R.id.tv_bill_amount)
+        private val tvAsset: TextView = itemView.findViewById(R.id.tv_bill_asset)
         private val tvTime: TextView = itemView.findViewById(R.id.tv_bill_time)
         private val tvDetail: TextView = itemView.findViewById(R.id.tv_bill_detail)
         private val checkBox: CheckBox = itemView.findViewById(R.id.cb_bill_select)
@@ -477,7 +478,13 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     hasHeaderAbove = hasHeaderAbove
                 )
             )
-            iconContainer?.setBackgroundResource(R.drawable.bg_circle_soft)
+            iconContainer?.setBackgroundResource(
+                when {
+                    !isRefund && bill.type == Bill.TYPE_EXPENSE -> R.drawable.bg_circle_expense_soft
+                    !isRefund && bill.type == Bill.TYPE_INCOME -> R.drawable.bg_circle_income_soft
+                    else -> R.drawable.bg_circle_soft
+                }
+            )
             tvCategory.setTextColor(
                 when {
                     isDeprecated -> textColorRefund
@@ -492,20 +499,23 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     else -> textColorDetailNormal
                 }
             )
+            tvAsset.setTextColor(
+                when {
+                    isDeprecated -> textColorRefund
+                    isRefund -> textColorDetailRefund
+                    else -> textColorDetailNormal
+                }
+            )
 
             tvCategory.text = when {
                 isRepayment -> "\u8FD8\u6B3E"
                 isTransfer -> "\u8F6C\u8D26"
                 isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
-                else -> bill.categoryName.ifEmpty { "\u672A\u5206\u7C7B" }
+                else -> BillDisplayFormatter.normalizeCategoryDisplayName(bill.categoryName).ifEmpty { "\u672A\u5206\u7C7B" }
             }
 
             tvAmount.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {
-                BillDisplayFormatter.buildRefundedExpenseAmountText(
-                    netAmount = bill.amount,
-                    originalAmount = BillDisplayFormatter.originalAmountOfExpenseBill(bill),
-                    currency = bill.currency
-                )
+                "-${BillDisplayFormatter.formatMoney(BillDisplayFormatter.originalAmountOfExpenseBill(bill), bill.currency)}"
             } else {
                 val sign = when {
                     isRefund -> ""
@@ -542,32 +552,39 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
             tvTime.text = itemTimeFormatter.format(Date(bill.time))
 
-            val detailBuilder = SpannableStringBuilder()
+            val assetBuilder = SpannableStringBuilder()
             if (isTransfer) {
                 if (bill.accountName.isNotEmpty()) {
-                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
+                    assetBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
                 }
                 if (bill.toAccountName.isNotEmpty()) {
-                    if (detailBuilder.isNotEmpty()) detailBuilder.append(" -> ")
-                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.toAccountName))
+                    if (assetBuilder.isNotEmpty()) assetBuilder.append(" -> ")
+                    assetBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.toAccountName))
                 }
             } else if (isRefund) {
                 if (bill.accountName.isNotEmpty()) {
-                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
+                    assetBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
                 }
             } else {
                 if (bill.accountName.isNotEmpty()) {
-                    detailBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
+                    assetBuilder.append(BillDisplayFormatter.formatAccountNameWithDeletedTag(bill.accountName))
                     if (refundAmount > 0.0) {
-                        detailBuilder.append("(\u9000\u6B3E")
-                        detailBuilder.append(symbol)
-                        detailBuilder.append(String.format(Locale.getDefault(), "%.2f", refundAmount))
-                        detailBuilder.append(")")
+                        assetBuilder.append("(\u9000\u6B3E")
+                        assetBuilder.append(symbol)
+                        assetBuilder.append(String.format(Locale.getDefault(), "%.2f", refundAmount))
+                        assetBuilder.append(")")
                     }
                 }
             }
+            if (assetBuilder.isNotEmpty()) {
+                tvAsset.text = assetBuilder
+                tvAsset.visibility = View.VISIBLE
+            } else {
+                tvAsset.visibility = View.GONE
+            }
+
+            val detailBuilder = SpannableStringBuilder()
             if (bill.remark.isNotEmpty()) {
-                if (detailBuilder.isNotEmpty()) detailBuilder.append(" | ")
                 detailBuilder.append(bill.remark)
             }
             val suffix = detailSuffixProvider?.invoke(bill).orEmpty()
@@ -586,12 +603,14 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             if (isDeprecated) {
                 tvCategory.paintFlags = tvCategory.paintFlags or strike
                 tvAmount.paintFlags = tvAmount.paintFlags or strike
+                tvAsset.paintFlags = tvAsset.paintFlags or strike
                 tvTime.paintFlags = tvTime.paintFlags or strike
                 tvDetail.paintFlags = tvDetail.paintFlags or strike
                 itemView.alpha = 0.55f
             } else {
                 tvCategory.paintFlags = tvCategory.paintFlags and strike.inv()
                 tvAmount.paintFlags = tvAmount.paintFlags and strike.inv()
+                tvAsset.paintFlags = tvAsset.paintFlags and strike.inv()
                 tvTime.paintFlags = tvTime.paintFlags and strike.inv()
                 tvDetail.paintFlags = tvDetail.paintFlags and strike.inv()
                 itemView.alpha = 1f

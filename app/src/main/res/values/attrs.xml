@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="SecondaryPageHeaderView">
+        <attr name="headerTitle" format="string" />
+        <attr name="headerSubtitle" format="string" />
+        <attr name="headerActionIcon" format="reference" />
+        <attr name="headerSecondaryActionIcon" format="reference" />
+        <attr name="headerActionVisible" format="boolean" />
+        <attr name="headerSecondaryActionVisible" format="boolean" />
+        <attr name="headerActionText" format="string" />
+    </declare-styleable>
+</resources>

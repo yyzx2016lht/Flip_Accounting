@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#FFFFFF"
+        android:elevation="4dp"
+        android:paddingHorizontal="8dp">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerVertical="true"
+            android:contentDescription="返回"
+            android:padding="8dp"
+            android:src="@drawable/ic_chevron_left"
+            app:tint="#333333" />
+
+        <LinearLayout
+            android:id="@+id/layout_header_title_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_header_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#333333"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_header_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="#7B8698"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_alignParentEnd="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btn_header_action_text"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#4080FF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/btn_header_action_secondary"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:contentDescription="次要操作"
+                android:padding="8dp"
+                android:visibility="gone"
+                app:tint="#333333" />
+
+            <ImageView
+                android:id="@+id/btn_header_action"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:contentDescription="更多操作"
+                android:padding="8dp"
+                android:visibility="gone"
+                app:tint="#333333" />
+        </LinearLayout>
+    </RelativeLayout>
+
+</merge>

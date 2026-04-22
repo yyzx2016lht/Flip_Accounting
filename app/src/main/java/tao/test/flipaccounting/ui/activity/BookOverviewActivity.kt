@@ -3,7 +3,6 @@ package tao.test.flipaccounting.ui.activity
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -47,13 +46,7 @@ class BookOverviewActivity : AppCompatActivity() {
 
         currentBook = intent.getStringExtra(EXTRA_CURRENT_BOOK) ?: BookAccountManager.DEFAULT_BOOK
 
-        // Toolbar
-        val toolbar = findViewById<Toolbar>(R.id.toolbarBookOverview)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        // 手动给返回图标设置深色 tint，避免系统主题影响显示
-        toolbar.navigationIcon?.setTint(android.graphics.Color.parseColor("#333333"))
-        toolbar.setNavigationOnClickListener { finish() }
+        findViewById<android.view.View>(R.id.btn_back).setOnClickListener { finish() }
 
         bindViews()
         setupAdapter()

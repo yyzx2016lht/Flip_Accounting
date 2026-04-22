@@ -13,17 +13,13 @@ import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.AccelerateInterpolator
 import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.RadioButton
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import org.json.JSONObject
-import tao.test.flipaccounting.logic.AccountingFormController
-import tao.test.flipaccounting.logic.VoiceInputHandler
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
+import tao.test.flipaccounting.ui.common.AddBillEntrySheetLauncher
 import tao.test.flipaccounting.ui.main.home.HomeFragment
 import tao.test.flipaccounting.ui.main.stats.StatsFragment
 import tao.test.flipaccounting.ui.main.assets.AssetsFragment
@@ -807,99 +803,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddBillBottomSheet() {
-        val bottomSheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-        val view = layoutInflater.inflate(R.layout.layout_floating_window, null)
-
-    // 单独创建一个 aiAssistant，避免和页面级实例状态互相影响
-        val aiAssistant = AiAssistant(this)
-        var sheetMultiBillMode = false
-
-        val formController = AccountingFormController(
-            ctx = this,
-            rootView = view,
-            onCloseRequest = { _ -> bottomSheet.dismiss() }
+        AddBillEntrySheetLauncher.show(
+            activity = this,
+            onShow = { fabApp?.hide() },
+            onDismiss = { updateFabVisibility() }
         )
-
-    // 统一 AI 结果入口（与 OverlayManager.handleAiResult 保持同风格）
-        val handleAiResult: (JSONObject) -> Unit = { resultJson ->
-            val isMulti = sheetMultiBillMode
-            if (isMulti && resultJson.has("bills")) {
-        // 多账单模式：交给 AccountingFormController 内部队列依次处理
-                formController.fillDataToUi(resultJson, showToast = true, forceMultiMode = true)
-                val firstBill = resultJson.getJSONArray("bills").optJSONObject(0)
-                if (firstBill != null) formController.setCurrency(firstBill.optString("currency", "CNY"))
-            } else {
-                formController.fillDataToUi(resultJson, showToast = true)
-                formController.setCurrency(resultJson.optString("currency", "CNY"))
-            }
-        }
-        // 多账单模式切换
-        val rgBillMode = view.findViewById<android.widget.RadioGroup?>(R.id.rg_bill_mode)
-        rgBillMode?.setOnCheckedChangeListener { _, checkedId ->
-            sheetMultiBillMode = (checkedId == R.id.rb_multi)
-        }
-
-        // 语音按钮：统一交由 VoiceInputHandler 绑定，避免重复逻辑
-        val voiceHandler = VoiceInputHandler(this, aiAssistant, { sheetMultiBillMode }, handleAiResult)
-        aiAssistant.voiceInputBtnSetup = { btn ->
-            voiceHandler.setupVoiceButton(btn)
-        }
-        voiceHandler.setupVoiceButton(formController.btnVoice)
-
-        // 图片按钮：与语音入口保持同一处理链路
-        val btnAiImage = view.findViewById<ImageView?>(R.id.btn_ai_image)
-        if (Prefs.isShowAiImage(this)) {
-            btnAiImage?.visibility = android.view.View.VISIBLE
-            btnAiImage?.setOnClickListener {
-                sheetMultiBillMode = true
-                view.findViewById<RadioButton?>(R.id.rb_multi)?.isChecked = true
-
-                ImagePickerActivity.onImagePicked = { uri ->
-                    ImagePickerActivity.onImagePicked = null
-                    ImagePickerActivity.onPickCancelled = null
-                    aiAssistant.analyzeImage(uri, handleAiResult)
-                }
-                ImagePickerActivity.onPickCancelled = {
-                    ImagePickerActivity.onImagePicked = null
-                    ImagePickerActivity.onPickCancelled = null
-                }
-                startActivity(Intent(this, ImagePickerActivity::class.java))
-            }
-        } else {
-            btnAiImage?.visibility = android.view.View.GONE
-        }
-
-        // 文本识别入口：覆盖 AccountingFormController 内部默认绑定，统一到本地回调
-        formController.layoutAiTextEntry.setOnClickListener {
-            aiAssistant.showInputPanel(
-                isMultiMode = sheetMultiBillMode,
-                onResult = handleAiResult
-            )
-        }
-
-        bottomSheet.setOnShowListener {
-            fabApp?.hide()
-        }
-
-        bottomSheet.setOnKeyListener { _, keyCode, event ->
-            if (keyCode == android.view.KeyEvent.KEYCODE_BACK && event.action == android.view.KeyEvent.ACTION_UP) {
-                if (formController.handleBackPressed()) {
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-
-        bottomSheet.setOnDismissListener {
-            voiceHandler.release()
-            updateFabVisibility()
-        }
-
-        bottomSheet.setContentView(view)
-        bottomSheet.show()
     }
 
     /**

@@ -5,13 +5,18 @@ import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
-import android.text.style.StrikethroughSpan
 import tao.test.flipaccounting.data.local.entity.Bill
 import java.util.Locale
 
 object BillDisplayFormatter {
 
     private const val DELETED_ASSET_SUFFIX = "（已删除）"
+
+    fun normalizeCategoryDisplayName(categoryName: String): String {
+        return categoryName
+            .replace(Regex("\\s*[>＞]\\s*"), "-")
+            .trim()
+    }
 
     fun stripRefundPrefix(categoryName: String): String {
         return CategoryNameNormalizer.stripRefundPrefix(categoryName)
@@ -43,7 +48,7 @@ object BillDisplayFormatter {
     }
 
     fun buildRefundCategoryLabel(categoryName: String): String {
-        val baseName = stripRefundPrefix(categoryName).ifBlank { "未分类" }
+        val baseName = normalizeCategoryDisplayName(stripRefundPrefix(categoryName)).ifBlank { "未分类" }
         return "退款：$baseName"
     }
 
@@ -74,22 +79,7 @@ object BillDisplayFormatter {
         originalAmount: Double,
         currency: String
     ): CharSequence {
-        val currentText = "-${formatMoney(netAmount, currency)}"
-        val originalText = "-${formatMoney(originalAmount, currency)}"
-        val builder = SpannableStringBuilder(currentText)
-        builder.append("  ")
-
-        val struck = SpannableString(originalText).apply {
-            setSpan(StrikethroughSpan(), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            setSpan(
-                ForegroundColorSpan(Color.parseColor("#A1A8AF")),
-                0,
-                length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-        }
-        builder.append(struck)
-        return builder
+        return "-${formatMoney(originalAmount, currency)}"
     }
 
     fun buildRefundFlowRemark(baseRemark: String, refunds: List<Bill>): String {

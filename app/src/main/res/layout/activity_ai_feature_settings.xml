@@ -101,7 +101,7 @@
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_ai_spark"
+                                android:src="@drawable/ic_ai_net_magic"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -286,6 +286,7 @@
                     android:paddingVertical="6dp">
 
                     <LinearLayout
+                        android:id="@+id/layout_multi_bill_mode"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
@@ -301,18 +302,10 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="开启多账单模式"
+                                android:text="多账单模式"
                                 android:textColor="#1F2A3D"
                                 android:textSize="@dimen/text_size_14"
                                 android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="普通记账页支持多笔识别与批量处理。"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -324,52 +317,7 @@
                     </LinearLayout>
 
                     <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginVertical="4dp"
-                        android:background="#E7ECF4" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="6dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="10dp"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="不验证直接批量保存"
-                                android:textColor="#24324A"
-                                android:textSize="@dimen/text_size_13"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tv_multi_bill_not_sync_desc"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="识别结果优先进入本地列表，便于后续核对。"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_multi_bill_not_sync"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
+                        android:id="@+id/divider_multi_bill_detail_top"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginVertical="4dp"
@@ -386,25 +334,16 @@
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="10dp"
                             android:layout_weight="1"
                             android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="极简记账"
-                                android:textColor="#24324A"
-                                android:textSize="@dimen/text_size_13"
+                                android:text="详细记账"
+                                android:textColor="#1F2A3D"
+                                android:textSize="@dimen/text_size_14"
                                 android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="更快识别，分类准确度更依赖本地规则。"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -432,37 +371,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="动态提示词纠错"
-                            android:textColor="#1F2A3D"
-                            android:textSize="@dimen/text_size_14"
-                            android:textStyle="bold" />
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_ai_prompt_correction"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginVertical="4dp"
-                        android:background="#E7ECF4" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="6dp">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="本地规则优先"
+                            android:text="启用本地规则"
                             android:textColor="#1F2A3D"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />

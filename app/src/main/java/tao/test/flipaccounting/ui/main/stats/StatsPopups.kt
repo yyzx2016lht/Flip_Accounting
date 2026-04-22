@@ -475,13 +475,22 @@ class BillDetailBottomSheet(
             bill.remark.takeIf { it.isNotBlank() } ?: "无备注"
 
         val amountView = root.findViewById<TextView>(R.id.tv_detail_amount)
-        val sign = when {
-            isRefund -> ""
-            bill.type == Bill.TYPE_EXPENSE -> "-"
-            bill.type == Bill.TYPE_INCOME -> "+"
-            else -> ""
+        val refundedAmount = BillDisplayFormatter.refundAmountOfExpenseBill(bill)
+        amountView.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundedAmount > 0.0) {
+            BillDisplayFormatter.buildRefundedExpenseAmountText(
+                netAmount = bill.amount,
+                originalAmount = BillDisplayFormatter.originalAmountOfExpenseBill(bill),
+                currency = bill.currency
+            )
+        } else {
+            val sign = when {
+                isRefund -> ""
+                bill.type == Bill.TYPE_EXPENSE -> "-"
+                bill.type == Bill.TYPE_INCOME -> "+"
+                else -> ""
+            }
+            "$sign$symbol${String.format(Locale.getDefault(), "%.2f", bill.amount)}"
         }
-        amountView.text = "$sign$symbol${String.format(Locale.getDefault(), "%.2f", bill.amount)}"
         amountView.setTextColor(
             when {
                 isRefund -> Color.parseColor("#9AA1AA")
@@ -514,6 +523,12 @@ class BillDetailBottomSheet(
         }
 
         if (!isTransfer) {
+            if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundedAmount > 0.0) {
+                amountFormula.visibility = View.VISIBLE
+                amountFormula.text =
+                    "退款${formatMoney(refundedAmount, bill.currency)}，实际支出${formatMoney(bill.amount, bill.currency)}"
+                return
+            }
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 val crossCurrencyText = buildCrossCurrencyDetailFormula(bill, "CNY")
                 withContext(Dispatchers.Main) {

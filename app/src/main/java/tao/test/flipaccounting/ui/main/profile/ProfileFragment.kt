@@ -353,6 +353,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val switchShowBookEntry = view.findViewById<CompoundButton>(R.id.switch_show_book_entry)
         val switchFlipDisableLandscape = view.findViewById<CompoundButton>(R.id.switch_flip_disable_landscape)
         val layoutFlipDisableLandscape = view.findViewById<View>(R.id.layout_flip_disable_landscape)
+        val layoutVibrateFeedback = view.findViewById<View>(R.id.layout_vibrate_feedback)
         val switchShizukuMode = view.findViewById<CompoundButton>(R.id.switch_shizuku_mode)
         val layoutWhitelist = view.findViewById<View>(R.id.layout_whitelist_container)
         val layoutScreenAccounting = view.findViewById<View>(R.id.layout_screen_accounting_container)
@@ -372,6 +373,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
         fun updateDataEntriesUi(flipEnabled: Boolean, multiCurrencyEnabled: Boolean) {
             layoutFlipDisableLandscape.visibility = if (flipEnabled) View.VISIBLE else View.GONE
+            layoutVibrateFeedback.visibility = if (flipEnabled) View.VISIBLE else View.GONE
             btnFlipSensitivity.visibility = if (flipEnabled) View.VISIBLE else View.GONE
             btnManageCurrencies.visibility = if (multiCurrencyEnabled) View.VISIBLE else View.GONE
             dividerAfterCurrencies.visibility =

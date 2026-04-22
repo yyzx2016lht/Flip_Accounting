@@ -74,7 +74,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
     // 右上角添加按钮
-        findViewById<View>(R.id.btn_add_category).setOnClickListener {
+        findViewById<View>(R.id.btn_header_action_text).setOnClickListener {
             val intent = Intent(this@SettingsActivity, AddCategoryActivity::class.java)
             intent.putExtra("type", currentType)
             startActivity(intent)
@@ -213,7 +213,7 @@ class SettingsActivity : AppCompatActivity() {
         scrollNormalContent.visibility = View.GONE
         layoutSortActions.visibility = View.VISIBLE
         rvSortCategories.visibility = View.VISIBLE
-        findViewById<View>(R.id.btn_add_category).visibility = View.GONE
+        findViewById<View>(R.id.btn_header_action_text).visibility = View.GONE
 
         lifecycleScope.launch {
             val dbType = if (currentType == Prefs.TYPE_INCOME) 1 else 0
@@ -236,7 +236,7 @@ class SettingsActivity : AppCompatActivity() {
         layoutSortActions.visibility = View.GONE
         rvSortCategories.visibility = View.GONE
         scrollNormalContent.visibility = View.VISIBLE
-        findViewById<View>(R.id.btn_add_category).visibility = View.VISIBLE
+        findViewById<View>(R.id.btn_header_action_text).visibility = View.VISIBLE
         if (resetData) sortCategories.clear()
     }
 

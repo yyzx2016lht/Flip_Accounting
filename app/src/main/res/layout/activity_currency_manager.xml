@@ -6,71 +6,26 @@
     android:background="#F4F7FB"
     android:orientation="vertical">
 
+    <tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
+        android:id="@+id/secondary_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:headerActionIcon="@drawable/ic_tune_outline"
+        app:headerActionVisible="true"
+        app:headerTitle="多币种与汇率" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/white"
-        android:elevation="3dp"
         android:orientation="vertical"
-        android:paddingHorizontal="18dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="18dp">
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <ImageView
-                android:id="@+id/btn_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_centerVertical="true"
-                android:background="@drawable/bg_segmented_container"
-                android:padding="8dp"
-                android:src="@drawable/ic_chevron_left"
-                android:contentDescription="返回" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="多币种与汇率"
-                    android:textColor="#142033"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="选择常用币种，并快速查看对应汇率"
-                    android:textColor="#7B8698"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <ImageView
-                android:id="@+id/btn_settings"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:background="@drawable/bg_segmented_container"
-                android:contentDescription="汇率设置"
-                android:padding="8dp"
-                android:src="@drawable/ic_tune_outline" />
-        </RelativeLayout>
+        android:paddingHorizontal="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="4dp">
 
         <LinearLayout
             android:id="@+id/layout_rate_settings_entry"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
             android:background="@drawable/bg_rule_page_section"
             android:clickable="true"
             android:focusable="true"
@@ -115,7 +70,7 @@
             android:id="@+id/et_search"
             android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_segmented_container"
             android:drawableStart="@drawable/ic_search_outline"
             android:drawablePadding="8dp"

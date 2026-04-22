@@ -108,7 +108,11 @@ class ChatVoiceController(
         }
         val file = File(path)
         if (!file.exists()) {
-            Utils.toast(context, "语音文件已不存在")
+            if (voice.transcript.trim().isNotBlank()) {
+                Utils.toast(context, "语音文件已不存在，可查看已缓存转写")
+            } else {
+                Utils.toast(context, "语音文件已不存在")
+            }
             return
         }
         if (currentPlayingPath == path) {
@@ -254,34 +258,52 @@ class ChatVoiceController(
     fun hideVoiceTranscript(item: ChatDisplayItem) {
         val voice = item.voice ?: parseVoicePayload(item.content)
         if (voice.transcript.isBlank()) return
-        updateVoiceMessageContent(item, voice.copy(transcript = ""))
-        Utils.toast(context, "已隐藏转写")
+        val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
+        if (idx >= 0) {
+            pendingTranscriptRevealAnimations += voice.audioPath
+            adapterProvider().notifyItemChanged(idx)
+        }
+        Utils.toast(context, "转写已保存，可直接复制")
     }
 
     fun transcribeVoiceMessage(item: ChatDisplayItem, showResult: Boolean, force: Boolean = false) {
         val voice = item.voice ?: parseVoicePayload(item.content)
+        val cachedTranscript = voice.transcript.trim()
+        if (!force && cachedTranscript.isNotBlank()) {
+            val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
+            if (showResult && idx >= 0) {
+                pendingTranscriptRevealAnimations += voice.audioPath
+                adapterProvider().notifyItemChanged(idx)
+                scrollToBottom()
+            }
+            return
+        }
         val path = voice.audioPath.takeIf { it.isNotBlank() } ?: run {
-            Utils.toast(context, "未找到语音文件")
+            if (cachedTranscript.isNotBlank()) {
+                Utils.toast(context, "未找到语音文件，已保留缓存转写")
+            } else {
+                Utils.toast(context, "未找到语音文件")
+            }
             return
         }
         val file = File(path)
         if (!file.exists()) {
-            Utils.toast(context, "语音文件已不存在")
+            if (cachedTranscript.isNotBlank()) {
+                val idx = findVoiceItemIndex(item.dbId, path)
+                if (showResult && idx >= 0) {
+                    pendingTranscriptRevealAnimations += path
+                    adapterProvider().notifyItemChanged(idx)
+                    scrollToBottom()
+                }
+                Utils.toast(context, "语音文件已不存在，已使用缓存转写")
+            } else {
+                Utils.toast(context, "语音文件已不存在")
+            }
             return
         }
         if (transcribingPaths.contains(path)) return
 
         lifecycleScope.launch {
-            if (!force && voice.transcript.trim().isNotBlank()) {
-                val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
-                if (showResult && idx >= 0) {
-                    pendingTranscriptRevealAnimations += voice.audioPath
-                    adapterProvider().notifyItemChanged(idx)
-                    scrollToBottom()
-                }
-                return@launch
-            }
-
             transcribingPaths.add(path)
             findVoiceItemIndex(item.dbId, voice.audioPath).takeIf { it >= 0 }?.let { adapterProvider().notifyItemChanged(it) }
 

@@ -32,62 +32,66 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val switchShowAiChatEntry = findViewById<CompoundButton>(R.id.switch_show_ai_chat_entry)
         val showAiChatEntryRow = switchShowAiChatEntry.parent as? View
         val layoutOpenAiChatPage = findViewById<View>(R.id.layout_open_ai_chat_page)
+        val layoutMultiBillMode = findViewById<View>(R.id.layout_multi_bill_mode)
+        val dividerMultiBillDetailTop = findViewById<View>(R.id.divider_multi_bill_detail_top)
+        val layoutMultiBillFastMode = findViewById<View>(R.id.layout_multi_bill_fast_mode)
+        val switchShowMultiBill = findViewById<CompoundButton>(R.id.switch_show_multi_bill)
+        val isFlipOverlayEnabled = Prefs.isFlipEnabled(this)
 
         // AI 总开关由设置中心控制，这里只展示具体能力配置。
         (switchShowAi.parent as? View)?.visibility = View.GONE
         layoutAiMain.visibility = View.VISIBLE
 
         switchAiChatMode.isChecked = Prefs.getAiEntryMode(this) == Prefs.AI_ENTRY_MODE_CHAT
+        fun updateMultiBillUiVisibility() {
+            val aiChatEnabled = switchAiChatMode.isChecked
+            val showMultiModeRow = isFlipOverlayEnabled || !aiChatEnabled
+            val showDetailRow = true
+
+            layoutMultiBillMode.visibility = if (showMultiModeRow) View.VISIBLE else View.GONE
+            layoutMultiBillFastMode.visibility = if (showDetailRow) View.VISIBLE else View.GONE
+            dividerMultiBillDetailTop.visibility =
+                if (showMultiModeRow && showDetailRow) View.VISIBLE else View.GONE
+        }
         switchAiChatMode.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setAiEntryMode(
                 this,
                 if (isChecked) Prefs.AI_ENTRY_MODE_CHAT else Prefs.AI_ENTRY_MODE_TRADITIONAL
             )
+            updateMultiBillUiVisibility()
         }
         layoutOpenAiChatPage.setOnClickListener { switchAiChatMode.performClick() }
 
         Prefs.setShowAiChatEntry(this, false)
         showAiChatEntryRow?.visibility = View.GONE
 
-        val switchMultiBillNotSync = findViewById<CompoundButton>(R.id.switch_multi_bill_not_sync)
-        val tvMultiBillNotSyncDesc = findViewById<View>(R.id.tv_multi_bill_not_sync_desc)
-        findViewById<CompoundButton>(R.id.switch_show_multi_bill).apply {
-            isChecked = Prefs.isMultiBillEnabled(this@AiFeatureSettingsActivity)
-            switchMultiBillNotSync.visibility = if (isChecked) View.VISIBLE else View.GONE
-            tvMultiBillNotSyncDesc.visibility = if (isChecked) View.VISIBLE else View.GONE
-        }
-
-        switchMultiBillNotSync.apply {
-            isChecked = Prefs.isMultiBillNotSync(this@AiFeatureSettingsActivity)
-            setOnCheckedChangeListener { _, isChecked -> Prefs.setMultiBillNotSync(this@AiFeatureSettingsActivity, isChecked) }
-        }
-
-        val layoutMultiBillFastMode = findViewById<View>(R.id.layout_multi_bill_fast_mode)
         val switchMultiBillFastMode = findViewById<CompoundButton>(R.id.switch_multi_bill_fast_mode)
-        layoutMultiBillFastMode.visibility = if (Prefs.isMultiBillEnabled(this)) View.VISIBLE else View.GONE
         switchMultiBillFastMode.apply {
-            isChecked = Prefs.isMultiBillFastMode(this@AiFeatureSettingsActivity)
-            setOnCheckedChangeListener { _, isChecked -> Prefs.setMultiBillFastMode(this@AiFeatureSettingsActivity, isChecked) }
-        }
-
-        findViewById<CompoundButton>(R.id.switch_show_multi_bill).setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setMultiBillEnabled(this, isChecked)
-            switchMultiBillNotSync.visibility = if (isChecked) View.VISIBLE else View.GONE
-            tvMultiBillNotSyncDesc.visibility = if (isChecked) View.VISIBLE else View.GONE
-            layoutMultiBillFastMode.visibility = if (isChecked) View.VISIBLE else View.GONE
-        }
-
-        findViewById<CompoundButton>(R.id.switch_ai_prompt_correction)?.apply {
-            text = "动态提示词纠错"
-            isChecked = Prefs.isAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity)
+            // UI 显示为“详细记账”：开启详细=底层关闭极简
+            isChecked = !Prefs.isMultiBillFastMode(this@AiFeatureSettingsActivity)
             setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity, isChecked)
+                Prefs.setMultiBillFastMode(this@AiFeatureSettingsActivity, !isChecked)
             }
         }
 
+        switchShowMultiBill.apply {
+            isChecked = Prefs.isMultiBillEnabled(this@AiFeatureSettingsActivity)
+        }
+        updateMultiBillUiVisibility()
+        switchShowMultiBill.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setMultiBillEnabled(this, isChecked)
+            updateMultiBillUiVisibility()
+        }
+
         findViewById<CompoundButton>(R.id.switch_local_rule_override)?.apply {
-            isChecked = Prefs.isLocalRuleOverrideEnabled(this@AiFeatureSettingsActivity)
+            val unifiedLocalRuleEnabled =
+                Prefs.isAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity) ||
+                Prefs.isLocalRuleOverrideEnabled(this@AiFeatureSettingsActivity)
+            isChecked = unifiedLocalRuleEnabled
+            Prefs.setAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity, unifiedLocalRuleEnabled)
+            Prefs.setLocalRuleOverrideEnabled(this@AiFeatureSettingsActivity, unifiedLocalRuleEnabled)
             setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity, isChecked)
                 Prefs.setLocalRuleOverrideEnabled(this@AiFeatureSettingsActivity, isChecked)
             }
         }
@@ -266,8 +270,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 R.id.switch_ai_chat_mode,
                 R.id.switch_show_ai_chat_entry,
                 R.id.switch_show_multi_bill,
-                R.id.switch_multi_bill_not_sync,
-                R.id.switch_ai_prompt_correction,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,
                 R.id.switch_show_ai_image,
