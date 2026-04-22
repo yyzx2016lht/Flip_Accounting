@@ -160,6 +160,33 @@ object OverlayDialogs {
         }
     }
 
+    fun showStyledBottomDialog(
+        dialog: AlertDialog,
+        ctx: Context,
+        widthRatio: Float = 0.94f,
+        y: Int = 0,
+        cancelOnTouchOutside: Boolean = true,
+        dimAmount: Float = 0.34f,
+        applyOverlayType: Boolean = true,
+        useSolidPanelBackground: Boolean = true
+    ) {
+        dialog.setCanceledOnTouchOutside(cancelOnTouchOutside)
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = widthRatio,
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            y = y,
+            height = WindowManager.LayoutParams.WRAP_CONTENT,
+            dimAmount = dimAmount,
+            clearDecorPadding = false,
+            applyOverlayType = applyOverlayType
+        )
+        if (useSolidPanelBackground) {
+            dialog.window?.setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
+        }
+    }
+
     fun showAnchoredMenu(ctx: Context, anchor: View, items: List<String>, onSelected: (String) -> Unit) {
         val popup = ListPopupWindow(ctx).apply {
             setAdapter(ArrayAdapter(ctx, android.R.layout.simple_list_item_1, items))
@@ -1084,267 +1111,129 @@ object OverlayDialogs {
         initialRate: Double?,
         onConfirm: (Double, Double, Double) -> Unit
     ) {
-        try {
-            // 确保我们有一个有效的 Activity 上下文来显示对话框
-            val activityContext = if (ctx is Activity) {
-                ctx
-            } else if (ctx is ContextThemeWrapper) {
-                // 尝试从 ContextThemeWrapper 中获取基础 Context
-                val baseCtx = ctx.baseContext
-                if (baseCtx is Activity) baseCtx else ctx
-            } else {
-                ctx
-            }
-
-            val themeContext = ContextThemeWrapper(activityContext, R.style.Theme_FlipAccounting)
+        fun createDialog(baseCtx: Context): AlertDialog {
+            val themeContext = ContextThemeWrapper(baseCtx, R.style.Theme_FlipAccounting)
             val view = LayoutInflater.from(themeContext).inflate(R.layout.dialog_exchange_rate, null)
-
             val dialog = AlertDialog.Builder(themeContext).setView(view).setCancelable(false).create()
 
-        val etSource = view.findViewById<EditText>(R.id.et_source_amount)
-        val tvSourceCurrency = view.findViewById<TextView>(R.id.tv_source_currency)
-        val etRate = view.findViewById<EditText>(R.id.et_exchange_rate)
-        val btnRefresh = view.findViewById<View>(R.id.btn_refresh_rate)
-        val etTarget = view.findViewById<EditText>(R.id.et_target_amount)
-        val tvTargetCurrency = view.findViewById<TextView>(R.id.tv_target_currency)
-        val tvFormula = view.findViewById<TextView>(R.id.tv_formula)
-        val btnCancel = view.findViewById<View>(R.id.btn_cancel)
-        val btnConfirm = view.findViewById<View>(R.id.btn_confirm)
+            val etSource = view.findViewById<EditText>(R.id.et_source_amount)
+            val tvSourceCurrency = view.findViewById<TextView>(R.id.tv_source_currency)
+            val etRate = view.findViewById<EditText>(R.id.et_exchange_rate)
+            val btnRefresh = view.findViewById<View>(R.id.btn_refresh_rate)
+            val etTarget = view.findViewById<EditText>(R.id.et_target_amount)
+            val tvTargetCurrency = view.findViewById<TextView>(R.id.tv_target_currency)
+            val tvFormula = view.findViewById<TextView>(R.id.tv_formula)
+            val btnCancel = view.findViewById<View>(R.id.btn_cancel)
+            val btnConfirm = view.findViewById<View>(R.id.btn_confirm)
 
-        tvSourceCurrency.text = "(${sourceCurrency})"
-        tvTargetCurrency.text = "(${targetCurrency})"
+            tvSourceCurrency.text = "(${sourceCurrency})"
+            tvTargetCurrency.text = "(${targetCurrency})"
+            etSource.setText(String.format("%.2f", sourceAmount))
 
-        etSource.setText(String.format("%.2f", sourceAmount))
-        
-        var currentRate = initialRate ?: 1.0
-        if (initialRate == null) {
-             val rateSource = tao.test.flipaccounting.logic.CurrencyManager.getRate(sourceCurrency) ?: 1.0
-             val rateTarget = tao.test.flipaccounting.logic.CurrencyManager.getRate(targetCurrency) ?: 1.0
-             if (rateSource != 0.0) {
-                 currentRate = rateTarget / rateSource
-             }
-        }
-        
-        etRate.setText(String.format("%.6f", currentRate))
-        etTarget.setText(String.format("%.2f", sourceAmount * currentRate))
-
-        fun updateFormula() {
-            val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-            val rVal = etRate.text.toString().toDoubleOrNull() ?: 0.0
-            val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
-            
-            val sStr = String.format("%.2f", sVal)
-            val rStr = String.format("%.4f", rVal)
-            val tStr = String.format("%.2f", tVal)
-            tvFormula.text = "换算：$sStr $sourceCurrency × $rStr = $tStr $targetCurrency"
-        }
-        
-        updateFormula()
-
-        // Watchers to auto-calculate
-        val textWatcher = object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                if (etSource.hasFocus() || etRate.hasFocus()) {
-                    val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                    val rVal = etRate.text.toString().toDoubleOrNull() ?: 1.0
-                    val tVal = sVal * rVal
-                    if (!etTarget.hasFocus()) {
-                        etTarget.setText(String.format("%.2f", tVal))
-                    }
-                    updateFormula()
-                }
+            var currentRate = initialRate ?: 1.0
+            if (initialRate == null) {
+                val rateSource = tao.test.flipaccounting.logic.CurrencyManager.getRate(sourceCurrency) ?: 1.0
+                val rateTarget = tao.test.flipaccounting.logic.CurrencyManager.getRate(targetCurrency) ?: 1.0
+                if (rateSource != 0.0) currentRate = rateTarget / rateSource
             }
-        }
-        
-        val targetWatcher = object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                if (etTarget.hasFocus()) {
-                    val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                    val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
-                    if (sVal != 0.0) {
-                        val newRate = tVal / sVal
-                         if (!etRate.hasFocus()) {
-                             etRate.setText(String.format("%.6f", newRate))
-                         }
-                    }
-                    updateFormula()
-                }
+            etRate.setText(String.format("%.6f", currentRate))
+            etTarget.setText(String.format("%.2f", sourceAmount * currentRate))
+
+            fun updateFormula() {
+                val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
+                val rVal = etRate.text.toString().toDoubleOrNull() ?: 0.0
+                val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
+                tvFormula.text = "换算：${String.format("%.2f", sVal)} $sourceCurrency × ${String.format("%.4f", rVal)} = ${String.format("%.2f", tVal)} $targetCurrency"
             }
-        }
+            updateFormula()
 
-        etSource.addTextChangedListener(textWatcher)
-        etRate.addTextChangedListener(textWatcher)
-        etTarget.addTextChangedListener(targetWatcher)
-
-        btnRefresh.setOnClickListener {
-             val rateSource = tao.test.flipaccounting.logic.CurrencyManager.getRate(sourceCurrency) ?: 1.0
-             val rateTarget = tao.test.flipaccounting.logic.CurrencyManager.getRate(targetCurrency) ?: 1.0
-             if (rateSource != 0.0) {
-                 val newRate = rateTarget / rateSource
-                 etRate.setText(String.format("%.6f", newRate))
-                 val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                 etTarget.setText(String.format("%.2f", sVal * newRate))
-                 updateFormula()
-             }
-        }
-
-        btnCancel.setOnClickListener { dialog.dismiss() }
-        btnConfirm.setOnClickListener {
-            val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-            val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
-            val rVal = etRate.text.toString().toDoubleOrNull() ?: 1.0
-            onConfirm(sVal, tVal, rVal)
-            dialog.dismiss()
-        }
-
-        styleDialogWindow(
-            dialog = dialog,
-            ctx = activityContext,
-            widthRatio = 0.9f
-        )
-        applyOverlayTypeIfAllowed(dialog, ctx)
-        
-        try {
-            dialog.show()
-        } catch (e: BadTokenException) {
-            // 如果因为窗口令牌无效而失败，则尝试使用应用上下文重新创建对话框
-            // 这通常发生在从悬浮窗或后台服务调用时
-            try {
-                val appContext = activityContext.applicationContext
-                val recoveryThemeContext = ContextThemeWrapper(appContext, R.style.Theme_FlipAccounting)
-                val recoveryView = LayoutInflater.from(recoveryThemeContext).inflate(R.layout.dialog_exchange_rate, null)
-                val recoveryDialog = AlertDialog.Builder(recoveryThemeContext).setView(recoveryView).setCancelable(false).create()
-                
-                // 重新初始化所有 UI 组件
-                val etSource = recoveryView.findViewById<EditText>(R.id.et_source_amount)
-                val tvSourceCurrency = recoveryView.findViewById<TextView>(R.id.tv_source_currency)
-                val etRate = recoveryView.findViewById<EditText>(R.id.et_exchange_rate)
-                val btnRefresh = recoveryView.findViewById<View>(R.id.btn_refresh_rate)
-                val etTarget = recoveryView.findViewById<EditText>(R.id.et_target_amount)
-                val tvTargetCurrency = recoveryView.findViewById<TextView>(R.id.tv_target_currency)
-                val tvFormula = recoveryView.findViewById<TextView>(R.id.tv_formula)
-                val btnCancel = recoveryView.findViewById<View>(R.id.btn_cancel)
-                val btnConfirm = recoveryView.findViewById<View>(R.id.btn_confirm)
-
-                tvSourceCurrency.text = "(${sourceCurrency})"
-                tvTargetCurrency.text = "(${targetCurrency})"
-                etSource.setText(String.format("%.2f", sourceAmount))
-                
-                var currentRate = initialRate ?: 1.0
-                if (initialRate == null) {
-                    val rateSource = tao.test.flipaccounting.logic.CurrencyManager.getRate(sourceCurrency) ?: 1.0
-                    val rateTarget = tao.test.flipaccounting.logic.CurrencyManager.getRate(targetCurrency) ?: 1.0
-                    if (rateSource != 0.0) {
-                        currentRate = rateTarget / rateSource
-                    }
-                }
-                
-                etRate.setText(String.format("%.6f", currentRate))
-                etTarget.setText(String.format("%.2f", sourceAmount * currentRate))
-
-                fun updateFormula() {
-                    val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                    val rVal = etRate.text.toString().toDoubleOrNull() ?: 0.0
-                    val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
-                    
-                    val sStr = String.format("%.2f", sVal)
-                    val rStr = String.format("%.4f", rVal)
-                    val tStr = String.format("%.2f", tVal)
-                    tvFormula.text = "换算：$sStr $sourceCurrency × $rStr = $tStr $targetCurrency"
-                }
-                
-                updateFormula()
-
-                val textWatcher = object : android.text.TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                    override fun afterTextChanged(s: android.text.Editable?) {
-                        if (etSource.hasFocus() || etRate.hasFocus()) {
-                            val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                            val rVal = etRate.text.toString().toDoubleOrNull() ?: 1.0
-                            val tVal = sVal * rVal
-                            if (!etTarget.hasFocus()) {
-                                etTarget.setText(String.format("%.2f", tVal))
-                            }
-                            updateFormula()
-                        }
-                    }
-                }
-                
-                val targetWatcher = object : android.text.TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                    override fun afterTextChanged(s: android.text.Editable?) {
-                        if (etTarget.hasFocus()) {
-                            val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                            val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
-                            if (sVal != 0.0) {
-                                val newRate = tVal / sVal
-                                if (!etRate.hasFocus()) {
-                                    etRate.setText(String.format("%.6f", newRate))
-                                }
-                            }
-                            updateFormula()
-                        }
-                    }
-                }
-
-                etSource.addTextChangedListener(textWatcher)
-                etRate.addTextChangedListener(textWatcher)
-                etTarget.addTextChangedListener(targetWatcher)
-
-                btnRefresh.setOnClickListener {
-                    val rateSource = tao.test.flipaccounting.logic.CurrencyManager.getRate(sourceCurrency) ?: 1.0
-                    val rateTarget = tao.test.flipaccounting.logic.CurrencyManager.getRate(targetCurrency) ?: 1.0
-                    if (rateSource != 0.0) {
-                        val newRate = rateTarget / rateSource
-                        etRate.setText(String.format("%.6f", newRate))
+            val textWatcher = object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    if (etSource.hasFocus() || etRate.hasFocus()) {
                         val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                        etTarget.setText(String.format("%.2f", sVal * newRate))
+                        val rVal = etRate.text.toString().toDoubleOrNull() ?: 1.0
+                        if (!etTarget.hasFocus()) {
+                            etTarget.setText(String.format("%.2f", sVal * rVal))
+                        }
                         updateFormula()
                     }
                 }
+            }
+            val targetWatcher = object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    if (etTarget.hasFocus()) {
+                        val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
+                        val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
+                        if (sVal != 0.0 && !etRate.hasFocus()) {
+                            etRate.setText(String.format("%.6f", tVal / sVal))
+                        }
+                        updateFormula()
+                    }
+                }
+            }
+            etSource.addTextChangedListener(textWatcher)
+            etRate.addTextChangedListener(textWatcher)
+            etTarget.addTextChangedListener(targetWatcher)
 
-                btnCancel.setOnClickListener { recoveryDialog.dismiss() }
-                btnConfirm.setOnClickListener {
+            btnRefresh.setOnClickListener {
+                val rateSource = tao.test.flipaccounting.logic.CurrencyManager.getRate(sourceCurrency) ?: 1.0
+                val rateTarget = tao.test.flipaccounting.logic.CurrencyManager.getRate(targetCurrency) ?: 1.0
+                if (rateSource != 0.0) {
+                    val newRate = rateTarget / rateSource
+                    etRate.setText(String.format("%.6f", newRate))
                     val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
-                    val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
-                    val rVal = etRate.text.toString().toDoubleOrNull() ?: 1.0
-                    onConfirm(sVal, tVal, rVal)
-                    recoveryDialog.dismiss()
+                    etTarget.setText(String.format("%.2f", sVal * newRate))
+                    updateFormula()
                 }
+            }
 
-                recoveryDialog.window?.let {
-                    WindowCompat.setDecorFitsSystemWindows(it, false)
-                    it.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-                    it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-                    // 悬浮窗 Service 场景下，必须设置 TYPE_APPLICATION_OVERLAY
-                    // 否则 show() 会因为 token null 再次抛出 BadTokenException
-                    it.setType(
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                        else
-                            WindowManager.LayoutParams.TYPE_PHONE
-                    )
-                }
-                
-                recoveryDialog.show()
+            btnCancel.setOnClickListener { dialog.dismiss() }
+            btnConfirm.setOnClickListener {
+                val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
+                val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
+                val rVal = etRate.text.toString().toDoubleOrNull() ?: 1.0
+                onConfirm(sVal, tVal, rVal)
+                dialog.dismiss()
+            }
+            return dialog
+        }
+
+        val preferredCtx = if (ctx is ContextThemeWrapper) ctx.baseContext else ctx
+        try {
+            val dialog = createDialog(preferredCtx)
+            showStyledDialog(
+                dialog = dialog,
+                ctx = preferredCtx,
+                widthRatio = 0.9f,
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                y = 150,
+                clearDecorPadding = true,
+                applyOverlayType = true,
+            )
+        } catch (e: BadTokenException) {
+            try {
+                val appCtx = preferredCtx.applicationContext
+                val recoveryDialog = createDialog(appCtx)
+                showStyledDialog(
+                    dialog = recoveryDialog,
+                    ctx = appCtx,
+                    widthRatio = 0.9f,
+                    gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                    y = 150,
+                    clearDecorPadding = true,
+                    applyOverlayType = true,
+                )
             } catch (ex: Exception) {
-                // 如果恢复对话框也失败，则只记录错误并返回
                 android.util.Log.e("OverlayDialogs", "Failed to show exchange rate dialog even after recovery attempt", ex)
-                onConfirm(sourceAmount, sourceAmount, 1.0)  // 返回默认值
+                onConfirm(sourceAmount, sourceAmount, 1.0)
             }
         } catch (e: Exception) {
-            android.util.Log.e("OverlayDialogs", "Failed to show exchange rate dialog", e)
-            onConfirm(sourceAmount, sourceAmount, 1.0)  // 返回默认值
-        }
-        } catch (e: Exception) {
             android.util.Log.e("OverlayDialogs", "Failed to initialize exchange rate dialog", e)
-            onConfirm(sourceAmount, sourceAmount, 1.0)  // 返回默认值
+            onConfirm(sourceAmount, sourceAmount, 1.0)
         }
     }
 

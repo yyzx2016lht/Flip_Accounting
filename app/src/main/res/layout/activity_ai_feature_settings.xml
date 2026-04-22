@@ -101,7 +101,7 @@
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_ai"
+                                android:src="@drawable/ic_profile_ai_spark"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 

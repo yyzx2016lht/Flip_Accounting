@@ -8,6 +8,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +19,7 @@ import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import kotlin.math.min
 
 internal class HomeMultiSelectController(
@@ -91,10 +94,12 @@ internal class HomeMultiSelectController(
 
     private fun showMoveToBookDialog(bills: List<Bill>) {
         dismissKeyboardForDialog()
-        val dialog = Dialog(fragment.requireContext(), R.style.Theme_FlipAccounting)
+        val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_FlipAccounting)
         val panel = LayoutInflater.from(fragment.requireContext())
             .inflate(R.layout.dialog_book_delete_options, null, false)
-        val width = (fragment.resources.displayMetrics.widthPixels * 0.92f).toInt()
+        val dialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
         panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "移动到账本"
         panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "选择目标账本"
         val optionsScroll = panel.findViewById<ScrollView>(R.id.scroll_delete_book_options)
@@ -144,9 +149,13 @@ internal class HomeMultiSelectController(
         val targetHeight = min(maxHeight, estimatedContentHeight)
         optionsScroll.layoutParams = optionsScroll.layoutParams.apply { height = targetHeight }
         panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width, 0.34f)
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.92f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
     }
 }

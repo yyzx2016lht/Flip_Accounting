@@ -16,6 +16,7 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.core.view.WindowCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -605,15 +606,19 @@ class AiAssistant(private val ctx: Context) {
                 )
             }
             setBackgroundDrawableResource(android.R.color.transparent)
+            WindowCompat.setDecorFitsSystemWindows(this, false)
+            setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+            setDimAmount(0.34f)
             setGravity(Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM)
-            attributes.y = 300
+            attributes.y = (120 * ctx.resources.displayMetrics.density).toInt()
             setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
         dialog.show()
         dialog.window?.let { win ->
             val dm = ctx.resources.displayMetrics
-            val widthPx = (340 * dm.density).toInt()
+            val maxCardWidth = (360 * dm.density).toInt()
+            val widthPx = kotlin.math.min((dm.widthPixels * 0.9f).toInt(), maxCardWidth)
             win.setLayout(widthPx, WindowManager.LayoutParams.WRAP_CONTENT)
         }
 

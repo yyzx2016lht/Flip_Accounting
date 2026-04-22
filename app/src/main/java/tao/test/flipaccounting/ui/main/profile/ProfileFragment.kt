@@ -345,8 +345,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         // --- 翻转手势与白名单 ---
         val switchFlip = view.findViewById<CompoundButton>(R.id.switch_flip_trigger)
+        val switchShowMultiCur = view.findViewById<CompoundButton>(R.id.switch_show_multi_cur)
+        val btnManageCurrencies = view.findViewById<View>(R.id.btn_manage_currencies)
+        val btnFlipSensitivity = view.findViewById<View>(R.id.btn_flip_sensitivity)
+        val dividerAfterCurrencies = view.findViewById<View>(R.id.divider_after_currencies)
+        val dividerAfterFlipSensitivity = view.findViewById<View>(R.id.divider_after_flip_sensitivity)
         val switchShowBookEntry = view.findViewById<CompoundButton>(R.id.switch_show_book_entry)
         val switchFlipDisableLandscape = view.findViewById<CompoundButton>(R.id.switch_flip_disable_landscape)
+        val layoutFlipDisableLandscape = view.findViewById<View>(R.id.layout_flip_disable_landscape)
         val switchShizukuMode = view.findViewById<CompoundButton>(R.id.switch_shizuku_mode)
         val layoutWhitelist = view.findViewById<View>(R.id.layout_whitelist_container)
         val layoutScreenAccounting = view.findViewById<View>(R.id.layout_screen_accounting_container)
@@ -364,6 +370,16 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             tvScreenAccountingHint.visibility = View.GONE
             btnManageWhitelist.visibility = if (layoutWhitelist.visibility == View.VISIBLE && switchWhitelistMode.isChecked) View.VISIBLE else View.GONE
         }
+        fun updateDataEntriesUi(flipEnabled: Boolean, multiCurrencyEnabled: Boolean) {
+            layoutFlipDisableLandscape.visibility = if (flipEnabled) View.VISIBLE else View.GONE
+            btnFlipSensitivity.visibility = if (flipEnabled) View.VISIBLE else View.GONE
+            btnManageCurrencies.visibility = if (multiCurrencyEnabled) View.VISIBLE else View.GONE
+            dividerAfterCurrencies.visibility =
+                if (multiCurrencyEnabled && flipEnabled) View.VISIBLE else View.GONE
+            dividerAfterFlipSensitivity.visibility =
+                if (multiCurrencyEnabled || flipEnabled) View.VISIBLE else View.GONE
+        }
+        switchShowMultiCur.isChecked = Prefs.isShowMultiCurrency(requireContext())
         switchScreenAccounting.apply {
             isChecked = Prefs.isShowScreenAccounting(requireContext())
             setOnCheckedChangeListener { _, isChecked ->
@@ -393,9 +409,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
         switchFlip.apply {
             isChecked = Prefs.isFlipEnabled(requireContext())
+            updateDataEntriesUi(isChecked, switchShowMultiCur.isChecked)
             refreshOverlayReminder(view, isChecked)
             setOnCheckedChangeListener { _, isChecked ->
                 Prefs.setFlipEnabled(requireContext(), isChecked)
+                updateDataEntriesUi(isChecked, switchShowMultiCur.isChecked)
                 updateWhitelistUi()
                 updateFlipService(isChecked)
                 refreshOverlayReminder(view, isChecked)
@@ -510,9 +528,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
 
         // --- 高级留存设置 ---
-        view.findViewById<CompoundButton>(R.id.switch_show_multi_cur).apply {
-            isChecked = Prefs.isShowMultiCurrency(requireContext())
-            setOnCheckedChangeListener { _, isChecked -> Prefs.setShowMultiCurrency(requireContext(), isChecked) }
+        switchShowMultiCur.apply {
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setShowMultiCurrency(requireContext(), isChecked)
+                updateDataEntriesUi(switchFlip.isChecked, isChecked)
+            }
         }
 
         val btnShareLogs = view.findViewById<View>(R.id.btn_share_logs)
@@ -527,11 +547,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         btnShareLogs.setOnClickListener {
             requireActivity().startActivity(Intent(requireContext(), LogViewerActivity::class.java))
-        }
-
-        view.findViewById<CompoundButton>(R.id.switch_permanent_wakelock).apply {
-            isChecked = Prefs.isPermanentWakeLockEnabled(requireContext())
-            setOnCheckedChangeListener { _, isChecked -> Prefs.setPermanentWakeLockEnabled(requireContext(), isChecked) }
         }
 
         view.findViewById<CompoundButton>(R.id.switch_shizuku_persistence).apply {
@@ -549,6 +564,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             val toggleIds = intArrayOf(
                 R.id.switch_flip_trigger,
                 R.id.switch_show_book_entry,
+                R.id.switch_flip_disable_landscape,
                 R.id.switch_shizuku_mode,
                 R.id.switch_asset_feature,
                 R.id.switch_whitelist_mode,
@@ -558,7 +574,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 R.id.switch_enable_ai_in_prefs,
                 R.id.switch_show_multi_cur,
                 R.id.switch_logging,
-                R.id.switch_permanent_wakelock,
                 R.id.switch_shizuku_persistence
             )
 

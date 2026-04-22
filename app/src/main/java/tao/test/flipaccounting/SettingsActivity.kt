@@ -641,7 +641,6 @@ class SettingsActivity : AppCompatActivity() {
             .setView(panel)
             .setCancelable(false)
             .create()
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         OverlayDialogs.showStyledCenterDialog(
             dialog = dialog,
             ctx = this,
@@ -760,7 +759,6 @@ class SettingsActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(panel)
             .create()
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
             dialog.dismiss()
         }
@@ -889,7 +887,6 @@ class SettingsActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(panel)
             .create()
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
             dialog.dismiss()
         }

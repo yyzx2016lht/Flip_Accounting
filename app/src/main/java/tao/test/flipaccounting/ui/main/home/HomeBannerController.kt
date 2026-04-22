@@ -9,11 +9,14 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.widget.ImageViewCompat
 import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.R
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 
 internal class HomeBannerController(
@@ -42,10 +45,12 @@ internal class HomeBannerController(
             dismissKeyboardForDialog()
             val selectedBookName = getSelectedBookName()
             val hasBanner = BookAccountManager.getBookBannerPath(fragment.requireContext(), selectedBookName) != null
-            val dialog = Dialog(fragment.requireContext(), R.style.Theme_FlipAccounting)
+            val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_FlipAccounting)
             val panel = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.dialog_delete_followup_picker, null, false)
-            val width = (fragment.resources.displayMetrics.widthPixels * 0.86f).toInt()
+            val dialog = AlertDialog.Builder(themeCtx)
+                .setView(panel)
+                .create()
             panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "「$selectedBookName」外观设置"
             val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
 
@@ -68,10 +73,14 @@ internal class HomeBannerController(
 
             panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
             panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-            dialog.setContentView(panel)
-            dialog.setCanceledOnTouchOutside(true)
-            configureDialogWindow(dialog, width, 0.34f)
-            dialog.show()
+            OverlayDialogs.showStyledCenterDialog(
+                dialog = dialog,
+                ctx = fragment.requireContext(),
+                widthRatio = 0.86f,
+                cancelOnTouchOutside = true,
+                applyOverlayType = false,
+                useSolidPanelBackground = false
+            )
             true
         }
     }
@@ -147,9 +156,11 @@ internal class HomeBannerController(
             "炭黑" to 0xFF222222.toInt(),
         )
 
-        val dialog = Dialog(ctx, R.style.Theme_FlipAccounting)
+        val themeCtx = ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting)
         val panel = LayoutInflater.from(ctx).inflate(R.layout.dialog_delete_followup_picker, null, false)
-        val width = (fragment.resources.displayMetrics.widthPixels * 0.86f).toInt()
+        val dialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
         panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "选择主题颜色"
         val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
 
@@ -202,10 +213,14 @@ internal class HomeBannerController(
 
         panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
         panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width, 0.34f)
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.86f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
     }
 
     private fun removeBanner() {

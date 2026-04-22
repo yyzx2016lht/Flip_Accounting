@@ -172,7 +172,6 @@ class ChatSessionController(
             val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_FlipAccounting))
                 .setView(panel)
                 .create()
-            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
             addOption(
                 title = "仅删除会话",
@@ -493,7 +492,6 @@ class ChatSessionController(
             val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_FlipAccounting))
                 .setView(panel)
                 .create()
-            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
             btnBack.setOnClickListener { dialog.dismiss() }
             btnDelete.setOnClickListener {

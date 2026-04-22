@@ -1,12 +1,8 @@
 ﻿package tao.test.flipaccounting.logic
 
 import android.content.Context
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
-import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
@@ -207,21 +203,14 @@ object RuleDialogHelper {
             dialog.dismiss()
         }
 
-        if (isOverlay) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                dialog.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
-            } else {
-                @Suppress("DEPRECATION")
-                dialog.window?.setType(WindowManager.LayoutParams.TYPE_PHONE)
-            }
-        }
         dialog.setOnCancelListener { onCancel?.invoke() }
-        dialog.show()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.92f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = isOverlay,
+            useSolidPanelBackground = true
         )
-        dialog.window?.setGravity(Gravity.BOTTOM)
     }
 }

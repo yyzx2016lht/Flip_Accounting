@@ -2,6 +2,7 @@ package tao.test.flipaccounting
 
 import android.content.Context
 import org.json.JSONArray
+import java.io.File
 
 object BookAccountManager {
     const val DEFAULT_BOOK = "\u9ED8\u8BA4\u8D26\u672C"
@@ -172,9 +173,28 @@ object BookAccountManager {
         val current = getBookAccounts(context).toMutableList()
         if (!current.remove(target)) return false
         saveAccounts(context, current)
-        prefs(context).edit()
-            .remove(KEY_BOOK_BANNER_PREFIX + target)
-            .apply()
+        val prefs = prefs(context)
+        val targetKeys = buildBookKeyCandidates(target)
+        val targetBannerPaths = targetKeys
+            .mapNotNull { key -> prefs.getString(KEY_BOOK_BANNER_PREFIX + key, null) }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+        val retainedBannerPaths = current
+            .flatMap { buildBookKeyCandidates(it) }
+            .mapNotNull { key -> prefs.getString(KEY_BOOK_BANNER_PREFIX + key, null) }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+
+        val edit = prefs.edit()
+        targetKeys.forEach { key ->
+            edit.remove(KEY_BOOK_BANNER_PREFIX + key)
+            edit.remove(KEY_BOOK_COLOR_PREFIX + key)
+        }
+        edit.apply()
+
+        cleanupBannerFiles(context, targetKeys, targetBannerPaths - retainedBannerPaths)
         if (getSelectedBook(context, current) == target) {
             val nextSelected = when {
                 fallback != null && current.contains(fallback) -> fallback
@@ -184,6 +204,36 @@ object BookAccountManager {
             setSelectedBook(context, nextSelected)
         }
         return true
+    }
+
+    private fun buildBookKeyCandidates(bookName: String): List<String> {
+        val keys = linkedSetOf<String>()
+        fun add(value: String?) {
+            val raw = value ?: return
+            keys.add(raw)
+            keys.add(raw.trim())
+            keys.add(normalizeBookName(raw))
+        }
+        add(bookName)
+        rawAliases(bookName).forEach(::add)
+        return keys.filter { it != ALL_BOOK }
+    }
+
+    private fun cleanupBannerFiles(context: Context, targetKeys: List<String>, removablePaths: Set<String>) {
+        removablePaths.forEach { path ->
+            runCatching {
+                val file = File(path)
+                if (file.exists() && file.isFile) file.delete()
+            }
+        }
+        val bannerDir = File(context.filesDir, "banners")
+        if (!bannerDir.isDirectory) return
+        targetKeys.forEach { key ->
+            val hashedFile = File(bannerDir, "banner_${key.hashCode()}.jpg")
+            if (hashedFile.exists() && hashedFile.isFile) {
+                runCatching { hashedFile.delete() }
+            }
+        }
     }
 
     private fun readSavedAccounts(context: Context): List<String> {

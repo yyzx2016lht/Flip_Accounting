@@ -43,7 +43,6 @@ class OverlayService : Service() {
         private var watchdogJob: Job? = null
         private var restartDetectorJob: Job? = null
         private var wakeLock: PowerManager.WakeLock? = null
-        private var permanentWakeLock: PowerManager.WakeLock? = null
 
         private var lastWatchdogRestartAtMs: Long = 0L
         private var consecutiveDeadChecks: Int = 0
@@ -123,36 +122,8 @@ class OverlayService : Service() {
             }
         }
 
-        fun acquirePermanentWakeLock() {
-            if (!Prefs.isPermanentWakeLockEnabled(this@OverlayService)) return
-            try {
-                if (permanentWakeLock == null) {
-                    val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-                    permanentWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "FlipAccounting::PermanentWL")
-                    permanentWakeLock?.setReferenceCounted(false)
-                }
-                if (permanentWakeLock?.isHeld != true) {
-                    permanentWakeLock?.acquire()
-                    Logger.d(this@OverlayService, "OverlayService", "🔒 Permanent WakeLock Acquired")
-                }
-            } catch (e: Exception) {
-                Logger.d(this@OverlayService, "OverlayService", "acquirePermanentWakeLock failed: ${e.message}")
-            }
-        }
-
-        fun releasePermanentWakeLock() {
-            try {
-                if (permanentWakeLock?.isHeld == true) {
-                    permanentWakeLock?.release()
-                    Logger.d(this@OverlayService, "OverlayService", "🔓 Permanent WakeLock Released")
-                }
-            } catch (_: Exception) {}
-            permanentWakeLock = null
-        }
-
         private fun releaseAllWakeLocks() {
             try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}
-            releasePermanentWakeLock()
         }
 
         // ── Watchdog ──────────────────────────────────────────
@@ -399,7 +370,6 @@ class OverlayService : Service() {
         } else {
             Logger.d(this, "OverlayService", "FlipDetector started")
             keepAliveManager.onDetectorStarted()
-            keepAliveManager.acquirePermanentWakeLock()
         }
     }
 
@@ -407,7 +377,6 @@ class OverlayService : Service() {
         flipDetector?.stop()
         flipDetector = null
         keepAliveManager.onDetectorStopped()
-        keepAliveManager.releasePermanentWakeLock()
     }
 
     // ════════════════════════════════════════════════════════
@@ -502,4 +471,3 @@ class OverlayService : Service() {
 
     override fun onBind(p0: Intent?): IBinder? = null
 }
-

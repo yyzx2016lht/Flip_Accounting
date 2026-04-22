@@ -13,6 +13,8 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,6 +34,7 @@ import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.ui.activity.BookOverviewActivity
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import kotlin.math.max
 
 internal class HomeBookDrawerController(
@@ -559,8 +562,10 @@ internal class HomeBookDrawerController(
         panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "删除账本「$target」"
         panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "请选择删除方式"
         val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
-        val popupDialog = Dialog(fragment.requireContext(), R.style.Theme_FlipAccounting)
-        val targetWidth = (fragment.resources.displayMetrics.widthPixels * 0.92f).toInt()
+        val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_FlipAccounting)
+        val popupDialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
         options.forEach { opt ->
             val item = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.item_book_delete_option, optionsContainer, false)
@@ -576,18 +581,24 @@ internal class HomeBookDrawerController(
         }
         panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { popupDialog.dismiss() }
 
-        popupDialog.setContentView(panel)
-        popupDialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(popupDialog, targetWidth, 0.34f)
-        popupDialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = popupDialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.92f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
     }
 
     private fun showTransferTargetPickerAndDelete(target: String, transferCandidates: List<String>) {
         dismissKeyboardForDialog()
-        val dialog = Dialog(fragment.requireContext(), R.style.Theme_FlipAccounting)
+        val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_FlipAccounting)
         val panel = LayoutInflater.from(fragment.requireContext())
             .inflate(R.layout.dialog_delete_followup_picker, null, false)
-        val width = (fragment.resources.displayMetrics.widthPixels * 0.86f).toInt()
+        val dialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
         panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "选择迁移目标"
         val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
         transferCandidates.forEach { candidate ->
@@ -612,10 +623,14 @@ internal class HomeBookDrawerController(
             optionsContainer.addView(item)
         }
         panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width, 0.34f)
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.86f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
     }
 
     private fun showDeleteFollowupConfirmDialog(
@@ -626,10 +641,12 @@ internal class HomeBookDrawerController(
         onConfirm: () -> Unit
     ) {
         dismissKeyboardForDialog()
-        val dialog = Dialog(fragment.requireContext(), R.style.Theme_FlipAccounting)
+        val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_FlipAccounting)
         val panel = LayoutInflater.from(fragment.requireContext())
             .inflate(R.layout.dialog_delete_followup_confirm, null, false)
-        val width = (fragment.resources.displayMetrics.widthPixels * 0.86f).toInt()
+        val dialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
         panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = title
         panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = message
         panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
@@ -646,10 +663,14 @@ internal class HomeBookDrawerController(
                 onConfirm()
             }
         }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width, 0.34f)
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.86f,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = false
+        )
     }
 
     private fun performDeleteBook(

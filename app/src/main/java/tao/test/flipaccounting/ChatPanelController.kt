@@ -62,7 +62,6 @@ class ChatPanelController(
         dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_FlipAccounting))
             .setView(view)
             .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         styleChatPanelWindow(dialog)
         btnCancel.setOnClickListener { dialog.dismiss() }
         showStyledBottomDialog(dialog)
@@ -77,7 +76,6 @@ class ChatPanelController(
         val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_FlipAccounting))
             .setView(view)
             .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         val allModels = Prefs.getAiModelsCache(context).ifEmpty {
             listOf(Prefs.getAiModel(context), Prefs.getAiSingleModel(context), Prefs.getAiMultiModel(context)).distinct()
@@ -125,7 +123,6 @@ class ChatPanelController(
         val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_FlipAccounting))
             .setView(view)
             .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         styleChatPanelWindow(dialog)
 
         btnSave.setOnClickListener {
@@ -148,7 +145,8 @@ class ChatPanelController(
         dialog.window?.let { win ->
             WindowCompat.setDecorFitsSystemWindows(win, false)
             win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-            win.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            win.setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
+            win.setDimAmount(0.34f)
             win.setGravity(android.view.Gravity.BOTTOM)
             val margin = (12 * context.resources.displayMetrics.density).toInt()
             win.setLayout(context.resources.displayMetrics.widthPixels - margin * 2, WindowManager.LayoutParams.WRAP_CONTENT)

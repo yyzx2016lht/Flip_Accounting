@@ -102,7 +102,6 @@ class ChatMediaController(
         val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_FlipAccounting))
             .setView(view)
             .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         view.findViewById<TextView>(R.id.item_bg_pick_image).setOnClickListener {
             dialog.dismiss()
@@ -326,7 +325,6 @@ class ChatMediaController(
         val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_FlipAccounting))
             .setView(view)
             .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         btnCancel.setOnClickListener { dialog.dismiss() }
         btnOk.setOnClickListener {

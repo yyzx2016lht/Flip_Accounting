@@ -836,7 +836,7 @@ class HomeFragment : Fragment() {
                     WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
                         WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
                 )
-                setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+                setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
                 setGravity(Gravity.CENTER)
                 setDimAmount(dimAmount)
                 setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)

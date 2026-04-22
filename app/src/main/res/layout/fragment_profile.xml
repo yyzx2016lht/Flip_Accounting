@@ -280,7 +280,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_category"
+                                android:src="@drawable/ic_profile_category_tree"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -315,6 +315,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_after_categories"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="68dp"
@@ -330,7 +331,8 @@
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingHorizontal="18dp">
+                        android:paddingHorizontal="18dp"
+                        android:visibility="gone">
 
                         <FrameLayout
                             android:layout_width="40dp"
@@ -375,6 +377,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_after_currencies"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="68dp"
@@ -435,6 +438,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_after_flip_sensitivity"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="68dp"
@@ -522,7 +526,7 @@
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_ai"
+                                android:src="@drawable/ic_profile_ai_spark"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -716,99 +720,117 @@
                             android:layout_marginStart="50dp"
                             android:paddingBottom="8dp"
                             android:paddingTop="2dp"
-                            android:text="手机翻转至正面时弹出悬浮窗记账 (默认全局模式)"
+                            android:text="手机翻转至正面时弹出悬浮窗记账"
                             android:textColor="#9AA4B2"
                             android:textSize="@dimen/text_size_11" />
 
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:layout_marginTop="8dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 显示表单账本入口（与翻转手势同级） -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_indigo">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_book_entry" />
+                        </FrameLayout>
+
                         <LinearLayout
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:background="@drawable/bg_inset_panel"
-                            android:orientation="vertical"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="8dp">
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
 
-                            <LinearLayout
-                                android:layout_width="match_parent"
+                            <TextView
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:gravity="center_vertical"
-                                android:orientation="horizontal">
+                                android:text="显示表单账本入口"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
 
-                                <LinearLayout
-                                    android:layout_width="0dp"
-                                    android:layout_height="wrap_content"
-                                    android:layout_weight="1"
-                                    android:orientation="vertical">
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="显示表单账本入口"
-                                        android:textColor="#1F2A3D"
-                                        android:textSize="@dimen/text_size_13"
-                                        android:textStyle="bold" />
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="2dp"
-                                        android:text="在翻转记账面板中显示传统表单账本入口。"
-                                        android:textColor="#9AA4B2"
-                                        android:textSize="@dimen/text_size_10" />
-                                </LinearLayout>
-
-                                <com.google.android.material.switchmaterial.SwitchMaterial
-                                    android:id="@+id/switch_show_book_entry"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    app:thumbTint="@color/switch_thumb_tint"
-                                    app:trackTint="@color/switch_track_tint" />
-                            </LinearLayout>
-
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="0.5dp"
-                                android:layout_marginVertical="6dp"
-                                android:background="#E7ECF4" />
-
-                            <LinearLayout
-                                android:layout_width="match_parent"
+                            <TextView
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:gravity="center_vertical"
-                                android:orientation="horizontal">
-
-                                <LinearLayout
-                                    android:layout_width="0dp"
-                                    android:layout_height="wrap_content"
-                                    android:layout_weight="1"
-                                    android:orientation="vertical">
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="横屏状态不检测"
-                                        android:textColor="#1F2A3D"
-                                        android:textSize="@dimen/text_size_13"
-                                        android:textStyle="bold" />
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="2dp"
-                                        android:text="启用后，横屏时将忽略翻转手势触发。"
-                                        android:textColor="#9AA4B2"
-                                        android:textSize="@dimen/text_size_10" />
-                                </LinearLayout>
-
-                                <com.google.android.material.switchmaterial.SwitchMaterial
-                                    android:id="@+id/switch_flip_disable_landscape"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    app:thumbTint="@color/switch_thumb_tint"
-                                    app:trackTint="@color/switch_track_tint" />
-                            </LinearLayout>
+                                android:layout_marginTop="1dp"
+                                android:text="在翻转记账面板中显示传统表单账本入口"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_show_book_entry"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="#F0F2F5" />
+
+                    <LinearLayout
+                        android:id="@+id/layout_flip_disable_landscape"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="@drawable/bg_inset_panel"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="8dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="横屏状态不检测"
+                                android:textColor="#1F2A3D"
+                                android:textSize="@dimen/text_size_13"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="启用后，横屏时将忽略翻转手势触发。"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_10" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_flip_disable_landscape"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
 
                     <!-- 白名单容器 -->
@@ -1143,7 +1165,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_ai"
+                                android:src="@drawable/ic_profile_ai_spark"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -1240,7 +1262,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:layout_gravity="center"
-                            android:src="@drawable/ic_profile_ai"
+                            android:src="@drawable/ic_profile_ai_spark"
                             android:tint="#FFFFFF" />
                     </FrameLayout>
 
@@ -1342,7 +1364,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_power"
+                                android:src="@drawable/ic_profile_shizuku_mode"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -1403,7 +1425,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_power"
+                                android:src="@drawable/ic_profile_shizuku_guard"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -1444,7 +1466,7 @@
                         android:layout_marginStart="50dp"
                         android:background="#F0F2F5" />
 
-                    <!-- 显示多币种选项 -->
+                    <!-- 启用多币种功能 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -1460,7 +1482,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_globe"
+                                android:src="@drawable/ic_profile_currency_switch"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -1474,7 +1496,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="显示多币种选项"
+                                android:text="启用多币种功能"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -1483,70 +1505,13 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="1dp"
-                                android:text="支持在录入时选择不同结算币种"
+                                android:text="开启后显示多币种与汇率入口，并在记账时可选币种"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switch_show_multi_cur"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:paddingVertical="0dp"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginStart="50dp"
-                        android:background="#F0F2F5" />
-
-                    <!-- 强力唤醒锁 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_warn">
-                            <ImageView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_power"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="强力唤醒锁（防杀）"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="防止系统在后台杀掉本应用进程"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11"
-                                android:layout_marginTop="1dp" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_permanent_wakelock"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:paddingVertical="0dp"
@@ -1576,7 +1541,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_logs"
+                                android:src="@drawable/ic_profile_dev_terminal"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 

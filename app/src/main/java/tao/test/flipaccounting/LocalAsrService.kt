@@ -1,6 +1,8 @@
 package tao.test.flipaccounting
 
 import android.content.Context
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.ContextThemeWrapper
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
@@ -21,6 +23,7 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 
 object LocalAsrService {
     private var sherpaRecognizer: OfflineRecognizer? = null
@@ -207,13 +210,20 @@ object LocalAsrService {
         val importArchive = File(ctx.cacheDir, "sense_voice_import.tar.bz2")
         cancelDownload = false
 
-        val dialog = android.app.AlertDialog.Builder(ctx)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting))
             .setTitle("导入本地模型")
             .setMessage("正在准备解压...")
             .setCancelable(false)
             .setNegativeButton("取消") { _, _ -> cancelDownload = true }
             .create()
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.84f,
+            cancelOnTouchOutside = false,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -525,13 +535,20 @@ object LocalAsrService {
         switchToMirrorRequested = false
         slowPromptShown = false
 
-        val dialog = android.app.AlertDialog.Builder(ctx)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting))
             .setTitle("下载离线语音模型")
             .setMessage("正在连接...")
             .setCancelable(false)
             .setNegativeButton("取消") { _, _ -> cancelDownload = true }
             .create()
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = 0.84f,
+            cancelOnTouchOutside = false,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
 
         downloadModelWithProgress(
             ctx = ctx,
@@ -540,12 +557,20 @@ object LocalAsrService {
             onSlowGithub = { progress, requestSwitch ->
                 if (slowPromptShown) return@downloadModelWithProgress
                 slowPromptShown = true
-                android.app.AlertDialog.Builder(ctx)
+                val slowDialog = AlertDialog.Builder(ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting))
                     .setTitle("下载较慢")
                     .setMessage("当前 GitHub 下载 1 分钟仅完成 ${progress}%，可能对国内用户较慢。是否切换到非 GitHub 镜像源继续下载？")
                     .setPositiveButton("切换") { _, _ -> requestSwitch() }
                     .setNegativeButton("继续等待", null)
-                    .show()
+                    .create()
+                OverlayDialogs.showStyledCenterDialog(
+                    dialog = slowDialog,
+                    ctx = ctx,
+                    widthRatio = 0.88f,
+                    cancelOnTouchOutside = true,
+                    applyOverlayType = false,
+                    useSolidPanelBackground = true
+                )
             },
             onComplete = {
                 dialog.dismiss()

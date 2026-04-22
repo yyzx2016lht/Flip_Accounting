@@ -5,13 +5,12 @@ import android.content.ClipboardManager
 import android.graphics.drawable.ColorDrawable
 import android.view.LayoutInflater
 import android.view.View
-import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
-import androidx.core.view.WindowCompat
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -22,16 +21,14 @@ class ChatUiHelperController(
     private val displayMessagesProvider: () -> List<ChatDisplayItem>
 ) {
     fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
-        dialog.window?.let { win ->
-            WindowCompat.setDecorFitsSystemWindows(win, false)
-            win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-            val targetWidth = (context.resources.displayMetrics.widthPixels * widthRatio).toInt()
-            win.attributes = win.attributes.apply {
-                width = targetWidth
-                height = WindowManager.LayoutParams.WRAP_CONTENT
-            }
-        }
-        dialog.show()
+        OverlayDialogs.showStyledCenterDialog(
+            dialog = dialog,
+            ctx = context,
+            widthRatio = widthRatio,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     fun showCustomConfirmDialog(
@@ -71,11 +68,19 @@ class ChatUiHelperController(
     }
 
     fun showStyledBottomDialog(dialog: AlertDialog) {
-        dialog.window?.let { win ->
-            WindowCompat.setDecorFitsSystemWindows(win, false)
-            win.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
-        }
-        dialog.show()
+        val margin = (12 * context.resources.displayMetrics.density).toInt()
+        val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
+        val targetWidth = (screenWidth - margin * 2).coerceAtLeast(1)
+        val widthRatio = targetWidth.toFloat() / screenWidth.toFloat()
+        OverlayDialogs.showStyledBottomDialog(
+            dialog = dialog,
+            ctx = context,
+            widthRatio = widthRatio,
+            y = 0,
+            cancelOnTouchOutside = true,
+            applyOverlayType = false,
+            useSolidPanelBackground = true
+        )
     }
 
     fun copyToClipboard(label: String, text: String, toast: String = "已复制") {
