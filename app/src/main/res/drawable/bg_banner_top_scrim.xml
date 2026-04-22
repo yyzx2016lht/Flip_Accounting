@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 顶部暗化遮罩：顶部更深、向下逐渐透明，避免图标和胶囊在亮图上发虚 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:type="linear"
+        android:angle="270"
+        android:startColor="#57000000"
+        android:centerColor="#22000000"
+        android:endColor="#00000000" />
+</shape>

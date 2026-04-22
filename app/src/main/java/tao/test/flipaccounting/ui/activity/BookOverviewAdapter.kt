@@ -75,7 +75,7 @@ class BookOverviewAdapter(
             val bannerFile = item.bannerPath?.let { File(it) }
             if (bannerFile != null && bannerFile.exists()) {
                 ivCover.visibility = View.VISIBLE
-                vGradient.visibility = View.VISIBLE
+                vGradient.visibility = View.GONE
                 flCover.setBackgroundColor(item.themeColor)
                 Glide.with(itemView.context)
                     .load(bannerFile)

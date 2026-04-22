@@ -20,11 +20,14 @@ internal class HomeBannerController(
     private val fragment: Fragment,
     private val headerBannerLayout: View,
     private val ivHeaderBanner: ImageView,
+    private val vBannerTopScrim: View,
     private val vBannerGradient: View,
     private val tvMonthSelector: TextView,
     private val tvMonthExpense: TextView,
     private val tvMonthExpenseLabel: TextView,
+    private val tvMonthIncomeLabel: TextView,
     private val tvMonthIncome: TextView,
+    private val tvMonthBalanceLabel: TextView,
     private val tvMonthBalance: TextView,
     private val ivBookSwitcher: ImageView,
     private val ivCalendarView: ImageView,
@@ -84,9 +87,11 @@ internal class HomeBannerController(
             val file = File(bannerPath)
             if (file.exists()) {
                 ivHeaderBanner.visibility = View.VISIBLE
-                // 仅保留很轻的一层背景，避免亮图小字发飘，同时不明显压暗图片
+                // 拆分上下遮罩：顶部保护胶囊/图标，底部保护文本，避免“一层糊全局”
+                vBannerTopScrim.visibility = View.VISIBLE
+                vBannerTopScrim.alpha = 1f
                 vBannerGradient.visibility = View.VISIBLE
-                vBannerGradient.alpha = 0.22f
+                vBannerGradient.alpha = 1f
                 applyTopBarChipBackgroundStyle(useStrong = true)
                 applyBannerTextColor(useLightText = true)
                 applyBannerTextContrastEnhancement(enabled = true)
@@ -102,6 +107,7 @@ internal class HomeBannerController(
             }
         }
         ivHeaderBanner.visibility = View.GONE
+        vBannerTopScrim.visibility = View.GONE
         vBannerGradient.visibility = View.GONE
         Glide.with(fragment).clear(ivHeaderBanner)
         applyTopBarChipBackgroundStyle(useStrong = false)
@@ -209,19 +215,22 @@ internal class HomeBannerController(
     }
 
     private fun applyBannerTextContrastEnhancement(enabled: Boolean) {
-        val shadowColor = 0x7A000000.toInt()
+        val shadowColor = 0x66000000.toInt()
         if (enabled) {
-            // 主金额通常已足够清晰，不额外加重阴影
-            tvMonthExpense.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
-            tvMonthSelector.setShadowLayer(6f, 0f, 2f, shadowColor)
-            tvMonthExpenseLabel.setShadowLayer(4f, 0f, 1f, shadowColor)
-            tvMonthIncome.setShadowLayer(4f, 0f, 1f, shadowColor)
-            tvMonthBalance.setShadowLayer(4f, 0f, 1f, shadowColor)
+            tvMonthExpense.setShadowLayer(1f, 0f, 1f, shadowColor)
+            tvMonthSelector.setShadowLayer(1.5f, 0f, 1f, shadowColor)
+            tvMonthExpenseLabel.setShadowLayer(1.25f, 0f, 1f, shadowColor)
+            tvMonthIncomeLabel.setShadowLayer(1f, 0f, 1f, shadowColor)
+            tvMonthIncome.setShadowLayer(1.25f, 0f, 1f, shadowColor)
+            tvMonthBalanceLabel.setShadowLayer(1f, 0f, 1f, shadowColor)
+            tvMonthBalance.setShadowLayer(1.25f, 0f, 1f, shadowColor)
         } else {
             tvMonthExpense.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
             tvMonthSelector.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
             tvMonthExpenseLabel.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
+            tvMonthIncomeLabel.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
             tvMonthIncome.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
+            tvMonthBalanceLabel.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
             tvMonthBalance.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
         }
     }
@@ -242,7 +251,8 @@ internal class HomeBannerController(
 
     fun applyBannerTextColor(useLightText: Boolean) {
         val primary = if (useLightText) Color.WHITE else Color.parseColor("#1A1A1A")
-        val secondary = if (useLightText) Color.WHITE else 0xBB333333.toInt()
+        val secondary = if (useLightText) 0xE8FFFFFF.toInt() else 0xC0333333.toInt()
+        val valueAccent = if (useLightText) 0xF6FFFFFF.toInt() else Color.parseColor("#1F2D3D")
         val tintList = android.content.res.ColorStateList.valueOf(primary)
 
         tvMonthSelector.setTextColor(primary)
@@ -251,8 +261,10 @@ internal class HomeBannerController(
         }
         tvMonthExpense.setTextColor(primary)
         tvMonthExpenseLabel.setTextColor(secondary)
-        tvMonthIncome.setTextColor(secondary)
-        tvMonthBalance.setTextColor(secondary)
+        tvMonthIncomeLabel.setTextColor(secondary)
+        tvMonthIncome.setTextColor(valueAccent)
+        tvMonthBalanceLabel.setTextColor(secondary)
+        tvMonthBalance.setTextColor(valueAccent)
         ImageViewCompat.setImageTintList(ivBookSwitcher, tintList)
         ImageViewCompat.setImageTintList(ivCalendarView, tintList)
         ImageViewCompat.setImageTintList(ivSearchBill, tintList)

@@ -182,8 +182,8 @@ internal class HomeChartController(
         }
 
         tvMonthExpense.text = "¥${String.format(Locale.getDefault(), "%.2f", expense)}"
-        tvMonthIncome.text = "月收入 ¥${String.format(Locale.getDefault(), "%.2f", income)}"
-        tvMonthBalance.text = "本月结余 ¥${String.format(Locale.getDefault(), "%.2f", income - expense)}"
+        tvMonthIncome.text = "¥${String.format(Locale.getDefault(), "%.2f", income)}"
+        tvMonthBalance.text = "¥${String.format(Locale.getDefault(), "%.2f", income - expense)}"
     }
 
     private fun getStartTimeFromRange(rangeOpt: Int): Long {

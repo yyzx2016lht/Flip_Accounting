@@ -162,11 +162,14 @@ class HomeFragment : Fragment() {
 
     private lateinit var tvMonthExpense: TextView
     private lateinit var tvMonthExpenseLabel: TextView
+    private lateinit var tvMonthIncomeLabel: TextView
     private lateinit var tvMonthIncome: TextView
+    private lateinit var tvMonthBalanceLabel: TextView
     private lateinit var tvMonthBalance: TextView
     private lateinit var tvMonthSelector: TextView
     private lateinit var tvChartTotal: TextView
     private lateinit var tvChartTitle: TextView
+    private lateinit var vBannerTopScrim: View
     private lateinit var vBannerGradient: View
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var ivCalendarView: ImageView
@@ -275,13 +278,16 @@ class HomeFragment : Fragment() {
 
         tvMonthExpense = view.findViewById(R.id.tvMonthExpense)
         tvMonthExpenseLabel = view.findViewById(R.id.tvMonthExpenseLabel)
+        tvMonthIncomeLabel = view.findViewById(R.id.tvMonthIncomeLabel)
         tvMonthIncome = view.findViewById(R.id.tvMonthIncome)
+        tvMonthBalanceLabel = view.findViewById(R.id.tvMonthBalanceLabel)
         tvMonthBalance = view.findViewById(R.id.tvMonthBalance)
         tvMonthSelector = view.findViewById(R.id.tvMonthSelector)
         ivCalendarView = view.findViewById(R.id.ivCalendarView)
         ivSearchBill = view.findViewById(R.id.ivSearchBill)
         ivBookSwitcher = view.findViewById(R.id.ivBookSwitcher)
         // tvChartTotal / tvChartTitle 已在 cvChartContainer inflate 时绑定，此处不再重复
+        vBannerTopScrim = view.findViewById(R.id.vBannerTopScrim)
         vBannerGradient = view.findViewById(R.id.vBannerGradient)
         rvBookAccounts = view.findViewById(R.id.rvBookAccounts)
         rvBookAccountsBasePaddingTop = rvBookAccounts.paddingTop
@@ -352,11 +358,14 @@ class HomeFragment : Fragment() {
             fragment = this,
             headerBannerLayout = headerBannerLayout,
             ivHeaderBanner = ivHeaderBanner,
+            vBannerTopScrim = vBannerTopScrim,
             vBannerGradient = vBannerGradient,
             tvMonthSelector = tvMonthSelector,
             tvMonthExpense = tvMonthExpense,
             tvMonthExpenseLabel = tvMonthExpenseLabel,
+            tvMonthIncomeLabel = tvMonthIncomeLabel,
             tvMonthIncome = tvMonthIncome,
+            tvMonthBalanceLabel = tvMonthBalanceLabel,
             tvMonthBalance = tvMonthBalance,
             ivBookSwitcher = ivBookSwitcher,
             ivCalendarView = ivCalendarView,
