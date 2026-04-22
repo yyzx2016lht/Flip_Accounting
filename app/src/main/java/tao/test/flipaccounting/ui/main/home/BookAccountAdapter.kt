@@ -83,6 +83,7 @@ class BookAccountAdapter(
         private var downY = 0f
         private var startTx = 0f
         private var dragging = false
+        private var movedBeyondTapSlop = false
 
         init {
             foreground.setOnTouchListener { _, ev -> onForegroundTouch(ev) }
@@ -143,6 +144,7 @@ class BookAccountAdapter(
                     downY = ev.rawY
                     startTx = foreground.translationX
                     dragging = false
+                    movedBeyondTapSlop = false
                     if (openedPosition != RecyclerView.NO_POSITION && openedPosition != pos) {
                         val old = openedPosition
                         openedPosition = RecyclerView.NO_POSITION
@@ -156,6 +158,9 @@ class BookAccountAdapter(
                 MotionEvent.ACTION_MOVE -> {
                     val dx = ev.rawX - downX
                     val dy = ev.rawY - downY
+                    if (abs(dx) > slop || abs(dy) > slop) {
+                        movedBeyondTapSlop = true
+                    }
                     if (!dragging) {
                         when {
                             abs(dx) > slop && abs(dx) > abs(dy) -> {
@@ -187,7 +192,12 @@ class BookAccountAdapter(
                         return true
                     }
                     if (ev.actionMasked == MotionEvent.ACTION_UP) {
-                        foreground.performClick()
+                        val dx = ev.rawX - downX
+                        val dy = ev.rawY - downY
+                        val isTap = !movedBeyondTapSlop && abs(dx) <= slop && abs(dy) <= slop
+                        if (isTap) {
+                            foreground.performClick()
+                        }
                         return true
                     }
                 }

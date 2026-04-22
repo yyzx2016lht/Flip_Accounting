@@ -66,7 +66,8 @@
                                 android:layout_height="wrap_content"
                                 android:text="&#x6708;&#x652F;&#x51FA;"
                                 android:textColor="#E7EEFF"
-                                android:textSize="@dimen/text_size_13" />
+                                android:textSize="@dimen/text_size_14"
+                                android:textStyle="bold" />
 
                             <TextView
                                 android:id="@+id/tvMonthExpense"
@@ -90,7 +91,8 @@
                                     android:layout_height="wrap_content"
                                     android:text="&#x6708;&#x6536;&#x5165; &#xA5;0.00"
                                     android:textColor="#EAF1FF"
-                                    android:textSize="@dimen/text_size_13" />
+                                    android:textSize="@dimen/text_size_14"
+                                    android:textStyle="bold" />
 
                                 <TextView
                                     android:id="@+id/tvMonthBalance"
@@ -99,7 +101,8 @@
                                     android:layout_marginStart="20dp"
                                     android:text="&#x672C;&#x6708;&#x7ED3;&#x4F59; &#xA5;0.00"
                                     android:textColor="#EAF1FF"
-                                    android:textSize="@dimen/text_size_13" />
+                                    android:textSize="@dimen/text_size_14"
+                                    android:textStyle="bold" />
                             </LinearLayout>
                         </LinearLayout>
 

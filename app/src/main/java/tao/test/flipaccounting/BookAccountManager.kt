@@ -172,6 +172,9 @@ object BookAccountManager {
         val current = getBookAccounts(context).toMutableList()
         if (!current.remove(target)) return false
         saveAccounts(context, current)
+        prefs(context).edit()
+            .remove(KEY_BOOK_BANNER_PREFIX + target)
+            .apply()
         if (getSelectedBook(context, current) == target) {
             val nextSelected = when {
                 fallback != null && current.contains(fallback) -> fallback

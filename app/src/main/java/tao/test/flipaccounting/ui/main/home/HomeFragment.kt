@@ -73,8 +73,6 @@ import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.repository.BillRepository
-import tao.test.flipaccounting.logic.BillDisplayFormatter
-import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.ui.activity.EditBillActivity
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
@@ -83,7 +81,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.max
 import kotlin.math.min
 
 @Suppress("UNCHECKED_CAST")
@@ -95,7 +92,13 @@ class HomeFragment : Fragment() {
     private lateinit var rvTransactions: RecyclerView
     private lateinit var layoutEmptyView: View
     private lateinit var homeAdapter: HomeAdapter
-    private lateinit var billRepository: BillRepository
+    private lateinit var bookDrawerController: HomeBookDrawerController
+    private lateinit var bannerController: HomeBannerController
+    private lateinit var multiSelectController: HomeMultiSelectController
+    private lateinit var chartController: HomeChartController
+    private lateinit var uiListController: HomeUiListController
+    private lateinit var refreshController: HomeRefreshController
+    private lateinit var dataController: HomeDataController
     private var isMultiSelectModeActive = false
 
     // 顶部封面区域
@@ -180,7 +183,6 @@ class HomeFragment : Fragment() {
     private lateinit var btnConfirmAddBook: View
     private lateinit var btnCancelAddBook: View
     private var bookDrawerBasePaddingBottom: Int = 0
-    private lateinit var bookAccountAdapter: BookAccountAdapter
     private var selectedBookName: String = BookAccountManager.DEFAULT_BOOK
     private var availableBookNames: List<String> = BookAccountManager.withAllBookOption(listOf(BookAccountManager.DEFAULT_BOOK))
     // 抽屉关闭动画期间不做重刷新；等 onDrawerClosed 后再切账本
@@ -204,10 +206,6 @@ class HomeFragment : Fragment() {
     // fetchJob 已迁移到 HomeViewModel，Fragment 内不再持有
     // 防止 onViewCreated 之后 onResume 立即重复触发一次加载
     private var skipNextResume: Boolean = false
-    private var refreshTimeoutJob: Job? = null
-    private var isPullRefreshing = false
-    private var pullRefreshBeforeSnapshot: RefreshSnapshot? = null
-    private var billsInvalidationObserver: InvalidationTracker.Observer? = null
 
     /** Activity 作用域 ViewModel，跨 Fragment 重建存活，StateFlow 缓存账单数据 */
     private val homeViewModel: HomeViewModel by activityViewModels()
@@ -226,22 +224,12 @@ class HomeFragment : Fragment() {
     private val billSheetsController by lazy(LazyThreadSafetyMode.NONE) {
         HomeBillSheetsController(
             fragment = this,
-            formatMoney = ::formatMoney,
-            stripRefundPrefix = ::stripRefundPrefix,
-            originalAmountOfExpenseBill = ::originalAmountOfExpenseBill,
-            refundAmountOfExpenseBill = ::refundAmountOfExpenseBill,
-            buildCrossCurrencyDetailFormula = ::buildCrossCurrencyDetailFormula,
             dfDetailTime = dfDetailTime,
             dfDetailTimeShort = dfDetailTimeShort
         )
     }
     private val accountCurrencyById = mutableMapOf<Long, String>()
     private val accountCurrencyByName = mutableMapOf<String, String>()
-
-    private data class RefreshSnapshot(
-        val count: Int,
-        val signature: Long
-    )
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -303,6 +291,37 @@ class HomeFragment : Fragment() {
         etAddBookAccountName = view.findViewById(R.id.etAddBookAccountName)
         btnConfirmAddBook = view.findViewById(R.id.btnConfirmAddBook)
         btnCancelAddBook = view.findViewById(R.id.btnCancelAddBook)
+        bookDrawerController = HomeBookDrawerController(
+            fragment = this,
+            homeViewModel = homeViewModel,
+            drawerBooks = drawerBooks,
+            layoutBookDrawer = layoutBookDrawer,
+            rvBookAccounts = rvBookAccounts,
+            btnAddBookAccount = btnAddBookAccount,
+            layoutAddBookInput = layoutAddBookInput,
+            etAddBookAccountName = etAddBookAccountName,
+            btnConfirmAddBook = btnConfirmAddBook,
+            btnCancelAddBook = btnCancelAddBook,
+            bookDrawerBasePaddingBottom = bookDrawerBasePaddingBottom,
+            rvBookAccountsBasePaddingTop = rvBookAccountsBasePaddingTop,
+            rvBookAccountsBasePaddingBottom = rvBookAccountsBasePaddingBottom,
+            getSelectedBookName = { selectedBookName },
+            setSelectedBookName = { selectedBookName = it },
+            getAvailableBookNames = { availableBookNames },
+            setAvailableBookNames = { availableBookNames = it },
+            getPendingBookSwitchName = { pendingBookSwitchName },
+            setPendingBookSwitchName = { pendingBookSwitchName = it },
+            setAnimateNextBookDataReveal = { animateNextBookDataReveal = it },
+            getSelectedYear = { selectedYear },
+            getSelectedMonth = { selectedMonth },
+            getCurrentTimeRange = { currentTimeRange },
+            getCurrentType = { currentType },
+            updateHeaderBanner = { updateHeaderBanner() },
+            updateHomeFabVisibilityByDrawerState = { updateHomeFabVisibilityByDrawerState() },
+            applyHomeFabDrawerProgress = { slideOffset -> applyHomeFabDrawerProgress(slideOffset) },
+            dismissKeyboardForDialog = { dismissKeyboardForDialog() },
+            configureDialogWindow = { dialog, width, dim -> configureDialogWindow(dialog, width, dim) },
+        )
 
         layoutMultiSelectActions = view.findViewById(R.id.layout_multi_select_actions)
         btnMsCancel = view.findViewById(R.id.btn_ms_cancel)
@@ -311,18 +330,49 @@ class HomeFragment : Fragment() {
         btnMsMoveBook = view.findViewById(R.id.btn_ms_move_book)
         multiSelectActionsBaseBottomMargin =
             (layoutMultiSelectActions.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin ?: 0
+        multiSelectController = HomeMultiSelectController(
+            fragment = this,
+            layoutMultiSelectActions = layoutMultiSelectActions,
+            btnMsCancel = btnMsCancel,
+            btnMsSelectAll = btnMsSelectAll,
+            btnMsDelete = btnMsDelete,
+            btnMsMoveBook = btnMsMoveBook,
+            multiSelectActionsBaseBottomMargin = multiSelectActionsBaseBottomMargin,
+            getAvailableBookNames = { availableBookNames },
+            getHomeAdapter = { homeAdapter },
+            dismissKeyboardForDialog = { dismissKeyboardForDialog() },
+            configureDialogWindow = { dialog, width, dim -> configureDialogWindow(dialog, width, dim) },
+        )
 
         headerBannerLayout = view.findViewById(R.id.headerBannerLayout)
         ivHeaderBanner = view.findViewById(R.id.ivHeaderBanner)
         layoutHeaderSummary = view.findViewById(R.id.layoutHeaderSummary)
         layoutStickyTopBar = view.findViewById(R.id.layoutStickyTopBar)
+        bannerController = HomeBannerController(
+            fragment = this,
+            headerBannerLayout = headerBannerLayout,
+            ivHeaderBanner = ivHeaderBanner,
+            vBannerGradient = vBannerGradient,
+            tvMonthSelector = tvMonthSelector,
+            tvMonthExpense = tvMonthExpense,
+            tvMonthExpenseLabel = tvMonthExpenseLabel,
+            tvMonthIncome = tvMonthIncome,
+            tvMonthBalance = tvMonthBalance,
+            ivBookSwitcher = ivBookSwitcher,
+            ivCalendarView = ivCalendarView,
+            ivSearchBill = ivSearchBill,
+            getSelectedBookName = { selectedBookName },
+            requestPickBannerImage = { pickBannerImage() },
+            dismissKeyboardForDialog = { dismissKeyboardForDialog() },
+            configureDialogWindow = { dialog, width, dim -> configureDialogWindow(dialog, width, dim) },
+        )
 
         // 监听 AppBarLayout 折叠偏移，用于：
         //   1. 保护下拉刷新（完全展开才允许触发）
         //   2. 月份统计区渐隐（layoutHeaderSummary alpha）
         //   3. 折叠后半段 banner 区渐变为纯白背景
     homeAppBar = view.findViewById(R.id.homeAppBar)
-    homeAppBar?.addOnOffsetChangedListener(com.google.android.material.appbar.AppBarLayout.OnOffsetChangedListener { appBar, verticalOffset ->
+        homeAppBar?.addOnOffsetChangedListener(com.google.android.material.appbar.AppBarLayout.OnOffsetChangedListener { appBar, verticalOffset ->
             appBarVerticalOffset = verticalOffset
             val totalScrollRange = appBar.totalScrollRange
             if (totalScrollRange == 0) return@OnOffsetChangedListener
@@ -356,6 +406,48 @@ class HomeFragment : Fragment() {
                     })
             }
         })
+        uiListController = HomeUiListController(
+            fragment = this,
+            rvTransactions = rvTransactions,
+            layoutEmptyView = layoutEmptyView,
+            layoutMultiSelectActions = layoutMultiSelectActions,
+            btnMsDelete = btnMsDelete,
+            swipeRefreshLayout = swipeRefreshLayout,
+            cvChartContainer = cvChartContainer,
+            layoutStickyTopBar = layoutStickyTopBar,
+            ivBookSwitcher = ivBookSwitcher,
+            tvMonthSelector = tvMonthSelector,
+            ivCalendarView = ivCalendarView,
+            ivSearchBill = ivSearchBill,
+            layoutHeaderSummary = layoutHeaderSummary,
+            getHomeAppBar = { homeAppBar },
+            getAppBarVerticalOffset = { appBarVerticalOffset },
+            isBookDrawerOpen = { isBookDrawerOpen() },
+            getIsMultiSelectModeActive = { isMultiSelectModeActive },
+            setIsMultiSelectModeActive = { isMultiSelectModeActive = it },
+            getHomeAdapter = { homeAdapter },
+            setHomeAdapter = { homeAdapter = it },
+            homeViewModel = homeViewModel,
+            onShowBillDetailSheet = { bill -> showBillDetailSheet(bill) },
+            onRefreshAccountCurrencyCache = { dataController.refreshAccountCurrencyCache() },
+        )
+        refreshController = HomeRefreshController(
+            fragment = this,
+            swipeRefreshLayout = swipeRefreshLayout,
+            homeViewModel = homeViewModel,
+            getSelectedBookName = { selectedBookName },
+            getSelectedYear = { selectedYear },
+            getSelectedMonth = { selectedMonth },
+            getCurrentTimeRange = { currentTimeRange },
+            getCurrentType = { currentType },
+            onUpdateHomeFabVisibility = { updateHomeFabVisibilityByDrawerState() },
+        )
+        dataController = HomeDataController(
+            fragment = this,
+            accountCurrencyById = accountCurrencyById,
+            accountCurrencyByName = accountCurrencyByName,
+            getHomeAdapter = { homeAdapter }
+        )
 
         setupTopBarDoubleTapToTop()
 
@@ -393,31 +485,7 @@ class HomeFragment : Fragment() {
 
         // ivChartSettings 的点击已在 cvChartContainer inflate 时设置，此处无需再设置
 
-        swipeRefreshLayout.setOnRefreshListener {
-            // 手动刷新：强制使用当前 UI 参数触发一次新请求，避免沿用旧快照
-            swipeRefreshLayout.isRefreshing = true
-            isPullRefreshing = true
-            pullRefreshBeforeSnapshot = buildRefreshSnapshot(homeViewModel.uiState.value.monthlyBills)
-            homeViewModel.forceReload(
-                bookName = selectedBookName,
-                year = selectedYear,
-                month = selectedMonth,
-                timeRange = currentTimeRange,
-                type = currentType,
-                isChartHidden = !Prefs.isShowHomeTrendCard(requireContext())
-            )
-
-            // 兜底：若某些机型/时序下未及时收到 emission，最多 3.5s 自动结束转圈
-            refreshTimeoutJob?.cancel()
-            refreshTimeoutJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(3500)
-                if (isAdded && swipeRefreshLayout.isRefreshing) {
-                    swipeRefreshLayout.isRefreshing = false
-                    Log.d("HomePerf", "pull refresh timeout fallback: stop spinner")
-                }
-            }
-            updateHomeFabVisibilityByDrawerState()
-        }
+        refreshController.setupPullToRefresh()
 
         // 立即用 SharedPrefs 缓存同步渲染 Banner，消除首帧闪白（selectedBookName 已从 SharedPrefs 恢复）
         selectedBookName = BookAccountManager.getSelectedBook(requireContext())
@@ -456,7 +524,7 @@ class HomeFragment : Fragment() {
                     updateMonthSelectorText()
                     updateChartTitleLabel()
                     syncTrendCardState()
-                    refreshAccountCurrencyCache()
+                    dataController.refreshAccountCurrencyCache()
 
                     val monthlyBills = state.monthlyBills
                     val adapterT0 = System.currentTimeMillis()
@@ -509,12 +577,7 @@ class HomeFragment : Fragment() {
                     }
                     updateChart(filteredForChart)
 
-                    swipeRefreshLayout.isRefreshing = false
-                    refreshTimeoutJob?.cancel()
-                    refreshTimeoutJob = null
-                    if (isPullRefreshing && !state.isLoading) {
-                        showPullRefreshFeedback(monthlyBills)
-                    }
+                    refreshController.onStateCollected(monthlyBills, state.isLoading)
 
                     if (state.filteredByBook.isEmpty()) {
                         updateHomeFabVisibilityByDrawerState()
@@ -529,11 +592,7 @@ class HomeFragment : Fragment() {
         skipNextResume = true  // onViewCreated 已触发加载，紧随其后的 onResume 无需重复
         
         // 立刻关闭 loading 圈，显示上次缓存的静态数据，后台无声更新
-        swipeRefreshLayout.isRefreshing = false
-        refreshTimeoutJob?.cancel()
-        refreshTimeoutJob = null
-        isPullRefreshing = false
-        pullRefreshBeforeSnapshot = null
+        refreshController.resetRefreshState()
     }
 
     override fun onResume() {
@@ -607,6 +666,12 @@ class HomeFragment : Fragment() {
         }
     }
 
+    fun closeBookDrawerFromHost() {
+        if (::drawerBooks.isInitialized && drawerBooks.isDrawerOpen(GravityCompat.START)) {
+            drawerBooks.closeDrawer(GravityCompat.START)
+        }
+    }
+
     private fun updateMonthSelectorText() {
         tvMonthSelector.text = "$selectedYear-${String.format(Locale.getDefault(), "%02d", selectedMonth)}"
     }
@@ -626,313 +691,18 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupBookDrawer() {
-        rvBookAccounts.layoutManager = LinearLayoutManager(requireContext())
-        bookAccountAdapter = BookAccountAdapter(
-            onItemClick = { onBookSelected(it) },
-            onRenameClick = { oldName, newName ->
-                if (BookAccountManager.normalizeBookName(oldName) == BookAccountManager.ALL_BOOK) {
-                    Toast.makeText(requireContext(), "「全部账本」是系统入口，不能重命名", Toast.LENGTH_SHORT).show()
-                } else {
-                    renameBook(oldName, newName)
-                }
-            },
-            onDeleteClick = { name ->
-                if (BookAccountManager.normalizeBookName(name) == BookAccountManager.ALL_BOOK) {
-                    Toast.makeText(requireContext(), "「全部账本」是系统入口，不能删除", Toast.LENGTH_SHORT).show()
-                } else {
-                    deleteBook(name)
-                }
-            }
-        )
-        rvBookAccounts.adapter = bookAccountAdapter
-        rvBookAccounts.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            adjustBookListBottomPaddingForWholeRows()
-        }
-        rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
-
-        btnAddBookAccount.setOnClickListener { showInlineAddBookInput() }
-        btnConfirmAddBook.setOnClickListener { commitInlineAddBook() }
-        btnCancelAddBook.setOnClickListener { hideInlineAddBookInput(clearText = true) }
-        etAddBookAccountName.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                commitInlineAddBook()
-                true
-            } else {
-                false
-            }
-        }
-
-        // 账本总览入口
-        view?.findViewById<View>(R.id.btnBookOverview)?.setOnClickListener {
-            drawerBooks.closeDrawer(androidx.core.view.GravityCompat.START)
-            val intent = android.content.Intent(requireContext(), tao.test.flipaccounting.ui.activity.BookOverviewActivity::class.java)
-            intent.putExtra(tao.test.flipaccounting.ui.activity.BookOverviewActivity.EXTRA_CURRENT_BOOK, selectedBookName)
-            startActivity(intent)
-        }
-
-        drawerBooks.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
-            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
-                // Drawer 开始移动时，立即通知内容区的 NestedScrollView/RecyclerView
-                // 放弃它们正在追踪的触摸序列（防止 Drawer 滑动时列表也同时滚动）
-                if (slideOffset > 0f) {
-                    drawerBooks.getChildAt(0)?.let { content ->
-                        val cancel = android.view.MotionEvent.obtain(
-                            0, 0, android.view.MotionEvent.ACTION_CANCEL, 0f, 0f, 0
-                        )
-                        content.dispatchTouchEvent(cancel)
-                        cancel.recycle()
-                    }
-                }
-                applyHomeFabDrawerProgress(slideOffset)
-            }
-
-            override fun onDrawerOpened(drawerView: View) {
-                bookAccountAdapter.closeSwipeActions()
-                updateHomeFabVisibilityByDrawerState()
-                adjustBookListBottomPaddingForWholeRows()
-                scrollBookListToSelected(animate = true)
-            }
-
-            override fun onDrawerClosed(drawerView: View) {
-                hideInlineAddBookInput(clearText = true)
-                bookAccountAdapter.closeSwipeActions()
-                updateHomeFabVisibilityByDrawerState()
-
-                // 关键优化：抽屉完全关闭后再触发数据刷新，避免动画和列表刷新抢同一帧主线程
-                pendingBookSwitchName?.let { target ->
-                    pendingBookSwitchName = null
-                    homeViewModel.syncAndLoad(
-                        bookName = target,
-                        year = selectedYear,
-                        month = selectedMonth,
-                        timeRange = currentTimeRange,
-                        type = currentType,
-                        isChartHidden = !Prefs.isShowHomeTrendCard(requireContext())
-                    )
-                }
-            }
-        })
+        bookDrawerController.setupBookDrawer()
     }
 
-    /**
-     * 让账本抽屉底部区域在软键盘弹出时自动上移，避免“新增账本”输入框和按钮被遮挡。
-     */
     private fun setupBookDrawerImeInsets() {
-        ViewCompat.setOnApplyWindowInsetsListener(layoutBookDrawer) { v, insets ->
-            val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            val imeExtra = max(0, imeBottom - navBottom)
-            v.updatePadding(bottom = bookDrawerBasePaddingBottom + imeExtra)
-            rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
-            insets
-        }
-        ViewCompat.requestApplyInsets(layoutBookDrawer)
-    }
-
-    private fun scrollBookListToSelected(animate: Boolean = false) {
-        if (!::rvBookAccounts.isInitialized) return
-        val layoutManager = rvBookAccounts.layoutManager as? LinearLayoutManager ?: return
-        val selectedIndex = availableBookNames.indexOfFirst {
-            BookAccountManager.normalizeBookName(it) == selectedBookName
-        }
-        if (selectedIndex < 0) return
-
-        rvBookAccounts.post {
-            if (!isAdded) return@post
-            val density = resources.displayMetrics.density
-            val estimatedRowHeight = ((60f + 8f) * density).toInt()
-            val itemHeight = layoutManager.findViewByPosition(selectedIndex)?.height
-                ?: estimatedRowHeight.coerceAtLeast(1)
-            val offset = ((rvBookAccounts.height - itemHeight) / 2).coerceAtLeast(0)
-            if (!animate) {
-                layoutManager.scrollToPositionWithOffset(selectedIndex, offset)
-                return@post
-            }
-
-            val smoothScroller = object : LinearSmoothScroller(rvBookAccounts.context) {
-                override fun getVerticalSnapPreference(): Int = SNAP_TO_ANY
-
-                override fun calculateDtToFit(
-                    viewStart: Int,
-                    viewEnd: Int,
-                    boxStart: Int,
-                    boxEnd: Int,
-                    snapPreference: Int
-                ): Int {
-                    val viewCenter = (viewStart + viewEnd) / 2
-                    val boxCenter = (boxStart + boxEnd) / 2
-                    return boxCenter - viewCenter
-                }
-
-                override fun calculateSpeedPerPixel(displayMetrics: DisplayMetrics): Float {
-                    // 数值越小速度越快；这里偏慢一点，接近手势滑动观感。
-                    return 110f / displayMetrics.densityDpi
-                }
-
-                override fun calculateTimeForDeceleration(dx: Int): Int {
-                    return (super.calculateTimeForDeceleration(dx) * 1.15f).toInt()
-                }
-            }
-            smoothScroller.targetPosition = selectedIndex
-            layoutManager.startSmoothScroll(smoothScroller)
-        }
-    }
-
-    /**
-     * 根据账本条目高度（item 60dp + 间距 8dp）补齐 RecyclerView 底部内边距，
-     * 让初始可视区域尽量呈现整行，避免最后一条被“砍半条”。
-     */
-    private fun adjustBookListBottomPaddingForWholeRows() {
-        if (!::rvBookAccounts.isInitialized) return
-        if (!isAdded || context == null || view == null) return
-        val available = rvBookAccounts.height
-        if (available <= 0) return
-
-        val density = rvBookAccounts.resources.displayMetrics.density
-        val rowHeightPx = (60f * density).toInt()
-        val rowGapPx = (8f * density).toInt()
-        val rowUnitPx = rowHeightPx + rowGapPx
-        if (rowUnitPx <= 0) return
-
-        val remainder = available % rowUnitPx
-        val topExtra = remainder / 2
-        val bottomExtra = remainder - topExtra
-        rvBookAccounts.updatePadding(
-            top = rvBookAccountsBasePaddingTop + topExtra,
-            bottom = rvBookAccountsBasePaddingBottom + bottomExtra
-        )
+        bookDrawerController.setupBookDrawerImeInsets()
     }
 
     // ─── 封面图相关 ────────────────────────────────────────────────────────────
 
     /** 为顶部横幅区域设置长按事件，弹出操作菜单 */
     private fun setupBannerLongPress() {
-        headerBannerLayout.setOnLongClickListener {
-            dismissKeyboardForDialog()
-            val hasBanner = BookAccountManager.getBookBannerPath(requireContext(), selectedBookName) != null
-            val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
-            val panel = LayoutInflater.from(requireContext())
-                .inflate(R.layout.dialog_delete_followup_picker, null, false)
-            val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
-            panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "「$selectedBookName」外观设置"
-            val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
-
-            fun addOption(label: String, onClick: () -> Unit) {
-                val item = LayoutInflater.from(requireContext())
-                    .inflate(R.layout.item_delete_followup_picker_option, optionsContainer, false)
-                item.findViewById<TextView>(R.id.tv_followup_picker_option).text = label
-                item.setOnClickListener {
-                    dialog.dismiss()
-                    onClick()
-                }
-                optionsContainer.addView(item)
-            }
-
-            addOption(if (hasBanner) "更换封面图" else "设置封面图") { pickBannerImage() }
-            if (hasBanner) {
-                addOption("移除封面图") { removeBanner() }
-            }
-            addOption("修改主题颜色") { showColorPickerDialog() }
-
-            panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
-            panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-            dialog.setContentView(panel)
-            dialog.setCanceledOnTouchOutside(true)
-            configureDialogWindow(dialog, width = width)
-            dialog.show()
-            true
-        }
-    }
-
-    /** 显示预设颜色选择对话框 */
-    private fun showColorPickerDialog() {
-        dismissKeyboardForDialog()
-        val ctx = requireContext()
-        val currentColor = BookAccountManager.getBookColor(ctx, selectedBookName)
-        val density = resources.displayMetrics.density
-        fun px(value: Int): Int = (value * density).toInt()
-
-        // 16 种精心挑选的预设色（名称 + ARGB）
-        val colorOptions = listOf(
-            "蓝色"   to 0xFF4080FF.toInt(),
-            "深蓝"   to 0xFF1A56CC.toInt(),
-            "天蓝"   to 0xFF29A8E0.toInt(),
-            "青色"   to 0xFF29A8A8.toInt(),
-            "绿色"   to 0xFF2FA36B.toInt(),
-            "深绿"   to 0xFF1E7A50.toInt(),
-            "黄绿"   to 0xFF6BBF40.toInt(),
-            "橙色"   to 0xFFE07A30.toInt(),
-            "红色"   to 0xFFE05A5A.toInt(),
-            "深红"   to 0xFFC0392B.toInt(),
-            "粉色"   to 0xFFE0609A.toInt(),
-            "紫色"   to 0xFF8A4FD1.toInt(),
-            "深紫"   to 0xFF5E3596.toInt(),
-            "棕色"   to 0xFF8D5524.toInt(),
-            "深灰"   to 0xFF555555.toInt(),
-            "炭黑"   to 0xFF222222.toInt(),
-        )
-
-        val dialog = Dialog(ctx, R.style.Theme_FlipAccounting)
-        val panel = LayoutInflater.from(ctx).inflate(R.layout.dialog_delete_followup_picker, null, false)
-        val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
-        panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "选择主题颜色"
-        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
-
-        colorOptions.forEach { (name, color) ->
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setBackgroundResource(R.drawable.bg_delete_option_item)
-                minimumHeight = px(52)
-                setPadding(px(12), px(10), px(12), px(10))
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                lp.topMargin = px(8)
-                layoutParams = lp
-            }
-
-            val swatch = View(ctx).apply {
-                layoutParams = LinearLayout.LayoutParams(px(20), px(20))
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.OVAL
-                    setColor(color)
-                }
-            }
-            val nameView = TextView(ctx).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    1f
-                ).apply { marginStart = px(10) }
-                text = name
-                setTextColor(Color.parseColor("#243146"))
-                textSize = 14f
-            }
-            val checkView = TextView(ctx).apply {
-                text = if (color == currentColor) "✓" else ""
-                setTextColor(Color.parseColor("#1F2937"))
-                textSize = 16f
-            }
-
-            row.addView(swatch)
-            row.addView(nameView)
-            row.addView(checkView)
-            row.setOnClickListener {
-                BookAccountManager.setBookColor(ctx, selectedBookName, color)
-                updateHeaderBanner()
-                dialog.dismiss()
-            }
-            optionsContainer.addView(row)
-        }
-
-        panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
-        panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width = width)
-        dialog.show()
+        bannerController.setupBannerLongPress()
     }
 
     /** 检查权限，有权限则直接选图，否则先申请 */
@@ -947,13 +717,6 @@ class HomeFragment : Fragment() {
         } else {
             requestPermissionLauncher.launch(permission)
         }
-    }
-
-    /** 移除当前账本的封面图 */
-    private fun removeBanner() {
-        BookAccountManager.setBookBannerPath(requireContext(), selectedBookName, null)
-        updateHeaderBanner()
-        Toast.makeText(requireContext(), "已移除封面图", Toast.LENGTH_SHORT).show()
     }
 
     /**
@@ -1000,39 +763,7 @@ class HomeFragment : Fragment() {
 
     /** 根据当前账本刷新顶部横幅：有图片则显示图片，否则用账本专属颜色 */
     fun updateHeaderBanner() {
-        if (!isAdded) return
-        val ctx = requireContext()
-        val bannerPath = BookAccountManager.getBookBannerPath(ctx, selectedBookName)
-        val bookColor = BookAccountManager.getBookColor(ctx, selectedBookName)
-        headerBannerLayout.setBackgroundColor(bookColor)
-        if (!bannerPath.isNullOrEmpty()) {
-            val file = File(bannerPath)
-            if (file.exists()) {
-                ivHeaderBanner.visibility = View.VISIBLE
-                vBannerGradient.visibility = View.VISIBLE
-                applyBannerTextColor(useLightText = true)
-                Glide.with(this)
-                    .load(file)
-                    .centerCrop()
-                    // File 模型 + 变换场景下，ALL 可能触发 NoResultEncoderAvailableException，
-                    // 这里改为 DATA 仅缓存原始数据，避免结果编码失败
-                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.DATA)
-                    .signature(com.bumptech.glide.signature.ObjectKey(file.lastModified()))
-                    .placeholder(ivHeaderBanner.drawable)
-                    .error(ivHeaderBanner.drawable)
-                    .into(ivHeaderBanner)
-                return
-            }
-        }
-        // 无有效图片
-        ivHeaderBanner.visibility = View.GONE
-        vBannerGradient.visibility = View.GONE
-        Glide.with(this).clear(ivHeaderBanner)
-        val r = android.graphics.Color.red(bookColor)
-        val g = android.graphics.Color.green(bookColor)
-        val b = android.graphics.Color.blue(bookColor)
-        val luminance = 0.299 * r + 0.587 * g + 0.114 * b
-        applyBannerTextColor(useLightText = luminance < 160)
+        bannerController.updateHeaderBanner()
     }
 
     /**
@@ -1041,105 +772,17 @@ class HomeFragment : Fragment() {
      * [useLightText] = false → 深灰（适合浅色主题色背景）
      */
     private fun applyBannerTextColor(useLightText: Boolean) {
-        val primary = if (useLightText) android.graphics.Color.WHITE
-                      else android.graphics.Color.parseColor("#1A1A1A")
-        val secondary = if (useLightText) 0xCCFFFFFF.toInt()
-                        else 0xBB333333.toInt()
-        val tintList = android.content.res.ColorStateList.valueOf(primary)
-
-        // 月份选择器文字 + drawableEnd 箭头
-        tvMonthSelector.setTextColor(primary)
-        tvMonthSelector.compoundDrawablesRelative.forEach { d ->
-            d?.mutate()?.setTint(primary)
-        }
-        // 月支出大字
-        tvMonthExpense.setTextColor(primary)
-        // 月支出 label
-        tvMonthExpenseLabel.setTextColor(secondary)
-        // 月收入 / 本月结余
-        tvMonthIncome.setTextColor(secondary)
-        tvMonthBalance.setTextColor(secondary)
-        // 图标
-        androidx.core.widget.ImageViewCompat.setImageTintList(ivBookSwitcher, tintList)
-        androidx.core.widget.ImageViewCompat.setImageTintList(ivCalendarView, tintList)
-        androidx.core.widget.ImageViewCompat.setImageTintList(ivSearchBill, tintList)
+        bannerController.applyBannerTextColor(useLightText)
     }
 
     // ──────────────────────────────────────────────────────────────────────────
 
-    private fun showInlineAddBookInput() {
-        btnAddBookAccount.visibility = View.GONE
-        layoutAddBookInput.visibility = View.VISIBLE
-        etAddBookAccountName.setText("")
-        etAddBookAccountName.requestFocus()
-        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.showSoftInput(etAddBookAccountName, InputMethodManager.SHOW_IMPLICIT)
-    }
-
-    private fun hideInlineAddBookInput(clearText: Boolean) {
-        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.hideSoftInputFromWindow(etAddBookAccountName.windowToken, 0)
-        etAddBookAccountName.clearFocus()
-        if (clearText) etAddBookAccountName.setText("")
-        layoutAddBookInput.visibility = View.GONE
-        btnAddBookAccount.visibility = View.VISIBLE
-    }
-
-    private fun commitInlineAddBook() {
-        val inputName = etAddBookAccountName.text?.toString()?.trim().orEmpty()
-        val newName = BookAccountManager.normalizeBookName(inputName)
-        if (newName.isBlank()) {
-            etAddBookAccountName.error = "\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a"
-            return
-        }
-        if (availableBookNames.any { it == newName }) {
-            etAddBookAccountName.error = "\u8d26\u6237\u540d\u5df2\u5b58\u5728"
-            return
-        }
-
-        if (BookAccountManager.addBookAccount(requireContext(), newName)) {
-            selectedBookName = newName
-            hideInlineAddBookInput(clearText = true)
-            refreshBookAccounts(reloadTransactions = true)
-        } else {
-            Toast.makeText(requireContext(), "\u65b0\u589e\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun updateHomeFabVisibilityByDrawerState() {
-        val fab = (activity as? tao.test.flipaccounting.MainActivity)
-            ?.findViewById<FloatingActionButton>(R.id.fab_add) ?: return
-        if (isBookDrawerOpen() || isMultiSelectModeActive) {
-            fab.hide()
-            return
-        }
-        fab.show()
-        fab.alpha = 1f
-        fab.scaleX = 1f
-        fab.scaleY = 1f
+        uiListController.updateHomeFabVisibilityByDrawerState()
     }
 
     private fun applyHomeFabDrawerProgress(slideOffset: Float) {
-        val fab = (activity as? tao.test.flipaccounting.MainActivity)
-            ?.findViewById<FloatingActionButton>(R.id.fab_add) ?: return
-        if (isMultiSelectModeActive) return
-        val clamped = slideOffset.coerceIn(0f, 1f)
-        if (clamped <= 0f) {
-            if (layoutEmptyView.visibility != View.VISIBLE) {
-                fab.alpha = 1f
-                fab.scaleX = 1f
-                fab.scaleY = 1f
-            }
-            return
-        }
-        fab.show()
-        fab.alpha = 1f - clamped
-        val scale = 1f - 0.18f * clamped
-        fab.scaleX = scale
-        fab.scaleY = scale
-        if (clamped >= 0.999f) {
-            fab.hide()
-        }
+        uiListController.applyHomeFabDrawerProgress(slideOffset)
     }
 
     private fun syncDateFromSessionIfNeeded() {
@@ -1152,242 +795,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun refreshBookAccounts(reloadTransactions: Boolean) {
-        if (!isAdded) return
-        lifecycleScope.launch(Dispatchers.IO) {
-            val context = requireContext().applicationContext
-            val db = AppDatabase.getDatabase(context)
-
-            BookAccountManager.rawAliases(BookAccountManager.DEFAULT_BOOK)
-                .filter { it.isNotBlank() && it != BookAccountManager.DEFAULT_BOOK }
-                .forEach { alias ->
-                    db.billDao().renameBookName(alias, BookAccountManager.DEFAULT_BOOK)
-                }
-
-            val dbBooks = db.billDao().getAllBookNames()
-            val mergedBooks = BookAccountManager.getBookAccounts(context, dbBooks)
-            val selectedFromPrefs = BookAccountManager.getSelectedBook(context, mergedBooks)
-
-            withContext(Dispatchers.Main) {
-                if (!isAdded) return@withContext
-                val resolvedSelected = when {
-                    mergedBooks.contains(selectedBookName) -> selectedBookName
-                    else -> selectedFromPrefs
-                }
-                val bookChanged = resolvedSelected != selectedBookName
-                selectedBookName = resolvedSelected
-                // 回写一次，保证 SharedPrefs 与当前 UI 选择一致，避免后续刷新抖动回退
-                BookAccountManager.setSelectedBook(requireContext(), selectedBookName)
-                availableBookNames = mergedBooks
-                bookAccountAdapter.submitList(availableBookNames, selectedBookName)
-                if (isBookDrawerOpen()) {
-                    scrollBookListToSelected(animate = false)
-                }
-                // 每次刷新账本列表后都同步横幅（处理新建 Fragment 时 selectedBookName 初始为 DEFAULT_BOOK 的情况）
-                updateHeaderBanner()
-                // reloadTransactions=true 时按原逻辑加载；
-                // reloadTransactions=false（onViewCreated 已提前加载）但账本发生了变化时，也需要重新加载
-                val shouldReload = reloadTransactions || bookChanged
-                if (shouldReload) {
-                    // 必须用 syncAndLoad 而不是 switchBook，完整携带当前 year/month/timeRange/type，
-                    // 否则 startFlow 拍快照时 selectedMonth 可能是 ViewModel 里残留的错误值，
-                    // 导致筛出 monthly=0 然后把列表错误清空
-                    homeViewModel.syncAndLoad(
-                        bookName = selectedBookName,
-                        year = selectedYear,
-                        month = selectedMonth,
-                        timeRange = currentTimeRange,
-                        type = currentType,
-                        isChartHidden = !Prefs.isShowHomeTrendCard(requireContext())
-                    )
-                }
-            }
-        }
-    }
-
-    private fun onBookSelected(bookName: String) {
-        val target = BookAccountManager.normalizeBookName(bookName)
-        if (target == selectedBookName) {
-            drawerBooks.closeDrawer(GravityCompat.START)
-            return
-        }
-        selectedBookName = target
-        animateNextBookDataReveal = true
-        BookAccountManager.setSelectedBook(requireContext(), selectedBookName)
-        bookAccountAdapter.submitList(availableBookNames, selectedBookName)
-        updateHeaderBanner()
-        pendingBookSwitchName = selectedBookName
-        drawerBooks.closeDrawer(GravityCompat.START)
-    }
-
-    private fun renameBook(oldName: String, inputName: String) {
-        val oldNorm = BookAccountManager.normalizeBookName(oldName)
-        val newNorm = BookAccountManager.normalizeBookName(inputName)
-        if (newNorm == oldNorm) return
-        if (availableBookNames.any { it == newNorm }) {
-            Toast.makeText(requireContext(), "\u8d26\u6237\u540d\u5df2\u5b58\u5728", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val context = requireContext().applicationContext
-            val db = AppDatabase.getDatabase(context)
-            BookAccountManager.rawAliases(oldNorm).forEach { alias ->
-                db.billDao().renameBookName(alias, newNorm)
-                db.chatMessageDao().renameBookName(alias, newNorm)
-            }
-            val success = BookAccountManager.renameBookAccount(context, oldNorm, newNorm)
-            withContext(Dispatchers.Main) {
-                if (!isAdded) return@withContext
-                if (!success) {
-                    Toast.makeText(requireContext(), "\u91cd\u547d\u540d\u5931\u8d25", Toast.LENGTH_SHORT).show()
-                    return@withContext
-                }
-                if (selectedBookName == oldNorm) {
-                    selectedBookName = newNorm
-                }
-                BookAccountManager.setSelectedBook(requireContext(), selectedBookName)
-                refreshBookAccounts(reloadTransactions = true)
-            }
-        }
-    }
-
-    // ── 删除账本四种策略枚举 ────────────────────────────────────────────────────
-    private enum class BookDeleteMode {
-        MOVE_TO_OTHER_BOOK,           // 选项1：迁移到其他账本
-        REMOVE_FROM_BOOK_KEEP_IN_ALL, // 选项2：账单留在全部账本
-        DELETE_BILLS_KEEP_ASSETS,     // 选项3：完全删账单，不回退资产（不推荐）
-        DELETE_BILLS_AND_REVERT_ASSETS// 选项4：删账单并回退资产（不推荐）
-    }
-
-    private fun deleteBook(bookName: String) {
-        val target = BookAccountManager.normalizeBookName(bookName)
-        // 只有"全部账本"不允许删除（已在 onDeleteClick 处拦截，这里做二次防护）
-        if (target == BookAccountManager.ALL_BOOK) {
-            Toast.makeText(requireContext(), "「全部账本」是系统入口，不能删除", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // 可作为迁移目标的账本：排除「全部账本」和待删除账本本身
-        val transferCandidates = availableBookNames
-            .map { BookAccountManager.normalizeBookName(it) }
-            .filter { it != BookAccountManager.ALL_BOOK && it != target }
-            .distinct()
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val ctx = requireContext().applicationContext
-            val db = AppDatabase.getDatabase(ctx)
-            val billCount = BookAccountManager.rawAliases(target).sumOf { alias ->
-                db.billDao().countBillsByBookName(alias)
-            }
-            withContext(Dispatchers.Main) {
-                if (billCount == 0) {
-                    // 账本下无账单，直接删除账本
-                    performDeleteBook(target, BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL)
-                } else {
-                    showDeleteBookOptions(target, transferCandidates)
-                }
-            }
-        }
-    }
-
-    /**
-     * 展示删除账本的四个选项弹窗。
-     * @param target            待删除的账本名
-     * @param transferCandidates 可迁移的目标账本列表（不含「全部账本」和 target 本身）
-     */
-    private fun showDeleteBookOptions(target: String, transferCandidates: List<String>) {
-        dismissKeyboardForDialog()
-        data class DeleteOption(
-            val title: String,
-            val desc: String,
-            val highRisk: Boolean = false,
-            val onClick: () -> Unit
-        )
-
-        val options = listOf(
-            DeleteOption(
-                title = "迁移到账本后删除",
-                desc = "先把账单迁移到其他账本，再删除当前账本",
-                onClick = {
-                    if (transferCandidates.isEmpty()) {
-                        Toast.makeText(requireContext(), "没有可迁移的目标账本", Toast.LENGTH_SHORT).show()
-                    } else {
-                        showTransferTargetPickerAndDelete(target, transferCandidates)
-                    }
-                }
-            ),
-            DeleteOption(
-                title = "仅删除账本",
-                desc = "账单归档到“全部账本”，不会丢失记录",
-                onClick = {
-                    showDeleteFollowupConfirmDialog(
-                        title = "确认删除账本",
-                        message = "删除后，「$target」内账单会归档到「全部账本」。",
-                        confirmText = "确认删除",
-                        isDanger = false
-                    ) {
-                            performDeleteBook(target, BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL)
-                    }
-                }
-            ),
-            DeleteOption(
-                title = "删除账本和账单",
-                desc = "删除账单，但不回退资产余额",
-                highRisk = true,
-                onClick = {
-                    showDeleteFollowupConfirmDialog(
-                        title = "高风险操作确认",
-                        message = "将永久删除「$target」内所有账单，且不会回退资产余额。",
-                        confirmText = "仍要删除",
-                        isDanger = true
-                    ) {
-                            performDeleteBook(target, BookDeleteMode.DELETE_BILLS_KEEP_ASSETS)
-                    }
-                }
-            ),
-            DeleteOption(
-                title = "删除账本并回退资产",
-                desc = "删除账单并回退相关资产余额",
-                highRisk = true,
-                onClick = {
-                    showDeleteFollowupConfirmDialog(
-                        title = "高风险操作确认",
-                        message = "将删除「$target」内所有账单并回退资产余额，此操作不可撤销。",
-                        confirmText = "仍要删除",
-                        isDanger = true
-                    ) {
-                            performDeleteBook(target, BookDeleteMode.DELETE_BILLS_AND_REVERT_ASSETS)
-                    }
-                }
-            )
-        )
-
-        val panel = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_book_delete_options, null, false)
-        panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "删除账本「$target」"
-        panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "请选择删除方式"
-        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
-        val popupDialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
-        val targetWidth = (resources.displayMetrics.widthPixels * 0.92f).toInt()
-        options.forEach { opt ->
-            val item = LayoutInflater.from(requireContext())
-                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
-            item.findViewById<TextView>(R.id.tv_delete_option_title).text = opt.title
-            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = opt.desc
-            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility =
-                if (opt.highRisk) View.VISIBLE else View.GONE
-            item.setOnClickListener {
-                popupDialog.dismiss()
-                opt.onClick()
-            }
-            optionsContainer.addView(item)
-        }
-        panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { popupDialog.dismiss() }
-
-        popupDialog.setContentView(panel)
-        popupDialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(popupDialog, width = targetWidth)
-        popupDialog.show()
+        bookDrawerController.refreshBookAccounts(reloadTransactions)
     }
 
     private fun dismissKeyboardForDialog() {
@@ -1433,928 +841,91 @@ class HomeFragment : Fragment() {
         applyWindowStyle()
     }
 
-    /** 让用户从 [transferCandidates] 中选一个目标账本，再执行迁移+删除 */
-    private fun showTransferTargetPickerAndDelete(target: String, transferCandidates: List<String>) {
-        dismissKeyboardForDialog()
-        val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
-        val panel = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_delete_followup_picker, null, false)
-        val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
-        panel.findViewById<TextView>(R.id.tv_followup_picker_title).text = "选择迁移目标"
-        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_followup_picker_options)
-        transferCandidates.forEach { candidate ->
-            val item = LayoutInflater.from(requireContext())
-                .inflate(R.layout.item_delete_followup_picker_option, optionsContainer, false)
-            item.findViewById<TextView>(R.id.tv_followup_picker_option).text = "迁移到「$candidate」"
-            item.setOnClickListener {
-                dialog.dismiss()
-                showDeleteFollowupConfirmDialog(
-                    title = "确认迁移并删除",
-                    message = "删除后，「$target」账本内的所有账单将迁移到「$candidate」。",
-                    confirmText = "迁移并删除",
-                    isDanger = false
-                ) {
-                    performDeleteBook(
-                        target = target,
-                        mode = BookDeleteMode.MOVE_TO_OTHER_BOOK,
-                        transferToBook = candidate
-                    )
-                }
-            }
-            optionsContainer.addView(item)
-        }
-        panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width = width)
-        dialog.show()
-    }
-
-    private fun showDeleteFollowupConfirmDialog(
-        title: String,
-        message: String,
-        confirmText: String,
-        isDanger: Boolean,
-        onConfirm: () -> Unit
-    ) {
-        dismissKeyboardForDialog()
-        val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
-        val panel = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_delete_followup_confirm, null, false)
-        val width = (resources.displayMetrics.widthPixels * 0.86f).toInt()
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = title
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = message
-        panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
-            dialog.dismiss()
-        }
-        panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
-            text = confirmText
-            setBackgroundResource(
-                if (isDanger) R.drawable.bg_delete_followup_danger_btn
-                else R.drawable.bg_delete_followup_primary_btn
-            )
-            setOnClickListener {
-                dialog.dismiss()
-                onConfirm()
-            }
-        }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width = width)
-        dialog.show()
-    }
-
-    /** 执行删除账本的核心逻辑，根据 [mode] 对账单做不同处理 */
-    private fun performDeleteBook(
-        target: String,
-        mode: BookDeleteMode,
-        transferToBook: String? = null
-    ) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val ctx = requireContext().applicationContext
-            val db = AppDatabase.getDatabase(ctx)
-            val aliases = BookAccountManager.rawAliases(target).toSet()
-
-            when (mode) {
-                BookDeleteMode.MOVE_TO_OTHER_BOOK -> {
-                    val destination = transferToBook?.let { BookAccountManager.normalizeBookName(it) }
-                    if (destination.isNullOrBlank() || destination == target || destination == BookAccountManager.ALL_BOOK) {
-                        withContext(Dispatchers.Main) {
-                            if (isAdded) Toast.makeText(requireContext(), "迁移目标无效", Toast.LENGTH_SHORT).show()
-                        }
-                        return@launch
-                    }
-                    aliases.forEach { alias ->
-                        db.billDao().renameBookName(alias, destination)
-                        db.chatMessageDao().renameBookName(alias, destination)
-                    }
-                }
-                BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL -> {
-                    // 将账单的 bookName 置为 ALL_BOOK，使其仅归属于「全部账本」而不属于任何小账本
-                    aliases.forEach { alias ->
-                        db.billDao().renameBookName(alias, BookAccountManager.ALL_BOOK)
-                        db.chatMessageDao().renameBookName(alias, BookAccountManager.ALL_BOOK)
-                    }
-                }
-                BookDeleteMode.DELETE_BILLS_KEEP_ASSETS -> {
-                    aliases.forEach { alias ->
-                        db.billDao().deleteAllByBookName(alias)
-                        db.chatMessageDao().deleteAllByBookName(alias)
-                    }
-                }
-                BookDeleteMode.DELETE_BILLS_AND_REVERT_ASSETS -> {
-                    db.billDao().backfillAssetLinksByName()
-                    db.billDao().getBillsByBookNamesList(aliases.toList())
-                        .forEach { tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, it) }
-                    aliases.forEach { alias ->
-                        db.chatMessageDao().deleteAllByBookName(alias)
-                    }
-                }
-            }
-
-            // 计算删除后的 fallback 选中账本
-            val fallback = transferToBook
-                ?.let { BookAccountManager.normalizeBookName(it) }
-                ?.takeIf { it != BookAccountManager.ALL_BOOK }
-                ?: availableBookNames
-                    .map { BookAccountManager.normalizeBookName(it) }
-                    .firstOrNull { it != BookAccountManager.ALL_BOOK && it != target }
-
-            val removed = BookAccountManager.removeBookAccount(ctx, target, fallback)
-
-            withContext(Dispatchers.Main) {
-                if (!isAdded) return@withContext
-                if (!removed) {
-                    Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show()
-                    return@withContext
-                }
-                if (selectedBookName == target) {
-                    selectedBookName = fallback ?: BookAccountManager.ALL_BOOK
-                }
-                BookAccountManager.setSelectedBook(requireContext(), selectedBookName)
-                refreshBookAccounts(reloadTransactions = true)
-                val tip = when (mode) {
-                    BookDeleteMode.MOVE_TO_OTHER_BOOK -> "已删除账本，账单已迁移到「$transferToBook」"
-                    BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL -> "已删除账本，账单已归档到「全部账本」"
-                    BookDeleteMode.DELETE_BILLS_KEEP_ASSETS -> "已删除账本与所有账单（未回退资产）"
-                    BookDeleteMode.DELETE_BILLS_AND_REVERT_ASSETS -> "已删除账本与所有账单，并回退资产"
-                }
-                Toast.makeText(requireContext(), tip, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     private fun setupMultiSelectActions() {
-        btnMsCancel.setOnClickListener {
-            homeAdapter.clearSelection()
-        }
-        btnMsSelectAll.setOnClickListener {
-            val allCount = homeAdapter.items.count { it is HomeAdapter.ListItem.Item }
-            if (homeAdapter.selectedBills.size >= allCount && allCount > 0) {
-                homeAdapter.clearSelection()
-            } else {
-                homeAdapter.selectAll()
-            }
-        }
-        btnMsMoveBook.setOnClickListener {
-            val billsToMove = homeAdapter.selectedBills.toList()
-            if (billsToMove.isEmpty()) return@setOnClickListener
-            showMoveToBookDialog(billsToMove)
-        }
-        btnMsDelete.setOnClickListener {
-            val billsToDelete = homeAdapter.selectedBills.toList()
-            if (billsToDelete.isEmpty()) return@setOnClickListener
-
-            val db = AppDatabase.getDatabase(requireContext())
-            lifecycleScope.launch {
-                // 必须通过 BillDeleteHelper 批量删除，才能正确回退资产余额、恢复退款关联支出
-                tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillsAndRevertBalance(db, billsToDelete)
-
-                homeAdapter.clearSelection()
-                Toast.makeText(context, "\u5df2\u5220\u9664 ${billsToDelete.size} \u6761\u8d26\u5355", Toast.LENGTH_SHORT).show()
-                // Room Flow will refresh UI automatically
-            }
-        }
+        multiSelectController.setupMultiSelectActions()
     }
 
     private fun setupMultiSelectActionsBottomOffset() {
-        val hostActivity = activity ?: return
-        val bottomNav = hostActivity.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottom_navigation)
-        val fallbackNavHeight = (56f * resources.displayMetrics.density).toInt()
-
-        fun applyOffset() {
-            val lp = layoutMultiSelectActions.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-            val navHeight = bottomNav?.height ?: 0
-            val navExtra = (navHeight - fallbackNavHeight).coerceAtLeast(0)
-            val targetBottom = multiSelectActionsBaseBottomMargin + navExtra
-            if (lp.bottomMargin != targetBottom) {
-                lp.bottomMargin = targetBottom
-                layoutMultiSelectActions.layoutParams = lp
-            }
-        }
-
-        bottomNav?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            applyOffset()
-        }
-        layoutMultiSelectActions.post { applyOffset() }
-    }
-
-    /** 弹出账本选择对话框，将选中账单批量移动到目标账本 */
-    private fun showMoveToBookDialog(bills: List<Bill>) {
-        dismissKeyboardForDialog()
-        val dialog = Dialog(requireContext(), R.style.Theme_FlipAccounting)
-        val panel = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_book_delete_options, null, false)
-        val width = (resources.displayMetrics.widthPixels * 0.92f).toInt()
-        panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "移动到账本"
-        panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "选择目标账本"
-        val optionsScroll = panel.findViewById<ScrollView>(R.id.scroll_delete_book_options)
-        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
-
-        availableBookNames.forEach { targetBook ->
-            val item = LayoutInflater.from(requireContext())
-                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
-            item.findViewById<TextView>(R.id.tv_delete_option_title).text = targetBook
-            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = "将所选账单迁移到该账本"
-            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
-            item.setOnClickListener {
-                val normalized = BookAccountManager.normalizeBookName(targetBook)
-                val allSameBook = bills.all {
-                    BookAccountManager.normalizeBookName(it.bookName) == normalized
-                }
-                if (allSameBook) {
-                    Toast.makeText(
-                        requireContext(),
-                        "账单已在「$targetBook」中，无需转移",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setOnClickListener
-                }
-                dialog.dismiss()
-                val ids = bills.map { it.id }
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(requireContext())
-                    db.billDao().moveBillsToBook(ids, targetBook)
-                    withContext(Dispatchers.Main) {
-                        homeAdapter.clearSelection()
-                        Toast.makeText(
-                            requireContext(),
-                            "已将 ${bills.size} 条账单移动到「$targetBook」",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-            optionsContainer.addView(item)
-        }
-
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
-        val estimatedItemHeight = ((66 + 10) * resources.displayMetrics.density).toInt()
-        val estimatedContentHeight = (availableBookNames.size * estimatedItemHeight).coerceAtLeast(1)
-        val targetHeight = min(maxHeight, estimatedContentHeight)
-        optionsScroll.layoutParams = optionsScroll.layoutParams.apply { height = targetHeight }
-        panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(panel)
-        dialog.setCanceledOnTouchOutside(true)
-        configureDialogWindow(dialog, width = width)
-        dialog.show()
+        multiSelectController.setupMultiSelectActionsBottomOffset()
     }
 
     private fun setupRecyclerView() {
-        // 直接使用 ViewModel 里持久保存的 adapter，Fragment 重建后 items 数据仍在，
-        // DiffUtil 比对无变化时跳过所有 bind/layout，消除首帧渲染卡顿
-        homeAdapter = homeViewModel.adapter
-        val lm = LinearLayoutManager(context)
-        lm.initialPrefetchItemCount = 12
-        // 在 Drawer hide/show + 快速切页场景下，recycleChildrenOnDetach 可能导致可见区域重建抖动
-        lm.recycleChildrenOnDetach = false
-        // 关键：RecyclerView 位于 NestedScrollView 内且高度为 wrap_content，
-        // 不能开启 fixedSize，否则数据骤变（如 0 -> 140）后高度可能不重算，出现“下半部分不显示/不可触摸”。
-        rvTransactions.setHasFixedSize(false)
-        rvTransactions.layoutManager = lm
-        rvTransactions.adapter = homeAdapter
-        // 增加本地缓存，减轻账本切换后首屏 bind 压力（以内存换流畅）
-        rvTransactions.setItemViewCacheSize(36)
-        // 接入 Activity 级别的共享 ViewHolder 缓存池，Fragment 重建后直接复用，跳过 inflate
-        (activity as? tao.test.flipaccounting.MainActivity)?.homeRecycledViewPool?.let {
-            rvTransactions.setRecycledViewPool(it)
-        }
-        (rvTransactions.itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)?.supportsChangeAnimations = false
-        rvTransactions.itemAnimator = null  // 禁用所有 item 动画，消除掉帧源头
-
-        // Fragment 实例已重建，重新绑定回调（adapter 本身复用，但 Fragment 引用变了）
-        homeAdapter.onBillItemClick = { bill ->
-            showBillDetailSheet(bill)
-        }
-
-        homeAdapter.onSelectionChanged = { count ->
-            if (homeAdapter.isMultiSelectMode) {
-                isMultiSelectModeActive = true
-                layoutMultiSelectActions.visibility = View.VISIBLE
-                (btnMsDelete as TextView).text = if (count > 0) "\u5220\u9664($count)" else "\u5220\u9664"
-            } else {
-                isMultiSelectModeActive = false
-                layoutMultiSelectActions.visibility = View.GONE
-            }
-            updateHomeFabVisibilityByDrawerState()
-        }
-
-        rvTransactions.clearOnScrollListeners()
-
-        // 上滑隐藏 FAB，下滑显示 FAB
-        rvTransactions.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                val fab = (activity as? tao.test.flipaccounting.MainActivity)
-                    ?.findViewById<FloatingActionButton>(R.id.fab_add) ?: return
-                if (!isAdded || !isVisible || layoutEmptyView.visibility == View.VISIBLE || homeAdapter.itemCount <= 1) {
-                    updateHomeFabVisibilityByDrawerState()
-                    return
-                }
-                if (dy > 8) fab.hide()
-                else if (dy < -8) updateHomeFabVisibilityByDrawerState()
-            }
-        })
-        homeAdapter.chartView = cvChartContainer
-        refreshAccountCurrencyCache()
-
-        // 只有当 RecyclerView 滚动到最顶部（第一项完全可见）且 AppBar 完全展开时，才允许触发下拉刷新
-        swipeRefreshLayout.setOnChildScrollUpCallback { _, _ ->
-            val firstVisible = (rvTransactions.layoutManager as? LinearLayoutManager)
-                ?.findFirstCompletelyVisibleItemPosition() ?: RecyclerView.NO_POSITION
-            // 未在顶部 → 拦截，不触发刷新
-            if (firstVisible != 0) return@setOnChildScrollUpCallback true
-            // AppBar 未完全展开也阻止下拉（让 AppBar 先展开）
-            if (appBarVerticalOffset != 0) return@setOnChildScrollUpCallback true
-            false  // 允许触发下拉刷新
-        }
+        uiListController.setupRecyclerView()
     }
 
     private fun setupTopBarDoubleTapToTop() {
-        val detector = android.view.GestureDetector(requireContext(), object : android.view.GestureDetector.SimpleOnGestureListener() {
-            override fun onDown(e: android.view.MotionEvent): Boolean {
-                // 必须返回 true，GestureDetector 才会继续识别双击
-                return true
-            }
-
-            override fun onDoubleTap(e: android.view.MotionEvent): Boolean {
-                // 双击固定顶栏空白区：回到页面绝对顶部（含背景横幅）
-                homeAppBar?.setExpanded(true, true)
-                (rvTransactions.layoutManager as? LinearLayoutManager)
-                    ?.scrollToPositionWithOffset(0, 0)
-                rvTransactions.post { rvTransactions.smoothScrollToPosition(0) }
-                return true
-            }
-        })
-
-        layoutStickyTopBar.setOnTouchListener { _, event ->
-            // 点击在顶栏子控件上（账本按钮、月份选择、日历）时，不拦截，交给子控件处理
-            if (isTouchInsideView(event, ivBookSwitcher) ||
-                isTouchInsideView(event, tvMonthSelector) ||
-                isTouchInsideView(event, ivCalendarView) ||
-                isTouchInsideView(event, ivSearchBill)
-            ) {
-                return@setOnTouchListener false
-            }
-            detector.onTouchEvent(event)
-        }
-    }
-
-    private fun isTouchInsideView(event: android.view.MotionEvent, target: View): Boolean {
-        val loc = IntArray(2)
-        target.getLocationOnScreen(loc)
-        val left = loc[0].toFloat()
-        val top = loc[1].toFloat()
-        val right = left + target.width
-        val bottom = top + target.height
-        return event.rawX in left..right && event.rawY in top..bottom
+        uiListController.setupTopBarDoubleTapToTop()
     }
 
     private fun applyHomeCollapseByScroll(offsetPx: Int) {
-        // 已迁移为 AppBarLayout 原生折叠行为，保留空实现避免旧调用点崩溃。
-    }
-
-    private fun getStatusBarHeight(): Int {
-        val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resId > 0) resources.getDimensionPixelSize(resId) else 0
+        uiListController.applyHomeCollapseByScroll(offsetPx)
     }
 
     private fun applyStatusBarForHome() {
-        if (!isAdded) return
-        val window = requireActivity().window
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        val useDarkIcons = false
-        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = useDarkIcons
-
-        val statusBar = getStatusBarHeight()
-        // 固定顶栏（layoutStickyTopBar）需要顶部留出状态栏高度
-        val topLp = layoutStickyTopBar.layoutParams as? ViewGroup.MarginLayoutParams
-        if (topLp != null) {
-            val targetTop = statusBar
-            if (topLp.topMargin != targetTop) {
-                topLp.topMargin = targetTop
-                layoutStickyTopBar.layoutParams = topLp
-            }
-        }
-
-        // 摘要区也要吃状态栏高度，避免和顶部月份栏文字堆叠
-        val baseSummaryTop = (76f * resources.displayMetrics.density).toInt()
-        val summary = layoutHeaderSummary
-        if (summary.paddingTop != baseSummaryTop + statusBar) {
-            summary.setPadding(
-                summary.paddingLeft,
-                baseSummaryTop + statusBar,
-                summary.paddingRight,
-                summary.paddingBottom
-            )
-        }
+        uiListController.applyStatusBarForHome()
     }
 
     private fun restoreDefaultStatusBarForOtherTabs() {
-        if (!isAdded) return
-        val window = requireActivity().window
-        // 保持 decorFits=false，避免切 Tab 时导致窗口根视图整体位移。
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.parseColor("#F5F7FA")
-        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
+        uiListController.restoreDefaultStatusBarForOtherTabs()
+    }
+
+    private fun ensureChartController(): HomeChartController {
+        if (!::chartController.isInitialized) {
+            chartController = HomeChartController(
+                fragment = this,
+                barChart = barChart,
+                tvChartTotal = tvChartTotal,
+                tvChartTitle = tvChartTitle,
+                tvMonthExpense = tvMonthExpense,
+                tvMonthIncome = tvMonthIncome,
+                tvMonthBalance = tvMonthBalance,
+                homeAdapter = homeAdapter,
+                homeViewModel = homeViewModel,
+                getCurrentType = { currentType },
+                setCurrentType = { currentType = it },
+                getCurrentTimeRange = { currentTimeRange },
+                setCurrentTimeRange = { currentTimeRange = it },
+                getIsChartHidden = { isChartHidden },
+                setIsChartHidden = { isChartHidden = it },
+                setChartAllowedByState = { chartAllowedByState = it },
+                getSelectedYear = { selectedYear },
+                getSelectedMonth = { selectedMonth },
+                getRoundedBarChartRenderer = { roundedBarChartRenderer },
+                setRoundedBarChartRenderer = { roundedBarChartRenderer = it },
+                dfChartKey = dfChartKey,
+                dfWeekday = dfWeekday,
+                dfDay = dfDay,
+            )
+        }
+        return chartController
     }
 
     private fun setupChart() {
-        barChart.apply {
-            description.isEnabled = false
-            setDrawGridBackground(false)
-            setDrawBorders(false)
-            setScaleEnabled(false) // disable zoom
-            isDoubleTapToZoomEnabled = false
-            setTouchEnabled(false) // disable all touch/click on bars
-            isHighlightPerTapEnabled = false
-            isHighlightPerDragEnabled = false
-            setNoDataText("\u6682\u65e0\u56fe\u8868\u6570\u636e")
-            setNoDataTextColor(Color.parseColor("#9AA0A6"))
-
-            axisLeft.axisMinimum = 0f
-            axisLeft.setDrawGridLines(false)
-            axisLeft.setDrawLabels(false) // hide left labels
-            axisLeft.setDrawAxisLine(false)
-            axisRight.isEnabled = false
-
-            xAxis.position = XAxis.XAxisPosition.BOTTOM
-            xAxis.setDrawGridLines(false)
-            xAxis.setDrawAxisLine(false)
-            xAxis.granularity = 1f
-
-            legend.isEnabled = false // hide legend
-            // Use a renderer instance we can update later (toggle fullRound)
-            val renderer = RoundedBarChartRenderer(this, animator, viewPortHandler)
-            roundedBarChartRenderer = renderer
-            setRenderer(renderer)
-        }
+        ensureChartController().setupChart()
     }
 
     private fun updateChartTitleLabel() {
-        val typeStr = when (currentType) {
-            2 -> "\u6536\u652f"
-            1 -> "\u6536\u5165"
-            else -> "\u652f\u51fa"
-        }
-        val rangeStr = when (currentTimeRange) {
-            0 -> "\u6700\u8fd17\u65e5"
-            1 -> "\u6700\u8fd115\u65e5"
-            2 -> "\u672c\u5468"
-            else -> ""
-        }
-        tvChartTitle.text = "$rangeStr$typeStr"
-        return
-
-        // hide chart when disabled or not current month
-        val showByGlobalSwitch = Prefs.isShowHomeTrendCard(requireContext())
-        val isCurrentMonth = selectedYear == Calendar.getInstance().get(Calendar.YEAR) &&
-                             selectedMonth == (Calendar.getInstance().get(Calendar.MONTH) + 1)
-        isChartHidden = !showByGlobalSwitch
-
-        val shouldShow = showByGlobalSwitch && isCurrentMonth
-        chartAllowedByState = shouldShow
-
-        // 图表卡片现在是 RecyclerView 的第一个 adapter item：
-        // 更新 adapter.showChart 标志后重新 submitList，让 DiffUtil 自动插入/删除该 item
-        if (homeAdapter.showChart != shouldShow) {
-            homeAdapter.showChart = shouldShow
-            homeAdapter.submitList(homeViewModel.uiState.value.monthlyBills)
-        }
+        ensureChartController().updateChartTitleLabel()
     }
 
     private fun syncTrendCardState(): Boolean {
-        val showByGlobalSwitch = Prefs.isShowHomeTrendCard(requireContext())
-        val isCurrentMonth = selectedYear == Calendar.getInstance().get(Calendar.YEAR) &&
-            selectedMonth == (Calendar.getInstance().get(Calendar.MONTH) + 1)
-        isChartHidden = !showByGlobalSwitch
-
-        val shouldShow = showByGlobalSwitch && isCurrentMonth
-        chartAllowedByState = shouldShow
-        val changed = homeAdapter.showChart != shouldShow
-        homeAdapter.showChart = shouldShow
-        return changed
+        return ensureChartController().syncTrendCardState()
     }
 
     private fun refreshTrendCardVisibility(forceResubmit: Boolean = false) {
-        val changed = syncTrendCardState()
-        if (forceResubmit || changed) {
-            homeAdapter.submitList(homeViewModel.uiState.value.monthlyBills)
-        }
-    }
-
-    private fun buildRefreshSnapshot(bills: List<Bill>): RefreshSnapshot {
-        var signature = 1125899906842597L
-        bills.forEach { bill ->
-            signature = signature * 31 + bill.id
-            signature = signature * 31 + bill.time
-            signature = signature * 31 + bill.type.toLong()
-            signature = signature * 31 + bill.subType.toLong()
-            signature = signature * 31 + java.lang.Double.doubleToLongBits(bill.amount)
-            signature = signature * 31 + java.lang.Double.doubleToLongBits(bill.exchangeRate)
-            signature = signature * 31 + bill.categoryName.hashCode().toLong()
-            signature = signature * 31 + bill.accountName.hashCode().toLong()
-            signature = signature * 31 + bill.remark.hashCode().toLong()
-        }
-        return RefreshSnapshot(
-            count = bills.size,
-            signature = signature
-        )
-    }
-
-    private fun showPullRefreshFeedback(latestBills: List<Bill>) {
-        val before = pullRefreshBeforeSnapshot
-        val after = buildRefreshSnapshot(latestBills)
-        val changed = before == null || before != after
-        val message = if (changed) "已同步最新账单" else "已经是最新了"
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-        isPullRefreshing = false
-        pullRefreshBeforeSnapshot = null
+        ensureChartController().refreshTrendCardVisibility(forceResubmit)
     }
 
     private fun showChartSettingsDialog() {
-        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
-        val view = layoutInflater.inflate(R.layout.layout_chart_settings_bottom_sheet, null)
-        dialog.setContentView(view)
-
-        var tempType = currentType
-        if (tempType == 1) tempType = 2 // merge income into both option
-        var tempRange = currentTimeRange
-        var tempHidden = !Prefs.isShowHomeTrendCard(requireContext())
-
-        val tvTypeExpense = view.findViewById<TextView>(R.id.tvTypeExpense)
-        val tvTypeBoth = view.findViewById<TextView>(R.id.tvTypeBoth)
-
-        val tvRangeWeek = view.findViewById<TextView>(R.id.tvRangeWeek)
-        val tvRange7d = view.findViewById<TextView>(R.id.tvRange7d)
-        val tvRange15d = view.findViewById<TextView>(R.id.tvRange15d)
-        val tvRangeHide = view.findViewById<TextView>(R.id.tvRangeHide)
-        val btnConfirm = view.findViewById<TextView>(R.id.btnConfirmSettings)
-
-        fun updateTypeBg() {
-            tvTypeExpense.setBackgroundResource(if (tempType == 0) R.drawable.bg_segmented_selected else 0)
-            tvTypeExpense.elevation = 0f
-            tvTypeBoth.setBackgroundResource(if (tempType == 2) R.drawable.bg_segmented_selected else 0)
-            tvTypeBoth.elevation = 0f
-        }
-
-        fun updateRangeBg() {
-            tvRangeWeek.setBackgroundResource(if (!tempHidden && tempRange == 2) R.drawable.bg_segmented_selected else 0)
-            tvRangeWeek.elevation = 0f
-            tvRange7d.setBackgroundResource(if (!tempHidden && tempRange == 0) R.drawable.bg_segmented_selected else 0)
-            tvRange7d.elevation = 0f
-            tvRange15d.setBackgroundResource(if (!tempHidden && tempRange == 1) R.drawable.bg_segmented_selected else 0)
-            tvRange15d.elevation = 0f
-            tvRangeHide.setBackgroundResource(if (tempHidden) R.drawable.bg_segmented_selected else 0)
-            tvRangeHide.elevation = 0f
-        }
-
-        tvTypeExpense.setOnClickListener {
-            tempType = 0
-            updateTypeBg()
-        }
-        tvTypeBoth.setOnClickListener {
-            tempType = 2
-            updateTypeBg()
-        }
-
-        tvRangeWeek.setOnClickListener {
-            tempRange = 2
-            tempHidden = false
-            updateRangeBg()
-        }
-        tvRange7d.setOnClickListener {
-            tempRange = 0
-            tempHidden = false
-            updateRangeBg()
-        }
-        tvRange15d.setOnClickListener {
-            tempRange = 1
-            tempHidden = false
-            updateRangeBg()
-        }
-        tvRangeHide.setOnClickListener {
-            tempHidden = true
-            updateRangeBg()
-        }
-
-        updateTypeBg()
-        updateRangeBg()
-
-        btnConfirm.setOnClickListener {
-            currentType = tempType
-            currentTimeRange = tempRange
-            isChartHidden = tempHidden
-            Prefs.setShowHomeTrendCard(requireContext(), !tempHidden)
-            updateChartTitleLabel()
-            refreshTrendCardVisibility(forceResubmit = true)
-            homeViewModel.setChartSettings(currentTimeRange, currentType, isChartHidden)
-            dialog.dismiss()
-        }
-
-        dialog.show()
+        ensureChartController().showChartSettingsDialog()
     }
 
     private fun updateSummary(transactions: List<Bill>) {
-        var expense = 0.0
-        var income = 0.0
-
-        transactions.forEach {
-            if (it.subType == Bill.SUBTYPE_REFUND) return@forEach
-            // 折算为人民币等值（与柱状图保持一致）
-            val amountCny = it.amount * it.exchangeRate
-            if (it.type == Bill.TYPE_EXPENSE) expense += amountCny
-            else if (it.type == Bill.TYPE_INCOME) income += amountCny
-        }
-
-        // 禁用动画，直接设置值，避免掉帧
-        tvMonthExpense.text = "¥${String.format(Locale.getDefault(), "%.2f", expense)}"
-        tvMonthIncome.text = "月收入 ¥${String.format(Locale.getDefault(), "%.2f", income)}"
-        tvMonthBalance.text = "本月结余 ¥${String.format(Locale.getDefault(), "%.2f", income - expense)}"
-    }
-
-    private fun getStartTimeFromRange(rangeOpt: Int): Long {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-
-        when (rangeOpt) {
-            0 -> { // 7 days
-                cal.add(Calendar.DAY_OF_YEAR, -6)
-            }
-            1 -> { // 15 days
-                cal.add(Calendar.DAY_OF_YEAR, -14)
-            }
-            2 -> { // Week
-                cal.firstDayOfWeek = Calendar.MONDAY
-                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-            }
-        }
-        return cal.timeInMillis
-    }
-
-    private fun getEndTimeFromRange(rangeOpt: Int): Long {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 23)
-        cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59)
-        cal.set(Calendar.MILLISECOND, 999)
-
-        when (rangeOpt) {
-            0 -> { // 7 days
-                // Ends today
-            }
-            1 -> { // 15 days
-                // Ends today
-            }
-            2 -> { // Week
-                cal.firstDayOfWeek = Calendar.MONDAY
-                cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-            }
-        }
-        return cal.timeInMillis
+        ensureChartController().updateSummary(transactions)
     }
 
     private fun updateChart(transactions: List<Bill>) {
-        val chartT0 = System.currentTimeMillis()
-        val startDateMs = getStartTimeFromRange(currentTimeRange)
-        val endDateMs = getEndTimeFromRange(currentTimeRange)
-
-        val dates = mutableListOf<String>()
-        val displayLabels = mutableListOf<String>()
-
-        val currCal = Calendar.getInstance().apply { timeInMillis = startDateMs }
-        val endCal = Calendar.getInstance().apply { timeInMillis = endDateMs }
-
-        while (currCal.timeInMillis <= endCal.timeInMillis) {
-            val dStr = dfChartKey.format(currCal.time)
-            if (!dates.contains(dStr)) {
-                dates.add(dStr)
-
-                val label = when (currentTimeRange) {
-                    1 -> { // 15 days
-                        dfDay.format(currCal.time) // just the day, e.g., "15"
-                    }
-                    0, 2 -> { // 7 days or this week
-                        dfWeekday.format(currCal.time) // weekday
-                    }
-                    else -> {
-                        dfDay.format(currCal.time)
-                    }
-                }
-                displayLabels.add(label)
-            }
-            currCal.add(Calendar.DAY_OF_YEAR, 1)
-        }
-
-        val expenseMap = mutableMapOf<String, Float>()
-        val incomeMap = mutableMapOf<String, Float>()
-
-        var totalExpense = 0f
-        var totalIncome = 0f
-
-        for (t in transactions) {
-            if (t.subType == Bill.SUBTYPE_REFUND) continue
-            val dStr = dfChartKey.format(Date(t.time))
-            // 折算为人民币等值再绘制柱状图
-            val amount = (t.amount * t.exchangeRate).toFloat()
-            if (t.type == Bill.TYPE_EXPENSE) { // Expense
-                expenseMap[dStr] = (expenseMap[dStr] ?: 0f) + amount
-                totalExpense += amount
-            } else if (t.type == Bill.TYPE_INCOME) { // Income
-                incomeMap[dStr] = (incomeMap[dStr] ?: 0f) + amount
-                totalIncome += amount
-            }
-        }
-
-        tvChartTotal.text = when (currentType) {
-            2 -> "\u6536\u5165: ${String.format(Locale.getDefault(), "%,.2f", totalIncome)}, \u652f\u51fa: ${String.format(Locale.getDefault(), "%,.2f", totalExpense)}"
-            1 -> "\u603b\u8ba1: ${String.format(Locale.getDefault(), "%,.2f", totalIncome)}"
-            else -> "\u603b\u8ba1: ${String.format(Locale.getDefault(), "%,.2f", totalExpense)}"
-        }
-
-        val expenseEntries = mutableListOf<BarEntry>()
-        val incomeEntries = mutableListOf<BarEntry>()
-
-        dates.forEachIndexed { index, dStr ->
-            expenseEntries.add(BarEntry(index.toFloat(), expenseMap[dStr] ?: 0f))
-            incomeEntries.add(BarEntry(index.toFloat(), incomeMap[dStr] ?: 0f))
-        }
-
-        barChart.xAxis.valueFormatter = object : ValueFormatter() {
-            override fun getFormattedValue(value: Float): String {
-                val idx = value.toInt()
-                if (idx >= 0 && idx < displayLabels.size) return displayLabels[idx]
-                return ""
-            }
-        }
-
-        barChart.xAxis.setLabelCount(displayLabels.size, false)
-        barChart.xAxis.textColor = requireContext().getColor(android.R.color.darker_gray)
-
-        val dataSets = mutableListOf<BarDataSet>()
-
-        val formatterK = object : ValueFormatter() {
-            override fun getFormattedValue(value: Float): String {
-                if (value == 0f) return ""
-                if (value >= 1000) {
-                    val k = value / 1000f
-                    val s = String.format(Locale.getDefault(), "%.2fK", k)
-                    return if (s.endsWith("0K")) s.replace(".00K", "K").replace("0K", "K") else s
-                }
-                val s = String.format(Locale.getDefault(), "%.2f", value)
-                return if (s.endsWith(".00")) s.replace(".00", "")
-                       else if (s.endsWith("0")) s.substring(0, s.length - 1)
-                       else s
-            }
-        }
-
-        // currentType: 0=expense, 1=income, 2=both
-        // Hide value labels in both mode; additionally hide in 15-day mode.
-        val shouldDrawValues = (currentType != 2) && (currentTimeRange != 1)
-
-        if (currentType == 0 || currentType == 2) {
-            val setExpense = BarDataSet(expenseEntries, "\u652f\u51fa").apply {
-                color = android.graphics.Color.parseColor("#FF5252") // expense
-                setDrawValues(shouldDrawValues) // draw values by mode
-                valueTextSize = 11f
-                valueTextColor = android.graphics.Color.parseColor("#FF5252")
-                valueFormatter = formatterK
-            }
-            dataSets.add(setExpense)
-        }
-
-        if (currentType == 1 || currentType == 2) {
-            val setIncome = BarDataSet(incomeEntries, "\u6536\u5165").apply {
-                color = android.graphics.Color.parseColor("#4CAF50") // income
-                setDrawValues(shouldDrawValues) // draw values by mode
-                valueTextSize = 11f
-                valueTextColor = android.graphics.Color.parseColor("#4CAF50")
-                valueFormatter = formatterK
-            }
-            dataSets.add(setIncome)
-        }
-
-        val barData = BarData(dataSets.toList() as List<com.github.mikephil.charting.interfaces.datasets.IBarDataSet>)
-
-        // must set data before groupBars()
-        barChart.data = barData
-
-        // Set renderer rounding style based on time range: 7-day and 本周 -> capsule (fullRound=true),
-        // 15-day -> top-rounded only (fullRound=false), other ranges keep top-rounded.
-        roundedBarChartRenderer?.fullRound = (currentTimeRange == 0 || currentTimeRange == 2)
-
-        if (currentType == 2) {
-            // make bars thinner; for 7-day (currentTimeRange==0) use an extra-thin style
-            // (barWidth + barSpace) * 2 + groupSpace = 1.0
-            val groupSpace: Float
-            val barSpace: Float
-            val barWidth: Float
-
-            if (currentTimeRange == 0 || currentTimeRange == 2) {
-                // 7-day: extra thin bars
-                // choose barWidth = 0.15, barSpace = 0.25, groupSpace = 0.20 -> (0.15+0.25)*2 + 0.20 = 1.0
-                groupSpace = 0.2f
-                barSpace = 0.25f
-                barWidth = 0.15f
-            } else {
-                // other ranges: moderately thin
-                groupSpace = 0.2f
-                barSpace = 0.2f
-                barWidth = 0.2f
-            }
-
-            barData.barWidth = barWidth
-
-            barChart.xAxis.setCenterAxisLabels(true) // center labels by group
-            barChart.groupBars(0f, groupSpace, barSpace)
-
-            barChart.xAxis.axisMinimum = 0f
-            barChart.xAxis.axisMaximum = dates.size.toFloat() // each group takes 1 unit
-        } else {
-            // single bar mode: make single bars a bit thinner
-            // if 7-day or 本周, slightly thinner
-            barData.barWidth = if (currentTimeRange == 0 || currentTimeRange == 2) 0.28f else 0.30f
-
-            barChart.xAxis.setCenterAxisLabels(false) // single bar mode
-            barChart.xAxis.axisMinimum = -0.5f
-            barChart.xAxis.axisMaximum = dates.size - 0.5f
-        }
-
-        barChart.notifyDataSetChanged()
-        barChart.invalidate()
-        // 禁用动画，避免掉帧
-        // barChart.animateY(800, com.github.mikephil.charting.animation.Easing.EaseOutCubic)
-        Log.d("HomePerf", "updateChart done  [${System.currentTimeMillis() - chartT0}ms on main thread]")
-    }
-
-    private fun isRefundBill(bill: Bill): Boolean = bill.subType == Bill.SUBTYPE_REFUND
-
-    private fun stripRefundPrefix(categoryName: String): String {
-        return BillDisplayFormatter.stripRefundPrefix(categoryName)
-    }
-
-    private fun originalAmountOfExpenseBill(bill: Bill): Double {
-        val base = if (bill.originalAmount > 0.0) bill.originalAmount else bill.amount
-        return max(base, bill.amount)
-    }
-
-    private fun refundAmountOfExpenseBill(bill: Bill): Double {
-        if (bill.type != Bill.TYPE_EXPENSE || isRefundBill(bill)) return 0.0
-        return (originalAmountOfExpenseBill(bill) - bill.amount).coerceAtLeast(0.0)
-    }
-
-    private fun formatMoney(amount: Double, currency: String = "CNY"): String {
-        val symbol = CurrencyManager.getSymbol(currency)
-        return "$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
-    }
-
-    private fun formatRateValue(rate: Double): String {
-        return BillDisplayFormatter.formatRateValue(rate)
-    }
-
-    private fun buildCrossCurrencyAmountFormula(bill: Bill, accountCurrency: String): String? {
-        if (bill.subType == Bill.SUBTYPE_REFUND) return null
-        if (bill.currency.equals(accountCurrency, ignoreCase = true)) return null
-        if (bill.exchangeRate == 1.0) return null
-        val accountAmount = bill.amount * bill.exchangeRate
-        return "${formatMoney(bill.amount, bill.currency)} × ${formatRateValue(bill.exchangeRate)} = ${formatMoney(accountAmount, accountCurrency)}"
-    }
-
-    private fun buildCrossCurrencyListSuffix(bill: Bill): String? {
-        val accountCurrency = bill.accountId?.let { accountCurrencyById[it] }
-            ?: bill.accountName.takeIf { it.isNotBlank() }?.let { accountCurrencyByName[it] }
-            ?: return null
-        if (bill.subType == Bill.SUBTYPE_REFUND) return null
-        if (bill.currency.equals(accountCurrency, ignoreCase = true)) return null
-        if (bill.exchangeRate == 1.0) return null
-        val accountAmount = bill.amount * bill.exchangeRate
-        return "${formatMoney(bill.amount, bill.currency)} * ${formatRateValue(bill.exchangeRate)} = ${formatMoney(accountAmount, accountCurrency)}"
-    }
-
-    private fun buildCrossCurrencyDetailFormula(bill: Bill, targetCurrency: String = "CNY"): String? {
-        return BillDisplayFormatter.buildCrossCurrencyDetailFormula(bill, targetCurrency)
-    }
-
-    private fun refreshAccountCurrencyCache() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val assets = AppDatabase.getDatabase(requireContext()).assetDao().getAllAssetsList()
-            val idMap = assets.filter { it.currency.isNotBlank() }.associate { it.id to it.currency }
-            val nameMap = assets
-                .filter { it.name.isNotBlank() && it.currency.isNotBlank() }
-                .associate { it.name to it.currency }
-            withContext(Dispatchers.Main) {
-                accountCurrencyById.clear()
-                accountCurrencyById.putAll(idMap)
-                accountCurrencyByName.clear()
-                accountCurrencyByName.putAll(nameMap)
-                if (::homeAdapter.isInitialized && homeAdapter.itemCount > 0) {
-                    homeAdapter.notifyItemRangeChanged(0, homeAdapter.itemCount)
-                }
-            }
-        }
+        ensureChartController().updateChart(transactions)
     }
 
     private fun showBillDetailSheet(bill: Bill) {
@@ -2365,74 +936,12 @@ class HomeFragment : Fragment() {
         billSheetsController.showRefundSheet(originalBill, editingRefund)
     }
 
-    private fun loadBills(year: Int, month: Int) {
-        lifecycleScope.launch {
-            val startOfMonth = getStartOfMonth(year, month)
-            val endOfMonth = getEndOfMonth(year, month)
-            billRepository.getBillsBetweenTimes(startOfMonth.timeInMillis, endOfMonth.timeInMillis).collect { bills ->
-                homeAdapter.submitList(bills)
-            }
-        }
-    }
-
-    private fun getStartOfMonth(year: Int, month: Int): Calendar {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.YEAR, year)
-        cal.set(Calendar.MONTH, month)
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        return cal
-    }
-
-    private fun getEndOfMonth(year: Int, month: Int): Calendar {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.YEAR, year)
-        cal.set(Calendar.MONTH, month)
-        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
-        cal.set(Calendar.HOUR_OF_DAY, 23)
-        cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59)
-        cal.set(Calendar.MILLISECOND, 999)
-        return cal
-    }
-
     override fun onDestroyView() {
-        refreshTimeoutJob?.cancel()
-        refreshTimeoutJob = null
-        val appContext = context?.applicationContext
-        if (appContext != null) {
-            val db = AppDatabase.getDatabase(appContext)
-            billsInvalidationObserver?.let { observer ->
-                db.invalidationTracker.removeObserver(observer)
-            }
-        }
-        billsInvalidationObserver = null
+        refreshController.onDestroyView()
         super.onDestroyView()
     }
 
     private fun observeBillTableChanges() {
-        val db = AppDatabase.getDatabase(requireContext().applicationContext)
-        billsInvalidationObserver?.let { db.invalidationTracker.removeObserver(it) }
-        val observer = object : InvalidationTracker.Observer("bills") {
-            override fun onInvalidated(tables: Set<String>) {
-                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                    if (!isAdded) return@launch
-                    if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
-                    homeViewModel.forceReload(
-                        bookName = selectedBookName,
-                        year = selectedYear,
-                        month = selectedMonth,
-                        timeRange = currentTimeRange,
-                        type = currentType,
-                        isChartHidden = !Prefs.isShowHomeTrendCard(requireContext())
-                    )
-                }
-            }
-        }
-        billsInvalidationObserver = observer
-        db.invalidationTracker.addObserver(observer)
+        refreshController.observeBillTableChanges()
     }
 }

@@ -32,11 +32,6 @@ import java.util.Locale
 
 internal class HomeBillSheetsController(
     private val fragment: Fragment,
-    private val formatMoney: (amount: Double, currency: String) -> String,
-    private val stripRefundPrefix: (String) -> String,
-    private val originalAmountOfExpenseBill: (Bill) -> Double,
-    private val refundAmountOfExpenseBill: (Bill) -> Double,
-    private val buildCrossCurrencyDetailFormula: (bill: Bill, targetCurrency: String) -> String?,
     private val dfDetailTime: SimpleDateFormat,
     private val dfDetailTimeShort: SimpleDateFormat
 ) {
@@ -57,7 +52,7 @@ internal class HomeBillSheetsController(
         val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
         val isRefund = isRefundBill(bill)
         val symbol = CurrencyManager.getSymbol(bill.currency)
-        val baseCategory = stripRefundPrefix(bill.categoryName)
+        val baseCategory = HomeBillFormatHelper.stripRefundPrefix(bill.categoryName)
 
         row.setBackgroundResource(R.drawable.bg_bill_group_single)
         iconContainer?.setBackgroundResource(R.drawable.bg_circle_soft)
@@ -69,7 +64,7 @@ internal class HomeBillSheetsController(
             else -> bill.categoryName.ifEmpty { "未分类" }
         }
 
-        val refundAmount = refundAmountOfExpenseBill(bill)
+        val refundAmount = HomeBillFormatHelper.refundAmountOfExpenseBill(bill)
         tvAmount.text = if (!forceGrayStyle && !isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {
             BillDisplayFormatter.buildRefundedExpenseAmountText(
                 netAmount = bill.amount,
@@ -112,7 +107,7 @@ internal class HomeBillSheetsController(
             } else {
                 if (bill.accountName.isNotEmpty()) append(bill.accountName)
                 if (!forceGrayStyle) {
-                    val linkedRefundAmount = refundAmountOfExpenseBill(bill)
+                    val linkedRefundAmount = HomeBillFormatHelper.refundAmountOfExpenseBill(bill)
                     if (linkedRefundAmount > 0.0 && bill.type == Bill.TYPE_EXPENSE) {
                         append("(退款")
                         append(symbol)
@@ -259,7 +254,7 @@ internal class HomeBillSheetsController(
             if (!isRepayment && bill.fee > 0.0) {
                 layoutFeeDetail.visibility = View.VISIBLE
                 lineFeeDetail.visibility = View.VISIBLE
-                tvFeeDetail.text = "-${formatMoney(bill.fee, bill.currency)}"
+                tvFeeDetail.text = "-${HomeBillFormatHelper.formatMoney(bill.fee, bill.currency)}"
             } else {
                 layoutFeeDetail.visibility = View.GONE
                 lineFeeDetail.visibility = View.GONE
@@ -285,7 +280,7 @@ internal class HomeBillSheetsController(
                         tvIncomingAmount.text = "$toSymbol${String.format(Locale.getDefault(), "%.2f", targetAmount)}"
                     } else {
                         tvAmountLabel.text = if (isRepayment) "还款金额" else "转账金额"
-                        tvAmount.text = formatMoney(bill.amount, bill.currency)
+                        tvAmount.text = HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)
                     }
                 }
             }
@@ -299,7 +294,7 @@ internal class HomeBillSheetsController(
             tvCategory.text = bill.categoryName
 
             if (isRefund) {
-                tvAmount.text = formatMoney(bill.amount, bill.currency)
+                tvAmount.text = HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)
                 tvAmount.setTextColor(Color.parseColor("#9AA1AA"))
                 tvAccountLabel.text = "入账账户"
                 tvTimeLabel.text = "入账时间"
@@ -320,7 +315,7 @@ internal class HomeBillSheetsController(
                 tvAccount.text = bill.accountName
 
                 if (bill.type == Bill.TYPE_EXPENSE) {
-                    val refundedAmount = refundAmountOfExpenseBill(bill)
+                    val refundedAmount = HomeBillFormatHelper.refundAmountOfExpenseBill(bill)
                     if (refundedAmount > 0.0) {
                         tvAmount.text = BillDisplayFormatter.buildRefundedExpenseAmountText(
                             netAmount = bill.amount,
@@ -329,16 +324,16 @@ internal class HomeBillSheetsController(
                         )
                         renderRefundRecords(view, bill) { refundBill -> showBillDetailSheet(refundBill) }
                     } else {
-                        tvAmount.text = "-${formatMoney(bill.amount, bill.currency)}"
+                        tvAmount.text = "-${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
                     }
                     tvAmount.setTextColor(Color.parseColor("#FF3B30"))
                 } else {
-                    tvAmount.text = "+${formatMoney(bill.amount, bill.currency)}"
+                    tvAmount.text = "+${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
                     tvAmount.setTextColor(Color.parseColor("#4CAF50"))
                 }
 
                 fragment.lifecycleScope.launch(Dispatchers.IO) {
-                    val crossCurrencyText = buildCrossCurrencyDetailFormula(bill, "CNY")
+                    val crossCurrencyText = HomeBillFormatHelper.buildCrossCurrencyDetailFormula(bill, "CNY")
                     withContext(Dispatchers.Main) {
                         if (!crossCurrencyText.isNullOrBlank()) {
                             tvAmountFormula.visibility = View.VISIBLE
@@ -358,7 +353,7 @@ internal class HomeBillSheetsController(
         tvRemark.text = bill.remark.ifEmpty { "无备注" }
         view.findViewById<TextView>(R.id.tv_detail_book_name).text = bill.bookName.ifEmpty { BookAccountManager.DEFAULT_BOOK }
 
-        if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmountOfExpenseBill(bill) > 0.0) {
+        if (!isRefund && bill.type == Bill.TYPE_EXPENSE && HomeBillFormatHelper.refundAmountOfExpenseBill(bill) > 0.0) {
             fragment.lifecycleScope.launch(Dispatchers.IO) {
                 val refunds = AppDatabase.getDatabase(fragment.requireContext()).billDao().getRefundBillsBySourceId(bill.id)
                 withContext(Dispatchers.Main) {
@@ -493,9 +488,9 @@ internal class HomeBillSheetsController(
 
         tvTitle.text = if (editingRefund == null) "退款" else "编辑退款"
 
-        val sourceOriginalAmount = originalAmountOfExpenseBill(originalBill)
-        tvOrigAmount.text = formatMoney(sourceOriginalAmount, originalBill.currency)
-        tvOrigCategory.text = stripRefundPrefix(originalBill.categoryName)
+        val sourceOriginalAmount = HomeBillFormatHelper.originalAmountOfExpenseBill(originalBill)
+        tvOrigAmount.text = HomeBillFormatHelper.formatMoney(sourceOriginalAmount, originalBill.currency)
+        tvOrigCategory.text = HomeBillFormatHelper.stripRefundPrefix(originalBill.categoryName)
 
         val defaultRefundAmount = editingRefund?.amount ?: originalBill.amount
         etRefundAmount.setText(String.format(Locale.getDefault(), "%.2f", defaultRefundAmount))
@@ -552,7 +547,7 @@ internal class HomeBillSheetsController(
             val finalRemark = when {
                 remark.isNotEmpty() -> remark
                 editingRefund != null -> editingRefund.remark
-                else -> "退款：${stripRefundPrefix(originalBill.categoryName)}"
+                else -> "退款：${HomeBillFormatHelper.stripRefundPrefix(originalBill.categoryName)}"
             }
 
             val refundTimeLong = try {

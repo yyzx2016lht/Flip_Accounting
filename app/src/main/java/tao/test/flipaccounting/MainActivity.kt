@@ -489,6 +489,7 @@ class MainActivity : AppCompatActivity() {
 
         val newIndex = peekIndex
         val savedDir = swipeDir
+        closeHomeDrawerIfLeaving(newIndex)
 
         settleAnimator = ValueAnimator.ofFloat(fromOffset, toOffset).apply {
             duration = 220L
@@ -587,6 +588,7 @@ class MainActivity : AppCompatActivity() {
      * BottomNav 点击切换入口；必要时带入动画参数。
      */
     private fun switchTab(newIndex: Int, dir: Int, fromSwipe: Boolean, currentDx: Float = 0f) {
+        closeHomeDrawerIfLeaving(newIndex)
         // 清理临时 peek 状态
         settleAnimator?.cancel()
         if (peekFragment != null) {
@@ -781,6 +783,12 @@ class MainActivity : AppCompatActivity() {
             val dir = if (newIndex > currentTabIndex) 1 else -1
             switchTab(newIndex, dir, fromSwipe = false)
             true
+        }
+    }
+
+    private fun closeHomeDrawerIfLeaving(targetTabIndex: Int) {
+        if (currentTabIndex == 0 && targetTabIndex != 0) {
+            (tabFragments.getOrNull(0) as? HomeFragment)?.closeBookDrawerFromHost()
         }
     }
 
