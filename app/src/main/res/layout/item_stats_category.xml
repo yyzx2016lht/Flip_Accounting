@@ -4,12 +4,12 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="0dp"
-    android:background="@drawable/bg_stats_list_item"
+    android:background="@android:color/transparent"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
     android:orientation="vertical"
-    android:paddingHorizontal="6dp"
+    android:paddingHorizontal="0dp"
     android:paddingTop="10dp"
     android:paddingBottom="0dp">
 

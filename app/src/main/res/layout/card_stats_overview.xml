@@ -40,17 +40,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingVertical="10dp">
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="4dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_stats_metric_tile"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:paddingVertical="10dp">
+                android:paddingHorizontal="6dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -70,15 +69,18 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <View
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:background="#E5E7EB" />
+
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="4dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_stats_metric_tile"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:paddingVertical="10dp">
+                android:paddingHorizontal="6dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -98,15 +100,18 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <View
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:background="#E5E7EB" />
+
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_stats_metric_tile"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:paddingVertical="10dp">
+                android:paddingHorizontal="6dp">
 
                 <TextView
                     android:id="@+id/tv_daily_avg_label"
@@ -132,27 +137,26 @@
             android:id="@+id/layout_overview_extra"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             android:orientation="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingVertical="9dp">
 
                 <LinearLayout
                     android:id="@+id/row_total_transfer"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_stats_metric_tile"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="9dp">
+                    android:paddingHorizontal="6dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -172,19 +176,22 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="#E5E7EB" />
+
                 <LinearLayout
                     android:id="@+id/row_total_repayment"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_stats_metric_tile"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="9dp">
+                    android:paddingHorizontal="6dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -204,19 +211,22 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="#E5E7EB" />
+
                 <LinearLayout
                     android:id="@+id/row_total_refund"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_stats_metric_tile"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="9dp">
+                    android:paddingHorizontal="6dp">
 
                     <TextView
                         android:layout_width="wrap_content"

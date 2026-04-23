@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -31,6 +32,11 @@ import tao.test.flipaccounting.logic.CurrencyUtils
 class AssetsFragment : Fragment() {
 
     private lateinit var tvNetAsset: TextView
+    private lateinit var tvNetAssetLabel: TextView
+    private lateinit var layoutAssetsTitleRow: FrameLayout
+    private lateinit var layoutNetAssetFloat: FrameLayout
+    private lateinit var layoutAssetsSummaryRow: View
+    private lateinit var tvRateStatus: TextView
     private lateinit var tvTotalAsset: TextView
     private lateinit var tvTotalDebt: TextView
     private lateinit var containerCategoryCards: LinearLayout
@@ -44,6 +50,10 @@ class AssetsFragment : Fragment() {
     private var dragAutoScrollActive = false
     private var dragAutoScrollDirection = 0
     private var dragAutoScrollSpeedPx = 0
+    private var netAssetCollapsedLabelTx = 0f
+    private var netAssetCollapsedAmountTx = 0f
+    private var netAssetFloatCollapsedTy = 0f
+    private var netAssetCollapsedAmountScale = 1f
     private val dragAutoScrollRunner = object : Runnable {
         override fun run() {
             if (!dragAutoScrollActive || !isAdded || !::nsvAssets.isInitialized) return
@@ -63,6 +73,11 @@ class AssetsFragment : Fragment() {
 
     private fun initViews(view: View) {
         tvNetAsset = view.findViewById(R.id.tv_net_asset)
+        tvNetAssetLabel = view.findViewById(R.id.tv_net_asset_label)
+        layoutAssetsTitleRow = view.findViewById(R.id.layout_assets_title_row)
+        layoutNetAssetFloat = view.findViewById(R.id.layout_net_asset_float)
+        layoutAssetsSummaryRow = view.findViewById(R.id.layout_assets_summary_row)
+        tvRateStatus = view.findViewById(R.id.tv_rate_status)
         tvTotalAsset = view.findViewById(R.id.tv_total_asset)
         tvTotalDebt = view.findViewById(R.id.tv_total_debt)
         containerCategoryCards = view.findViewById(R.id.container_category_cards)
@@ -78,7 +93,18 @@ class AssetsFragment : Fragment() {
         nsvAssets.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
             val dy = scrollY - oldScrollY
             applyFabScrollBehavior(dy, scrollY)
+            updateHeaderCollapse(scrollY)
         }
+        tvNetAsset.post {
+            recalcHeaderCollapsedOffsets()
+            updateHeaderCollapse(nsvAssets.scrollY)
+        }
+        view.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (!isAdded) return@addOnLayoutChangeListener
+            recalcHeaderCollapsedOffsets()
+            updateHeaderCollapse(nsvAssets.scrollY)
+        }
+        updateHeaderCollapse(0)
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
@@ -184,6 +210,10 @@ class AssetsFragment : Fragment() {
         val totalText = CurrencyUtils.formatAmount(totalAssetCny, "CNY")
         val shouldMarkEstimated = (hasForeignIncludedAsset && !hasSyncedRates) || hasMissingIncludedRates
         tvNetAsset.text = if (shouldMarkEstimated) "${netText}（估算）" else netText
+        tvNetAsset.post {
+            recalcHeaderCollapsedOffsets()
+            updateHeaderCollapse(nsvAssets.scrollY)
+        }
         tvTotalAsset.text = if (shouldMarkEstimated) "${totalText}（估算）" else totalText
         tvTotalDebt.text = if (creditCardDebtCny == 0.0) "暂无"
         else CurrencyUtils.formatAmount(creditCardDebtCny, "CNY")
@@ -460,6 +490,52 @@ class AssetsFragment : Fragment() {
             }.toMap()
             db.assetDao().reorderAssets(orders)
         }
+    }
+
+    private fun updateHeaderCollapse(scrollY: Int) {
+        val collapseThresholdPx = resources.displayMetrics.density * 92f
+        val raw = (scrollY / collapseThresholdPx).coerceIn(0f, 1f)
+        val eased = raw * raw * (3f - 2f * raw)
+        val reverse = 1f - eased
+
+        tvNetAssetLabel.translationX = lerp(0f, netAssetCollapsedLabelTx, eased)
+        tvNetAssetLabel.translationY = 0f
+        tvNetAssetLabel.alpha = lerp(1f, 0.82f, eased)
+
+        layoutNetAssetFloat.translationY = lerp(0f, netAssetFloatCollapsedTy, eased)
+        tvNetAsset.translationX = lerp(0f, netAssetCollapsedAmountTx, eased)
+        tvNetAsset.translationY = 0f
+        tvNetAsset.scaleX = lerp(1f, netAssetCollapsedAmountScale, eased)
+        tvNetAsset.scaleY = lerp(1f, netAssetCollapsedAmountScale, eased)
+        tvNetAsset.alpha = 1f
+
+        tvRateStatus.alpha = reverse
+        val summaryFade = if (eased < 0.85f) 1f else ((1f - eased) / 0.15f).coerceIn(0f, 1f)
+        layoutAssetsSummaryRow.alpha = summaryFade
+        layoutAssetsSummaryRow.translationY = -resources.displayMetrics.density * 8f * eased
+    }
+
+    private fun recalcHeaderCollapsedOffsets() {
+        val gap = resources.displayMetrics.density * 8f
+        val labelWidth = tvNetAssetLabel.paint.measureText(tvNetAssetLabel.text?.toString().orEmpty())
+        val amountWidth = tvNetAsset.paint.measureText(tvNetAsset.text?.toString().orEmpty())
+        if (labelWidth <= 0f || amountWidth <= 0f || layoutAssetsTitleRow.height == 0 || layoutNetAssetFloat.height == 0) return
+        netAssetCollapsedAmountScale = (tvNetAssetLabel.textSize / tvNetAsset.textSize).coerceIn(0.5f, 1f)
+        val collapsedAmountWidth = amountWidth * netAssetCollapsedAmountScale
+
+        val totalWidth = labelWidth + collapsedAmountWidth + gap
+        val labelCenter = -totalWidth / 2f + labelWidth / 2f
+        val amountCenter = labelCenter + labelWidth / 2f + gap + collapsedAmountWidth / 2f
+        netAssetCollapsedLabelTx = labelCenter
+        netAssetCollapsedAmountTx = amountCenter
+
+        val titleCenterY = layoutAssetsTitleRow.top + layoutAssetsTitleRow.height / 2f
+        val floatCenterY = layoutNetAssetFloat.top + layoutNetAssetFloat.height / 2f
+        netAssetFloatCollapsedTy = titleCenterY - floatCenterY
+    }
+
+    private fun lerp(start: Float, end: Float, fraction: Float): Float {
+        return start + (end - start) * fraction
     }
 
     private class AssetRowAdapter(

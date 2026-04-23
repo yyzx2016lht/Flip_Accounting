@@ -10,7 +10,7 @@
         <item name="colorOnSecondary">#FFFFFF</item>
 
         <!-- 状态栏颜色 -->
-        <item name="android:statusBarColor">#F5F7FA</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
@@ -20,6 +20,11 @@
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
+    <style name="Theme.FlipAccounting.AppCompatNoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <style name="Animation_FlipAccounting_DialogSoft">

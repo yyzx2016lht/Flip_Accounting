@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -93,6 +94,9 @@ class StatsFragment : Fragment() {
     private lateinit var statsContentContainer: View
     private lateinit var topPanel: View
     private var topPanelBaseMarginTop: Int = 0
+    private lateinit var nsvStats: NestedScrollView
+    private lateinit var layoutModeSwitcher: View
+    private var modeSwitcherRevealProgress: Float = 1f
 
     private var isOverviewExpanded = false
     private var lastModeIsMonth: Boolean? = null
@@ -172,6 +176,11 @@ class StatsFragment : Fragment() {
     private fun initViews(root: View) {
         topPanel = root.findViewById(R.id.stats_top_panel)
         topPanelBaseMarginTop = (topPanel.layoutParams as ViewGroup.MarginLayoutParams).topMargin
+        nsvStats = root.findViewById(R.id.nsv_stats)
+        layoutModeSwitcher = root.findViewById(R.id.layout_mode_switcher)
+        layoutModeSwitcher.bringToFront()
+        layoutModeSwitcher.post { layoutModeSwitcher.bringToFront() }
+        applyModeSwitcherProgress()
 
         pieChart = root.findViewById(R.id.pie_chart)
 
@@ -206,6 +215,8 @@ class StatsFragment : Fragment() {
 
         rvCategoryList = root.findViewById(R.id.rv_category_list)
         rvCategoryList.layoutManager = LinearLayoutManager(context)
+        rvCategoryList.isNestedScrollingEnabled = false
+        rvCategoryList.overScrollMode = View.OVER_SCROLL_NEVER
         categoryAdapter = CategoryStatsAdapter(
             chartColors = chartColors,
             items = emptyList(),
@@ -223,11 +234,7 @@ class StatsFragment : Fragment() {
 
     private fun applyStatusBarInset(root: View) {
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val topInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            (topPanel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                lp.topMargin = topPanelBaseMarginTop + topInset
-                topPanel.layoutParams = lp
-            }
+            // Top area uses a fixed 56dp status spacer in XML, so no runtime offset is needed.
             insets
         }
         ViewCompat.requestApplyInsets(root)
@@ -271,6 +278,14 @@ class StatsFragment : Fragment() {
         root.findViewById<View>(R.id.layout_date_selector).setOnClickListener {
             showUnifiedMonthYearPicker()
         }
+        nsvStats.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            updateModeSwitcherByScroll(scrollY - oldScrollY, scrollY)
+        }
+        rvCategoryList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                updateModeSwitcherByScroll(dy, nsvStats.scrollY)
+            }
+        })
 
         ivOverviewExpand.setOnClickListener {
             isOverviewExpanded = !isOverviewExpanded
@@ -602,6 +617,38 @@ class StatsFragment : Fragment() {
                 .create()
             OverlayDialogs.showStyledCenterDialog(dialog, requireContext())
         }
+    }
+
+    private fun updateModeSwitcherByScroll(dy: Int, scrollY: Int) {
+        if (!::layoutModeSwitcher.isInitialized) return
+        val revealZonePx = resources.displayMetrics.density * 56f
+        if (scrollY <= 0) modeSwitcherRevealProgress = 1f
+
+        if (dy > 0) {
+            // Behave like Home FAB: hide on upward swipe.
+            modeSwitcherRevealProgress -= (dy / 120f).coerceAtMost(0.34f)
+        } else if (dy < 0) {
+            // Gentle downward swipe should bring it back.
+            modeSwitcherRevealProgress += ((-dy) / 185f).coerceAtMost(0.22f)
+        }
+
+        if (scrollY in 1..revealZonePx.toInt()) {
+            val nearTopProgress = 1f - (scrollY / revealZonePx).coerceIn(0f, 1f)
+            modeSwitcherRevealProgress = maxOf(modeSwitcherRevealProgress, nearTopProgress)
+        }
+
+        modeSwitcherRevealProgress = modeSwitcherRevealProgress.coerceIn(0f, 1f)
+        applyModeSwitcherProgress()
+    }
+
+    private fun applyModeSwitcherProgress() {
+        val raw = modeSwitcherRevealProgress
+        val eased = raw * raw * (3f - 2f * raw)
+        layoutModeSwitcher.alpha = eased
+        layoutModeSwitcher.translationY = -16f * (1f - eased)
+        layoutModeSwitcher.scaleX = 0.95f + 0.05f * eased
+        layoutModeSwitcher.scaleY = 0.95f + 0.05f * eased
+        layoutModeSwitcher.isClickable = eased > 0.08f
     }
 
     private fun syncBookFromGlobalIfNeeded() {

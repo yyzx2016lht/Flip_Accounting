@@ -189,7 +189,7 @@ internal class HomeUiListController(
         if (!fragment.isAdded) return
         val window = fragment.requireActivity().window
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.parseColor("#F5F7FA")
+        window.statusBarColor = android.graphics.Color.WHITE
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
     }
 

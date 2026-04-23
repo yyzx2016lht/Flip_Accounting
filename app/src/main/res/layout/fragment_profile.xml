@@ -18,11 +18,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fitsSystemWindows="false"
-        android:background="@android:color/transparent"
+        android:background="#FFFFFF"
         app:elevation="0dp">
 
         <!-- 状态栏占位 -->
         <View
+            android:id="@+id/view_profile_status_spacer"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:fitsSystemWindows="false" />

@@ -20,26 +20,16 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:text="占比分析"
-            android:textColor="#111827"
-            android:textSize="@dimen/text_size_16"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="点击分类可查看对应账单明细"
-            android:textColor="#9CA3AF"
+            android:textColor="#6B7280"
             android:textSize="@dimen/text_size_12" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:background="@drawable/bg_stats_metric_tile"
-            android:orientation="vertical"
-            android:padding="8dp">
+            android:orientation="vertical">
 
             <com.github.mikephil.charting.charts.PieChart
                 android:id="@+id/pie_chart"
@@ -107,6 +97,15 @@
                     android:background="@android:color/transparent" />
             </LinearLayout>
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="点击分类可查看对应账单明细"
+            android:textColor="#9CA3AF"
+            android:textSize="@dimen/text_size_12" />
 
         <View
             android:layout_width="match_parent"

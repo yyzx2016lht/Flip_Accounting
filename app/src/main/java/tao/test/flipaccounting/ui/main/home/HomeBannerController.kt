@@ -252,15 +252,9 @@ internal class HomeBannerController(
 
     private fun applyTopBarChipBackgroundStyle(useStrong: Boolean) {
         if (useStrong) {
-            ivBookSwitcher.setBackgroundResource(R.drawable.bg_home_icon_button_strong)
             tvMonthSelector.setBackgroundResource(R.drawable.bg_home_topbar_capsule_strong)
-            ivCalendarView.setBackgroundResource(R.drawable.bg_home_icon_button_strong)
-            ivSearchBill.setBackgroundResource(R.drawable.bg_home_icon_button_strong)
         } else {
-            ivBookSwitcher.setBackgroundResource(R.drawable.bg_home_icon_button)
             tvMonthSelector.setBackgroundResource(R.drawable.bg_home_topbar_capsule)
-            ivCalendarView.setBackgroundResource(R.drawable.bg_home_icon_button)
-            ivSearchBill.setBackgroundResource(R.drawable.bg_home_icon_button)
         }
     }
 

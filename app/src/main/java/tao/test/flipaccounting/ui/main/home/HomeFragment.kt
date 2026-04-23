@@ -399,6 +399,12 @@ class HomeFragment : Fragment() {
             headerBannerLayout.foreground = android.graphics.drawable.ColorDrawable(
                 android.graphics.Color.argb(whiteOverlay, 255, 255, 255)
             )
+            // 同步状态栏：背景偏白时用深色图标；展开到封面图时恢复浅色图标。
+            val useDarkStatusBarContent = whiteAlpha > 0.5f
+            requireActivity().window.statusBarColor =
+                if (useDarkStatusBarContent) android.graphics.Color.WHITE else android.graphics.Color.TRANSPARENT
+            WindowInsetsControllerCompat(requireActivity().window, requireActivity().window.decorView)
+                .isAppearanceLightStatusBars = useDarkStatusBarContent
             // 同步更新固定顶栏图标/文字颜色：白色遮罩 > 50% 时切换为深色（适配白色背景）
             if (whiteAlpha > 0.5f) {
                 applyBannerTextColor(useLightText = false)
