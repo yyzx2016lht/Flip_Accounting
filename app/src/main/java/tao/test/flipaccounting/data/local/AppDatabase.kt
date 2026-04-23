@@ -109,7 +109,7 @@ abstract class AppDatabase : RoomDatabase() {
                          `timestamp`,
                          `billIds`,
                          `modelName`,
-                         '默认账本',
+                         '日常账本',
                          'legacy'
                        FROM `chat_messages`"""
                 )

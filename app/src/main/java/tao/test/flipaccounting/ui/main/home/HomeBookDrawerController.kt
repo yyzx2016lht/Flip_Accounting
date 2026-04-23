@@ -43,6 +43,7 @@ internal class HomeBookDrawerController(
     private val drawerBooks: DrawerLayout,
     private val layoutBookDrawer: View,
     private val rvBookAccounts: RecyclerView,
+    private val btnSetDefaultBook: View,
     private val btnAddBookAccount: View,
     private val layoutAddBookInput: View,
     private val etAddBookAccountName: EditText,
@@ -73,7 +74,7 @@ internal class HomeBookDrawerController(
 
     private enum class BookDeleteMode {
         MOVE_TO_OTHER_BOOK,
-        REMOVE_FROM_BOOK_KEEP_IN_ALL,
+        REMOVE_FROM_BOOK_MOVE_TO_DEFAULT,
         DELETE_BILLS_KEEP_ASSETS,
         DELETE_BILLS_AND_REVERT_ASSETS
     }
@@ -90,15 +91,20 @@ internal class HomeBookDrawerController(
                 }
             },
             onDeleteClick = { name ->
-                if (BookAccountManager.normalizeBookName(name) == BookAccountManager.ALL_BOOK) {
+                val normalized = BookAccountManager.normalizeBookName(name)
+                val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext())
+                if (normalized == BookAccountManager.ALL_BOOK) {
                     Toast.makeText(fragment.requireContext(), "「全部账本」是系统入口，不能删除", Toast.LENGTH_SHORT).show()
+                } else if (normalized == defaultBook) {
+                    Toast.makeText(fragment.requireContext(), "默认账本不能删除，请先切换默认账本", Toast.LENGTH_SHORT).show()
                 } else {
                     deleteBook(name)
                 }
             },
             onOrderChanged = { newOrder ->
                 BookAccountManager.reorderBookAccounts(fragment.requireContext(), newOrder)
-                setAvailableBookNames(BookAccountManager.withAllBookOption(newOrder))
+                val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext(), newOrder)
+                setAvailableBookNames(BookAccountManager.withAllBookOption(newOrder, defaultBook))
             },
             onStartDrag = { viewHolder ->
                 bookOrderTouchHelper?.startDrag(viewHolder)
@@ -111,6 +117,7 @@ internal class HomeBookDrawerController(
         }
         rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
 
+        btnSetDefaultBook.setOnClickListener { showDefaultBookPickerDialog() }
         btnAddBookAccount.setOnClickListener { showInlineAddBookInput() }
         btnConfirmAddBook.setOnClickListener { commitInlineAddBook() }
         btnCancelAddBook.setOnClickListener { hideInlineAddBookInput(clearText = true) }
@@ -127,6 +134,8 @@ internal class HomeBookDrawerController(
             drawerBooks.closeDrawer(GravityCompat.START)
             val intent = Intent(fragment.requireContext(), BookOverviewActivity::class.java).apply {
                 putExtra(BookOverviewActivity.EXTRA_CURRENT_BOOK, getSelectedBookName())
+                putExtra(BookOverviewActivity.EXTRA_SELECTED_YEAR, getSelectedYear())
+                putExtra(BookOverviewActivity.EXTRA_SELECTED_MONTH, getSelectedMonth())
             }
             fragment.startActivity(intent)
         }
@@ -185,8 +194,9 @@ internal class HomeBookDrawerController(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder
             ): Int {
-                // 第一项「全部账本」固定，不参与拖拽
-                if (viewHolder.adapterPosition == 0) return makeMovementFlags(0, 0)
+                if (!bookAccountAdapter.isDraggablePosition(viewHolder.adapterPosition)) {
+                    return makeMovementFlags(0, 0)
+                }
                 return makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
             }
 
@@ -198,7 +208,6 @@ internal class HomeBookDrawerController(
                 val from = viewHolder.adapterPosition
                 val to = target.adapterPosition
                 if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
-                if (to == 0) return false
                 if (dragFrom == RecyclerView.NO_POSITION) dragFrom = from
                 dragTo = to
                 return bookAccountAdapter.onItemMove(from, to)
@@ -254,16 +263,20 @@ internal class HomeBookDrawerController(
         fragment.lifecycleScope.launch(Dispatchers.IO) {
             val context = fragment.requireContext().applicationContext
             val db = AppDatabase.getDatabase(context)
+            val currentDefaultBook = BookAccountManager.getDefaultBook(context)
 
             BookAccountManager.rawAliases(BookAccountManager.DEFAULT_BOOK)
-                .filter { it.isNotBlank() && it != BookAccountManager.DEFAULT_BOOK }
+                .filter { it.isNotBlank() && it != currentDefaultBook }
                 .forEach { alias ->
-                    db.billDao().renameBookName(alias, BookAccountManager.DEFAULT_BOOK)
+                    db.billDao().renameBookName(alias, currentDefaultBook)
                 }
+            db.billDao().renameBookName(BookAccountManager.ALL_BOOK, currentDefaultBook)
+            db.chatMessageDao().renameBookName(BookAccountManager.ALL_BOOK, currentDefaultBook)
 
             val dbBooks = db.billDao().getAllBookNames()
             val mergedBooks = BookAccountManager.getBookAccounts(context, dbBooks)
-            val booksWithAll = BookAccountManager.withAllBookOption(mergedBooks)
+            val defaultBook = BookAccountManager.getDefaultBook(context, mergedBooks)
+            val booksWithAll = BookAccountManager.withAllBookOption(mergedBooks, defaultBook)
             val selectedFromPrefs = BookAccountManager.getSelectedBook(context, booksWithAll)
 
             withContext(Dispatchers.Main) {
@@ -277,7 +290,11 @@ internal class HomeBookDrawerController(
                 setSelectedBookName(resolvedSelected)
                 BookAccountManager.setSelectedBook(fragment.requireContext(), resolvedSelected)
                 setAvailableBookNames(booksWithAll)
-                bookAccountAdapter.submitList(getAvailableBookNames(), getSelectedBookName())
+                bookAccountAdapter.submitList(
+                    books = getAvailableBookNames(),
+                    selected = getSelectedBookName(),
+                    defaultBookName = defaultBook
+                )
                 if (drawerBooks.isDrawerOpen(GravityCompat.START)) {
                     scrollBookListToSelected(animate = false)
                 }
@@ -421,7 +438,11 @@ internal class HomeBookDrawerController(
         setSelectedBookName(target)
         setAnimateNextBookDataReveal(true)
         BookAccountManager.setSelectedBook(fragment.requireContext(), getSelectedBookName())
-        bookAccountAdapter.submitList(getAvailableBookNames(), getSelectedBookName())
+        bookAccountAdapter.submitList(
+            books = getAvailableBookNames(),
+            selected = getSelectedBookName(),
+            defaultBookName = BookAccountManager.getDefaultBook(fragment.requireContext())
+        )
         updateHeaderBanner()
         setPendingBookSwitchName(getSelectedBookName())
         drawerBooks.closeDrawer(GravityCompat.START)
@@ -439,6 +460,7 @@ internal class HomeBookDrawerController(
         fragment.lifecycleScope.launch(Dispatchers.IO) {
             val context = fragment.requireContext().applicationContext
             val db = AppDatabase.getDatabase(context)
+            val wasDefault = BookAccountManager.getDefaultBook(context) == oldNorm
             BookAccountManager.rawAliases(oldNorm).forEach { alias ->
                 db.billDao().renameBookName(alias, newNorm)
                 db.chatMessageDao().renameBookName(alias, newNorm)
@@ -453,6 +475,9 @@ internal class HomeBookDrawerController(
                 if (getSelectedBookName() == oldNorm) {
                     setSelectedBookName(newNorm)
                 }
+                if (wasDefault) {
+                    BookAccountManager.setDefaultBook(fragment.requireContext(), newNorm)
+                }
                 BookAccountManager.setSelectedBook(fragment.requireContext(), getSelectedBookName())
                 refreshBookAccounts(reloadTransactions = true)
             }
@@ -461,8 +486,13 @@ internal class HomeBookDrawerController(
 
     private fun deleteBook(bookName: String) {
         val target = BookAccountManager.normalizeBookName(bookName)
+        val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext())
         if (target == BookAccountManager.ALL_BOOK) {
             Toast.makeText(fragment.requireContext(), "「全部账本」是系统入口，不能删除", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (target == defaultBook) {
+            Toast.makeText(fragment.requireContext(), "默认账本不能删除，请先切换默认账本", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -481,13 +511,36 @@ internal class HomeBookDrawerController(
                 if (billCount == 0) {
                     performDeleteBook(
                         target = target,
-                        mode = BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL,
+                        mode = BookDeleteMode.REMOVE_FROM_BOOK_MOVE_TO_DEFAULT,
                         hadBillsBeforeDelete = false
                     )
                 } else {
                     showDeleteBookOptions(target, transferCandidates)
                 }
             }
+        }
+    }
+
+    private fun showDefaultBookPickerDialog() {
+        val books = getAvailableBookNames()
+            .map { BookAccountManager.normalizeBookName(it) }
+            .filter { it.isNotBlank() && it != BookAccountManager.ALL_BOOK }
+            .distinct()
+        if (books.isEmpty()) {
+            Toast.makeText(fragment.requireContext(), "暂无可设置的账本", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val currentDefault = BookAccountManager.getDefaultBook(fragment.requireContext(), books)
+        OverlayDialogs.showBookPickerDialog(
+            ctx = fragment.requireContext(),
+            books = books,
+            currentBook = currentDefault
+        ) { chosen ->
+            val normalized = BookAccountManager.normalizeBookName(chosen)
+            if (normalized == currentDefault) return@showBookPickerDialog
+            BookAccountManager.setDefaultBook(fragment.requireContext(), normalized)
+            Toast.makeText(fragment.requireContext(), "已将「$normalized」设为默认账本", Toast.LENGTH_SHORT).show()
+            refreshBookAccounts(reloadTransactions = true)
         }
     }
 
@@ -514,15 +567,15 @@ internal class HomeBookDrawerController(
             ),
             DeleteOption(
                 title = "仅删除账本",
-                desc = "账单归档到“全部账本”，不会丢失记录",
+                desc = "账单迁移到“${BookAccountManager.getDefaultBook(fragment.requireContext())}”，不会丢失记录",
                 onClick = {
                     showDeleteFollowupConfirmDialog(
                         title = "确认删除账本",
-                        message = "删除后，「$target」内账单会归档到「全部账本」。",
+                        message = "删除后，「$target」内账单会迁移到「${BookAccountManager.getDefaultBook(fragment.requireContext())}」。",
                         confirmText = "确认删除",
                         isDanger = false
                     ) {
-                        performDeleteBook(target, BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL)
+                        performDeleteBook(target, BookDeleteMode.REMOVE_FROM_BOOK_MOVE_TO_DEFAULT)
                     }
                 }
             ),
@@ -699,10 +752,11 @@ internal class HomeBookDrawerController(
                         db.chatMessageDao().renameBookName(alias, destination)
                     }
                 }
-                BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL -> {
+                BookDeleteMode.REMOVE_FROM_BOOK_MOVE_TO_DEFAULT -> {
+                    val defaultBook = BookAccountManager.getDefaultBook(ctx)
                     aliases.forEach { alias ->
-                        db.billDao().renameBookName(alias, BookAccountManager.ALL_BOOK)
-                        db.chatMessageDao().renameBookName(alias, BookAccountManager.ALL_BOOK)
+                        db.billDao().renameBookName(alias, defaultBook)
+                        db.chatMessageDao().renameBookName(alias, defaultBook)
                     }
                 }
                 BookDeleteMode.DELETE_BILLS_KEEP_ASSETS -> {
@@ -737,14 +791,14 @@ internal class HomeBookDrawerController(
                     return@withContext
                 }
                 if (getSelectedBookName() == target) {
-                    setSelectedBookName(fallback ?: BookAccountManager.ALL_BOOK)
+                    setSelectedBookName(fallback ?: BookAccountManager.getDefaultBook(fragment.requireContext()))
                 }
                 BookAccountManager.setSelectedBook(fragment.requireContext(), getSelectedBookName())
                 refreshBookAccounts(reloadTransactions = true)
                 val tip = when (mode) {
                     BookDeleteMode.MOVE_TO_OTHER_BOOK -> "已删除账本，账单已迁移到「$transferToBook」"
-                    BookDeleteMode.REMOVE_FROM_BOOK_KEEP_IN_ALL ->
-                        if (hadBillsBeforeDelete) "已删除账本，账单已归档到「全部账本」"
+                    BookDeleteMode.REMOVE_FROM_BOOK_MOVE_TO_DEFAULT ->
+                        if (hadBillsBeforeDelete) "已删除账本，账单已迁移到「${BookAccountManager.getDefaultBook(fragment.requireContext())}」"
                         else "已删除空账本"
                     BookDeleteMode.DELETE_BILLS_KEEP_ASSETS -> "已删除账本与所有账单（未回退资产）"
                     BookDeleteMode.DELETE_BILLS_AND_REVERT_ASSETS -> "已删除账本与所有账单，并回退资产"

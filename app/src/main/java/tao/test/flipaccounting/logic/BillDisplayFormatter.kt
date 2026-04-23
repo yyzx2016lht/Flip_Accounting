@@ -5,6 +5,7 @@ import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.data.local.entity.Bill
 import java.util.Locale
 
@@ -54,7 +55,7 @@ object BillDisplayFormatter {
 
     fun formatMoney(amount: Double, currency: String): String {
         val symbol = CurrencyManager.getSymbol(currency)
-        return "$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+        return AmountFormatHelper.formatCurrency(symbol, amount)
     }
 
     fun formatRateValue(rate: Double): String {

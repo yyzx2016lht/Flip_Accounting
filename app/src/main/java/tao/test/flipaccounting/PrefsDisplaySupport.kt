@@ -17,6 +17,7 @@ object PrefsDisplaySupport {
     private const val KEY_OCR_MODE = "ocr_engine_mode"
     private const val KEY_RECEIPT_LANG_MODE = "receipt_lang_mode"
     private const val KEY_SAVE_OCR_DEBUG = "save_ocr_debug_before_ai"
+    private const val KEY_AMOUNT_GROUPING = "amount_grouping_enabled"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -79,4 +80,9 @@ object PrefsDisplaySupport {
         prefs(ctx).getBoolean(KEY_SAVE_OCR_DEBUG, false)
     fun setSaveOcrDebugEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_SAVE_OCR_DEBUG, enabled).apply()
+
+    fun isAmountGroupingEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AMOUNT_GROUPING, true)
+    fun setAmountGroupingEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AMOUNT_GROUPING, enabled).apply()
 }

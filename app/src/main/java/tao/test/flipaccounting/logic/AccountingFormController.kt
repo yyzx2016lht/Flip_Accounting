@@ -94,7 +94,8 @@ class AccountingFormController(
     private var isRefundMode: Boolean = false
 
     /** 当前表单选定的账本（独立于全局选中账本，初始值同步全局） */
-    private var selectedFormBook: String = BookAccountManager.getSelectedBook(ctx)
+    private var selectedFormBook: String =
+        BookAccountManager.resolveWritableBook(ctx, BookAccountManager.getSelectedBook(ctx))
 
     private val aiAssistant by lazy { AiAssistant(ctx) }
     private val isAssetFeatureEnabled: Boolean
@@ -1006,7 +1007,7 @@ class AccountingFormController(
         val books = BookAccountManager.getBookAccounts(ctx)
         if (books.isEmpty()) return
         OverlayDialogs.showBookPickerDialog(ctx, books, selectedFormBook) { chosen ->
-            selectedFormBook = chosen
+            selectedFormBook = BookAccountManager.resolveWritableBook(ctx, chosen)
             tvBook.text = selectedFormBook
         }
     }
@@ -1175,6 +1176,7 @@ class AccountingFormController(
 
         scope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(ctx)
+            val writableBook = BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
             val timeStr = tvTime.text.toString()
             val timeLong = try { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(timeStr)?.time } catch (e: Exception) { System.currentTimeMillis() } ?: System.currentTimeMillis()
 
@@ -1319,7 +1321,7 @@ class AccountingFormController(
                 currency = selectedCurrency,
                 exchangeRate = finalRate,
                 fee = feeVal,
-                bookName = selectedFormBook
+                bookName = writableBook
             )
 
             if (editingBillId != null) {
@@ -1865,6 +1867,7 @@ class AccountingFormController(
             if (isNotSync) {
                 scope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(ctx)
+                    val writableBook = BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
                     for (i in 0 until billsArray.length()) {
                         val obj = billsArray.getJSONObject(i)
                         
@@ -1924,7 +1927,7 @@ class AccountingFormController(
                             categoryName = cat,
                             time = parsedTime,
                             remark = remark,
-                            bookName = selectedFormBook
+                            bookName = writableBook
                         )
                         BillMutationService.insertBillAndApplyImpact(db, bill)
                     }
@@ -2023,7 +2026,7 @@ class AccountingFormController(
         // 编辑已有账单时恢复账本
         val bookFromJson = json.optString("bookName", "")
         if (bookFromJson.isNotEmpty()) {
-            selectedFormBook = bookFromJson
+            selectedFormBook = BookAccountManager.resolveWritableBook(ctx, bookFromJson)
             tvBook.text = selectedFormBook
         }
 

@@ -16,6 +16,7 @@ import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.CategoryIconHelper
 import tao.test.flipaccounting.R
 import java.util.Locale
@@ -115,7 +116,7 @@ class CategoryStatsAdapter(
         holder.tvName.text = stat.categoryName
         holder.tvPercent.text = String.format(Locale.getDefault(), "%.2f%%", stat.percentage)
         holder.pbPercent.progress = stat.percentage.toInt().coerceIn(0, 100)
-        holder.tvAmount.text = String.format(Locale.getDefault(), "%s%.2f", currencySymbol, stat.amount)
+        holder.tvAmount.text = "$currencySymbol${AmountFormatHelper.formatAmount(stat.amount)}"
 
         val themeColor = colorMap[stat.categoryName]
             ?: if (chartColors.isNotEmpty()) chartColors[position % chartColors.size] else Color.GRAY

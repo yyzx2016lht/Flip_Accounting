@@ -4,6 +4,9 @@
         <item name="colorPrimary">#5C6BC0</item>
         <item name="colorPrimaryVariant">#3F51B5</item>
         <item name="colorOnPrimary">#FFFFFF</item>
+        <!-- 全局字体恢复系统默认无衬线 -->
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:fontFamily">sans-serif</item>
         <!-- 次要颜色 -->
         <item name="colorSecondary">#FF4081</item>
         <item name="colorSecondaryVariant">#F50057</item>
@@ -23,6 +26,8 @@
     </style>
 
     <style name="Theme.FlipAccounting.AppCompatNoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:fontFamily">sans-serif</item>
         <item name="android:statusBarColor">#FFFFFF</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
@@ -33,3 +38,4 @@
     </style>
 
 </resources>
+

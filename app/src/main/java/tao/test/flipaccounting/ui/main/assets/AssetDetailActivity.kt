@@ -1247,7 +1247,7 @@ class AssetDetailActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.tv_detail_record_time).text =
             "\u8BB0\u5F55\u4E8E ${recordTimeFormat.format(Date(bill.time))}"
         view.findViewById<TextView>(R.id.tv_detail_book_name).text =
-            bill.bookName.ifEmpty { BookAccountManager.DEFAULT_BOOK }
+            bill.bookName.ifEmpty { BookAccountManager.getDefaultBook(this@AssetDetailActivity) }
 
         val tvRemark = view.findViewById<TextView>(R.id.tv_detail_remark)
         tvRemark.text = if (bill.remark.isNotBlank()) bill.remark else "\u65E0\u5907\u6CE8"

@@ -470,7 +470,7 @@ class BillDetailBottomSheet(
         root.findViewById<TextView>(R.id.tv_detail_record_time).text =
             "记录于 ${dfDetailTime.format(Date(bill.time))}"
         root.findViewById<TextView>(R.id.tv_detail_book_name).text =
-            bill.bookName.ifEmpty { BookAccountManager.DEFAULT_BOOK }
+            bill.bookName.ifEmpty { BookAccountManager.getDefaultBook(requireContext()) }
         root.findViewById<TextView>(R.id.tv_detail_remark).text =
             bill.remark.takeIf { it.isNotBlank() } ?: "无备注"
 

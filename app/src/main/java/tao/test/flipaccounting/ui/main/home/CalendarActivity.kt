@@ -726,7 +726,7 @@ class CalendarActivity : AppCompatActivity() {
         val recordTimeStr = dfDetailTime.format(Date(bill.time))
         view.findViewById<TextView>(R.id.tv_detail_record_time).text = "记录于 $recordTimeStr"
         view.findViewById<TextView>(R.id.tv_detail_book_name).text =
-            bill.bookName.ifEmpty { BookAccountManager.DEFAULT_BOOK }
+            bill.bookName.ifEmpty { BookAccountManager.getDefaultBook(this@CalendarActivity) }
         val tvRemark = view.findViewById<TextView>(R.id.tv_detail_remark)
         tvRemark.text = bill.remark.ifEmpty { "无备注" }
         if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmountOfExpenseBill(bill) > 0.0) {

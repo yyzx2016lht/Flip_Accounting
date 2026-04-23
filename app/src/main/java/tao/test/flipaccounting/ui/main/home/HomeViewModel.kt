@@ -51,7 +51,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val isLoading: Boolean = true
     )
 
-    private val _uiState = MutableStateFlow(HomeUiState())
+    private val _uiState = MutableStateFlow(
+        HomeUiState(selectedBookName = BookAccountManager.getDefaultBook(application))
+    )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var fetchJob: Job? = null

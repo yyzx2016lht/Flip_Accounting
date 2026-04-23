@@ -161,6 +161,7 @@ object PrefsBackupSupport {
         if (root.has("show_book_entry_v1")) edit.putBoolean(KEY_SHOW_BOOK_ENTRY, root.getBoolean("show_book_entry_v1"))
         if (root.has("show_ai_chat_entry_v1")) edit.putBoolean(KEY_SHOW_AI_CHAT_ENTRY, root.getBoolean("show_ai_chat_entry_v1"))
         if (root.has("save_ocr_debug_v1")) edit.putBoolean(KEY_SAVE_OCR_DEBUG, root.getBoolean("save_ocr_debug_v1"))
+        if (root.has("amount_grouping_v1")) edit.putBoolean("amount_grouping_enabled", root.getBoolean("amount_grouping_v1"))
 
         if (root.has("ai_api_key_v1")) edit.putString(KEY_AI_KEY, root.getString("ai_api_key_v1"))
         if (root.has("ai_api_url_v1")) edit.putString(KEY_AI_URL, root.getString("ai_api_url_v1"))
@@ -217,6 +218,7 @@ object PrefsBackupSupport {
         if (root.has("logging_enabled_v1")) edit.putBoolean(KEY_LOGGING_ENABLED, root.getBoolean("logging_enabled_v1"))
         if (root.has("book_accounts_v1")) edit.putString("book_accounts_v1", root.getString("book_accounts_v1"))
         if (root.has("selected_book_v1")) edit.putString("selected_book_name_v1", root.getString("selected_book_v1"))
+        if (root.has("default_book_v1")) edit.putString("default_book_name_v1", root.getString("default_book_v1"))
 
         edit.apply()
 
@@ -301,6 +303,7 @@ object PrefsBackupSupport {
             put("show_book_entry_v1", Prefs.isShowBookEntry(ctx))
             put("show_ai_chat_entry_v1", Prefs.isShowAiChatEntry(ctx))
             put("save_ocr_debug_v1", Prefs.isSaveOcrDebugEnabled(ctx))
+            put("amount_grouping_v1", Prefs.isAmountGroupingEnabled(ctx))
 
             put("multi_bill_enabled_v1", Prefs.isMultiBillEnabled(ctx))
             put("multi_bill_not_sync_v1", Prefs.isMultiBillNotSync(ctx))
@@ -339,6 +342,7 @@ object PrefsBackupSupport {
             val bookAccounts = BookAccountManager.getBookAccounts(ctx)
             put("book_accounts_v1", BookAccountManager.serializeBookAccounts(ctx))
             put("selected_book_v1", BookAccountManager.getSelectedBook(ctx))
+            put("default_book_v1", BookAccountManager.getDefaultBook(ctx))
 
             val bookColorsObj = JSONObject()
             val bookBannersObj = JSONObject()
@@ -370,11 +374,11 @@ object PrefsBackupSupport {
         val full = JSONObject(serializeSettings(ctx))
         return linkedMapOf(
             "settings_general" to filterSettingsModule(full, "flip_enabled_v1", "flip_always_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "app_white_list_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1"),
-            "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "save_ocr_debug_v1"),
+            "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "save_ocr_debug_v1", "amount_grouping_v1"),
             "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_model_id_v1", "ai_single_model_v1", "ai_multi_model_v1", "ai_rule_model_v1", "ai_receipt_model_v1", "ai_receipt_vision_model_v1", "ai_screen_model_v1", "ai_receipt_ocr_refine_model_v1", "ai_speech_model_v1", "ai_models_cache_v1", "asr_mode_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1"),
             "settings_ai_prompts" to filterSettingsModule(full, "ai_system_prompt_v1", "multi_bill_prompt_v1", "rule_prompt_v1", "receipt_bill_prompt_v1", "receipt_vision_prompt_v1", "screen_accounting_prompt_v1", "receipt_ocr_refine_prompt_v1"),
             "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
-            "settings_books" to filterSettingsModule(full, "book_accounts_v1", "selected_book_v1", "book_colors_v1", "book_banners_v1"),
+            "settings_books" to filterSettingsModule(full, "book_accounts_v1", "selected_book_v1", "default_book_v1", "book_colors_v1", "book_banners_v1"),
             "settings_advanced" to filterSettingsModule(full, "vibrate_feedback_v1", "permanent_wakelock_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1", "show_multi_cur_v1", "show_screen_accounting_v1", "flip_sensitivity_v1", "flip_debounce_v1", "use_custom_sensitivity_v1", "custom_g_threshold_v1", "custom_max_duration_v1")
         )
     }

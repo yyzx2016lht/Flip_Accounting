@@ -5,13 +5,15 @@ import org.json.JSONArray
 import java.io.File
 
 object BookAccountManager {
-    const val DEFAULT_BOOK = "\u9ED8\u8BA4\u8D26\u672C"
+    const val DEFAULT_BOOK = "\u65E5\u5E38\u8D26\u672C"
     const val ALL_BOOK = "\u5168\u90E8\u8D26\u672C"
+    private const val LEGACY_PREVIOUS_DEFAULT_BOOK = "\u9ED8\u8BA4\u8D26\u672C"
     private const val LEGACY_DEFAULT_BOOK = "\u699B\u6A3F\uE17B\u7490\uFE3D\u6E70"
 
     private const val PREF_NAME = "flip_prefs"
     private const val KEY_BOOK_ACCOUNTS = "book_accounts_v1"
     private const val KEY_SELECTED_BOOK = "selected_book_name_v1"
+    private const val KEY_DEFAULT_BOOK = "default_book_name_v1"
 
     // 每个账本对应的封面图路径前缀（key = "book_banner_" + 账本名）
     private const val KEY_BOOK_BANNER_PREFIX = "book_banner_"
@@ -82,16 +84,55 @@ object BookAccountManager {
         val value = raw?.trim().orEmpty()
         return when {
             value.isBlank() -> DEFAULT_BOOK
+            value == LEGACY_PREVIOUS_DEFAULT_BOOK -> DEFAULT_BOOK
             value == LEGACY_DEFAULT_BOOK -> DEFAULT_BOOK
             else -> value
         }
+    }
+
+    fun getDefaultBook(context: Context, availableBooks: List<String>? = null): String {
+        val stored = prefs(context).getString(KEY_DEFAULT_BOOK, null)?.trim().orEmpty()
+        val normalizedStored = normalizeBookName(stored).takeIf { it.isNotBlank() && it != ALL_BOOK }
+        val normalizedAvailable = (availableBooks ?: emptyList())
+            .map { normalizeBookName(it) }
+            .filter { it.isNotBlank() && it != ALL_BOOK }
+            .distinct()
+        val resolved = when {
+            normalizedStored != null && (normalizedAvailable.isEmpty() || normalizedAvailable.contains(normalizedStored)) -> normalizedStored
+            normalizedAvailable.isNotEmpty() -> normalizedAvailable.first()
+            else -> DEFAULT_BOOK
+        }
+        if (normalizedStored != resolved) {
+            prefs(context).edit().putString(KEY_DEFAULT_BOOK, resolved).apply()
+        }
+        return resolved
+    }
+
+    fun setDefaultBook(context: Context, bookName: String) {
+        val normalized = normalizeBookName(bookName)
+        if (normalized.isBlank() || normalized == ALL_BOOK) return
+        prefs(context).edit().putString(KEY_DEFAULT_BOOK, normalized).apply()
+    }
+
+    /**
+     * 返回可写入账单的账本名称。
+     * 「全部账本」是聚合视图，不允许作为真实落库 bookName。
+     */
+    fun resolveWritableBook(bookName: String?): String {
+        val normalized = normalizeBookName(bookName)
+        return if (normalized == ALL_BOOK) DEFAULT_BOOK else normalized
+    }
+
+    fun resolveWritableBook(context: Context, bookName: String?): String {
+        val normalized = normalizeBookName(bookName)
+        return if (normalized == ALL_BOOK) getDefaultBook(context) else normalized
     }
 
     fun rawAliases(bookName: String): List<String> {
         val normalized = normalizeBookName(bookName)
         return when (normalized) {
             ALL_BOOK -> emptyList()
-            DEFAULT_BOOK -> listOf(DEFAULT_BOOK, LEGACY_DEFAULT_BOOK, "")
+            DEFAULT_BOOK -> listOf(DEFAULT_BOOK, LEGACY_PREVIOUS_DEFAULT_BOOK, LEGACY_DEFAULT_BOOK, "")
             else -> listOf(normalized)
         }
     }
@@ -101,11 +142,13 @@ object BookAccountManager {
         return normalizeBookName(billBookName) == normalizeBookName(selectedBookName)
     }
 
-    fun withAllBookOption(books: List<String>): List<String> {
-        val result = linkedSetOf(ALL_BOOK)
+    fun withAllBookOption(books: List<String>, defaultBookName: String = DEFAULT_BOOK): List<String> {
+        val defaultBook = normalizeBookName(defaultBookName)
+        val result = linkedSetOf(defaultBook)
         books.map(::normalizeBookName)
-            .filter { it.isNotBlank() }
+            .filter { it.isNotBlank() && it != ALL_BOOK }
             .forEach { result.add(it) }
+        result.add(ALL_BOOK)
         return result.toList()
     }
 
@@ -127,8 +170,12 @@ object BookAccountManager {
         val merged = linkedSetOf<String>()
         readSavedAccounts(context).forEach { merged.add(normalizeBookName(it)) }
         databaseBooks.forEach { merged.add(normalizeBookName(it)) }
-
-        val accounts = merged.filter { it.isNotBlank() }
+        val names = merged.filter { it.isNotBlank() && it != ALL_BOOK }
+        val defaultBook = getDefaultBook(context, names)
+        val accounts = linkedSetOf<String>().apply {
+            add(defaultBook)
+            names.forEach { add(it) }
+        }.toList()
         saveAccounts(context, accounts)
 
         val selected = normalizeBookName(prefs(context).getString(KEY_SELECTED_BOOK, null))
@@ -161,6 +208,9 @@ object BookAccountManager {
         if (index < 0) return false
         current[index] = newNorm
         saveAccounts(context, current)
+        if (getDefaultBook(context, current) == oldNorm) {
+            setDefaultBook(context, newNorm)
+        }
         if (getSelectedBook(context, current) == oldNorm) {
             setSelectedBook(context, newNorm)
         }
@@ -195,6 +245,14 @@ object BookAccountManager {
         edit.apply()
 
         cleanupBannerFiles(context, targetKeys, targetBannerPaths - retainedBannerPaths)
+        if (getDefaultBook(context, current) == target) {
+            val nextDefault = when {
+                fallback != null && current.contains(fallback) -> fallback
+                current.isNotEmpty() -> current.first()
+                else -> DEFAULT_BOOK
+            }
+            setDefaultBook(context, nextDefault)
+        }
         if (getSelectedBook(context, current) == target) {
             val nextSelected = when {
                 fallback != null && current.contains(fallback) -> fallback
@@ -277,9 +335,11 @@ object BookAccountManager {
      */
     fun reorderBookAccounts(context: Context, newOrder: List<String>) {
         // ALL_BOOK 不参与持久化排序，始终在运行时动态置顶
+        val defaultBook = getDefaultBook(context)
         val normalized = newOrder.map { normalizeBookName(it) }
-            .filter { it.isNotBlank() && it != ALL_BOOK }
+            .filter { it.isNotBlank() && it != ALL_BOOK && it != defaultBook }
         val ordered = linkedSetOf<String>()
+        ordered.add(defaultBook)
         normalized.forEach { ordered.add(it) }
         saveAccounts(context, ordered.toList())
     }

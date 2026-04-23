@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.R
 import java.io.File
 
@@ -99,8 +100,8 @@ class BookOverviewAdapter(
                 flCover.setBackgroundColor(item.themeColor)
             }
 
-            tvExpense.text = "¥${String.format("%.2f", item.expense)}"
-            tvIncome.text = "¥${String.format("%.2f", item.income)}"
+            tvExpense.text = "¥${AmountFormatHelper.formatAmount(item.expense)}"
+            tvIncome.text = "¥${AmountFormatHelper.formatAmount(item.income)}"
             tvExpenseLabel.text = if (isYearMode) "年支出" else "月支出"
             tvIncomeLabel.text = if (isYearMode) "年收入" else "月收入"
 

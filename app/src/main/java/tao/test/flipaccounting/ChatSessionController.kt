@@ -256,7 +256,7 @@ class ChatSessionController(
             db.chatMessageDao().getAllByBook(getCurrentBookName())
         }
         val grouped = msgs
-            .groupBy { (it.bookName.ifBlank { BookAccountManager.DEFAULT_BOOK }) to it.conversationId }
+            .groupBy { (it.bookName.ifBlank { BookAccountManager.getDefaultBook(context) }) to it.conversationId }
             .filterKeys { it.second.isNotBlank() }
             .toMutableMap()
         val orderByFirstSeen = mutableMapOf<Pair<String, String>, Int>()
@@ -285,7 +285,7 @@ class ChatSessionController(
                 buildSessionPreviewFallback(latestBillMsg, latest)
             }
             val bookLabel = BookAccountManager.normalizeBookName(rowBookName).ifBlank {
-                BookAccountManager.DEFAULT_BOOK
+                BookAccountManager.getDefaultBook(context)
             }
             val defaultTitle = "$bookLabel · 会话 ${orderByFirstSeen[key] ?: 1}"
             val savedTitle = Prefs.getAiChatSessionTitle(context, rowBookName, convId).trim()

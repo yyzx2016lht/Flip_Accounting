@@ -49,7 +49,7 @@ data class Bill(
     val fee: Double = 0.0,
 
     // For future multi-book support
-    val bookName: String = "默认账本",
+    val bookName: String = "日常账本",
 
     // Link for related bills, e.g. refund bill -> original expense bill
     val relatedBillId: Long? = null,

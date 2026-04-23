@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -63,93 +63,114 @@
                             android:id="@+id/layoutHeaderSummary"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
+                            android:gravity="bottom"
                             android:orientation="vertical"
-                            android:paddingHorizontal="20dp"
-                            android:paddingTop="74dp"
-                            android:paddingBottom="30dp">
+                            android:paddingHorizontal="18dp"
+                            android:paddingTop="0dp"
+                            android:paddingBottom="0dp">
 
                             <TextView
                                 android:id="@+id/tvMonthExpenseLabel"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="&#x6708;&#x652F;&#x51FA;"
-                                android:textColor="#E7EEFF"
-                                android:textSize="13sp"
-                                android:textStyle="bold"
-                                android:letterSpacing="0.02" />
+                                android:textColor="#DEE9FF"
+                                android:textSize="16sp"
+                                android:textStyle="normal"
+                                android:fontFamily="google-sans"
+                                android:includeFontPadding="false"
+                                android:letterSpacing="0.03" />
 
                             <TextView
                                 android:id="@+id/tvMonthExpense"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
+                                android:layout_marginTop="6dp"
                                 android:text="&#xA5;0.00"
                                 android:textColor="#FFFFFF"
-                                android:textSize="38sp"
-                                android:textStyle="bold"
-                                android:letterSpacing="-0.01" />
+                                android:textSize="32sp"
+                                android:textStyle="normal"
+                                android:fontFamily="google-sans"
+                                android:includeFontPadding="false"
+                                android:letterSpacing="-0.01"
+                                android:lineSpacingExtra="0dp" />
 
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="10dp"
-                                android:orientation="horizontal">
+                                android:layout_marginTop="16dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
 
                                 <LinearLayout
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
-                                    android:orientation="vertical">
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical">
 
                                     <TextView
                                         android:id="@+id/tvMonthIncomeLabel"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="&#x6708;&#x6536;&#x5165;"
-                                        android:textColor="#DAE4FA"
-                                        android:textSize="12sp"
-                                        android:textStyle="bold" />
+                                        android:textColor="#D7E3FF"
+                                        android:textSize="16sp"
+                                        android:textStyle="normal"
+                                        android:fontFamily="google-sans"
+                                        android:includeFontPadding="false"
+                                        android:letterSpacing="0.02" />
 
                                     <TextView
                                         android:id="@+id/tvMonthIncome"
-                                        android:layout_width="match_parent"
+                                        android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:layout_marginTop="2dp"
+                                        android:layout_marginStart="6dp"
                                         android:ellipsize="end"
                                         android:maxLines="1"
                                         android:text="&#xA5;0.00"
-                                        android:textColor="#F7FAFF"
+                                        android:textColor="#FFFFFF"
                                         android:textSize="16sp"
-                                        android:textStyle="bold" />
+                                        android:textStyle="normal"
+                                        android:fontFamily="google-sans"
+                                        android:includeFontPadding="false"
+                                        android:letterSpacing="-0.01" />
                                 </LinearLayout>
 
                                 <LinearLayout
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginStart="14dp"
                                     android:layout_weight="1"
-                                    android:orientation="vertical">
+                                    android:layout_marginStart="10dp"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical">
 
                                     <TextView
                                         android:id="@+id/tvMonthBalanceLabel"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="&#x672C;&#x6708;&#x7ED3;&#x4F59;"
-                                        android:textColor="#DAE4FA"
-                                        android:textSize="12sp"
-                                        android:textStyle="bold" />
+                                        android:textColor="#D7E3FF"
+                                        android:textSize="16sp"
+                                        android:textStyle="normal"
+                                        android:fontFamily="google-sans"
+                                        android:includeFontPadding="false"
+                                        android:letterSpacing="0.02" />
 
                                     <TextView
                                         android:id="@+id/tvMonthBalance"
-                                        android:layout_width="match_parent"
+                                        android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:layout_marginTop="2dp"
+                                        android:layout_marginStart="6dp"
                                         android:ellipsize="end"
                                         android:maxLines="1"
                                         android:text="&#xA5;0.00"
-                                        android:textColor="#F7FAFF"
+                                        android:textColor="#FFFFFF"
                                         android:textSize="16sp"
-                                        android:textStyle="bold" />
+                                        android:textStyle="normal"
+                                        android:fontFamily="google-sans"
+                                        android:includeFontPadding="false"
+                                        android:letterSpacing="-0.01" />
                                 </LinearLayout>
                             </LinearLayout>
                         </LinearLayout>
@@ -268,13 +289,12 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_centerInParent="true"
-                        android:background="@drawable/bg_home_topbar_capsule"
                         android:drawableEnd="@drawable/ic_chevron_down_home"
                         android:drawablePadding="4dp"
-                        android:paddingStart="14dp"
-                        android:paddingTop="8dp"
-                        android:paddingEnd="14dp"
-                        android:paddingBottom="8dp"
+                        android:paddingStart="2dp"
+                        android:paddingTop="4dp"
+                        android:paddingEnd="2dp"
+                        android:paddingBottom="4dp"
                         android:text="2026-03"
                         android:textColor="#FFFFFF"
                         android:textSize="@dimen/text_size_16"
@@ -430,6 +450,20 @@
                 </LinearLayout>
 
                 <TextView
+                    android:id="@+id/btnSetDefaultBook"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_book_overview_entry_btn"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="⭐ 默认"
+                    android:textColor="#4F75E2"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
                     android:id="@+id/btnBookOverview"
                     android:layout_width="wrap_content"
                     android:layout_height="34dp"
@@ -578,3 +612,5 @@
     </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>
+
+

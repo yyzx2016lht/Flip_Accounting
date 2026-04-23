@@ -46,6 +46,7 @@ class AssetsFragment : Fragment() {
     private var dragAutoScrollActive = false
     private var dragAutoScrollDirection = 0
     private var dragAutoScrollSpeedPx = 0
+    private val collapsedCategories = mutableSetOf<String>()
     private val dragAutoScrollRunner = object : Runnable {
         override fun run() {
             if (!dragAutoScrollActive || !isAdded || !::nsvAssets.isInitialized) return
@@ -256,18 +257,31 @@ class AssetsFragment : Fragment() {
         val tvTitle = TextView(ctx).apply {
             text = Asset.categoryLabel(category)
             setTextColor(android.graphics.Color.parseColor("#333333"))
-            textSize = 17f
+            textSize = 14f
             setTypeface(null, android.graphics.Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         val tvTotal = TextView(ctx).apply {
             text = CurrencyUtils.formatAmount(total, "CNY")
             setTextColor(android.graphics.Color.parseColor("#333333"))
-            textSize = 17f
+            textSize = 14f
             setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        val ivExpand = ImageView(ctx).apply {
+            setImageResource(R.drawable.ic_chevron_right)
+            imageTintList = android.content.res.ColorStateList.valueOf(
+                android.graphics.Color.parseColor("#8A94A6")
+            )
+            // 使用现有向右箭头资源，旋转成向下箭头
+            rotation = 90f
+            layoutParams = LinearLayout.LayoutParams(
+                (16 * density).toInt(),
+                (16 * density).toInt()
+            ).apply { marginStart = (4 * density).toInt() }
         }
         headerRow.addView(tvTitle)
         headerRow.addView(tvTotal)
+        headerRow.addView(ivExpand)
 
         // ── 分割线 ──
         val divider = View(ctx).apply {
@@ -381,6 +395,23 @@ class AssetsFragment : Fragment() {
             setPadding((16 * density).toInt(), (8 * density).toInt(), (16 * density).toInt(), (12 * density).toInt())
         }
         cardContent.addView(tvExcludedSummary)
+
+        fun applyCollapsedState(collapsed: Boolean, withAnimation: Boolean) {
+            val targetVisibility = if (collapsed) View.GONE else View.VISIBLE
+            ivExpand.animate().rotation(if (collapsed) 0f else 90f).setDuration(if (withAnimation) 180L else 0L).start()
+            divider.visibility = targetVisibility
+            assetsRecycler.visibility = targetVisibility
+            tvExcludedSummary.visibility = targetVisibility
+        }
+
+        val initiallyCollapsed = collapsedCategories.contains(category)
+        applyCollapsedState(initiallyCollapsed, withAnimation = false)
+        headerRow.setOnClickListener {
+            val collapsed = !collapsedCategories.contains(category)
+            if (collapsed) collapsedCategories.add(category) else collapsedCategories.remove(category)
+            applyCollapsedState(collapsed, withAnimation = true)
+        }
+
         card.addView(cardContent)
         return card
     }
@@ -488,11 +519,11 @@ class AssetsFragment : Fragment() {
             holder.tvBalance.text = CurrencyUtils.formatAmount(asset.balance, asset.currency)
 
             val remarkTexts = mutableListOf<String>()
-            if (!asset.includeInNetAsset) remarkTexts.add("不计入总资产")
+            if (!asset.includeInNetAsset) remarkTexts.add("不计入")
             if (asset.remark.isNotBlank()) remarkTexts.add(asset.remark.trim())
             if (remarkTexts.isNotEmpty()) {
                 holder.tvRemark.visibility = View.VISIBLE
-                holder.tvRemark.text = remarkTexts.joinToString(" · ")
+                holder.tvRemark.text = remarkTexts.joinToString(" | ")
             } else {
                 holder.tvRemark.visibility = View.GONE
             }

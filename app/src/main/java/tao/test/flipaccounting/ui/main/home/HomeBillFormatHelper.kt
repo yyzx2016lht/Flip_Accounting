@@ -1,9 +1,9 @@
 package tao.test.flipaccounting.ui.main.home
 
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillDisplayFormatter
 import tao.test.flipaccounting.logic.CurrencyManager
-import java.util.Locale
 import kotlin.math.max
 
 internal object HomeBillFormatHelper {
@@ -25,7 +25,7 @@ internal object HomeBillFormatHelper {
 
     fun formatMoney(amount: Double, currency: String = "CNY"): String {
         val symbol = CurrencyManager.getSymbol(currency)
-        return "$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+        return AmountFormatHelper.formatCurrency(symbol, amount)
     }
 
     fun formatRateValue(rate: Double): String {

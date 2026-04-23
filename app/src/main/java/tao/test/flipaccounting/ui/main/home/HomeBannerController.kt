@@ -251,11 +251,7 @@ internal class HomeBannerController(
     }
 
     private fun applyTopBarChipBackgroundStyle(useStrong: Boolean) {
-        if (useStrong) {
-            tvMonthSelector.setBackgroundResource(R.drawable.bg_home_topbar_capsule_strong)
-        } else {
-            tvMonthSelector.setBackgroundResource(R.drawable.bg_home_topbar_capsule)
-        }
+        tvMonthSelector.background = null
     }
 
     fun applyBannerTextColor(useLightText: Boolean) {

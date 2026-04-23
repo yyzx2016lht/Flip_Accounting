@@ -1059,7 +1059,7 @@ class BackupActivity : AppCompatActivity() {
             .setSingleChoiceItems(books.toTypedArray(), selectedIndex) { _, which -> selectedIndex = which }
             .setMessage("当 CSV 中缺少 bookName 时，将导入到你选择的账本。")
             .setPositiveButton("继续") { _, _ ->
-                val targetBook = books.getOrNull(selectedIndex) ?: BookAccountManager.DEFAULT_BOOK
+                val targetBook = books.getOrNull(selectedIndex) ?: BookAccountManager.getDefaultBook(this)
                 performCsvImportInternal(uri, targetBook)
             }
             .setNegativeButton("取消", null)

@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:text="招商银行"
             android:textColor="#333333"
-            android:textSize="@dimen/text_size_14"/>
+            android:textSize="@dimen/text_size_16"/>
 
         <TextView
             android:id="@+id/tv_asset_remark"
@@ -45,14 +45,6 @@
         android:layout_height="wrap_content"
         android:text="¥0.00"
         android:textColor="#333333"
-        android:textSize="@dimen/text_size_14"/>
+        android:textSize="@dimen/text_size_16"/>
 
-    <ImageView
-        android:layout_width="@dimen/icon_size_16"
-        android:layout_height="@dimen/icon_size_16"
-        android:layout_marginStart="8dp"
-        android:src="@drawable/ic_chevron_right"
-        android:rotation="0"
-        app:tint="#CCCCCC"
-        xmlns:app="http://schemas.android.com/apk/res-auto"/>
 </LinearLayout>

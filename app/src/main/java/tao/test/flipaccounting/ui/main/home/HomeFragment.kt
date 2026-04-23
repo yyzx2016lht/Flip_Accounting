@@ -181,6 +181,7 @@ class HomeFragment : Fragment() {
     private lateinit var rvBookAccounts: RecyclerView
     private var rvBookAccountsBasePaddingTop: Int = 0
     private var rvBookAccountsBasePaddingBottom: Int = 0
+    private lateinit var btnSetDefaultBook: View
     private lateinit var btnAddBookAccount: View
     private lateinit var layoutAddBookInput: View
     private lateinit var etAddBookAccountName: EditText
@@ -188,7 +189,7 @@ class HomeFragment : Fragment() {
     private lateinit var btnCancelAddBook: View
     private var bookDrawerBasePaddingBottom: Int = 0
     private var selectedBookName: String = BookAccountManager.DEFAULT_BOOK
-    private var availableBookNames: List<String> = BookAccountManager.withAllBookOption(listOf(BookAccountManager.DEFAULT_BOOK))
+    private var availableBookNames: List<String> = BookAccountManager.withAllBookOption(listOf(BookAccountManager.DEFAULT_BOOK), BookAccountManager.DEFAULT_BOOK)
     // 抽屉关闭动画期间不做重刷新；等 onDrawerClosed 后再切账本
     private var pendingBookSwitchName: String? = null
     // 切账本后首次数据显示时做一次轻量淡入，缓解“突然出现”的突兀感
@@ -293,6 +294,7 @@ class HomeFragment : Fragment() {
         rvBookAccounts = view.findViewById(R.id.rvBookAccounts)
         rvBookAccountsBasePaddingTop = rvBookAccounts.paddingTop
         rvBookAccountsBasePaddingBottom = rvBookAccounts.paddingBottom
+        btnSetDefaultBook = view.findViewById(R.id.btnSetDefaultBook)
         btnAddBookAccount = view.findViewById(R.id.btnAddBookAccount)
         layoutAddBookInput = view.findViewById(R.id.layoutAddBookInput)
         etAddBookAccountName = view.findViewById(R.id.etAddBookAccountName)
@@ -304,6 +306,7 @@ class HomeFragment : Fragment() {
             drawerBooks = drawerBooks,
             layoutBookDrawer = layoutBookDrawer,
             rvBookAccounts = rvBookAccounts,
+            btnSetDefaultBook = btnSetDefaultBook,
             btnAddBookAccount = btnAddBookAccount,
             layoutAddBookInput = layoutAddBookInput,
             etAddBookAccountName = etAddBookAccountName,
@@ -355,6 +358,7 @@ class HomeFragment : Fragment() {
         ivHeaderBanner = view.findViewById(R.id.ivHeaderBanner)
         layoutHeaderSummary = view.findViewById(R.id.layoutHeaderSummary)
         layoutStickyTopBar = view.findViewById(R.id.layoutStickyTopBar)
+        applyHeaderSummaryBottomInsetByIncomeHeight()
         bannerController = HomeBannerController(
             fragment = this,
             headerBannerLayout = headerBannerLayout,
@@ -786,6 +790,28 @@ class HomeFragment : Fragment() {
     /** 根据当前账本刷新顶部横幅：有图片则显示图片，否则用账本专属颜色 */
     fun updateHeaderBanner() {
         bannerController.updateHeaderBanner()
+    }
+
+    /**
+     * 让摘要区底部留白始终等于“月收入金额”文字高度，避免写死 dp。
+     */
+    private fun applyHeaderSummaryBottomInsetByIncomeHeight() {
+        if (!::layoutHeaderSummary.isInitialized || !::tvMonthIncome.isInitialized) return
+        tvMonthIncome.post {
+            val measuredIncomeHeight = if (tvMonthIncome.height > 0) {
+                tvMonthIncome.height
+            } else {
+                val fm = tvMonthIncome.paint.fontMetrics
+                kotlin.math.ceil((fm.descent - fm.ascent).toDouble()).toInt()
+            }
+            if (measuredIncomeHeight <= 0) return@post
+            layoutHeaderSummary.setPadding(
+                layoutHeaderSummary.paddingLeft,
+                layoutHeaderSummary.paddingTop,
+                layoutHeaderSummary.paddingRight,
+                measuredIncomeHeight
+            )
+        }
     }
 
     /**

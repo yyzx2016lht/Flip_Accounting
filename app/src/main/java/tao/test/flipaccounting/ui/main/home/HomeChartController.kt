@@ -11,6 +11,7 @@ import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.ValueFormatter
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.entity.Bill
@@ -181,9 +182,9 @@ internal class HomeChartController(
             else if (it.type == Bill.TYPE_INCOME) income += amountCny
         }
 
-        tvMonthExpense.text = "¥${String.format(Locale.getDefault(), "%.2f", expense)}"
-        tvMonthIncome.text = "¥${String.format(Locale.getDefault(), "%.2f", income)}"
-        tvMonthBalance.text = "¥${String.format(Locale.getDefault(), "%.2f", income - expense)}"
+        tvMonthExpense.text = "¥${AmountFormatHelper.formatAmount(expense)}"
+        tvMonthIncome.text = "¥${AmountFormatHelper.formatAmount(income)}"
+        tvMonthBalance.text = "¥${AmountFormatHelper.formatAmount(income - expense)}"
     }
 
     private fun getStartTimeFromRange(rangeOpt: Int): Long {

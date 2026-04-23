@@ -362,7 +362,8 @@ internal class HomeBillSheetsController(
         view.findViewById<TextView>(R.id.tv_detail_record_time).text = "记录于 $recordTimeStr"
         val tvRemark = view.findViewById<TextView>(R.id.tv_detail_remark)
         tvRemark.text = bill.remark.ifEmpty { "无备注" }
-        view.findViewById<TextView>(R.id.tv_detail_book_name).text = bill.bookName.ifEmpty { BookAccountManager.DEFAULT_BOOK }
+        view.findViewById<TextView>(R.id.tv_detail_book_name).text =
+            bill.bookName.ifEmpty { BookAccountManager.getDefaultBook(fragment.requireContext()) }
 
         if (!isRefund && bill.type == Bill.TYPE_EXPENSE && HomeBillFormatHelper.refundAmountOfExpenseBill(bill) > 0.0) {
             fragment.lifecycleScope.launch(Dispatchers.IO) {

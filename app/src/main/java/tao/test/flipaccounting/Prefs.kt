@@ -222,6 +222,10 @@ object Prefs {
         PrefsDisplaySupport.isSaveOcrDebugEnabled(ctx)
     fun setSaveOcrDebugEnabled(ctx: Context, enabled: Boolean) =
         PrefsDisplaySupport.setSaveOcrDebugEnabled(ctx, enabled)
+    fun isAmountGroupingEnabled(ctx: Context): Boolean =
+        PrefsDisplaySupport.isAmountGroupingEnabled(ctx)
+    fun setAmountGroupingEnabled(ctx: Context, enabled: Boolean) =
+        PrefsDisplaySupport.setAmountGroupingEnabled(ctx, enabled)
 
     fun addOcrDebugRecord(ctx: Context, text: String, source: String = "local_ocr_before_ai") =
         PrefsAiSupport.addOcrDebugRecord(ctx, text, source)

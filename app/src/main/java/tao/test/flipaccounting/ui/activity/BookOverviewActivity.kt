@@ -10,10 +10,12 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.ui.main.SharedYearMonthSession
 import java.util.Calendar
 import java.util.Locale
 
@@ -21,6 +23,8 @@ class BookOverviewActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_CURRENT_BOOK = "extra_current_book"
+        const val EXTRA_SELECTED_YEAR = "extra_selected_year"
+        const val EXTRA_SELECTED_MONTH = "extra_selected_month"
     }
 
     private var selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR)
@@ -44,7 +48,11 @@ class BookOverviewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_book_overview)
 
-        currentBook = intent.getStringExtra(EXTRA_CURRENT_BOOK) ?: BookAccountManager.DEFAULT_BOOK
+        currentBook = intent.getStringExtra(EXTRA_CURRENT_BOOK)
+            ?: BookAccountManager.getDefaultBook(this)
+        val (sessionYear, sessionMonth) = SharedYearMonthSession.getYearMonth()
+        selectedYear = intent.getIntExtra(EXTRA_SELECTED_YEAR, sessionYear).coerceIn(2000, 2100)
+        selectedMonth = intent.getIntExtra(EXTRA_SELECTED_MONTH, sessionMonth).coerceIn(1, 12)
 
         findViewById<android.view.View>(R.id.btn_back).setOnClickListener { finish() }
 
@@ -185,7 +193,7 @@ class BookOverviewActivity : AppCompatActivity() {
         tvCurrentPeriod.text = if (isYearMode) {
             "${selectedYear}年"
         } else {
-            "${selectedYear}年${String.format(Locale.getDefault(), "%02d", selectedMonth)}月"
+            String.format(Locale.getDefault(), "%04d-%02d", selectedYear, selectedMonth)
         }
     }
 
@@ -213,10 +221,10 @@ class BookOverviewActivity : AppCompatActivity() {
 
             adapter.submitList(items)
 
-            tvTotalExpense.text = "¥${String.format("%.2f", totalExpense)}"
-            tvTotalIncome.text = "¥${String.format("%.2f", totalIncome)}"
+            tvTotalExpense.text = "¥${AmountFormatHelper.formatAmount(totalExpense)}"
+            tvTotalIncome.text = "¥${AmountFormatHelper.formatAmount(totalIncome)}"
             val balanceSign = if (totalBalance >= 0) "+" else ""
-            tvTotalBalance.text = "${balanceSign}¥${String.format("%.2f", totalBalance)}"
+            tvTotalBalance.text = "${balanceSign}¥${AmountFormatHelper.formatAmount(totalBalance)}"
             tvTotalBalance.setTextColor(
                 android.graphics.Color.parseColor(if (totalBalance >= 0) "#2FA36B" else "#E05A5A")
             )

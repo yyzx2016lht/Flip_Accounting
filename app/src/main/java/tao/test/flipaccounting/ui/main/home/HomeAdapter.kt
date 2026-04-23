@@ -19,6 +19,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.CategoryIconHelper
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.entity.Bill
@@ -357,10 +358,10 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
             val summaryBuilder = StringBuilder()
             if (header.income > 0) {
-                summaryBuilder.append("\u6536 \u00A5${String.format(Locale.getDefault(), "%.2f", header.income)} ")
+                summaryBuilder.append("\u6536 \u00A5${AmountFormatHelper.formatAmount(header.income)} ")
             }
             if (header.expense > 0) {
-                summaryBuilder.append("\u652F \u00A5${String.format(Locale.getDefault(), "%.2f", header.expense)}")
+                summaryBuilder.append("\u652F \u00A5${AmountFormatHelper.formatAmount(header.expense)}")
             }
             tvSummary?.text = summaryBuilder.toString().trim()
             if (tvSummary?.text?.isEmpty() == true) {

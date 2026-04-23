@@ -27,34 +27,48 @@ class BookAccountAdapter(
 
     private val items = mutableListOf<String>()
     private var selectedBook: String = ""
+    private var defaultBook: String = BookAccountManager.DEFAULT_BOOK
     private var openedPosition: Int = RecyclerView.NO_POSITION
     private var editingPosition: Int = RecyclerView.NO_POSITION
 
-    fun submitList(books: List<String>, selected: String) {
+    fun submitList(books: List<String>, selected: String, defaultBookName: String) {
         val openedName = items.getOrNull(openedPosition)
         val editingName = items.getOrNull(editingPosition)
 
+        defaultBook = BookAccountManager.normalizeBookName(defaultBookName)
         items.clear()
-        // ALL_BOOK 始终固定在第一位，其余账本保持传入顺序
-        items.add(BookAccountManager.ALL_BOOK)
-        books.filter { BookAccountManager.normalizeBookName(it) != BookAccountManager.ALL_BOOK }
-            .forEach { items.add(it) }
+        books.map { BookAccountManager.normalizeBookName(it) }
+            .filter { it.isNotBlank() }
+            .forEach {
+                if (!items.contains(it)) items.add(it)
+            }
+        if (!items.contains(defaultBook)) {
+            items.add(0, defaultBook)
+        }
+        if (!items.contains(BookAccountManager.ALL_BOOK)) {
+            items.add(BookAccountManager.ALL_BOOK)
+        }
         selectedBook = selected
 
-        openedPosition = books.indexOf(openedName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
-        editingPosition = books.indexOf(editingName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
+        openedPosition = items.indexOf(openedName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
+        editingPosition = items.indexOf(editingName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION
         notifyDataSetChanged()
     }
 
     fun onItemMove(fromPos: Int, toPos: Int): Boolean {
         if (fromPos == RecyclerView.NO_POSITION || toPos == RecyclerView.NO_POSITION) return false
-        // 第一项「全部账本」固定，不参与拖拽排序
-        if (fromPos == 0 || toPos == 0) return false
         if (fromPos !in items.indices || toPos !in items.indices) return false
+        if (!isDraggablePosition(fromPos) || !isDraggablePosition(toPos)) return false
         val item = items.removeAt(fromPos)
         items.add(toPos, item)
         notifyItemMoved(fromPos, toPos)
         return true
+    }
+
+    fun isDraggablePosition(position: Int): Boolean {
+        if (position !in items.indices) return false
+        val normalized = BookAccountManager.normalizeBookName(items[position])
+        return normalized != BookAccountManager.ALL_BOOK && normalized != defaultBook
     }
 
     fun onDragEnd() {
@@ -171,10 +185,10 @@ class BookAccountAdapter(
                         notifyItemChanged(old)
                     }
                     longPressRunnable?.let { foreground.removeCallbacks(it) }
-                    if (pos != 0) {
+                    if (isDraggablePosition(pos)) {
                         val runnable = Runnable {
                             val currentPos = adapterPosition
-                            if (currentPos == RecyclerView.NO_POSITION || currentPos == 0) return@Runnable
+                            if (currentPos == RecyclerView.NO_POSITION || !isDraggablePosition(currentPos)) return@Runnable
                             if (editingPosition == currentPos || movedBeyondTapSlop || dragging) return@Runnable
                             dragStartedByLongPress = true
                             closeSwipeActions()
@@ -303,12 +317,12 @@ class BookAccountAdapter(
         fun bind(name: String, selected: Boolean, opened: Boolean, editing: Boolean) {
             val normalized = BookAccountManager.normalizeBookName(name)
             val isAllBook = normalized == BookAccountManager.ALL_BOOK
-            val isDefaultBook = normalized == BookAccountManager.DEFAULT_BOOK
+            val isDefaultBook = normalized == defaultBook
 
             foreground.animate().cancel()
             tvName.text = when {
-                isAllBook -> "全部账本（汇总视图）"
-                isDefaultBook -> "默认账本（记账落点）"
+                isAllBook -> BookAccountManager.ALL_BOOK
+                isDefaultBook -> defaultBook
                 else -> name
             }
             foreground.translationX = if (opened) -actionsWidthPx else 0f
@@ -316,10 +330,16 @@ class BookAccountAdapter(
             ivSelected.visibility = if (selected) View.VISIBLE else View.GONE
 
             if (isAllBook) {
-                tvName.setTextColor(android.graphics.Color.parseColor("#1A73E8"))
+                tvName.setTextColor(android.graphics.Color.parseColor("#8E9CAF"))
                 btnEdit.isEnabled = false
                 btnDelete.isEnabled = false
                 btnEdit.alpha = 0.35f
+                btnDelete.alpha = 0.35f
+            } else if (isDefaultBook) {
+                tvName.setTextColor(android.graphics.Color.parseColor("#1A73E8"))
+                btnEdit.isEnabled = true
+                btnDelete.isEnabled = false
+                btnEdit.alpha = 1f
                 btnDelete.alpha = 0.35f
             } else {
                 tvName.setTextColor(android.graphics.Color.parseColor("#333333"))

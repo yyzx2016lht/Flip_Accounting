@@ -40,6 +40,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
@@ -448,16 +449,16 @@ class StatsFragment : Fragment() {
             String.format(Locale.getDefault(), "%04d", state.year)
         }
 
-        tvTotalExpense.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalExpense)
-        tvTotalIncome.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalIncome)
-        tvBalance.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.balance)
+        tvTotalExpense.text = "$symbol${AmountFormatHelper.formatAmount(state.totalExpense)}"
+        tvTotalIncome.text = "$symbol${AmountFormatHelper.formatAmount(state.totalIncome)}"
+        tvBalance.text = "$symbol${AmountFormatHelper.formatAmount(state.balance)}"
         val avgLabel = if (state.isMonthMode) "日均支出" else "月均支出"
         val avgValue = state.dailyAvg
         tvDailyAvgLabel.text = avgLabel
-        tvDailyAvg.text = String.format(Locale.getDefault(), "%s%.2f", symbol, avgValue)
-        tvTotalTransfer.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalTransfer)
-        tvTotalRepayment.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalRepayment)
-        tvTotalRefund.text = String.format(Locale.getDefault(), "%s%.2f", symbol, state.totalRefund)
+        tvDailyAvg.text = "$symbol${AmountFormatHelper.formatAmount(avgValue)}"
+        tvTotalTransfer.text = "$symbol${AmountFormatHelper.formatAmount(state.totalTransfer)}"
+        tvTotalRepayment.text = "$symbol${AmountFormatHelper.formatAmount(state.totalRepayment)}"
+        tvTotalRefund.text = "$symbol${AmountFormatHelper.formatAmount(state.totalRefund)}"
         btnPrevDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_left else R.drawable.ic_chevrons_left)
         btnNextDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_right else R.drawable.ic_chevrons_right)
         btnPrevDate.contentDescription = if (state.isMonthMode) "上个月" else "上一年"
@@ -625,7 +626,7 @@ class StatsFragment : Fragment() {
             val visibleTotal = filteredStats.sumOf { it.amount }
             val centerTitle = if (isCategoryExpense) "支出占比" else "收入占比"
             val symbol = state.selectedCurrency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
-            pieChart.centerText = "$centerTitle\n${String.format(Locale.getDefault(), "%s%.2f", symbol, visibleTotal)}"
+            pieChart.centerText = "$centerTitle\n$symbol${AmountFormatHelper.formatAmount(visibleTotal)}"
             pieChart.rotationAngle = findBestInitialRotation(pieEntries.map { it.value })
             pieChart.setCenterTextSize(12f)
             pieChart.setCenterTextColor(Color.parseColor("#374151"))
