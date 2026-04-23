@@ -550,7 +550,7 @@ class StatsFragment : Fragment() {
         pieChart.setTransparentCircleAlpha(0)
         pieChart.holeRadius = 58f
         pieChart.rotationAngle = 270f
-        pieChart.isRotationEnabled = false
+        pieChart.isRotationEnabled = true
         pieChart.setEntryLabelColor(Color.TRANSPARENT)
         pieChart.setExtraOffsets(22f, 18f, 22f, 18f)
         pieChart.setNoDataText("暂无图表数据")
@@ -574,8 +574,6 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateCategoryChart(state: StatsUiState) {
-        perfStage = "chart:updateCategoryChart"
-        val chartStart = SystemClock.elapsedRealtime()
         val targetStats = if (isCategoryExpense) state.categoryStatsExpense else state.categoryStatsIncome
         val total = targetStats.sumOf { it.amount }
 
@@ -588,58 +586,35 @@ class StatsFragment : Fragment() {
             // 不做 TopN 裁剪：尽量全部显示，仅隐藏占比 < 2% 的分类
             val filteredStats = targetStats.filter { it.percentage >= 2f }.sortedBy { it.amount }
             if (filteredStats.isEmpty()) {
-                val emptyKey = buildChartRenderKey(state, filteredStats, 0.0)
-                if (emptyKey == lastChartRenderKey) return
-                lastChartRenderKey = emptyKey
                 pieChart.clear()
                 pieChart.setNoDataText("暂无占比≥2%的分类")
                 pieChart.invalidate()
                 categoryAdapter.setColorMap(colorByName)
                 return
             }
-            val visibleTotal = filteredStats.sumOf { it.amount }
-            val chartRenderKey = buildChartRenderKey(state, filteredStats, visibleTotal)
-            if (chartRenderKey == lastChartRenderKey) {
-                categoryAdapter.setColorMap(colorByName)
-                return
-            }
-            lastChartRenderKey = chartRenderKey
-
             val pieEntries = filteredStats.map { PieEntry(it.amount.toFloat(), it.categoryName) }
             val sliceColors = filteredStats.map { colorByName[it.categoryName] ?: chartColors[0] }
-            val isHeavyChart = state.bills.size >= CHART_HEAVY_BILLS_THRESHOLD ||
-                filteredStats.size >= CHART_HEAVY_CATEGORIES_THRESHOLD
             val labelSize = when {
                 filteredStats.size >= 12 -> 7.5f
                 filteredStats.size >= 9 -> 8.0f
                 else -> 9.0f
             }
-            val useOutsideLabel = !isHeavyChart && filteredStats.size <= 10
 
             val pieDataSet = PieDataSet(pieEntries, "").apply {
                 colors = sliceColors
-                xValuePosition = if (useOutsideLabel) {
-                    PieDataSet.ValuePosition.OUTSIDE_SLICE
-                } else {
-                    PieDataSet.ValuePosition.INSIDE_SLICE
-                }
-                yValuePosition = if (useOutsideLabel) {
-                    PieDataSet.ValuePosition.OUTSIDE_SLICE
-                } else {
-                    PieDataSet.ValuePosition.INSIDE_SLICE
-                }
+                xValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
+                yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
                 valueLinePart1OffsetPercentage = 100f
                 valueLinePart1Length = if (filteredStats.size >= 10) 0.22f else 0.30f
                 valueLinePart2Length = if (filteredStats.size >= 10) 0.55f else 0.78f
                 selectionShift = 4f
-                setValueLineVariableLength(useOutsideLabel)
-                setUsingSliceColorAsValueLineColor(useOutsideLabel)
-                valueTextSize = if (isHeavyChart) 0f else labelSize
-                setValueTextColors(if (isHeavyChart) listOf(Color.TRANSPARENT) else sliceColors)
+                setValueLineVariableLength(true)
+                setUsingSliceColorAsValueLineColor(true)
+                valueTextSize = labelSize
+                setValueTextColors(sliceColors)
                 valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
                     override fun getFormattedValue(value: Float): String = ""
                     override fun getPieLabel(value: Float, pieEntry: PieEntry): String {
-                        if (isHeavyChart) return ""
                         val pct = if (total > 0) (pieEntry.value / total * 100f) else 0f
                         return "${pieEntry.label} ${String.format(java.util.Locale.getDefault(), "%.1f%%", pct)}"
                     }
@@ -647,31 +622,24 @@ class StatsFragment : Fragment() {
             }
 
             pieChart.data = PieData(pieDataSet)
+            val visibleTotal = filteredStats.sumOf { it.amount }
             val centerTitle = if (isCategoryExpense) "支出占比" else "收入占比"
             val symbol = state.selectedCurrency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
             pieChart.centerText = "$centerTitle\n${String.format(Locale.getDefault(), "%s%.2f", symbol, visibleTotal)}"
-            pieChart.rotationAngle = 270f
+            pieChart.rotationAngle = findBestInitialRotation(pieEntries.map { it.value })
             pieChart.setCenterTextSize(12f)
             pieChart.setCenterTextColor(Color.parseColor("#374151"))
             pieChart.setDrawEntryLabels(false)
-            pieChart.isRotationEnabled = !isHeavyChart
-            pieChart.setTouchEnabled(!isHeavyChart)
+            pieChart.animateY(260)
 
             // 把颜色映射同步给列表 Adapter，使图标背景色/进度条颜色与饼图一致
             categoryAdapter.setColorMap(colorByName)
         } else {
-            val emptyKey = buildChartRenderKey(state, emptyList(), 0.0)
-            if (emptyKey == lastChartRenderKey) return
-            lastChartRenderKey = emptyKey
             pieChart.clear()
         }
 
         pieChart.legend.isEnabled = false
-        perfStage = "chart:invalidate"
         pieChart.invalidate()
-        val cost = SystemClock.elapsedRealtime() - chartStart
-        Log.d(TAG, "updateCategoryChart done: stats=${targetStats.size}, costMs=$cost")
-        perfStage = "idle"
     }
 
     private fun buildScreenRenderKey(state: StatsUiState): Long {
