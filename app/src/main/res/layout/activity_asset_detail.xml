@@ -7,6 +7,7 @@
     android:background="#F7F8FA">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar_asset_detail"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#FFFFFF"
@@ -102,6 +103,7 @@
             android:id="@+id/layout_asset_search_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            app:layout_scrollFlags="scroll|enterAlways"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:paddingTop="8dp"
@@ -126,12 +128,15 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/layout_balance_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingBottom="24dp"
-            android:paddingTop="16dp">
+            android:paddingTop="16dp"
+            app:layout_scrollFlags="scroll|enterAlways">
 
             <TextView
                 android:id="@+id/tv_balance_label"

@@ -5,7 +5,9 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
@@ -14,6 +16,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -114,6 +117,8 @@ class AssetStatsActivity : AppCompatActivity() {
     private lateinit var btnMsSelectAll: TextView
     private lateinit var btnMsMove: TextView
     private lateinit var btnMsDelete: TextView
+    private lateinit var nsvContent: NestedScrollView
+    private lateinit var appBarStats: View
 
     private lateinit var dateStripAdapter: DateStripAdapter
     private lateinit var billAdapter: AssetStatsBillAdapter
@@ -140,6 +145,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private val billRowsCache = mutableMapOf<String, List<Any>>()
     private val pieRenderCache = mutableMapOf<String, PieRenderModel?>()
     private lateinit var barMarker: AssetBarMarkerView
+    private lateinit var topDoubleTapDetector: GestureDetector
 
     private val dfMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault())
     private val dfMonthTitle = SimpleDateFormat("MM月", Locale.getDefault())
@@ -211,6 +217,8 @@ class AssetStatsActivity : AppCompatActivity() {
         btnMsSelectAll = findViewById(R.id.btn_ms_select_all)
         btnMsMove = findViewById(R.id.btn_ms_move)
         btnMsDelete = findViewById(R.id.btn_ms_delete)
+        nsvContent = findViewById(R.id.nsv_content)
+        appBarStats = findViewById(R.id.appbar_stats)
 
         dateStripAdapter = DateStripAdapter { item ->
             when (item.type) {
@@ -246,6 +254,7 @@ class AssetStatsActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
         findViewById<View>(R.id.layout_asset_switch).setOnClickListener { switchAsset() }
         findViewById<View>(R.id.btn_filter).setOnClickListener { showPeriodPicker() }
+        setupTopBarDoubleTapToTop()
 
         btnBarExpense.setOnClickListener {
             barMode = ChartMode.EXPENSE
@@ -267,6 +276,31 @@ class AssetStatsActivity : AppCompatActivity() {
             updatePieToggleState()
             renderPieChartAsync(currentFilterCacheKey(), filteredBills())
         }
+    }
+
+    private fun setupTopBarDoubleTapToTop() {
+        topDoubleTapDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                nsvContent.post { nsvContent.smoothScrollTo(0, 0) }
+                rvBillList.post { rvBillList.scrollToPosition(0) }
+                return true
+            }
+        })
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (::appBarStats.isInitialized && isEventInsideView(ev, appBarStats)) {
+            topDoubleTapDetector.onTouchEvent(ev)
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun isEventInsideView(ev: MotionEvent, view: View): Boolean {
+        val loc = IntArray(2)
+        view.getLocationOnScreen(loc)
+        val x = ev.rawX
+        val y = ev.rawY
+        return x >= loc[0] && x <= loc[0] + view.width && y >= loc[1] && y <= loc[1] + view.height
     }
 
     private fun setupBackPressForMultiSelect() {

@@ -6,7 +6,9 @@ import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
@@ -65,8 +67,6 @@ class AssetDetailActivity : AppCompatActivity() {
         private val detailCacheByAssetId = mutableMapOf<Long, AssetDetailCache>()
     }
 
-    private lateinit var tvBalance: TextView
-    private lateinit var tvAssetRemark: TextView
     private lateinit var tvToolbarAssetName: TextView
     private lateinit var rvTransactions: RecyclerView
     private lateinit var tvBtnSearch: TextView
@@ -79,6 +79,8 @@ class AssetDetailActivity : AppCompatActivity() {
     private lateinit var btnMsSelectAll: TextView
     private lateinit var btnMsMove: TextView
     private lateinit var btnMsDelete: TextView
+    private lateinit var toolbar: androidx.appcompat.widget.Toolbar
+    private lateinit var toolbarDoubleTapDetector: GestureDetector
     private var fabHiddenByScroll = false
     private var fabScrollAccumulator = 0
 
@@ -95,6 +97,11 @@ class AssetDetailActivity : AppCompatActivity() {
         val monthLabel: String,
         val inflow: Double,
         val outflow: Double
+    )
+
+    data class BalanceHeaderRow(
+        val balanceText: String,
+        val remarkText: String
     )
 
     data class BillRow(val bill: Bill)
@@ -115,8 +122,6 @@ class AssetDetailActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        tvBalance = findViewById(R.id.tv_asset_balance)
-        tvAssetRemark = findViewById(R.id.tv_asset_remark)
         tvToolbarAssetName = findViewById(R.id.tv_toolbar_asset_name)
         rvTransactions = findViewById(R.id.rv_transactions)
         tvBtnSearch = findViewById(R.id.tv_btn_search)
@@ -128,9 +133,10 @@ class AssetDetailActivity : AppCompatActivity() {
         btnMsMove = findViewById(R.id.btn_ms_move)
         btnMsDelete = findViewById(R.id.btn_ms_delete)
 
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        toolbar = findViewById(R.id.toolbar)
         toolbar.setNavigationOnClickListener { finish() }
         toolbar.title = ""
+        setupToolbarDoubleTapToHome()
         updateSearchButtonState(false)
         tvBtnSearch.setOnClickListener { toggleSearchPanel() }
         findViewById<View>(R.id.tv_btn_stats).setOnClickListener {
@@ -187,6 +193,58 @@ class AssetDetailActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    private fun setupToolbarDoubleTapToHome() {
+        toolbarDoubleTapDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                rvTransactions.post { rvTransactions.smoothScrollToPosition(0) }
+                return true
+            }
+        })
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (::toolbarDoubleTapDetector.isInitialized && isEventInsideView(ev, toolbar)) {
+            val localX = ev.rawX - toolbar.screenX()
+            val localY = ev.rawY - toolbar.screenY()
+            if (!toolbar.isTouchInsideChild(localX, localY)) {
+                toolbarDoubleTapDetector.onTouchEvent(ev)
+            }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun isEventInsideView(ev: MotionEvent, view: View): Boolean {
+        val loc = IntArray(2)
+        view.getLocationOnScreen(loc)
+        val x = ev.rawX
+        val y = ev.rawY
+        return x >= loc[0] && x <= loc[0] + view.width && y >= loc[1] && y <= loc[1] + view.height
+    }
+
+    private fun View.screenX(): Int {
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        return loc[0]
+    }
+
+    private fun View.screenY(): Int {
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        return loc[1]
+    }
+
+    private fun View.isTouchInsideChild(x: Float, y: Float): Boolean {
+        val group = this as? ViewGroup ?: return false
+        for (i in 0 until group.childCount) {
+            val child = group.getChildAt(i)
+            if (child.visibility != View.VISIBLE) continue
+            if (x >= child.left && x <= child.right && y >= child.top && y <= child.bottom) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun setupMultiSelectActions() {
@@ -405,15 +463,13 @@ class AssetDetailActivity : AppCompatActivity() {
 
     private fun updateAssetUI(asset: Asset) {
         tvToolbarAssetName.text = asset.name
-        tvBalance.text = CurrencyUtils.formatAmount(asset.balance, asset.currency)
+        val balanceText = CurrencyUtils.formatAmount(asset.balance, asset.currency)
         val noteParts = mutableListOf<String>()
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
         if (!asset.includeInNetAsset) noteParts += "不计入总资产"
-        if (noteParts.isEmpty()) {
-            tvAssetRemark.visibility = View.GONE
-        } else {
-            tvAssetRemark.visibility = View.VISIBLE
-            tvAssetRemark.text = noteParts.joinToString(" · ")
+        val remarkText = noteParts.joinToString(" · ")
+        if (::adapter.isInitialized) {
+            adapter.updateBalanceHeader(balanceText, remarkText)
         }
     }
 
@@ -485,20 +541,34 @@ class AssetDetailActivity : AppCompatActivity() {
     inner class TransactionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
         private val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
-        private val typeMonthHeader = 0
-        private val typeBillItem = 1
+        private val PAYLOAD_BALANCE_CHANGE = "PAYLOAD_BALANCE_CHANGE"
+        private val typeBalanceHeader = 0
+        private val typeMonthHeader = 1
+        private val typeBillItem = 2
 
         private val rows = mutableListOf<Any>()
         private val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
         private val monthLabelFormat = SimpleDateFormat("yyyy.MM\u6708", Locale.getDefault())
         private val dateFormat = SimpleDateFormat("MM-dd", Locale.getDefault())
+        private var balanceHeaderRow = BalanceHeaderRow("¥0.00", "")
         var isMultiSelectMode: Boolean = false
         val selectedBills = mutableSetOf<Bill>()
         var onBillItemClick: ((Bill) -> Unit)? = null
         var onSelectionChanged: ((Int) -> Unit)? = null
 
+        fun updateBalanceHeader(balanceText: String, remarkText: String) {
+            val next = BalanceHeaderRow(balanceText, remarkText)
+            if (balanceHeaderRow == next) return
+            balanceHeaderRow = next
+            if (rows.firstOrNull() is BalanceHeaderRow) {
+                rows[0] = next
+                notifyItemChanged(0, PAYLOAD_BALANCE_CHANGE)
+            }
+        }
+
         fun submitList(newList: List<Bill>) {
             rows.clear()
+            rows.add(balanceHeaderRow)
             if (newList.isNotEmpty()) {
                 val sorted = newList.sortedWith(compareByDescending<Bill> { it.time }.thenByDescending { it.id })
                 val grouped = sorted.groupBy { monthKeyFormat.format(Date(it.time)) }
@@ -565,6 +635,7 @@ class AssetDetailActivity : AppCompatActivity() {
 
         override fun getItemViewType(position: Int): Int {
             return when (rows[position]) {
+                is BalanceHeaderRow -> typeBalanceHeader
                 is MonthHeaderRow -> typeMonthHeader
                 is BillRow -> typeBillItem
                 else -> typeBillItem
@@ -573,15 +644,20 @@ class AssetDetailActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             val inflater = LayoutInflater.from(parent.context)
-            return if (viewType == typeMonthHeader) {
-                MonthHeaderViewHolder(inflater.inflate(R.layout.item_asset_month_header, parent, false))
-            } else {
-                BillViewHolder(inflater.inflate(R.layout.item_home_transaction, parent, false))
+            return when (viewType) {
+                typeBalanceHeader -> BalanceHeaderViewHolder(
+                    inflater.inflate(R.layout.item_asset_detail_balance_header, parent, false)
+                )
+                typeMonthHeader -> MonthHeaderViewHolder(
+                    inflater.inflate(R.layout.item_asset_month_header, parent, false)
+                )
+                else -> BillViewHolder(inflater.inflate(R.layout.item_home_transaction, parent, false))
             }
         }
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val row = rows[position]) {
+                is BalanceHeaderRow -> (holder as BalanceHeaderViewHolder).bind(row)
                 is MonthHeaderRow -> (holder as MonthHeaderViewHolder).bind(row)
                 is BillRow -> (holder as BillViewHolder).bind(row.bill, position)
             }
@@ -592,6 +668,13 @@ class AssetDetailActivity : AppCompatActivity() {
             position: Int,
             payloads: MutableList<Any>
         ) {
+            if (payloads.isNotEmpty() && holder is BalanceHeaderViewHolder) {
+                val row = rows.getOrNull(position) as? BalanceHeaderRow
+                if (row != null && payloads.contains(PAYLOAD_BALANCE_CHANGE)) {
+                    holder.bind(row)
+                    return
+                }
+            }
             if (payloads.isNotEmpty() && holder is BillViewHolder) {
                 val row = rows.getOrNull(position) as? BillRow
                 if (row != null) {
@@ -609,6 +692,21 @@ class AssetDetailActivity : AppCompatActivity() {
         }
 
         override fun getItemCount(): Int = rows.size
+
+        inner class BalanceHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+            private val tvBalance = v.findViewById<TextView>(R.id.tv_header_balance)
+            private val tvRemark = v.findViewById<TextView>(R.id.tv_header_remark)
+
+            fun bind(row: BalanceHeaderRow) {
+                tvBalance.text = row.balanceText
+                if (row.remarkText.isBlank()) {
+                    tvRemark.visibility = View.GONE
+                } else {
+                    tvRemark.visibility = View.VISIBLE
+                    tvRemark.text = row.remarkText
+                }
+            }
+        }
 
         inner class MonthHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             private val tvMonth = v.findViewById<TextView>(R.id.tv_month_title)
@@ -650,7 +748,7 @@ class AssetDetailActivity : AppCompatActivity() {
                 val displayAmount = amountForAssetRow(bill, assetId)
 
                 val hasHeaderAbove = rows.getOrNull(position - 1) is MonthHeaderRow
-                val isGroupStart = position == 0 && !hasHeaderAbove
+                val isGroupStart = !hasHeaderAbove
                 val isGroupEnd = position == rows.lastIndex || rows.getOrNull(position + 1) is MonthHeaderRow
                 itemView.setBackgroundResource(
                     when {

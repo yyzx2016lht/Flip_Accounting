@@ -6,6 +6,7 @@
     android:background="#F5F7FA">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar_stats"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#FFFFFF"
@@ -18,6 +19,7 @@
             android:paddingTop="8dp">
 
             <RelativeLayout
+                android:id="@+id/layout_top_bar"
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
                 android:paddingStart="8dp"
