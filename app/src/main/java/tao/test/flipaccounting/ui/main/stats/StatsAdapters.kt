@@ -2,6 +2,8 @@
 
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.SystemClock
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +16,6 @@ import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.CategoryIconHelper
 import tao.test.flipaccounting.R
 import java.util.Locale
@@ -27,10 +28,15 @@ class CategoryStatsAdapter(
     private var currencySymbol: String = "¥",
     private val onItemClick: (String) -> Unit
 ) : RecyclerView.Adapter<CategoryStatsAdapter.ViewHolder>() {
+    companion object {
+        private const val TAG = "CategoryStatsAdapter"
+    }
 
     /** 分类名 → 颜色映射，由 StatsFragment 在更新饼图时同步传入 */
     private var colorMap: Map<String, Int> = emptyMap()
     private var pinnedCategory: String? = null
+    private var listRenderSeq = 0L
+    private val iconUrlCache = mutableMapOf<String, String>()
 
     fun setColors(colors: List<Int>) {
         chartColors = colors
@@ -41,13 +47,17 @@ class CategoryStatsAdapter(
     }
 
     fun submitList(newItems: List<CategoryStat>, isExpense: Boolean, currencySymbol: String) {
+        val start = SystemClock.elapsedRealtime()
         items = newItems
         this.isExpense = isExpense
         this.currencySymbol = currencySymbol
+        listRenderSeq++
         if (pinnedCategory != null && newItems.none { it.categoryName == pinnedCategory }) {
             pinnedCategory = null
         }
+        preloadIconsAsync(newItems, listRenderSeq, isExpense)
         notifyDataSetChanged()
+        Log.d(TAG, "submitList size=${newItems.size}, mode=${if (isExpense) "expense" else "income"}, costMs=${SystemClock.elapsedRealtime() - start}")
     }
 
     fun findPositionByCategory(categoryName: String): Int =
@@ -93,6 +103,7 @@ class CategoryStatsAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val bindStart = SystemClock.elapsedRealtime()
         val stat = displayItems()[position]
 
         holder.itemView.visibility = View.VISIBLE
@@ -114,19 +125,15 @@ class CategoryStatsAdapter(
         val type = if (isExpense) 0 else 1
         val ctx = holder.itemView.context
         holder.ivIcon.setImageResource(R.drawable.ic_placeholder)
-        CoroutineScope(Dispatchers.IO).launch {
-            val iconUrl = CategoryIconHelper.findCategoryIcon(ctx, stat.categoryName, type)
-            withContext(Dispatchers.Main) {
-                if (iconUrl.isNotEmpty()) {
-                    Glide.with(ctx)
-                        .load(iconUrl)
-                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                        .placeholder(R.drawable.ic_placeholder)
-                        .into(holder.ivIcon)
-                } else {
-                    holder.ivIcon.setImageResource(R.drawable.ic_placeholder)
-                }
-            }
+        val iconUrl = iconUrlCache[iconCacheKey(stat.categoryName, type)]
+        if (!iconUrl.isNullOrEmpty()) {
+            Glide.with(ctx)
+                .load(iconUrl)
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.ic_placeholder)
+                .into(holder.ivIcon)
+        } else {
+            holder.ivIcon.setImageResource(R.drawable.ic_placeholder)
         }
         holder.ivIcon.setColorFilter(Color.WHITE)
 
@@ -169,7 +176,43 @@ class CategoryStatsAdapter(
         }
 
         holder.itemView.setOnClickListener { onItemClick(stat.categoryName) }
+        if (position < 3 || SystemClock.elapsedRealtime() - bindStart >= 8L) {
+            Log.d(TAG, "bind pos=$position, category=${stat.categoryName}, costMs=${SystemClock.elapsedRealtime() - bindStart}")
+        }
     }
 
     override fun getItemCount() = displayItems().size
+
+    private fun preloadIconsAsync(newItems: List<CategoryStat>, seq: Long, isExpense: Boolean) {
+        val type = if (isExpense) 0 else 1
+        val names = newItems.map { it.categoryName }.distinct()
+        if (names.isEmpty()) return
+        val ctx = if (newItems.isNotEmpty()) null else null
+        CoroutineScope(Dispatchers.IO).launch {
+            val context = lastBoundContext ?: return@launch
+            val updates = mutableMapOf<String, String>()
+            names.forEach { name ->
+                val key = iconCacheKey(name, type)
+                if (iconUrlCache.containsKey(key)) return@forEach
+                val url = CategoryIconHelper.findCategoryIcon(context, name, type)
+                updates[key] = url
+            }
+            if (updates.isEmpty()) return@launch
+            CoroutineScope(Dispatchers.Main).launch {
+                if (seq != listRenderSeq) return@launch
+                iconUrlCache.putAll(updates)
+                notifyItemRangeChanged(0, itemCount, "icon")
+                Log.d(TAG, "icon preload done: updated=${updates.size}, totalCache=${iconUrlCache.size}")
+            }
+        }
+    }
+
+    private var lastBoundContext: android.content.Context? = null
+
+    override fun onViewAttachedToWindow(holder: ViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        lastBoundContext = holder.itemView.context.applicationContext
+    }
+
+    private fun iconCacheKey(name: String, type: Int): String = "$type|$name"
 }

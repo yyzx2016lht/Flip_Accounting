@@ -2,6 +2,7 @@
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -22,6 +23,7 @@ import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.repository.CategoryRepository
+import tao.test.flipaccounting.ui.common.StatusBarStyle
 import tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
 import java.io.File
 
@@ -188,6 +190,11 @@ class CategorySortActivity : AppCompatActivity() {
         }
 
         loadData()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        StatusBarStyle.applyByColor(window, Color.WHITE)
     }
 
     private fun isParentMode(): Boolean = parentId == null

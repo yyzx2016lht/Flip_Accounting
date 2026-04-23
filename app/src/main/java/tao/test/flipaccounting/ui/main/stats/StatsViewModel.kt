@@ -1,15 +1,23 @@
 package tao.test.flipaccounting.ui.main.stats
 
+import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.FlowPreview
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.data.local.dao.BillDao
 import tao.test.flipaccounting.data.local.entity.Bill
@@ -35,6 +43,12 @@ data class TimeReport(
     val bills: List<Bill>
 )
 
+private data class DayAggregate(
+    var expense: Double = 0.0,
+    var income: Double = 0.0,
+    val bills: MutableList<Bill> = mutableListOf()
+)
+
 data class StatsUiState(
     val year: Int = Calendar.getInstance().get(Calendar.YEAR),
     val month: Int = Calendar.getInstance().get(Calendar.MONTH),
@@ -45,6 +59,7 @@ data class StatsUiState(
     val forcedLabel: String? = null,
     val selectedCurrency: String? = null,
     val selectedBookName: String? = null,
+    val isLoading: Boolean = true,
     val totalExpense: Double = 0.0,
     val totalIncome: Double = 0.0,
     val balance: Double = 0.0,
@@ -60,6 +75,13 @@ data class StatsUiState(
 )
 
 class StatsViewModel(private val billDao: BillDao) : ViewModel() {
+    companion object {
+        private const val TAG = "StatsViewModel"
+        private const val MAX_STATS_CACHE_ENTRIES = 24
+        private const val FLOW_SAMPLE_MS = 120L
+        private val CATEGORY_SPLIT_REGEX = Regex("\\s*>\\s*|/::/|::|·")
+        private val statsSnapshotCache = linkedMapOf<String, StatsUiState>()
+    }
 
     private val _uiState = MutableStateFlow(StatsUiState())
     val uiState = _uiState.asStateFlow()
@@ -73,7 +95,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
     }
 
     init {
-        loadData()
+        // Wait for host sync (year/month/book) before first heavy query to avoid redundant cold-start loads.
     }
 
     fun setMode(isMonth: Boolean) {
@@ -316,6 +338,35 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         loadData()
     }
 
+    fun syncHostSelection(year: Int, month: Int, bookName: String?) {
+        val normalizedBook = bookName?.takeIf { it.isNotBlank() }
+        val old = _uiState.value
+        var changed = false
+        var next = old
+        if (old.year != year || old.month != month) {
+            changed = true
+            next = next.copy(
+                year = year,
+                month = month,
+                forcedStartTime = null,
+                forcedEndTime = null,
+                forcedLabel = null
+            )
+        }
+        if (old.selectedBookName != normalizedBook) {
+            changed = true
+            next = next.copy(selectedBookName = normalizedBook)
+        }
+        if (changed) {
+            _uiState.value = next
+            loadData()
+            return
+        }
+        if (old.bills.isEmpty() || old.isLoading) {
+            loadData()
+        }
+    }
+
     fun getTransferBills(): List<Bill> {
         return _uiState.value.bills
             .filter { it.type == Bill.TYPE_TRANSFER && it.subType != Bill.SUBTYPE_REPAYMENT }
@@ -345,14 +396,30 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         loadData()
     }
 
+    @OptIn(FlowPreview::class)
     private fun loadData() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             val snapshot = _uiState.value
             val (start, end, label) = resolveRange(snapshot)
             val (prevStart, prevEnd) = resolvePreviousRange(start, end)
+            val cacheKey = buildCacheKey(snapshot, start, end, prevStart, prevEnd)
 
-            _uiState.update { it.copy(dateLabel = label) }
+            _uiState.update { it.copy(dateLabel = label, isLoading = true) }
+            statsSnapshotCache[cacheKey]?.let { cached ->
+                _uiState.value = cached.copy(
+                    year = snapshot.year,
+                    month = snapshot.month,
+                    isMonthMode = snapshot.isMonthMode,
+                    dateLabel = label,
+                    forcedStartTime = snapshot.forcedStartTime,
+                    forcedEndTime = snapshot.forcedEndTime,
+                    forcedLabel = snapshot.forcedLabel,
+                    selectedCurrency = snapshot.selectedCurrency,
+                    selectedBookName = snapshot.selectedBookName,
+                    isLoading = false
+                )
+            }
 
             val currentFlow = billDao.getBillsBetweenTimes(start, end)
             val prevFlow = if (prevStart <= prevEnd) {
@@ -363,12 +430,70 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
 
             combine(currentFlow, prevFlow) { currentBills, prevBills ->
                 currentBills to prevBills
-            }.collect { (currentBillsRaw, prevBillsRaw) ->
-                val stateNow = _uiState.value
-                val currentBills = applyExtraFilters(currentBillsRaw, stateNow)
-                val prevBills = applyExtraFilters(prevBillsRaw, stateNow)
-                processData(currentBills, prevBills, stateNow, start, end)
             }
+                .sample(FLOW_SAMPLE_MS)
+                .distinctUntilChangedBy { (currentBillsRaw, prevBillsRaw) ->
+                    billsFingerprint(currentBillsRaw) to billsFingerprint(prevBillsRaw)
+                }
+                .collectLatest { (currentBillsRaw, prevBillsRaw) ->
+                    val stateNow = _uiState.value
+                    val calcStart = SystemClock.elapsedRealtime()
+                    val (currentBills, prevBills, newState, filterCost, processCost) = withContext(Dispatchers.Default) {
+                        val filterStart = SystemClock.elapsedRealtime()
+                        val filteredCurrent = applyExtraFilters(currentBillsRaw, stateNow)
+                        val filteredPrev = applyExtraFilters(prevBillsRaw, stateNow)
+                        val filterDuration = SystemClock.elapsedRealtime() - filterStart
+                        val processStart = SystemClock.elapsedRealtime()
+                        val processed = processData(filteredCurrent, filteredPrev, stateNow, start, end)
+                        val processDuration = SystemClock.elapsedRealtime() - processStart
+                        CalcPayload(filteredCurrent, filteredPrev, processed, filterDuration, processDuration)
+                    }
+                    if (!hasMeaningfulStatsChange(stateNow, newState, currentBills)) {
+                        Log.d(
+                            TAG,
+                            "loadData skip(no-change): currentRaw=${currentBillsRaw.size}, prevRaw=${prevBillsRaw.size}, " +
+                                "filterMs=$filterCost, processMs=$processCost"
+                        )
+                        return@collectLatest
+                    }
+                    _uiState.value = newState
+                    putStatsCache(cacheKey, newState)
+                    val cost = SystemClock.elapsedRealtime() - calcStart
+                    Log.d(
+                        TAG,
+                        "loadData apply: currentRaw=${currentBillsRaw.size}, prevRaw=${prevBillsRaw.size}, " +
+                            "current=${currentBills.size}, prev=${prevBills.size}, filterMs=$filterCost, processMs=$processCost, totalMs=$cost"
+                    )
+                }
+        }
+    }
+
+    private fun buildCacheKey(
+        state: StatsUiState,
+        start: Long,
+        end: Long,
+        prevStart: Long,
+        prevEnd: Long
+    ): String {
+        return listOf(
+            state.year,
+            state.month,
+            state.isMonthMode,
+            start,
+            end,
+            prevStart,
+            prevEnd,
+            state.selectedCurrency.orEmpty(),
+            state.selectedBookName.orEmpty()
+        ).joinToString("|")
+    }
+
+    private fun putStatsCache(key: String, state: StatsUiState) {
+        statsSnapshotCache.remove(key)
+        statsSnapshotCache[key] = state
+        while (statsSnapshotCache.size > MAX_STATS_CACHE_ENTRIES) {
+            val eldest = statsSnapshotCache.entries.firstOrNull()?.key ?: break
+            statsSnapshotCache.remove(eldest)
         }
     }
 
@@ -402,6 +527,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
     }
 
     private fun applyExtraFilters(bills: List<Bill>, state: StatsUiState): List<Bill> {
+        if (state.selectedCurrency == null && state.selectedBookName == null) return bills
         val selectedBookNormalized = state.selectedBookName?.let { BookAccountManager.normalizeBookName(it) }
         return bills.filter { bill ->
             val currencyMatched = state.selectedCurrency == null || bill.currency == state.selectedCurrency
@@ -424,7 +550,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
     private fun topLevelCategory(name: String): String {
         val normalized = name.removePrefix("退款：").removePrefix("退款·").trim()
         return normalized
-            .split(Regex("\\s*>\\s*|/::/|::|·"))
+            .split(CATEGORY_SPLIT_REGEX)
             .firstOrNull()
             ?.trim()
             .orEmpty()
@@ -433,7 +559,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
 
     private fun secondLevelCategory(name: String): String {
         val normalized = name.removePrefix("退款：").removePrefix("退款·").trim()
-        val parts = normalized.split(Regex("\\s*>\\s*|/::/|::|·"))
+        val parts = normalized.split(CATEGORY_SPLIT_REGEX)
         return when {
             parts.size >= 2 -> parts[1].trim().ifEmpty { parts[0].trim().ifEmpty { "未分类" } }
             parts.isNotEmpty() -> parts[0].trim().ifEmpty { "未分类" }
@@ -447,7 +573,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         state: StatsUiState,
         rangeStart: Long,
         rangeEnd: Long
-    ) {
+    ): StatsUiState {
         var totalExpense = 0.0
         var totalIncome = 0.0
         var totalTransfer = 0.0
@@ -458,9 +584,13 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         val categoryIncomeMap = mutableMapOf<String, Double>()
         val prevCategoryExpenseMap = mutableMapOf<String, Double>()
         val prevCategoryIncomeMap = mutableMapOf<String, Double>()
+        val topLevelCache = HashMap<String, String>(64)
 
-        val dayMap = mutableMapOf<String, MutableList<Bill>>()
+        val dayMap = mutableMapOf<Int, DayAggregate>()
         val cal = Calendar.getInstance()
+
+        fun topLevelCached(name: String): String =
+            topLevelCache.getOrPut(name) { topLevelCategory(name) }
 
         bills.forEach { bill ->
             val amount = statsAmountOf(bill, state.selectedCurrency)
@@ -471,7 +601,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
                 totalRefund += amount
                 // 退款抵扣支出
                 totalExpense -= amount
-                val topLevel = topLevelCategory(bill.categoryName)
+                val topLevel = topLevelCached(bill.categoryName)
                 categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) - amount
             } else if (isRepayment) {
                 totalRepayment += amount
@@ -479,29 +609,31 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
                 totalTransfer += amount
             } else if (bill.type == Bill.TYPE_EXPENSE) {
                 totalExpense += amount
-                val topLevel = topLevelCategory(bill.categoryName)
+                val topLevel = topLevelCached(bill.categoryName)
                 categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) + amount
             } else if (bill.type == Bill.TYPE_INCOME) {
                 totalIncome += amount
-                val topLevel = topLevelCategory(bill.categoryName)
+                val topLevel = topLevelCached(bill.categoryName)
                 categoryIncomeMap[topLevel] = (categoryIncomeMap[topLevel] ?: 0.0) + amount
             }
 
             cal.timeInMillis = bill.time
-            val dayKey = String.format(
-                Locale.getDefault(),
-                "%04d-%02d-%02d",
-                cal.get(Calendar.YEAR),
-                cal.get(Calendar.MONTH) + 1,
+            val dayKey = cal.get(Calendar.YEAR) * 10_000 +
+                (cal.get(Calendar.MONTH) + 1) * 100 +
                 cal.get(Calendar.DAY_OF_MONTH)
-            )
-            dayMap.getOrPut(dayKey) { mutableListOf() }.add(bill)
+            val dayAggregate = dayMap.getOrPut(dayKey) { DayAggregate() }
+            when {
+                bill.subType == Bill.SUBTYPE_REFUND -> dayAggregate.expense -= amount
+                bill.type == Bill.TYPE_EXPENSE -> dayAggregate.expense += amount
+                bill.type == Bill.TYPE_INCOME -> dayAggregate.income += amount
+            }
+            dayAggregate.bills.add(bill)
         }
 
         prevBills.forEach { bill ->
             val amount = statsAmountOf(bill, state.selectedCurrency)
             val isRefund = bill.subType == Bill.SUBTYPE_REFUND
-            val topLevel = topLevelCategory(bill.categoryName)
+            val topLevel = topLevelCached(bill.categoryName)
             
             if (isRefund) {
                 prevCategoryExpenseMap[topLevel] = (prevCategoryExpenseMap[topLevel] ?: 0.0) - amount
@@ -539,25 +671,16 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             .sortedByDescending { it.amount }
 
         val timeReports = dayMap
-            .map { (day, dayBills) ->
-                var dayExpense = 0.0
-                var dayIncome = 0.0
-                dayBills.forEach { b ->
-                    val a = statsAmountOf(b, state.selectedCurrency)
-                    if (b.subType == Bill.SUBTYPE_REFUND) {
-                        dayExpense -= a
-                    } else if (b.type == Bill.TYPE_EXPENSE) {
-                        dayExpense += a
-                    } else if (b.type == Bill.TYPE_INCOME) {
-                        dayIncome += a
-                    }
-                }
+            .map { (day, dayAggregate) ->
+                val year = day / 10_000
+                val month = (day / 100) % 100
+                val dayOfMonth = day % 100
                 TimeReport(
-                    dateString = day,
-                    expense = dayExpense,
-                    income = dayIncome,
-                    balance = dayIncome - dayExpense,
-                    bills = dayBills.sortedByDescending { it.time }
+                    dateString = String.format(Locale.getDefault(), "%04d-%02d-%02d", year, month, dayOfMonth),
+                    expense = dayAggregate.expense,
+                    income = dayAggregate.income,
+                    balance = dayAggregate.income - dayAggregate.expense,
+                    bills = dayAggregate.bills.sortedByDescending { it.time }
                 )
             }
             .sortedByDescending { it.dateString }
@@ -569,22 +692,100 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             days.toInt()
         }
 
-        _uiState.update {
-            it.copy(
-                totalExpense = totalExpense,
-                totalIncome = totalIncome,
-                totalTransfer = totalTransfer,
-                totalRepayment = totalRepayment,
-                totalRefund = totalRefund,
-                balance = totalIncome - totalExpense,
-                dailyAvg = totalExpense / activeDays,
-                categoryStatsExpense = categoryStatsExpense,
-                categoryStatsIncome = categoryStatsIncome,
-                timeReports = timeReports,
-                bills = bills
-            )
-        }
+        return state.copy(
+            isLoading = false,
+            totalExpense = totalExpense,
+            totalIncome = totalIncome,
+            totalTransfer = totalTransfer,
+            totalRepayment = totalRepayment,
+            totalRefund = totalRefund,
+            balance = totalIncome - totalExpense,
+            dailyAvg = totalExpense / activeDays,
+            categoryStatsExpense = categoryStatsExpense,
+            categoryStatsIncome = categoryStatsIncome,
+            timeReports = timeReports,
+            bills = bills
+        )
     }
+
+    private fun hasMeaningfulStatsChange(
+        oldState: StatsUiState,
+        newState: StatsUiState,
+        currentBills: List<Bill>
+    ): Boolean {
+        if (oldState.isLoading != newState.isLoading) return true
+        if (oldState.dateLabel != newState.dateLabel) return true
+        if (oldState.year != newState.year || oldState.month != newState.month || oldState.isMonthMode != newState.isMonthMode) {
+            return true
+        }
+        if (oldState.selectedCurrency != newState.selectedCurrency || oldState.selectedBookName != newState.selectedBookName) {
+            return true
+        }
+        if (oldState.totalExpense != newState.totalExpense ||
+            oldState.totalIncome != newState.totalIncome ||
+            oldState.totalTransfer != newState.totalTransfer ||
+            oldState.totalRepayment != newState.totalRepayment ||
+            oldState.totalRefund != newState.totalRefund ||
+            oldState.balance != newState.balance ||
+            oldState.dailyAvg != newState.dailyAvg
+        ) {
+            return true
+        }
+        if (categoryStatsFingerprint(oldState.categoryStatsExpense) != categoryStatsFingerprint(newState.categoryStatsExpense)) {
+            return true
+        }
+        if (categoryStatsFingerprint(oldState.categoryStatsIncome) != categoryStatsFingerprint(newState.categoryStatsIncome)) {
+            return true
+        }
+        if (timeReportsFingerprint(oldState.timeReports) != timeReportsFingerprint(newState.timeReports)) {
+            return true
+        }
+        return billsFingerprint(oldState.bills) != billsFingerprint(currentBills)
+    }
+
+    private fun billsFingerprint(bills: List<Bill>): Long {
+        var acc = 1469598103934665603L
+        bills.forEach { bill ->
+            acc = (acc xor bill.id).times(1099511628211L)
+            acc = (acc xor bill.time).times(1099511628211L)
+            acc = (acc xor bill.type.toLong()).times(1099511628211L)
+            acc = (acc xor bill.subType.toLong()).times(1099511628211L)
+            acc = (acc xor bill.amount.toRawBits()).times(1099511628211L)
+            acc = (acc xor bill.exchangeRate.toRawBits()).times(1099511628211L)
+        }
+        return acc xor bills.size.toLong()
+    }
+
+    private fun categoryStatsFingerprint(items: List<CategoryStat>): Long {
+        var acc = 1125899906842597L
+        items.forEach { item ->
+            acc = (acc * 31) + item.categoryName.hashCode().toLong()
+            acc = (acc * 31) + item.amount.toRawBits()
+            acc = (acc * 31) + item.percentage.toRawBits().toLong()
+            acc = (acc * 31) + item.amountDiffFromLastPeriod.toRawBits()
+        }
+        return acc
+    }
+
+    private fun timeReportsFingerprint(items: List<TimeReport>): Long {
+        var acc = 7809847782465536322L
+        items.forEach { report ->
+            acc = (acc xor report.dateString.hashCode().toLong()).times(1099511628211L)
+            acc = (acc xor report.expense.toRawBits()).times(1099511628211L)
+            acc = (acc xor report.income.toRawBits()).times(1099511628211L)
+            acc = (acc xor report.balance.toRawBits()).times(1099511628211L)
+            acc = (acc xor report.bills.size.toLong()).times(1099511628211L)
+        }
+        return acc
+    }
+
+    private data class CalcPayload(
+        val currentBills: List<Bill>,
+        val prevBills: List<Bill>,
+        val state: StatsUiState,
+        val filterCostMs: Long,
+        val processCostMs: Long
+    )
 
     fun getBillsForCategory(categoryName: String, isExpense: Boolean): List<Bill> {
         return _uiState.value.bills.filter { bill ->

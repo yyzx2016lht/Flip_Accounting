@@ -53,12 +53,21 @@ import java.util.Date
 import java.util.Locale
 
 class AssetDetailActivity : AppCompatActivity() {
+    companion object {
+        private data class AssetDetailCache(
+            val asset: Asset?,
+            val bills: List<Bill>,
+            val updatedAtMs: Long
+        )
+
+        private val detailCacheByAssetId = mutableMapOf<Long, AssetDetailCache>()
+    }
 
     private lateinit var tvBalance: TextView
     private lateinit var tvAssetRemark: TextView
     private lateinit var tvToolbarAssetName: TextView
     private lateinit var rvTransactions: RecyclerView
-    private lateinit var tvBtnSearch: ImageView
+    private lateinit var tvBtnSearch: TextView
     private lateinit var layoutSearchBar: View
     private lateinit var etBillSearch: EditText
     private lateinit var adapter: TransactionAdapter
@@ -111,6 +120,9 @@ class AssetDetailActivity : AppCompatActivity() {
         toolbar.title = ""
         updateSearchButtonState(false)
         tvBtnSearch.setOnClickListener { toggleSearchPanel() }
+        findViewById<View>(R.id.tv_btn_stats).setOnClickListener {
+            startActivity(Intent(this, AssetStatsActivity::class.java).putExtra("ASSET_ID", assetId))
+        }
         etBillSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
@@ -148,10 +160,24 @@ class AssetDetailActivity : AppCompatActivity() {
     }
 
     private fun observeData() {
+        detailCacheByAssetId[assetId]?.let { cached ->
+            currentAsset = cached.asset ?: currentAsset
+            if (cached.asset != null) {
+                updateAssetUI(cached.asset)
+            }
+            allAssetBills = cached.bills
+            applyBillSearch()
+        }
+
         lifecycleScope.launch {
             db.assetDao().observeAssetById(assetId).filterNotNull().collectLatest { asset ->
                 currentAsset = asset
                 updateAssetUI(asset)
+                detailCacheByAssetId[assetId] = AssetDetailCache(
+                    asset = asset,
+                    bills = allAssetBills,
+                    updatedAtMs = System.currentTimeMillis()
+                )
             }
         }
 
@@ -163,6 +189,11 @@ class AssetDetailActivity : AppCompatActivity() {
             db.billDao().getBillsByAssetIdOrName(assetId, assetName).collectLatest { bills ->
                 allAssetBills = bills
                 applyBillSearch()
+                detailCacheByAssetId[assetId] = AssetDetailCache(
+                    asset = currentAsset,
+                    bills = bills,
+                    updatedAtMs = System.currentTimeMillis()
+                )
             }
         }
     }
@@ -188,7 +219,7 @@ class AssetDetailActivity : AppCompatActivity() {
     }
 
     private fun updateSearchButtonState(active: Boolean) {
-        tvBtnSearch.setColorFilter(Color.parseColor(if (active) "#4080FF" else "#333333"))
+        tvBtnSearch.setTextColor(Color.parseColor(if (active) "#4080FF" else "#333333"))
     }
 
     private fun applyBillSearch() {

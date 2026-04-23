@@ -138,7 +138,8 @@ object CsvManager {
                 } else {
                     Bill.SUBTYPE_NORMAL
                 }
-                val normalizedType = normalizeImportedTypeAndSubtype(rawType, rawSubType)
+                val remark = if (iRemark >= 0) cols[iRemark] else ""
+                val normalizedType = normalizeImportedTypeAndSubtype(rawType, rawSubType, remark)
                 val amount = if (iAmount >= 0) cols[iAmount].toDoubleOrNull() ?: return@runCatching else return@runCatching
                 val originalAmount = if (iOriginalAmount >= 0) cols[iOriginalAmount].toDoubleOrNull() ?: amount else amount
                 val currency = if (iCurrency >= 0) cols[iCurrency] else "CNY"
@@ -146,7 +147,6 @@ object CsvManager {
                 val categoryName = if (iCategoryName >= 0) cols[iCategoryName] else ""
                 val accountName = if (iAccountName >= 0) cols[iAccountName] else ""
                 val toAccountName = if (iToAccountName >= 0) cols[iToAccountName] else ""
-                val remark = if (iRemark >= 0) cols[iRemark] else ""
                 val fee = if (iFee >= 0) cols[iFee].toDoubleOrNull() ?: 0.0 else 0.0
                 val bookNameFromCsv = if (iBookName >= 0) cols[iBookName] else ""
                 val relatedBillId = if (iRelatedBillId >= 0) cols[iRelatedBillId].toLongOrNull() else null
@@ -210,11 +210,12 @@ object CsvManager {
                 val accountName = cols.getOrNull(iAccount1)?.trim().orEmpty()
                 val toAccountName = cols.getOrNull(iAccount2)?.trim().orEmpty()
                 val remark = cols.getOrNull(iRemark)?.trim().orEmpty()
+                val normalizedType = normalizeImportedTypeAndSubtype(mappedType.type, mappedType.subType, remark)
 
                 result += Bill(
                     id = 0L,
-                    type = mappedType.type,
-                    subType = mappedType.subType,
+                    type = normalizedType.type,
+                    subType = normalizedType.subType,
                     amount = amount,
                     originalAmount = amount,
                     currency = currency,
@@ -232,8 +233,8 @@ object CsvManager {
         return result
     }
 
-    private fun normalizeImportedTypeAndSubtype(rawType: Int, rawSubType: Int): ImportedBillType {
-        return when {
+    private fun normalizeImportedTypeAndSubtype(rawType: Int, rawSubType: Int, remark: String): ImportedBillType {
+        val normalized = when {
             rawType == Bill.TYPE_REPAYMENT || rawSubType == Bill.SUBTYPE_REPAYMENT ->
                 ImportedBillType(Bill.TYPE_TRANSFER, Bill.SUBTYPE_REPAYMENT)
             rawType in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER) ->
@@ -241,6 +242,22 @@ object CsvManager {
             else ->
                 ImportedBillType(Bill.TYPE_EXPENSE, rawSubType)
         }
+        if (normalized.type == Bill.TYPE_INCOME &&
+            normalized.subType == Bill.SUBTYPE_NORMAL &&
+            isRefundLikeRemark(remark)
+        ) {
+            return ImportedBillType(Bill.TYPE_INCOME, Bill.SUBTYPE_REFUND)
+        }
+        return normalized
+    }
+
+    private fun isRefundLikeRemark(remark: String): Boolean {
+        val text = remark.trim()
+        if (text.isBlank()) return false
+        return text.startsWith("[退款]") ||
+            text.startsWith("【退款】") ||
+            text.startsWith("退款") ||
+            text.contains("退款")
     }
 
     private fun estimateExchangeRate(currency: String): Double {

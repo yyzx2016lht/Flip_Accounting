@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.net.Uri
 import android.app.ActivityManager
 import tao.test.flipaccounting.*
+import android.graphics.Color
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
@@ -38,6 +39,7 @@ import androidx.core.widget.NestedScrollView
 import com.yalantis.ucrop.UCrop
 import java.io.File
 import java.io.FileOutputStream
+import tao.test.flipaccounting.ui.common.StatusBarStyle
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 
 class ProfileFragment : Fragment(R.layout.fragment_profile) {
@@ -74,6 +76,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     override fun onResume() {
         super.onResume()
+        applyProfileStatusBarStyle()
         rootRef?.let { refreshOverlayReminder(it, Prefs.isFlipEnabled(requireContext())) }
         rootRef?.findViewById<View>(R.id.layout_screen_accounting_container)?.visibility =
             if (
@@ -95,6 +98,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
         if (!hidden) {
+            applyProfileStatusBarStyle()
             rootRef?.let { refreshHomeTrendCardSwitch(it) }
         }
     }
@@ -250,6 +254,15 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         appbarLayoutListener = null
         rootRef = null
         super.onDestroyView()
+    }
+
+    private fun applyProfileStatusBarStyle() {
+        if (!isAdded) return
+        StatusBarStyle.applyByColor(
+            window = requireActivity().window,
+            statusBarColor = Color.WHITE,
+            decorFitsSystemWindows = false
+        )
     }
 
 

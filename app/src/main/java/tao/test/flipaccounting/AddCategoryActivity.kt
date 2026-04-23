@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.repository.CategoryRepository
+import tao.test.flipaccounting.ui.common.StatusBarStyle
 
 class AddCategoryActivity : AppCompatActivity() {
 
@@ -147,5 +148,10 @@ class AddCategoryActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        StatusBarStyle.applyByColor(window, Color.WHITE)
     }
 }

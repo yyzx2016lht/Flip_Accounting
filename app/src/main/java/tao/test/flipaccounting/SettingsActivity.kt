@@ -24,6 +24,7 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.repository.CategoryRepository
+import tao.test.flipaccounting.ui.common.StatusBarStyle
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.text.SimpleDateFormat
@@ -95,6 +96,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        StatusBarStyle.applyByColor(window, Color.WHITE)
         if (isSortMode) enterSortMode(activeSortParentId) else renderUI()
     }
 

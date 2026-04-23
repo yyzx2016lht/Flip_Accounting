@@ -28,6 +28,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import android.graphics.drawable.ColorDrawable
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.cardview.widget.CardView
@@ -35,7 +36,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
@@ -74,6 +74,7 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.repository.BillRepository
 import tao.test.flipaccounting.ui.activity.EditBillActivity
+import tao.test.flipaccounting.ui.common.StatusBarStyle
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
@@ -399,12 +400,8 @@ class HomeFragment : Fragment() {
             headerBannerLayout.foreground = android.graphics.drawable.ColorDrawable(
                 android.graphics.Color.argb(whiteOverlay, 255, 255, 255)
             )
-            // 同步状态栏：背景偏白时用深色图标；展开到封面图时恢复浅色图标。
-            val useDarkStatusBarContent = whiteAlpha > 0.5f
-            requireActivity().window.statusBarColor =
-                if (useDarkStatusBarContent) android.graphics.Color.WHITE else android.graphics.Color.TRANSPARENT
-            WindowInsetsControllerCompat(requireActivity().window, requireActivity().window.decorView)
-                .isAppearanceLightStatusBars = useDarkStatusBarContent
+            // 同步状态栏：根据当前顶部背景明暗统一更新图标颜色。
+            syncHomeStatusBarByWhiteOverlay(whiteAlpha)
             // 同步更新固定顶栏图标/文字颜色：白色遮罩 > 50% 时切换为深色（适配白色背景）
             if (whiteAlpha > 0.5f) {
                 applyBannerTextColor(useLightText = false)
@@ -613,6 +610,11 @@ class HomeFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         applyStatusBarForHome()
+        view?.post {
+            if (isAdded && !isHidden) {
+                syncHomeStatusBarByWhiteOverlay(getCurrentHomeWhiteOverlayAlpha())
+            }
+        }
         updateChartTitleLabel()
         refreshTrendCardVisibility(forceResubmit = true)
         syncDateFromSessionIfNeeded()
@@ -659,6 +661,11 @@ class HomeFragment : Fragment() {
         if (!hidden) {
             // hide/show 切回账单页时不会触发 onResume，这里补一次 Home 状态栏样式。
             applyStatusBarForHome()
+            view?.post {
+                if (isAdded && !isHidden) {
+                    syncHomeStatusBarByWhiteOverlay(getCurrentHomeWhiteOverlayAlpha())
+                }
+            }
             updateChartTitleLabel()
             refreshTrendCardVisibility(forceResubmit = true)
             syncDateFromSessionIfNeeded()
@@ -878,10 +885,34 @@ class HomeFragment : Fragment() {
 
     private fun applyStatusBarForHome() {
         uiListController.applyStatusBarForHome()
+        syncHomeStatusBarByWhiteOverlay(getCurrentHomeWhiteOverlayAlpha())
     }
 
     private fun restoreDefaultStatusBarForOtherTabs() {
         uiListController.restoreDefaultStatusBarForOtherTabs()
+    }
+
+    private fun getCurrentHomeWhiteOverlayAlpha(): Float {
+        val overlayAlpha = (headerBannerLayout.foreground as? ColorDrawable)?.alpha
+        if (overlayAlpha != null) {
+            return (overlayAlpha / 255f).coerceIn(0f, 1f)
+        }
+        val appBar = homeAppBar ?: return 0f
+        val totalScrollRange = appBar.totalScrollRange
+        if (totalScrollRange <= 0) return 0f
+        val fraction = (-appBarVerticalOffset).toFloat() / totalScrollRange.toFloat()
+        return ((fraction - 0.5f) * 2f).coerceIn(0f, 1f)
+    }
+
+    private fun syncHomeStatusBarByWhiteOverlay(whiteAlpha: Float) {
+        if (!isAdded) return
+        val useDarkStatusBarContent = whiteAlpha > 0.5f
+        val window = requireActivity().window
+        StatusBarStyle.apply(
+            window = window,
+            statusBarColor = if (useDarkStatusBarContent) Color.WHITE else Color.TRANSPARENT,
+            isLightBackground = useDarkStatusBarContent
+        )
     }
 
     private fun ensureChartController(): HomeChartController {

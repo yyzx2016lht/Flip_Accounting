@@ -3,6 +3,9 @@
 import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
+import android.view.Choreographer
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -33,6 +36,8 @@ import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.BookAccountManager
@@ -51,6 +56,17 @@ import kotlin.math.min
 import kotlin.math.sin
 
 class StatsFragment : Fragment() {
+    companion object {
+        private const val TAG = "StatsFragment"
+        private const val ENABLE_JANK_MONITOR = false
+        private const val CHART_ANIMATE_MAX_ITEMS = 6
+        private const val CHART_ANIMATE_MAX_BILLS = 120
+        private const val CHART_HEAVY_BILLS_THRESHOLD = 180
+        private const val CHART_HEAVY_CATEGORIES_THRESHOLD = 8
+        private const val CHART_HEAVY_RENDER_DELAY_MS = 96L
+        private const val MODE_SWITCH_ANIM_MIN_INTERVAL_MS = 360L
+        private const val ENTER_ANIM_DURATION_MS = 120L
+    }
 
     /** 与首页共享的时间状态（Activity 作用域） */
     private val homeViewModel: HomeViewModel by activityViewModels()
@@ -100,6 +116,35 @@ class StatsFragment : Fragment() {
 
     private var isOverviewExpanded = false
     private var lastModeIsMonth: Boolean? = null
+    private var lastHostSyncSignature: String? = null
+    private var lastScreenRenderKey: Long? = null
+    private var lastCategoryListRenderKey: Long? = null
+    private var lastChartRenderKey: Long? = null
+    private var chartRenderJob: Job? = null
+    private var hasPlayedEnterAnimation = false
+    private var lastModeSwitchAnimAt = 0L
+    private var frameCallbackPosted = false
+    private var lastFrameNs = 0L
+    private var frameSampleUntilMs = 0L
+    private var perfStage = "idle"
+    private val frameCallback: Choreographer.FrameCallback = Choreographer.FrameCallback { frameTimeNanos ->
+        if (!frameCallbackPosted) return@FrameCallback
+        if (lastFrameNs != 0L) {
+            val deltaMs = (frameTimeNanos - lastFrameNs) / 1_000_000.0
+            if (deltaMs >= 24.0) {
+                Log.w(TAG, "jank frame: ${"%.1f".format(Locale.US, deltaMs)}ms stage=$perfStage")
+            }
+        }
+        lastFrameNs = frameTimeNanos
+        if (SystemClock.elapsedRealtime() <= frameSampleUntilMs) {
+            Choreographer.getInstance().postFrameCallback(frameCallback)
+        } else {
+            frameCallbackPosted = false
+            lastFrameNs = 0L
+            perfStage = "idle"
+            Log.d(TAG, "jank monitor stop: timeout")
+        }
+    }
 
     private val chartColors = listOf(
         "#FF9800", "#FF5722", "#00C853", "#8BC34A", "#2196F3", "#03A9F4", "#9C27B0", "#E91E63"
@@ -121,14 +166,19 @@ class StatsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        syncDateFromHomeIfNeeded()
-        syncBookFromGlobalIfNeeded()
+        syncHostSelectionIfNeeded("onViewCreated")
     }
 
     override fun onResume() {
         super.onResume()
-        syncDateFromHomeIfNeeded()
-        syncBookFromGlobalIfNeeded()
+        syncHostSelectionIfNeeded("onResume")
+        playEnterAnimationIfNeeded()
+        startJankMonitor("onResume")
+    }
+
+    override fun onPause() {
+        stopJankMonitor("onPause")
+        super.onPause()
     }
 
     /**
@@ -139,8 +189,10 @@ class StatsFragment : Fragment() {
         super.onHiddenChanged(hidden)
         if (!hidden) {
             // Fragment 从隐藏变为可见（即切换到统计 Tab）
-            syncDateFromHomeIfNeeded()
-            syncBookFromGlobalIfNeeded()
+            syncHostSelectionIfNeeded("onHiddenChanged:show")
+            startJankMonitor("onHiddenChanged:show")
+        } else {
+            stopJankMonitor("onHiddenChanged:hidden")
         }
     }
 
@@ -158,6 +210,28 @@ class StatsFragment : Fragment() {
         if (statsState.year != targetYear || statsState.month != targetMonth) {
             viewModel.setYearMonth(targetYear, targetMonth)
         }
+    }
+
+    private fun syncHostSelectionIfNeeded(reason: String) {
+        val homeState = homeViewModel.uiState.value
+        val targetYear = homeState.selectedYear
+        val targetMonth = (homeState.selectedMonth - 1).coerceIn(0, 11)
+        val globalBook = BookAccountManager.normalizeBookName(BookAccountManager.getSelectedBook(requireContext()))
+        val targetBookFilter = if (globalBook == BookAccountManager.ALL_BOOK) null else globalBook
+        val signature = "$targetYear|$targetMonth|${targetBookFilter.orEmpty()}"
+        val current = viewModel.uiState.value
+        val currentBook = current.selectedBookName?.let { BookAccountManager.normalizeBookName(it) }
+        if (signature == lastHostSyncSignature &&
+            current.year == targetYear &&
+            current.month == targetMonth &&
+            currentBook == targetBookFilter &&
+            current.bills.isNotEmpty()
+        ) {
+            return
+        }
+        lastHostSyncSignature = signature
+        Log.d(TAG, "syncHostSelectionIfNeeded: reason=$reason, signature=$signature")
+        viewModel.syncHostSelection(targetYear, targetMonth, targetBookFilter)
     }
 
     private fun syncHomeDateFromStatsIfNeeded(state: StatsUiState) {
@@ -217,6 +291,7 @@ class StatsFragment : Fragment() {
         rvCategoryList.layoutManager = LinearLayoutManager(context)
         rvCategoryList.isNestedScrollingEnabled = false
         rvCategoryList.overScrollMode = View.OVER_SCROLL_NEVER
+        rvCategoryList.itemAnimator = null
         categoryAdapter = CategoryStatsAdapter(
             chartColors = chartColors,
             items = emptyList(),
@@ -345,7 +420,14 @@ class StatsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
-                    updateUI(state)
+                    if (state.isLoading && state.bills.isEmpty() && lastScreenRenderKey == null) {
+                        return@collect
+                    }
+                    val screenRenderKey = buildScreenRenderKey(state)
+                    if (screenRenderKey != lastScreenRenderKey) {
+                        updateUI(state)
+                        lastScreenRenderKey = screenRenderKey
+                    }
                     syncHomeDateFromStatsIfNeeded(state)
                 }
             }
@@ -353,6 +435,8 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateUI(state: StatsUiState) {
+        perfStage = "updateUI:bindSummary"
+        val updateStart = SystemClock.elapsedRealtime()
         val modeChanged = lastModeIsMonth != null && lastModeIsMonth != state.isMonthMode
         val symbol = state.selectedCurrency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
 
@@ -380,7 +464,7 @@ class StatsFragment : Fragment() {
         btnNextDate.contentDescription = if (state.isMonthMode) "下个月" else "下一年"
         updateModeTabStyles(state.isMonthMode)
         updateCategoryTabStyles(isCategoryExpense)
-        if (modeChanged) playModeSwitchAnimation()
+        if (modeChanged) playModeSwitchAnimation(state)
         lastModeIsMonth = state.isMonthMode
 
         tvBalance.setTextColor(
@@ -392,27 +476,69 @@ class StatsFragment : Fragment() {
         )
 
         val hasData = state.bills.isNotEmpty()
-        emptyStateContainer.visibility = if (hasData) View.GONE else View.VISIBLE
-        statsContentContainer.visibility = if (hasData) View.VISIBLE else View.GONE
-
-        updateCategoryChart(state)
+        val showLoadingPlaceholder = state.isLoading && !hasData
+        emptyStateContainer.visibility = if (!hasData && !showLoadingPlaceholder) View.VISIBLE else View.GONE
+        statsContentContainer.visibility = if (hasData || showLoadingPlaceholder) View.VISIBLE else View.GONE
 
         val list = if (isCategoryExpense) state.categoryStatsExpense else state.categoryStatsIncome
-        categoryAdapter.submitList(list, isCategoryExpense, symbol)
+        val listRenderKey = buildCategoryListRenderKey(list, isCategoryExpense, symbol)
+        val shouldSkipTransientEmptyList = state.isLoading && list.isEmpty() && lastCategoryListRenderKey == null
+        if (!shouldSkipTransientEmptyList && listRenderKey != lastCategoryListRenderKey) {
+            perfStage = "updateUI:submitList"
+            categoryAdapter.submitList(list, isCategoryExpense, symbol)
+            lastCategoryListRenderKey = listRenderKey
+        }
+
+        perfStage = "updateUI:scheduleChart"
+        if (!shouldSkipTransientEmptyList) {
+            scheduleCategoryChartUpdate(state, list.size)
+        }
+
+        val cost = SystemClock.elapsedRealtime() - updateStart
+        Log.d(TAG, "updateUI done: bills=${state.bills.size}, list=${list.size}, costMs=$cost")
+        perfStage = "idle"
     }
 
-    private fun playModeSwitchAnimation() {
-        val targets = listOf<View>(tvDateSelector, pieChart, statsContentContainer)
-        targets.forEach { v ->
-            v.animate().cancel()
-            v.alpha = 0.62f
-            v.translationY = 8f
-            v.animate()
+    private fun scheduleCategoryChartUpdate(state: StatsUiState, listSize: Int) {
+        val isHeavyRender = state.bills.size > CHART_ANIMATE_MAX_BILLS || listSize > CHART_ANIMATE_MAX_ITEMS
+        val delayMs = if (isHeavyRender) CHART_HEAVY_RENDER_DELAY_MS else 0L
+        chartRenderJob?.cancel()
+        chartRenderJob = viewLifecycleOwner.lifecycleScope.launch {
+            val effectiveDelay = if (delayMs <= 0L) 18L else delayMs
+            perfStage = if (effectiveDelay == 18L) "chart:nextFrame" else "chart:delayed(${effectiveDelay}ms)"
+            delay(effectiveDelay)
+            if (!isAdded) return@launch
+            perfStage = "chart:delayedRender"
+            updateCategoryChart(viewModel.uiState.value)
+        }
+    }
+
+    private fun playEnterAnimationIfNeeded() {
+        if (hasPlayedEnterAnimation) return
+        hasPlayedEnterAnimation = true
+        val targets = listOf(topPanel, statsContentContainer)
+        targets.forEach { view ->
+            view.animate().cancel()
+            view.alpha = 0.94f
+            view.animate()
                 .alpha(1f)
-                .translationY(0f)
-                .setDuration(180L)
+                .setDuration(ENTER_ANIM_DURATION_MS)
                 .start()
         }
+    }
+
+    private fun playModeSwitchAnimation(state: StatsUiState) {
+        // Large datasets prioritize responsiveness over transition effects.
+        if (state.bills.size >= CHART_ANIMATE_MAX_BILLS) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastModeSwitchAnimAt < MODE_SWITCH_ANIM_MIN_INTERVAL_MS) return
+        lastModeSwitchAnimAt = now
+        tvDateSelector.animate().cancel()
+        tvDateSelector.alpha = 0.86f
+        tvDateSelector.animate()
+            .alpha(1f)
+            .setDuration(90L)
+            .start()
     }
 
     private fun setupPieChart() {
@@ -424,7 +550,7 @@ class StatsFragment : Fragment() {
         pieChart.setTransparentCircleAlpha(0)
         pieChart.holeRadius = 58f
         pieChart.rotationAngle = 270f
-        pieChart.isRotationEnabled = true
+        pieChart.isRotationEnabled = false
         pieChart.setEntryLabelColor(Color.TRANSPARENT)
         pieChart.setExtraOffsets(22f, 18f, 22f, 18f)
         pieChart.setNoDataText("暂无图表数据")
@@ -448,6 +574,8 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateCategoryChart(state: StatsUiState) {
+        perfStage = "chart:updateCategoryChart"
+        val chartStart = SystemClock.elapsedRealtime()
         val targetStats = if (isCategoryExpense) state.categoryStatsExpense else state.categoryStatsIncome
         val total = targetStats.sumOf { it.amount }
 
@@ -460,35 +588,58 @@ class StatsFragment : Fragment() {
             // 不做 TopN 裁剪：尽量全部显示，仅隐藏占比 < 2% 的分类
             val filteredStats = targetStats.filter { it.percentage >= 2f }.sortedBy { it.amount }
             if (filteredStats.isEmpty()) {
+                val emptyKey = buildChartRenderKey(state, filteredStats, 0.0)
+                if (emptyKey == lastChartRenderKey) return
+                lastChartRenderKey = emptyKey
                 pieChart.clear()
                 pieChart.setNoDataText("暂无占比≥2%的分类")
                 pieChart.invalidate()
                 categoryAdapter.setColorMap(colorByName)
                 return
             }
+            val visibleTotal = filteredStats.sumOf { it.amount }
+            val chartRenderKey = buildChartRenderKey(state, filteredStats, visibleTotal)
+            if (chartRenderKey == lastChartRenderKey) {
+                categoryAdapter.setColorMap(colorByName)
+                return
+            }
+            lastChartRenderKey = chartRenderKey
+
             val pieEntries = filteredStats.map { PieEntry(it.amount.toFloat(), it.categoryName) }
             val sliceColors = filteredStats.map { colorByName[it.categoryName] ?: chartColors[0] }
+            val isHeavyChart = state.bills.size >= CHART_HEAVY_BILLS_THRESHOLD ||
+                filteredStats.size >= CHART_HEAVY_CATEGORIES_THRESHOLD
             val labelSize = when {
                 filteredStats.size >= 12 -> 7.5f
                 filteredStats.size >= 9 -> 8.0f
                 else -> 9.0f
             }
+            val useOutsideLabel = !isHeavyChart && filteredStats.size <= 10
 
             val pieDataSet = PieDataSet(pieEntries, "").apply {
                 colors = sliceColors
-                xValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
-                yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
+                xValuePosition = if (useOutsideLabel) {
+                    PieDataSet.ValuePosition.OUTSIDE_SLICE
+                } else {
+                    PieDataSet.ValuePosition.INSIDE_SLICE
+                }
+                yValuePosition = if (useOutsideLabel) {
+                    PieDataSet.ValuePosition.OUTSIDE_SLICE
+                } else {
+                    PieDataSet.ValuePosition.INSIDE_SLICE
+                }
                 valueLinePart1OffsetPercentage = 100f
                 valueLinePart1Length = if (filteredStats.size >= 10) 0.22f else 0.30f
                 valueLinePart2Length = if (filteredStats.size >= 10) 0.55f else 0.78f
                 selectionShift = 4f
-                setValueLineVariableLength(true)
-                setUsingSliceColorAsValueLineColor(true)
-                valueTextSize = labelSize
-                setValueTextColors(sliceColors)
+                setValueLineVariableLength(useOutsideLabel)
+                setUsingSliceColorAsValueLineColor(useOutsideLabel)
+                valueTextSize = if (isHeavyChart) 0f else labelSize
+                setValueTextColors(if (isHeavyChart) listOf(Color.TRANSPARENT) else sliceColors)
                 valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
                     override fun getFormattedValue(value: Float): String = ""
                     override fun getPieLabel(value: Float, pieEntry: PieEntry): String {
+                        if (isHeavyChart) return ""
                         val pct = if (total > 0) (pieEntry.value / total * 100f) else 0f
                         return "${pieEntry.label} ${String.format(java.util.Locale.getDefault(), "%.1f%%", pct)}"
                     }
@@ -496,24 +647,93 @@ class StatsFragment : Fragment() {
             }
 
             pieChart.data = PieData(pieDataSet)
-            val visibleTotal = filteredStats.sumOf { it.amount }
             val centerTitle = if (isCategoryExpense) "支出占比" else "收入占比"
             val symbol = state.selectedCurrency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
             pieChart.centerText = "$centerTitle\n${String.format(Locale.getDefault(), "%s%.2f", symbol, visibleTotal)}"
-            pieChart.rotationAngle = findBestInitialRotation(pieEntries.map { it.value })
+            pieChart.rotationAngle = 270f
             pieChart.setCenterTextSize(12f)
             pieChart.setCenterTextColor(Color.parseColor("#374151"))
             pieChart.setDrawEntryLabels(false)
-            pieChart.animateY(260)
+            pieChart.isRotationEnabled = !isHeavyChart
+            pieChart.setTouchEnabled(!isHeavyChart)
 
             // 把颜色映射同步给列表 Adapter，使图标背景色/进度条颜色与饼图一致
             categoryAdapter.setColorMap(colorByName)
         } else {
+            val emptyKey = buildChartRenderKey(state, emptyList(), 0.0)
+            if (emptyKey == lastChartRenderKey) return
+            lastChartRenderKey = emptyKey
             pieChart.clear()
         }
 
         pieChart.legend.isEnabled = false
+        perfStage = "chart:invalidate"
         pieChart.invalidate()
+        val cost = SystemClock.elapsedRealtime() - chartStart
+        Log.d(TAG, "updateCategoryChart done: stats=${targetStats.size}, costMs=$cost")
+        perfStage = "idle"
+    }
+
+    private fun buildScreenRenderKey(state: StatsUiState): Long {
+        var acc = 1469598103934665603L
+        acc = (acc xor state.year.toLong()).times(1099511628211L)
+        acc = (acc xor state.month.toLong()).times(1099511628211L)
+        acc = (acc xor if (state.isMonthMode) 1L else 0L).times(1099511628211L)
+        acc = (acc xor state.dateLabel.hashCode().toLong()).times(1099511628211L)
+        acc = (acc xor state.totalExpense.toRawBits()).times(1099511628211L)
+        acc = (acc xor state.totalIncome.toRawBits()).times(1099511628211L)
+        acc = (acc xor state.balance.toRawBits()).times(1099511628211L)
+        acc = (acc xor state.dailyAvg.toRawBits()).times(1099511628211L)
+        acc = (acc xor state.totalTransfer.toRawBits()).times(1099511628211L)
+        acc = (acc xor state.totalRepayment.toRawBits()).times(1099511628211L)
+        acc = (acc xor state.totalRefund.toRawBits()).times(1099511628211L)
+        acc = (acc xor categoryStatsFingerprint(state.categoryStatsExpense)).times(1099511628211L)
+        acc = (acc xor categoryStatsFingerprint(state.categoryStatsIncome)).times(1099511628211L)
+        return acc xor state.bills.size.toLong()
+    }
+
+    private fun buildCategoryListRenderKey(
+        list: List<CategoryStat>,
+        isExpense: Boolean,
+        symbol: String
+    ): Long {
+        var acc = if (isExpense) 1L else 2L
+        acc = (acc * 31) + symbol.hashCode().toLong()
+        list.forEach {
+            acc = (acc * 31) + it.categoryName.hashCode().toLong()
+            acc = (acc * 31) + it.amount.toRawBits()
+            acc = (acc * 31) + it.percentage.toRawBits().toLong()
+            acc = (acc * 31) + it.amountDiffFromLastPeriod.toRawBits()
+        }
+        return acc
+    }
+
+    private fun buildChartRenderKey(
+        state: StatsUiState,
+        list: List<CategoryStat>,
+        visibleTotal: Double
+    ): Long {
+        var acc = if (isCategoryExpense) 17L else 29L
+        acc = (acc * 31) + (state.selectedCurrency?.hashCode()?.toLong() ?: 0L)
+        acc = (acc * 31) + state.bills.size.toLong()
+        acc = (acc * 31) + visibleTotal.toRawBits()
+        list.forEach {
+            acc = (acc * 31) + it.categoryName.hashCode().toLong()
+            acc = (acc * 31) + it.amount.toRawBits()
+            acc = (acc * 31) + it.percentage.toRawBits().toLong()
+        }
+        return acc
+    }
+
+    private fun categoryStatsFingerprint(items: List<CategoryStat>): Long {
+        var acc = 1125899906842597L
+        items.forEach { item ->
+            acc = (acc * 31) + item.categoryName.hashCode().toLong()
+            acc = (acc * 31) + item.amount.toRawBits()
+            acc = (acc * 31) + item.percentage.toRawBits().toLong()
+            acc = (acc * 31) + item.amountDiffFromLastPeriod.toRawBits()
+        }
+        return acc
     }
 
     /**
@@ -717,6 +937,26 @@ class StatsFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun startJankMonitor(reason: String) {
+        if (!ENABLE_JANK_MONITOR) return
+        frameSampleUntilMs = SystemClock.elapsedRealtime() + 5000L
+        if (frameCallbackPosted) return
+        frameCallbackPosted = true
+        lastFrameNs = 0L
+        perfStage = "starting"
+        Log.d(TAG, "jank monitor start: $reason")
+        Choreographer.getInstance().postFrameCallback(frameCallback)
+    }
+
+    private fun stopJankMonitor(reason: String) {
+        if (!ENABLE_JANK_MONITOR) return
+        if (!frameCallbackPosted) return
+        frameCallbackPosted = false
+        lastFrameNs = 0L
+        perfStage = "idle"
+        Log.d(TAG, "jank monitor stop: $reason")
     }
 
     private fun showCustomFilterSheet() {

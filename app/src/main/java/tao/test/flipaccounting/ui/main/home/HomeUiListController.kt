@@ -4,7 +4,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -12,6 +11,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import tao.test.flipaccounting.MainActivity
 import tao.test.flipaccounting.R
+import tao.test.flipaccounting.ui.common.StatusBarStyle
 
 internal class HomeUiListController(
     private val fragment: Fragment,
@@ -161,8 +161,6 @@ internal class HomeUiListController(
         if (!fragment.isAdded) return
         val window = fragment.requireActivity().window
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
 
         val statusBar = getStatusBarHeight()
         val topLp = layoutStickyTopBar.layoutParams as? ViewGroup.MarginLayoutParams
@@ -188,9 +186,11 @@ internal class HomeUiListController(
     fun restoreDefaultStatusBarForOtherTabs() {
         if (!fragment.isAdded) return
         val window = fragment.requireActivity().window
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.WHITE
-        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
+        StatusBarStyle.applyByColor(
+            window = window,
+            statusBarColor = android.graphics.Color.WHITE,
+            decorFitsSystemWindows = false
+        )
     }
 
     fun applyHomeCollapseByScroll(offsetPx: Int) {

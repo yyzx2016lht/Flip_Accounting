@@ -160,8 +160,20 @@ interface BillDao {
            OR toAccountId = :assetId
            OR (:assetName != '' AND accountName = :assetName)
            OR (:assetName != '' AND toAccountName = :assetName)
+        ORDER BY time DESC, id DESC
     """)
     suspend fun getBillsByAssetIdOrNameList(assetId: Long, assetName: String): List<Bill>
+
+    @Query("""
+        SELECT * FROM bills
+        WHERE accountId = :assetId
+           OR toAccountId = :assetId
+           OR (:assetName != '' AND accountName = :assetName)
+           OR (:assetName != '' AND toAccountName = :assetName)
+        ORDER BY time DESC, id DESC
+        LIMIT :limit
+    """)
+    suspend fun getBillsByAssetIdOrNameListLimited(assetId: Long, assetName: String, limit: Int): List<Bill>
 
     /** 查询某分类下的所有账单 */
     @Query("SELECT * FROM bills WHERE categoryId = :categoryId")

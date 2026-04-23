@@ -1,124 +1,1260 @@
 package tao.test.flipaccounting.ui.main.assets
 
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.PieChart
-import com.github.mikephil.charting.data.*
-import kotlinx.coroutines.flow.first
+import com.github.mikephil.charting.components.MarkerView
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.BarData
+import com.github.mikephil.charting.data.BarDataSet
+import com.github.mikephil.charting.data.BarEntry
+import com.github.mikephil.charting.data.PieData
+import com.github.mikephil.charting.data.PieDataSet
+import com.github.mikephil.charting.data.PieEntry
+import com.github.mikephil.charting.formatter.ValueFormatter
+import com.github.mikephil.charting.highlight.Highlight
+import com.github.mikephil.charting.listener.ChartTouchListener
+import com.github.mikephil.charting.listener.OnChartGestureListener
+import com.github.mikephil.charting.utils.MPPointD
+import com.github.mikephil.charting.utils.MPPointF
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
+import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.Bill
-import java.util.*
+import tao.test.flipaccounting.logic.BillAssetImpactService
+import tao.test.flipaccounting.logic.BillDisplayFormatter
+import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
+import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 class AssetStatsActivity : AppCompatActivity() {
+    companion object {
+        private const val TAG_BAR = "AssetStatsBar"
+        private const val INITIAL_BILL_LIST_SIZE = 50
+        private const val BILL_LIST_STEP_SIZE = 200
 
+        private data class AssetStatsCache(
+            val asset: Asset,
+            val bills: List<Bill>,
+            val updatedAtMs: Long
+        )
+
+        private val assetStatsCacheByAssetId = mutableMapOf<Long, AssetStatsCache>()
+    }
+
+    private enum class PeriodMode { YEAR, MONTH }
+    private enum class ChartMode { EXPENSE, INCOME }
+    private enum class DateChipType { YEAR, MONTH }
+
+    private data class DateChipItem(
+        val type: DateChipType,
+        val year: Int,
+        val month: Int? = null
+    )
+
+    private data class SectionHeaderRow(
+        val title: String,
+        val income: Double,
+        val expense: Double
+    )
+
+    private data class BillRow(val bill: Bill)
+
+    private lateinit var tvToolbarTitle: TextView
+    private lateinit var tvPeriodLabel: TextView
+    private lateinit var rvDateStrip: RecyclerView
+    private lateinit var rvBillList: RecyclerView
     private lateinit var barChart: BarChart
     private lateinit var pieChart: PieChart
-    private var assetId: Long = -1
+
+    private lateinit var tvTotalExpense: TextView
+    private lateinit var tvTotalIncome: TextView
+    private lateinit var tvBalance: TextView
+    private lateinit var tvTotalTransfer: TextView
+    private lateinit var tvTotalRefund: TextView
+    private lateinit var tvTotalCount: TextView
+
+    private lateinit var btnBarExpense: TextView
+    private lateinit var btnBarIncome: TextView
+    private lateinit var btnPieExpense: TextView
+    private lateinit var btnPieIncome: TextView
+
+    private lateinit var dateStripAdapter: DateStripAdapter
+    private lateinit var billAdapter: AssetStatsBillAdapter
+
+    private var assetId: Long = -1L
+    private var currentAsset: Asset? = null
+    private var allAssetBills: List<Bill> = emptyList()
+    private var dateChips: List<DateChipItem> = emptyList()
+
+    private var periodMode: PeriodMode = PeriodMode.YEAR
+    private var barMode: ChartMode = ChartMode.EXPENSE
+    private var pieMode: ChartMode = ChartMode.EXPENSE
+    private var selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR)
+    private var selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH) + 1
+    private var currentBarLabels: List<String> = emptyList()
+    private var currentBarValues: List<Float> = emptyList()
+    private var selectedBarIndex: Int? = null
+    private var loadSequence: Int = 0
+    private var fullBillsLoadJob: Job? = null
+    private var billListProgressJob: Job? = null
+    private val filteredBillsCache = mutableMapOf<String, List<Bill>>()
+    private lateinit var barMarker: AssetBarMarkerView
+
+    private val dfMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault())
+    private val dfMonthTitle = SimpleDateFormat("MM月", Locale.getDefault())
+    private val dfDayTitle = SimpleDateFormat("MM.dd", Locale.getDefault())
+    private val dfWeekday = SimpleDateFormat("E", Locale.CHINESE)
+    private val dfBillDate = SimpleDateFormat("MM-dd", Locale.getDefault())
+
     private val db by lazy { AppDatabase.getDatabase(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_asset_stats)
 
-        assetId = intent.getLongExtra("ASSET_ID", -1)
-        if (assetId == -1L) {
+        assetId = intent.getLongExtra("ASSET_ID", -1L)
+        if (assetId <= 0L) {
             finish()
             return
         }
 
         initViews()
-        loadData()
+        initListeners()
+        initCharts()
+        loadAssetAndBills()
+    }
+
+    override fun onDestroy() {
+        fullBillsLoadJob?.cancel()
+        billListProgressJob?.cancel()
+        super.onDestroy()
     }
 
     private fun initViews() {
-        findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
+        tvToolbarTitle = findViewById(R.id.tv_toolbar_title)
+        tvPeriodLabel = findViewById(R.id.tv_period_label)
+        rvDateStrip = findViewById(R.id.rv_date_strip)
+        rvBillList = findViewById(R.id.rv_bill_list)
         barChart = findViewById(R.id.bar_chart)
         pieChart = findViewById(R.id.pie_chart)
-        
-        setupCharts()
+
+        tvTotalExpense = findViewById(R.id.tv_total_expense)
+        tvTotalIncome = findViewById(R.id.tv_total_income)
+        tvBalance = findViewById(R.id.tv_balance)
+        tvTotalTransfer = findViewById(R.id.tv_total_transfer)
+        tvTotalRefund = findViewById(R.id.tv_total_refund)
+        tvTotalCount = findViewById(R.id.tv_total_count)
+
+        btnBarExpense = findViewById(R.id.btn_bar_expense)
+        btnBarIncome = findViewById(R.id.btn_bar_income)
+        btnPieExpense = findViewById(R.id.btn_pie_expense)
+        btnPieIncome = findViewById(R.id.btn_pie_income)
+
+        dateStripAdapter = DateStripAdapter { item ->
+            when (item.type) {
+                DateChipType.YEAR -> {
+                    periodMode = PeriodMode.YEAR
+                    selectedYear = item.year
+                }
+                DateChipType.MONTH -> {
+                    periodMode = PeriodMode.MONTH
+                    selectedYear = item.year
+                    selectedMonth = item.month ?: 1
+                }
+            }
+            renderAll()
+        }
+        rvDateStrip.layoutManager = LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
+        rvDateStrip.adapter = dateStripAdapter
+
+        billAdapter = AssetStatsBillAdapter(
+            currencyProvider = { currentAsset?.currency ?: "CNY" },
+            amountProvider = { bill -> amountForAssetRow(bill, assetId) }
+        )
+        rvBillList.layoutManager = LinearLayoutManager(this)
+        rvBillList.adapter = billAdapter
     }
 
-    private fun setupCharts() {
+    private fun initListeners() {
+        findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
+        findViewById<View>(R.id.layout_asset_switch).setOnClickListener { switchAsset() }
+        findViewById<View>(R.id.btn_filter).setOnClickListener { showPeriodPicker() }
+
+        btnBarExpense.setOnClickListener {
+            barMode = ChartMode.EXPENSE
+            updateBarToggleState()
+            renderBarChart(filteredBills())
+        }
+        btnBarIncome.setOnClickListener {
+            barMode = ChartMode.INCOME
+            updateBarToggleState()
+            renderBarChart(filteredBills())
+        }
+        btnPieExpense.setOnClickListener {
+            pieMode = ChartMode.EXPENSE
+            updatePieToggleState()
+            renderPieChart(filteredBills())
+        }
+        btnPieIncome.setOnClickListener {
+            pieMode = ChartMode.INCOME
+            updatePieToggleState()
+            renderPieChart(filteredBills())
+        }
+    }
+
+    private fun initCharts() {
         barChart.description.isEnabled = false
-        barChart.xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
         barChart.axisRight.isEnabled = false
         barChart.legend.isEnabled = false
         barChart.setNoDataText("暂无图表数据")
         barChart.setNoDataTextColor(Color.parseColor("#9AA0A6"))
+        barChart.setDrawGridBackground(false)
+        barChart.setTouchEnabled(true)
+        barChart.isDragEnabled = false
+        barChart.setScaleEnabled(false)
+        barChart.setPinchZoom(false)
+        barChart.isDoubleTapToZoomEnabled = false
+        // We resolve nearest column manually in onChartSingleTapped; disable default pixel-hit highlight
+        // to avoid it clearing our highlight immediately when tap doesn't hit bar pixels.
+        barChart.isHighlightPerTapEnabled = false
+        barChart.setDrawMarkers(true)
+        barChart.setMinOffset(0f)
+        barChart.axisLeft.axisMinimum = 0f
+        barChart.axisLeft.setDrawLabels(false)
+        barChart.axisLeft.setDrawGridLines(false)
+        barChart.axisLeft.setDrawAxisLine(false)
+
+        barChart.xAxis.position = XAxis.XAxisPosition.BOTTOM
+        barChart.xAxis.gridColor = Color.TRANSPARENT
+        barChart.xAxis.textColor = Color.parseColor("#757D88")
+        barChart.xAxis.textSize = 10f
+        barChart.xAxis.setGranularityEnabled(true)
+        barChart.xAxis.granularity = 1f
+        barChart.xAxis.setDrawAxisLine(true)
+        barChart.xAxis.axisLineColor = Color.parseColor("#B7BEC7")
+        barChart.xAxis.axisLineWidth = 0.8f
+        barChart.xAxis.setCenterAxisLabels(false)
+        barChart.xAxis.setAvoidFirstLastClipping(false)
+        barChart.xAxis.setDrawGridLines(false)
+        barChart.setExtraOffsets(0f, 0f, 0f, 0f)
+
+        barMarker = AssetBarMarkerView(this) { index ->
+            buildBarMarkerText(index)
+        }
+        barChart.marker = barMarker
+        barMarker.chartView = barChart
+        barChart.setOnChartValueSelectedListener(object : com.github.mikephil.charting.listener.OnChartValueSelectedListener {
+            override fun onValueSelected(e: com.github.mikephil.charting.data.Entry?, h: Highlight?) {
+                Log.d(TAG_BAR, "onValueSelected: entryX=${e?.x}, entryY=${e?.y}, highlightX=${h?.x}, ds=${h?.dataSetIndex}")
+                barChart.invalidate()
+            }
+            override fun onNothingSelected() {
+                Log.d(TAG_BAR, "onNothingSelected")
+            }
+        })
+        barChart.onChartGestureListener = object : OnChartGestureListener {
+            override fun onChartSingleTapped(me: android.view.MotionEvent?) {
+                if (me == null || currentBarValues.isEmpty()) return
+                Log.d(TAG_BAR, "onChartSingleTapped: touchX=${me.x}, touchY=${me.y}, valueCount=${currentBarValues.size}")
+                highlightNearestBarByTouch(me.x, me.y)
+            }
+            override fun onChartGestureStart(me: android.view.MotionEvent?, lastPerformedGesture: ChartTouchListener.ChartGesture?) = Unit
+            override fun onChartGestureEnd(me: android.view.MotionEvent?, lastPerformedGesture: ChartTouchListener.ChartGesture?) = Unit
+            override fun onChartLongPressed(me: android.view.MotionEvent?) = Unit
+            override fun onChartDoubleTapped(me: android.view.MotionEvent?) = Unit
+            override fun onChartFling(me1: android.view.MotionEvent?, me2: android.view.MotionEvent?, velocityX: Float, velocityY: Float) = Unit
+            override fun onChartScale(me: android.view.MotionEvent?, scaleX: Float, scaleY: Float) = Unit
+            override fun onChartTranslate(me: android.view.MotionEvent?, dX: Float, dY: Float) = Unit
+        }
 
         pieChart.description.isEnabled = false
+        pieChart.legend.isEnabled = false
         pieChart.isDrawHoleEnabled = true
         pieChart.setHoleColor(Color.TRANSPARENT)
+        pieChart.setUsePercentValues(true)
+        pieChart.setTransparentCircleAlpha(0)
+        pieChart.holeRadius = 58f
+        pieChart.rotationAngle = 270f
+        pieChart.isRotationEnabled = true
+        pieChart.setEntryLabelColor(Color.TRANSPARENT)
+        pieChart.setExtraOffsets(20f, 14f, 20f, 16f)
         pieChart.setNoDataText("暂无图表数据")
         pieChart.setNoDataTextColor(Color.parseColor("#9AA0A6"))
+
+        updateBarToggleState()
+        updatePieToggleState()
     }
 
-    private fun loadData() {
+    private fun loadAssetAndBills() {
+        val requestSeq = ++loadSequence
+        fullBillsLoadJob?.cancel()
+        billListProgressJob?.cancel()
+
+        val cached = assetStatsCacheByAssetId[assetId]
+        if (cached != null) {
+            currentAsset = cached.asset
+            allAssetBills = cached.bills
+            filteredBillsCache.clear()
+            initDateChips(resetSelection = true)
+            renderAll()
+        }
+
         lifecycleScope.launch {
-            val bills = db.billDao().getBillsByAssetId(assetId).first()
-            val asset = db.assetDao().getAssetById(assetId)
-            
-            findViewById<TextView>(R.id.tv_toolbar_title).text = "${asset?.name ?: ""} 统计"
-            
-            updateTrendChart(bills)
-            updatePieChart(bills)
+            val previewResult = withContext(Dispatchers.IO) {
+                db.billDao().backfillAssetLinksByName()
+                val asset = db.assetDao().getAssetById(assetId)
+                if (asset == null) {
+                    null
+                } else {
+                    val bills = db.billDao().getBillsByAssetIdOrNameListLimited(
+                        asset.id,
+                        asset.name,
+                        INITIAL_BILL_LIST_SIZE
+                    )
+                    asset to bills
+                }
+            }
+            if (requestSeq != loadSequence) return@launch
+            if (previewResult == null) {
+                finish()
+                return@launch
+            }
+
+            val previewAsset = previewResult.first
+            val previewBills = previewResult.second
+                .sortedWith(compareByDescending<Bill> { it.time }.thenByDescending { it.id })
+            val shouldRenderPreview = cached == null || cached.asset.id != previewAsset.id
+            if (shouldRenderPreview) {
+                currentAsset = previewAsset
+                allAssetBills = previewBills
+                filteredBillsCache.clear()
+                initDateChips(resetSelection = true)
+                renderAll()
+            }
+
+            fullBillsLoadJob = lifecycleScope.launch {
+                val fullBills = withContext(Dispatchers.IO) {
+                    db.billDao().getBillsByAssetIdOrNameList(previewAsset.id, previewAsset.name)
+                }.sortedWith(compareByDescending<Bill> { it.time }.thenByDescending { it.id })
+                if (requestSeq != loadSequence) return@launch
+
+                val changed = fullBills.size != allAssetBills.size ||
+                    fullBills.firstOrNull()?.id != allAssetBills.firstOrNull()?.id
+
+                currentAsset = previewAsset
+                allAssetBills = fullBills
+                filteredBillsCache.clear()
+                assetStatsCacheByAssetId[assetId] = AssetStatsCache(
+                    asset = previewAsset,
+                    bills = fullBills,
+                    updatedAtMs = System.currentTimeMillis()
+                )
+                initDateChips(resetSelection = false)
+                if (changed || shouldRenderPreview) {
+                    renderAll()
+                }
+            }
         }
     }
 
-    private fun updateTrendChart(bills: List<Bill>) {
-        // Group by month for simplicity in asset stats
-        val calendar = Calendar.getInstance()
-        val monthlyStats = mutableMapOf<Int, Double>()
-        
-        bills.filter { it.type == Bill.TYPE_EXPENSE }.forEach {
-            calendar.timeInMillis = it.time
-            val month = calendar.get(Calendar.MONTH)
-            monthlyStats[month] = (monthlyStats[month] ?: 0.0) + it.amount
+    private fun initDateChips(resetSelection: Boolean) {
+        val now = Calendar.getInstance()
+        val nowYear = now.get(Calendar.YEAR)
+        val nowMonth = now.get(Calendar.MONTH) + 1
+        val cal = Calendar.getInstance()
+        var minBillYear = Int.MAX_VALUE
+        allAssetBills.forEach { bill ->
+            cal.timeInMillis = bill.time
+            val y = cal.get(Calendar.YEAR)
+            if (y < minBillYear) minBillYear = y
+        }
+        if (minBillYear == Int.MAX_VALUE) minBillYear = nowYear - 1
+        val minYear = minOf(minBillYear, nowYear)
+        val maxYear = nowYear
+        val chips = mutableListOf<DateChipItem>()
+        for (year in maxYear downTo minYear) {
+            chips.add(DateChipItem(type = DateChipType.YEAR, year = year))
+            val monthUpperBound = if (year == nowYear) nowMonth else 12
+            for (month in monthUpperBound downTo 1) {
+                chips.add(DateChipItem(type = DateChipType.MONTH, year = year, month = month))
+            }
+        }
+        dateChips = chips
+        if (resetSelection || selectedYear == 0) {
+            selectedYear = nowYear
+            selectedMonth = nowMonth
+            periodMode = PeriodMode.YEAR
+        } else {
+            val yearExists = chips.any { it.type == DateChipType.YEAR && it.year == selectedYear }
+            if (!yearExists) {
+                selectedYear = nowYear
+                selectedMonth = nowMonth
+                periodMode = PeriodMode.YEAR
+            }
+        }
+    }
+
+    private fun switchAsset() {
+        OverlayDialogs.showGridAssetPicker(
+            this,
+            currentAsset?.name.orEmpty(),
+            "选择资产"
+        ) { selectedName ->
+            lifecycleScope.launch {
+                val selected = withContext(Dispatchers.IO) {
+                    db.assetDao().getAssetByName(selectedName)
+                }
+                if (selected == null) {
+                    Toast.makeText(this@AssetStatsActivity, "未找到资产", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                assetId = selected.id
+                loadAssetAndBills()
+            }
+        }
+    }
+
+    private fun showPeriodPicker() {
+        if (periodMode == PeriodMode.YEAR) {
+            YearMonthPickerDialog.show(
+                context = this,
+                title = "选择年份",
+                initialYear = selectedYear,
+                initialMonth = selectedMonth,
+                yearOnly = true
+            ) { year, _ ->
+                periodMode = PeriodMode.YEAR
+                selectedYear = year
+                renderAll()
+            }
+        } else {
+            YearMonthPickerDialog.show(
+                context = this,
+                title = "选择年月",
+                initialYear = selectedYear,
+                initialMonth = selectedMonth
+            ) { year, month ->
+                periodMode = PeriodMode.MONTH
+                selectedYear = year
+                selectedMonth = month
+                renderAll()
+            }
+        }
+    }
+
+    private fun renderAll() {
+        val asset = currentAsset ?: return
+        tvToolbarTitle.text = "资产统计-${asset.name}"
+        tvPeriodLabel.text = if (periodMode == PeriodMode.YEAR) {
+            String.format(Locale.getDefault(), "%04d年", selectedYear)
+        } else {
+            String.format(Locale.getDefault(), "%04d-%02d", selectedYear, selectedMonth)
         }
 
-        val entries = (0..11).map { month ->
-            BarEntry(month.toFloat(), (monthlyStats[month] ?: 0.0).toFloat())
+        dateStripAdapter.submit(dateChips, periodMode, selectedYear, selectedMonth)
+        scrollDateStripToSelection()
+
+        val bills = filteredBills()
+        renderSummary(bills)
+        renderBarChart(bills)
+        renderPieChart(bills)
+        renderBillSectionsProgressively(bills)
+    }
+
+    private fun filteredBills(): List<Bill> {
+        val key = "${periodMode.name}_${selectedYear}_${selectedMonth}_${allAssetBills.size}_${allAssetBills.firstOrNull()?.id ?: -1L}"
+        filteredBillsCache[key]?.let { return it }
+        val cal = Calendar.getInstance()
+        val result = allAssetBills.filter { bill ->
+            cal.timeInMillis = bill.time
+            val year = cal.get(Calendar.YEAR)
+            if (periodMode == PeriodMode.YEAR) {
+                year == selectedYear
+            } else {
+                year == selectedYear && (cal.get(Calendar.MONTH) + 1) == selectedMonth
+            }
+        }
+        filteredBillsCache[key] = result
+        return result
+    }
+
+    private fun renderBillSectionsProgressively(bills: List<Bill>) {
+        billListProgressJob?.cancel()
+        if (bills.isEmpty()) {
+            billAdapter.submitRows(emptyList())
+            return
         }
 
-        val dataSet = BarDataSet(entries, "月度支出")
-        dataSet.color = Color.parseColor("#F44336")
-        barChart.data = BarData(dataSet)
+        var currentLimit = minOf(INITIAL_BILL_LIST_SIZE, bills.size)
+        renderBillSections(bills.take(currentLimit))
+        if (currentLimit >= bills.size) return
+
+        billListProgressJob = lifecycleScope.launch {
+            while (isActive && currentLimit < bills.size) {
+                delay(48L)
+                currentLimit = minOf(currentLimit + BILL_LIST_STEP_SIZE, bills.size)
+                renderBillSections(bills.take(currentLimit))
+            }
+        }
+    }
+
+    private fun renderSummary(bills: List<Bill>) {
+        var totalExpense = 0.0
+        var totalIncome = 0.0
+        var totalTransfer = 0.0
+        var totalRefund = 0.0
+
+        bills.forEach { bill ->
+            when {
+                bill.subType == Bill.SUBTYPE_REFUND -> {
+                    totalRefund += amountInAssetCurrency(bill, assetId, true)
+                }
+                bill.type == Bill.TYPE_EXPENSE -> {
+                    totalExpense += amountInAssetCurrency(bill, assetId, false)
+                }
+                bill.type == Bill.TYPE_INCOME -> {
+                    totalIncome += amountInAssetCurrency(bill, assetId, true)
+                }
+                bill.type == Bill.TYPE_TRANSFER -> {
+                    totalTransfer += amountForAssetRow(bill, assetId)
+                }
+            }
+        }
+
+        val symbol = CurrencyManager.getSymbol(currentAsset?.currency ?: "CNY")
+        tvTotalExpense.text = String.format(Locale.getDefault(), "%s%,.2f", symbol, totalExpense)
+        tvTotalIncome.text = String.format(Locale.getDefault(), "%s%,.2f", symbol, totalIncome)
+        tvTotalTransfer.text = String.format(Locale.getDefault(), "%s%,.2f", symbol, totalTransfer)
+        tvTotalRefund.text = String.format(Locale.getDefault(), "%s%,.2f", symbol, totalRefund)
+        tvTotalCount.text = bills.size.toString()
+
+        val balance = totalIncome - totalExpense
+        tvBalance.text = String.format(Locale.getDefault(), "%s%,.2f", symbol, balance)
+        tvBalance.setTextColor(
+            when {
+                balance > 0 -> Color.parseColor("#159C5B")
+                balance < 0 -> Color.parseColor("#D64545")
+                else -> Color.parseColor("#111827")
+            }
+        )
+    }
+
+    private fun renderBarChart(bills: List<Bill>) {
+        val labels: List<String>
+        val values: List<Float>
+        if (periodMode == PeriodMode.YEAR) {
+            val monthly = DoubleArray(12) { 0.0 }
+            val cal = Calendar.getInstance()
+            bills.forEach { bill ->
+                cal.timeInMillis = bill.time
+                val month = cal.get(Calendar.MONTH)
+                monthly[month] += amountForBar(bill)
+            }
+            labels = (1..12).map { "${it}月" }
+            values = monthly.map { it.toFloat() }
+        } else {
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.YEAR, selectedYear)
+                set(Calendar.MONTH, selectedMonth - 1)
+                set(Calendar.DAY_OF_MONTH, 1)
+            }
+            val dayCount = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val daily = DoubleArray(dayCount) { 0.0 }
+            val billCal = Calendar.getInstance()
+            bills.forEach { bill ->
+                billCal.timeInMillis = bill.time
+                val day = billCal.get(Calendar.DAY_OF_MONTH) - 1
+                if (day in daily.indices) {
+                    daily[day] += amountForBar(bill)
+                }
+            }
+            labels = (1..dayCount).map { it.toString() }
+            values = daily.map { it.toFloat() }
+        }
+
+        val entries = values.mapIndexed { index, amount -> BarEntry(index.toFloat(), amount) }
+        val dataSet = BarDataSet(entries, "")
+        dataSet.color = if (barMode == ChartMode.EXPENSE) {
+            Color.parseColor("#E85A67")
+        } else {
+            Color.parseColor("#2DB875")
+        }
+        dataSet.setDrawValues(periodMode == PeriodMode.YEAR)
+        dataSet.valueTextSize = 7.5f
+        dataSet.valueTextColor = if (barMode == ChartMode.EXPENSE) {
+            Color.parseColor("#B95D68")
+        } else {
+            Color.parseColor("#2D8F62")
+        }
+        dataSet.valueFormatter = object : ValueFormatter() {
+            override fun getBarLabel(barEntry: BarEntry?): String {
+                if (periodMode != PeriodMode.YEAR || barEntry == null || barEntry.y <= 0f) return ""
+                return shortenAmount(barEntry.y.toDouble())
+            }
+        }
+        dataSet.highLightColor = Color.parseColor("#7F2D3A")
+        dataSet.highLightAlpha = 255
+
+        val barData = BarData(dataSet).apply { barWidth = if (periodMode == PeriodMode.YEAR) 0.86f else 0.82f }
+        barChart.data = barData
+        currentBarLabels = labels
+        currentBarValues = values
+        selectedBarIndex = null
+        barChart.highlightValue(null)
+
+        barChart.xAxis.valueFormatter = object : ValueFormatter() {
+            override fun getFormattedValue(value: Float): String {
+                val nearest = value.roundToInt()
+                if (kotlin.math.abs(value - nearest) > 0.001f) return ""
+                val index = nearest
+                if (index !in labels.indices) return ""
+                return if (periodMode == PeriodMode.MONTH) {
+                    val day = labels[index].toIntOrNull() ?: return ""
+                    if (day % 2 == 0) labels[index] else ""
+                } else {
+                    labels[index]
+                }
+            }
+        }
+        val axisPadding = if (periodMode == PeriodMode.YEAR) 0.4f else 0.5f
+        barChart.xAxis.axisMinimum = -axisPadding
+        barChart.xAxis.axisMaximum = labels.size - 1 + axisPadding
+        if (periodMode == PeriodMode.MONTH) {
+            barChart.xAxis.setLabelCount(labels.size, false)
+        } else {
+            barChart.xAxis.setLabelCount(12, false)
+        }
+        barChart.fitScreen()
+        barChart.moveViewToX(-axisPadding)
+        barChart.setExtraTopOffset(if (periodMode == PeriodMode.MONTH) 8f else 4f)
+        barChart.setExtraBottomOffset(2f)
         barChart.invalidate()
     }
 
-    private fun updatePieChart(bills: List<Bill>) {
-        val categoryStats = mutableMapOf<String, Double>()
-        var total = 0.0
-        
-        bills.filter { it.type == Bill.TYPE_EXPENSE }.forEach {
-            val cat = it.categoryName.ifEmpty { "其它" }
-            categoryStats[cat] = (categoryStats[cat] ?: 0.0) + it.amount
-            total += it.amount
+    private fun highlightNearestBarByTouch(touchX: Float, touchY: Float) {
+        val values = currentBarValues
+        if (values.isEmpty()) return
+        val dataSet = barChart.data?.getDataSetByIndex(0) ?: return
+        val contentRect = barChart.viewPortHandler.contentRect
+        Log.d(
+            TAG_BAR,
+            "highlightNearestBarByTouch: touchX=$touchX, touchY=$touchY, content=[${contentRect.left},${contentRect.top},${contentRect.right},${contentRect.bottom}]"
+        )
+        if (touchX < contentRect.left || touchX > contentRect.right) {
+            Log.d(TAG_BAR, "touch ignored: x out of chart content")
+            selectedBarIndex = null
+            barChart.highlightValue(null)
+            barChart.invalidate()
+            return
+        }
+        val point = barChart.getTransformer(dataSet.axisDependency)
+            .getValuesByTouchPoint(touchX, contentRect.centerY())
+        val nearestIndex = point.x.roundToInt().coerceIn(0, values.lastIndex)
+        Log.d(TAG_BAR, "mapped index=$nearestIndex, mappedX=${point.x}, mappedY=${point.y}, value=${values[nearestIndex]}")
+        MPPointD.recycleInstance(point)
+        val targetValue = values[nearestIndex]
+        if (targetValue <= 0f) {
+            Log.d(TAG_BAR, "skip marker: index=$nearestIndex has no expense/income")
+            selectedBarIndex = null
+            barChart.highlightValue(null)
+            barChart.invalidate()
+            return
+        }
+        if (selectedBarIndex == nearestIndex) {
+            Log.d(TAG_BAR, "toggle off marker: index=$nearestIndex")
+            selectedBarIndex = null
+            barChart.highlightValue(null)
+            barChart.invalidate()
+            return
+        }
+        selectedBarIndex = nearestIndex
+        val highlight = Highlight(nearestIndex.toFloat(), targetValue, 0)
+        Log.d(TAG_BAR, "highlight -> x=${highlight.x}, y=${highlight.y}, ds=${highlight.dataSetIndex}")
+        barChart.highlightValue(highlight, true)
+        barChart.invalidate()
+    }
+
+    private fun buildBarMarkerText(index: Int): String {
+        if (index !in currentBarValues.indices || index !in currentBarLabels.indices) return ""
+        val value = currentBarValues[index].toDouble()
+        val symbol = CurrencyManager.getSymbol(currentAsset?.currency ?: "CNY")
+        val label = currentBarLabels[index]
+        val firstLine = if (periodMode == PeriodMode.YEAR) {
+            label
+        } else {
+            val day = label.toIntOrNull() ?: return ""
+            String.format(
+                Locale.getDefault(),
+                "%02d-%02d",
+                selectedMonth,
+                day
+            )
+        }
+        val modeText = if (barMode == ChartMode.EXPENSE) "支出" else "收入"
+        return "$firstLine\n$modeText: $symbol${String.format(Locale.getDefault(), "%,.2f", value)}"
+    }
+
+    private fun shortenAmount(amount: Double): String {
+        val raw = when {
+            amount >= 1_000_000 -> String.format(Locale.getDefault(), "%.1fM", amount / 1_000_000)
+            amount >= 1_000 -> String.format(Locale.getDefault(), "%.2fK", amount / 1_000)
+            amount == 0.0 -> ""
+            else -> String.format(Locale.getDefault(), "%.2f", amount)
+        }
+        return raw
+            .replace(Regex("(?<=\\d)0+K$"), "K")
+            .replace(Regex("\\.0+K$"), "K")
+            .replace(Regex("(?<=\\d)0+$"), "")
+            .replace(Regex("\\.$"), "")
+    }
+
+    private class AssetBarMarkerView(
+        context: android.content.Context,
+        private val textProvider: (Int) -> String
+    ) : MarkerView(context, R.layout.view_asset_bar_marker) {
+        private val tvText: TextView = findViewById(R.id.tv_marker_text)
+
+        override fun refreshContent(e: com.github.mikephil.charting.data.Entry?, highlight: Highlight?) {
+            val index = highlight?.x?.roundToInt() ?: e?.x?.roundToInt() ?: return
+            tvText.text = textProvider(index)
+            Log.d(TAG_BAR, "marker refresh: index=$index, text=${tvText.text}")
+            super.refreshContent(e, highlight)
         }
 
-        if (total == 0.0) {
+        override fun getOffset(): MPPointF {
+            return MPPointF(-(width / 2f), -height.toFloat() - 10f)
+        }
+
+        override fun getOffsetForDrawingAtPoint(posX: Float, posY: Float): MPPointF {
+            val base = getOffset()
+            val chart = chartView ?: return base
+            val offset = MPPointF(base.x, base.y)
+
+            if (posX + offset.x < 0f) {
+                offset.x = -posX
+            } else if (posX + width + offset.x > chart.width) {
+                offset.x = chart.width - posX - width.toFloat()
+            }
+
+            if (posY + offset.y < 0f) {
+                offset.y = 0f
+            }
+            return offset
+        }
+    }
+
+    private fun amountForBar(bill: Bill): Double {
+        return when (barMode) {
+            ChartMode.EXPENSE -> {
+                if (bill.type == Bill.TYPE_EXPENSE && bill.subType != Bill.SUBTYPE_REFUND) {
+                    amountInAssetCurrency(bill, assetId, false)
+                } else {
+                    0.0
+                }
+            }
+            ChartMode.INCOME -> {
+                if (bill.type == Bill.TYPE_INCOME && bill.subType != Bill.SUBTYPE_REFUND) {
+                    amountInAssetCurrency(bill, assetId, true)
+                } else {
+                    0.0
+                }
+            }
+        }
+    }
+
+    private fun renderPieChart(bills: List<Bill>) {
+        val categoryMap = linkedMapOf<String, Double>()
+        var total = 0.0
+        bills.forEach { bill ->
+            val amount = amountForPie(bill)
+            if (amount <= 0.0) return@forEach
+            val category = topLevelCategory(bill.categoryName)
+            categoryMap[category] = (categoryMap[category] ?: 0.0) + amount
+            total += amount
+        }
+        if (total <= 0.0) {
             pieChart.clear()
             return
         }
 
-        val entries = categoryStats.map { (name, amount) ->
-            PieEntry(amount.toFloat(), name)
+        val sortedStats = categoryMap
+            .toList()
+            .sortedByDescending { it.second }
+        val filteredStats = sortedStats
+            .filter { (_, amount) -> (amount / total * 100.0) >= 2.0 }
+            .sortedBy { it.second }
+        if (filteredStats.isEmpty()) {
+            pieChart.clear()
+            return
         }
 
-        val dataSet = PieDataSet(entries, "")
-        dataSet.colors = listOf(
-            Color.parseColor("#F44336"), Color.parseColor("#E91E63"), Color.parseColor("#9C27B0"),
-            Color.parseColor("#673AB7"), Color.parseColor("#3F51B5"), Color.parseColor("#2196F3")
-        )
-        pieChart.data = PieData(dataSet)
-        pieChart.centerText = "总支出\n¥${String.format("%.2f", total)}"
+        val palette = listOf(
+            "#26C6DA", "#66BB6A", "#42A5F5", "#FFB74D", "#FF7043", "#7E57C2",
+            "#29B6F6", "#9CCC65", "#5C6BC0", "#EC407A", "#AB47BC", "#FFA726"
+        ).map { Color.parseColor(it) }
+        val colorByName = sortedStats.mapIndexed { index, pair ->
+            pair.first to palette[index % palette.size]
+        }.toMap()
+
+        val entries = filteredStats.map { PieEntry(it.second.toFloat(), it.first) }
+        val sliceColors = filteredStats.map { (name, _) -> colorByName[name] ?: palette[0] }
+        val labelSize = when {
+            filteredStats.size >= 12 -> 7.5f
+            filteredStats.size >= 9 -> 8.0f
+            else -> 9.0f
+        }
+
+        val dataSet = PieDataSet(entries, "").apply {
+            colors = sliceColors
+            xValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
+            yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
+            valueLinePart1OffsetPercentage = 100f
+            valueLinePart1Length = if (filteredStats.size >= 10) 0.22f else 0.30f
+            valueLinePart2Length = if (filteredStats.size >= 10) 0.55f else 0.78f
+            selectionShift = 4f
+            setValueLineVariableLength(true)
+            setUsingSliceColorAsValueLineColor(true)
+            valueTextSize = labelSize
+            setValueTextColors(sliceColors)
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String = ""
+
+                override fun getPieLabel(value: Float, pieEntry: PieEntry): String {
+                    val pct = if (total > 0.0) (pieEntry.value / total.toFloat() * 100f) else 0f
+                    return "${pieEntry.label} ${String.format(Locale.getDefault(), "%.1f%%", pct)}"
+                }
+            }
+        }
+
+        pieChart.data = PieData(dataSet).apply { setDrawValues(true) }
+        pieChart.centerText = ""
+        pieChart.setDrawEntryLabels(false)
+        pieChart.rotationAngle = findBestInitialRotation(entries.map { it.value })
+        pieChart.animateY(260)
         pieChart.invalidate()
+    }
+
+    private fun findBestInitialRotation(values: List<Float>): Float {
+        if (values.size <= 2) return 270f
+        val total = values.sum().takeIf { it > 0f } ?: return 270f
+        val sweeps = values.map { it / total * 360f }
+
+        var bestAngle = 270f
+        var bestScore = Float.MAX_VALUE
+        for (candidate in 0 until 360 step 6) {
+            val score = computeOverlapScore(sweeps, candidate.toFloat(), minGap = 0.15f)
+            if (score < bestScore) {
+                bestScore = score
+                bestAngle = candidate.toFloat()
+            }
+        }
+        return bestAngle
+    }
+
+    private fun computeOverlapScore(sweeps: List<Float>, rotationAngle: Float, minGap: Float): Float {
+        var start = rotationAngle
+        val leftY = mutableListOf<Float>()
+        val rightY = mutableListOf<Float>()
+
+        sweeps.forEach { sweep ->
+            val center = start + sweep / 2f
+            val rad = Math.toRadians(center.toDouble())
+            val y = sin(rad).toFloat()
+            val x = cos(rad).toFloat()
+            if (x >= 0f) rightY.add(y) else leftY.add(y)
+            start += sweep
+        }
+
+        fun sideScore(points: List<Float>): Float {
+            if (points.size <= 1) return 0f
+            val sorted = points.sorted()
+            var score = 0f
+            for (i in 1 until sorted.size) {
+                val gap = sorted[i] - sorted[i - 1]
+                if (gap < minGap) score += (minGap - gap)
+            }
+            return score
+        }
+
+        return sideScore(leftY) + sideScore(rightY)
+    }
+
+    private fun amountForPie(bill: Bill): Double {
+        return when (pieMode) {
+            ChartMode.EXPENSE -> {
+                if (bill.type == Bill.TYPE_EXPENSE && bill.subType != Bill.SUBTYPE_REFUND) {
+                    amountInAssetCurrency(bill, assetId, false)
+                } else {
+                    0.0
+                }
+            }
+            ChartMode.INCOME -> {
+                if (bill.type == Bill.TYPE_INCOME && bill.subType != Bill.SUBTYPE_REFUND) {
+                    amountInAssetCurrency(bill, assetId, true)
+                } else {
+                    0.0
+                }
+            }
+        }
+    }
+
+    private fun renderBillSections(bills: List<Bill>) {
+        val rows = mutableListOf<Any>()
+        if (periodMode == PeriodMode.YEAR) {
+            val groups = linkedMapOf<String, MutableList<Bill>>()
+            bills.forEach { bill ->
+                val key = dfMonthKey.format(Date(bill.time))
+                groups.getOrPut(key) { mutableListOf() }.add(bill)
+            }
+            groups.forEach { (_, monthBills) ->
+                val title = dfMonthTitle.format(Date(monthBills.first().time))
+                val summary = calcSectionIncomeExpense(monthBills)
+                rows += SectionHeaderRow(title, summary.first, summary.second)
+                monthBills.forEach { rows += BillRow(it) }
+            }
+        } else {
+            val groups = linkedMapOf<Int, MutableList<Bill>>()
+            val cal = Calendar.getInstance()
+            bills.forEach { bill ->
+                cal.timeInMillis = bill.time
+                val day = cal.get(Calendar.DAY_OF_MONTH)
+                groups.getOrPut(day) { mutableListOf() }.add(bill)
+            }
+            groups.forEach { (_, dayBills) ->
+                val firstDate = Date(dayBills.first().time)
+                val title = "${dfDayTitle.format(firstDate)} ${dfWeekday.format(firstDate)}"
+                val summary = calcSectionIncomeExpense(dayBills)
+                rows += SectionHeaderRow(title, summary.first, summary.second)
+                dayBills.forEach { rows += BillRow(it) }
+            }
+        }
+        billAdapter.submitRows(rows)
+    }
+
+    private fun calcSectionIncomeExpense(bills: List<Bill>): Pair<Double, Double> {
+        var income = 0.0
+        var expense = 0.0
+        bills.forEach { bill ->
+            when {
+                bill.subType == Bill.SUBTYPE_REFUND -> income += amountInAssetCurrency(bill, assetId, true)
+                bill.type == Bill.TYPE_INCOME -> income += amountInAssetCurrency(bill, assetId, true)
+                bill.type == Bill.TYPE_EXPENSE -> expense += amountInAssetCurrency(bill, assetId, false)
+            }
+        }
+        return income to expense
+    }
+
+    private fun updateBarToggleState() {
+        if (barMode == ChartMode.EXPENSE) {
+            btnBarExpense.background = getDrawable(R.drawable.bg_stats_toggle_selected)
+            btnBarIncome.background = ColorDrawable(Color.TRANSPARENT)
+            btnBarExpense.setTextColor(Color.parseColor("#111827"))
+            btnBarIncome.setTextColor(Color.parseColor("#8B93A1"))
+        } else {
+            btnBarIncome.background = getDrawable(R.drawable.bg_stats_toggle_selected)
+            btnBarExpense.background = ColorDrawable(Color.TRANSPARENT)
+            btnBarIncome.setTextColor(Color.parseColor("#111827"))
+            btnBarExpense.setTextColor(Color.parseColor("#8B93A1"))
+        }
+    }
+
+    private fun updatePieToggleState() {
+        if (pieMode == ChartMode.EXPENSE) {
+            btnPieExpense.background = getDrawable(R.drawable.bg_stats_toggle_selected)
+            btnPieIncome.background = ColorDrawable(Color.TRANSPARENT)
+            btnPieExpense.setTextColor(Color.parseColor("#111827"))
+            btnPieIncome.setTextColor(Color.parseColor("#8B93A1"))
+        } else {
+            btnPieIncome.background = getDrawable(R.drawable.bg_stats_toggle_selected)
+            btnPieExpense.background = ColorDrawable(Color.TRANSPARENT)
+            btnPieIncome.setTextColor(Color.parseColor("#111827"))
+            btnPieExpense.setTextColor(Color.parseColor("#8B93A1"))
+        }
+    }
+
+    private fun scrollDateStripToSelection() {
+        val targetIndex = dateChips.indexOfFirst {
+            when (periodMode) {
+                PeriodMode.YEAR -> it.type == DateChipType.YEAR && it.year == selectedYear
+                PeriodMode.MONTH -> it.type == DateChipType.MONTH && it.year == selectedYear && it.month == selectedMonth
+            }
+        }
+        if (targetIndex >= 0) {
+            rvDateStrip.post { rvDateStrip.smoothScrollToPosition(targetIndex) }
+        }
+    }
+
+    private fun topLevelCategory(name: String): String {
+        val normalized = BillDisplayFormatter.stripRefundPrefix(name).trim()
+        val level = normalized.split(Regex("\\s*>\\s*|/::/|::|·")).firstOrNull().orEmpty()
+        return if (level.isBlank()) "未分类" else level
+    }
+
+    private fun amountInAssetCurrency(bill: Bill, ownerAssetId: Long, isInflow: Boolean): Double {
+        val assetCurrency = currentAsset?.currency ?: bill.currency
+        return when {
+            bill.type == Bill.TYPE_EXPENSE && bill.accountId == ownerAssetId -> {
+                val baseExpenseAmount = baseOriginalAmount(bill)
+                BillAssetImpactService.convertAmountBetweenCurrencies(baseExpenseAmount, bill.currency, assetCurrency)
+            }
+            bill.type == Bill.TYPE_TRANSFER && isInflow && bill.toAccountId == ownerAssetId -> {
+                val grossTarget = bill.amount * bill.exchangeRate
+                val feeInTarget = if (bill.fee > 0.0) {
+                    BillAssetImpactService.convertAmountBetweenCurrencies(bill.fee, bill.currency, assetCurrency)
+                } else {
+                    0.0
+                }
+                grossTarget - feeInTarget
+            }
+            bill.type == Bill.TYPE_TRANSFER && !isInflow && bill.accountId == ownerAssetId -> {
+                val sourceAmount = BillAssetImpactService.convertAmountBetweenCurrencies(bill.amount, bill.currency, assetCurrency)
+                val feeInSource = if (bill.fee > 0.0) {
+                    BillAssetImpactService.convertAmountBetweenCurrencies(bill.fee, bill.currency, assetCurrency)
+                } else {
+                    0.0
+                }
+                sourceAmount + feeInSource
+            }
+            else -> BillAssetImpactService.convertAmountBetweenCurrencies(bill.amount, bill.currency, assetCurrency)
+        }
+    }
+
+    private fun amountForAssetRow(bill: Bill, ownerAssetId: Long): Double {
+        val isInflow = when {
+            bill.subType == Bill.SUBTYPE_REFUND -> true
+            bill.type == Bill.TYPE_INCOME -> true
+            bill.type == Bill.TYPE_TRANSFER -> bill.toAccountId == ownerAssetId && bill.accountId != ownerAssetId
+            else -> false
+        }
+        return amountInAssetCurrency(bill, ownerAssetId, isInflow)
+    }
+
+    private fun baseOriginalAmount(bill: Bill): Double {
+        return if (bill.originalAmount > 0.0) {
+            kotlin.math.max(bill.originalAmount, bill.amount)
+        } else {
+            bill.amount
+        }
+    }
+
+    private inner class DateStripAdapter(
+        private val onClick: (DateChipItem) -> Unit
+    ) : RecyclerView.Adapter<DateStripAdapter.VH>() {
+
+        private var items: List<DateChipItem> = emptyList()
+        private var mode: PeriodMode = PeriodMode.YEAR
+        private var year: Int = 0
+        private var month: Int = 0
+
+        fun submit(items: List<DateChipItem>, mode: PeriodMode, year: Int, month: Int) {
+            this.items = items
+            this.mode = mode
+            this.year = year
+            this.month = month
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_asset_stats_date_chip, parent, false)
+            return VH(view)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val item = items[position]
+            val selected = when (mode) {
+                PeriodMode.YEAR -> item.type == DateChipType.YEAR && item.year == year
+                PeriodMode.MONTH -> item.type == DateChipType.MONTH && item.year == year && item.month == month
+            }
+            holder.bind(item, selected)
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        inner class VH(v: View) : RecyclerView.ViewHolder(v) {
+            private val tvChip: TextView = v.findViewById(R.id.tv_date_chip)
+
+            fun bind(item: DateChipItem, selected: Boolean) {
+                tvChip.text = if (item.type == DateChipType.YEAR) {
+                    "${item.year}年"
+                } else {
+                    "${item.month}月"
+                }
+                tvChip.background = if (selected) {
+                    itemView.context.getDrawable(R.drawable.bg_stats_date_capsule)
+                } else {
+                    ColorDrawable(Color.TRANSPARENT)
+                }
+                tvChip.setTextColor(
+                    if (selected) Color.parseColor("#2B7DE9") else Color.parseColor("#7D8694")
+                )
+                itemView.setOnClickListener { onClick(item) }
+            }
+        }
+    }
+
+    private inner class AssetStatsBillAdapter(
+        private val currencyProvider: () -> String,
+        private val amountProvider: (Bill) -> Double
+    ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+        private val typeHeader = 0
+        private val typeBill = 1
+        private val rows = mutableListOf<Any>()
+
+        fun submitRows(list: List<Any>) {
+            rows.clear()
+            rows.addAll(list)
+            notifyDataSetChanged()
+        }
+
+        override fun getItemViewType(position: Int): Int {
+            return if (rows[position] is SectionHeaderRow) typeHeader else typeBill
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            return if (viewType == typeHeader) {
+                HeaderVH(
+                    LayoutInflater.from(parent.context)
+                        .inflate(R.layout.item_asset_stats_section_header, parent, false)
+                )
+            } else {
+                BillVH(
+                    LayoutInflater.from(parent.context)
+                        .inflate(R.layout.item_home_transaction, parent, false)
+                )
+            }
+        }
+
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            when (val row = rows[position]) {
+                is SectionHeaderRow -> (holder as HeaderVH).bind(row)
+                is BillRow -> (holder as BillVH).bind(row.bill, position)
+            }
+        }
+
+        override fun getItemCount(): Int = rows.size
+
+        inner class HeaderVH(v: View) : RecyclerView.ViewHolder(v) {
+            private val tvTitle = v.findViewById<TextView>(R.id.tv_section_title)
+            private val tvSummary = v.findViewById<TextView>(R.id.tv_section_summary)
+
+            fun bind(item: SectionHeaderRow) {
+                val symbol = CurrencyManager.getSymbol(currencyProvider())
+                tvTitle.text = item.title
+                tvSummary.text = "收:${symbol}${String.format(Locale.getDefault(), "%.2f", item.income)} 支:${symbol}${String.format(Locale.getDefault(), "%.2f", item.expense)}"
+            }
+        }
+
+        inner class BillVH(v: View) : RecyclerView.ViewHolder(v) {
+            private val ivIcon = v.findViewById<ImageView>(R.id.iv_bill_category_icon)
+            private val tvCategory = v.findViewById<TextView>(R.id.tv_bill_category)
+            private val tvDetail = v.findViewById<TextView>(R.id.tv_bill_detail)
+            private val tvAmount = v.findViewById<TextView>(R.id.tv_bill_amount)
+            private val tvAsset = v.findViewById<TextView>(R.id.tv_bill_asset)
+            private val tvTime = v.findViewById<TextView>(R.id.tv_bill_time)
+            private val iconContainer = v.findViewById<View>(R.id.layout_icon_container)
+            private val cbSelect = v.findViewById<View>(R.id.cb_bill_select)
+
+            fun bind(bill: Bill, position: Int) {
+                val isTransfer = bill.type == Bill.TYPE_TRANSFER
+                val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
+                val isRefund = bill.subType == Bill.SUBTYPE_REFUND
+                val symbol = CurrencyManager.getSymbol(currencyProvider())
+                val amount = amountProvider(bill)
+
+                val isGroupStart = position == 0 || rows.getOrNull(position - 1) is SectionHeaderRow
+                val isGroupEnd = position == rows.lastIndex || rows.getOrNull(position + 1) is SectionHeaderRow
+                itemView.setBackgroundResource(
+                    when {
+                        isGroupStart && isGroupEnd -> R.drawable.bg_bill_group_single
+                        isGroupStart -> R.drawable.bg_bill_group_top
+                        isGroupEnd -> R.drawable.bg_bill_group_bottom
+                        else -> R.drawable.bg_bill_group_middle
+                    }
+                )
+
+                cbSelect.visibility = View.GONE
+                tvTime.visibility = View.GONE
+
+                tvCategory.text = when {
+                    isRepayment -> "还款"
+                    isTransfer -> "转账"
+                    isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
+                    else -> BillDisplayFormatter.normalizeCategoryDisplayName(bill.categoryName).ifEmpty { "未分类" }
+                }
+
+                tvDetail.text = if (bill.remark.isNotBlank()) {
+                    "${dfBillDate.format(Date(bill.time))} ${bill.remark}"
+                } else {
+                    dfBillDate.format(Date(bill.time))
+                }
+
+                tvAmount.text = when {
+                    isRefund -> "+$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+                    bill.type == Bill.TYPE_EXPENSE -> "-$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+                    bill.type == Bill.TYPE_INCOME -> "+$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+                    else -> "$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+                }
+                tvAmount.setTextColor(
+                    when {
+                        isRefund -> Color.parseColor("#18B777")
+                        bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#E85A67")
+                        bill.type == Bill.TYPE_INCOME -> Color.parseColor("#18B777")
+                        else -> Color.parseColor("#111827")
+                    }
+                )
+
+                tvAsset.text = when {
+                    bill.type == Bill.TYPE_TRANSFER -> "${bill.accountName}->${bill.toAccountName}"
+                    else -> bill.accountName
+                }
+
+                when {
+                    isTransfer -> {
+                        iconContainer.setBackgroundResource(R.drawable.bg_circle_soft)
+                        ivIcon.setImageResource(R.drawable.ic_transfer)
+                        ivIcon.setColorFilter(Color.parseColor("#7B8794"))
+                    }
+                    bill.type == Bill.TYPE_INCOME || isRefund -> {
+                        iconContainer.setBackgroundResource(R.drawable.bg_circle_income_soft)
+                        ivIcon.setImageResource(R.drawable.ic_money)
+                        ivIcon.setColorFilter(Color.parseColor("#18B777"))
+                    }
+                    else -> {
+                        iconContainer.setBackgroundResource(R.drawable.bg_circle_expense_soft)
+                        ivIcon.setImageResource(R.drawable.ic_money)
+                        ivIcon.setColorFilter(Color.parseColor("#E85A67"))
+                    }
+                }
+            }
+        }
     }
 }
