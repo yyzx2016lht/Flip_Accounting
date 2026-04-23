@@ -18,6 +18,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -43,6 +44,7 @@ import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.repository.AssetRepository
 import tao.test.flipaccounting.logic.BillAssetImpactService
 import tao.test.flipaccounting.logic.BillDisplayFormatter
+import tao.test.flipaccounting.logic.BillDeleteHelper
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.logic.CurrencyUtils
 import tao.test.flipaccounting.ui.activity.EditBillActivity
@@ -72,6 +74,11 @@ class AssetDetailActivity : AppCompatActivity() {
     private lateinit var etBillSearch: EditText
     private lateinit var adapter: TransactionAdapter
     private lateinit var fabAddBill: FloatingActionButton
+    private lateinit var layoutMultiSelectActions: View
+    private lateinit var btnMsCancel: TextView
+    private lateinit var btnMsSelectAll: TextView
+    private lateinit var btnMsMove: TextView
+    private lateinit var btnMsDelete: TextView
     private var fabHiddenByScroll = false
     private var fabScrollAccumulator = 0
 
@@ -103,6 +110,7 @@ class AssetDetailActivity : AppCompatActivity() {
         }
 
         initViews()
+        setupBackPressForMultiSelect()
         observeData()
     }
 
@@ -114,6 +122,11 @@ class AssetDetailActivity : AppCompatActivity() {
         tvBtnSearch = findViewById(R.id.tv_btn_search)
         layoutSearchBar = findViewById(R.id.layout_asset_search_bar)
         etBillSearch = findViewById(R.id.et_asset_bill_search)
+        layoutMultiSelectActions = findViewById(R.id.layout_multi_select_actions)
+        btnMsCancel = findViewById(R.id.btn_ms_cancel)
+        btnMsSelectAll = findViewById(R.id.btn_ms_select_all)
+        btnMsMove = findViewById(R.id.btn_ms_move)
+        btnMsDelete = findViewById(R.id.btn_ms_delete)
 
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         toolbar.setNavigationOnClickListener { finish() }
@@ -143,7 +156,10 @@ class AssetDetailActivity : AppCompatActivity() {
         }
 
         rvTransactions.layoutManager = LinearLayoutManager(this)
-        adapter = TransactionAdapter()
+        adapter = TransactionAdapter().apply {
+            onBillItemClick = { bill -> openBillEditor(bill) }
+            onSelectionChanged = { count -> updateDetailMultiSelectUi(count) }
+        }
         rvTransactions.adapter = adapter
         rvTransactions.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -157,6 +173,144 @@ class AssetDetailActivity : AppCompatActivity() {
             showAddBillForAsset()
         }
         fabAddBill.post { showAssetDetailFab() }
+        setupMultiSelectActions()
+    }
+
+    private fun setupBackPressForMultiSelect() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (adapter.isMultiSelectMode) {
+                    adapter.clearSelection()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+    }
+
+    private fun setupMultiSelectActions() {
+        btnMsCancel.setOnClickListener { adapter.clearSelection() }
+        btnMsSelectAll.setOnClickListener {
+            val allCount = adapter.getSelectableBills().size
+            if (allCount > 0 && adapter.selectedBills.size >= allCount) {
+                adapter.clearSelection()
+            } else {
+                adapter.selectAll()
+            }
+        }
+        btnMsDelete.setOnClickListener {
+            val targets = adapter.getSelectedBills()
+            if (targets.isEmpty()) return@setOnClickListener
+            lifecycleScope.launch(Dispatchers.IO) {
+                BillDeleteHelper.deleteBillsAndRevertBalance(db, targets)
+                withContext(Dispatchers.Main) {
+                    adapter.clearSelection()
+                    Toast.makeText(
+                        this@AssetDetailActivity,
+                        "已删除 ${targets.size} 条账单",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+        btnMsMove.setOnClickListener {
+            val sourceAsset = currentAsset ?: return@setOnClickListener
+            val targets = adapter.getSelectedBills()
+            if (targets.isEmpty()) return@setOnClickListener
+            OverlayDialogs.showGridAssetPicker(
+                this,
+                sourceAsset.name,
+                "选择目标资产"
+            ) { selectedName ->
+                if (selectedName == sourceAsset.name) {
+                    Toast.makeText(this, "已在当前资产中", Toast.LENGTH_SHORT).show()
+                    return@showGridAssetPicker
+                }
+                lifecycleScope.launch {
+                    val result = withContext(Dispatchers.IO) {
+                        val targetAsset = db.assetDao().getAssetByName(selectedName) ?: return@withContext 0
+                        var moved = 0
+                        targets.forEach { bill ->
+                            val movedBill = moveBillToTargetAsset(bill, sourceAsset, targetAsset)
+                            if (movedBill != null) {
+                                db.billDao().updateBill(movedBill)
+                                moved++
+                            }
+                        }
+                        moved
+                    }
+                    adapter.clearSelection()
+                    if (result > 0) {
+                        applyBillSearch()
+                    }
+                    Toast.makeText(this@AssetDetailActivity, "已移动 $result 条账单", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        updateDetailMultiSelectUi(0)
+    }
+
+    private fun updateDetailMultiSelectUi(selectedCount: Int) {
+        val active = selectedCount > 0 && adapter.isMultiSelectMode
+        layoutMultiSelectActions.visibility = if (active) View.VISIBLE else View.GONE
+        btnMsCancel.text = "退出多选"
+        btnMsDelete.text = if (selectedCount > 0) "删除($selectedCount)" else "删除"
+        if (active) {
+            hideAssetDetailFab()
+        } else {
+            showAssetDetailFab()
+        }
+    }
+
+    private fun openBillEditor(bill: Bill) {
+        val intent = Intent(this, EditBillActivity::class.java)
+        intent.putExtra("BILL_ID", bill.id)
+        startActivity(intent)
+    }
+
+    private fun moveBillToTargetAsset(
+        bill: Bill,
+        sourceAsset: Asset,
+        targetAsset: Asset
+    ): Bill? {
+        val matchSourceAccount = bill.accountId == sourceAsset.id ||
+            (bill.accountId == null && bill.accountName == sourceAsset.name)
+        val matchSourceToAccount = bill.toAccountId == sourceAsset.id ||
+            (bill.toAccountId == null && bill.toAccountName == sourceAsset.name)
+
+        val updated = if (bill.type == Bill.TYPE_TRANSFER) {
+            when {
+                matchSourceAccount && matchSourceToAccount -> bill.copy(
+                    accountId = targetAsset.id,
+                    accountName = targetAsset.name,
+                    toAccountId = targetAsset.id,
+                    toAccountName = targetAsset.name
+                )
+                matchSourceAccount -> bill.copy(
+                    accountId = targetAsset.id,
+                    accountName = targetAsset.name
+                )
+                matchSourceToAccount -> bill.copy(
+                    toAccountId = targetAsset.id,
+                    toAccountName = targetAsset.name
+                )
+                else -> null
+            }
+        } else {
+            when {
+                matchSourceAccount -> bill.copy(
+                    accountId = targetAsset.id,
+                    accountName = targetAsset.name
+                )
+                matchSourceToAccount -> bill.copy(
+                    toAccountId = targetAsset.id,
+                    toAccountName = targetAsset.name
+                )
+                else -> null
+            }
+        }
+        return if (updated != null && updated != bill) updated else null
     }
 
     private fun observeData() {
@@ -329,13 +483,19 @@ class AssetDetailActivity : AppCompatActivity() {
     }
 
     inner class TransactionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        private val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
+        private val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
         private val typeMonthHeader = 0
         private val typeBillItem = 1
 
         private val rows = mutableListOf<Any>()
         private val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-    private val monthLabelFormat = SimpleDateFormat("yyyy.MM\u6708", Locale.getDefault())
+        private val monthLabelFormat = SimpleDateFormat("yyyy.MM\u6708", Locale.getDefault())
         private val dateFormat = SimpleDateFormat("MM-dd", Locale.getDefault())
+        var isMultiSelectMode: Boolean = false
+        val selectedBills = mutableSetOf<Bill>()
+        var onBillItemClick: ((Bill) -> Unit)? = null
+        var onSelectionChanged: ((Int) -> Unit)? = null
 
         fun submitList(newList: List<Bill>) {
             rows.clear()
@@ -375,7 +535,32 @@ class AssetDetailActivity : AppCompatActivity() {
                     monthBills.forEach { rows.add(BillRow(it)) }
                 }
             }
+            val availableIds = rows.mapNotNull { (it as? BillRow)?.bill?.id }.toSet()
+            selectedBills.removeAll { it.id !in availableIds }
+            if (selectedBills.isEmpty()) {
+                isMultiSelectMode = false
+            }
+            onSelectionChanged?.invoke(selectedBills.size)
             notifyDataSetChanged()
+        }
+
+        fun getSelectableBills(): List<Bill> = rows.mapNotNull { (it as? BillRow)?.bill }
+
+        fun getSelectedBills(): List<Bill> = selectedBills.toList()
+
+        fun clearSelection() {
+            selectedBills.clear()
+            isMultiSelectMode = false
+            onSelectionChanged?.invoke(0)
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+        }
+
+        fun selectAll() {
+            isMultiSelectMode = true
+            selectedBills.clear()
+            selectedBills.addAll(getSelectableBills())
+            onSelectionChanged?.invoke(selectedBills.size)
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
         }
 
         override fun getItemViewType(position: Int): Int {
@@ -402,6 +587,27 @@ class AssetDetailActivity : AppCompatActivity() {
             }
         }
 
+        override fun onBindViewHolder(
+            holder: RecyclerView.ViewHolder,
+            position: Int,
+            payloads: MutableList<Any>
+        ) {
+            if (payloads.isNotEmpty() && holder is BillViewHolder) {
+                val row = rows.getOrNull(position) as? BillRow
+                if (row != null) {
+                    if (payloads.contains(PAYLOAD_MODE_CHANGE)) {
+                        holder.updateMode(row.bill)
+                        return
+                    }
+                    if (payloads.contains(PAYLOAD_SELECTION_CHANGE)) {
+                        holder.updateSelection(row.bill)
+                        return
+                    }
+                }
+            }
+            super.onBindViewHolder(holder, position, payloads)
+        }
+
         override fun getItemCount(): Int = rows.size
 
         inner class MonthHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
@@ -423,7 +629,16 @@ class AssetDetailActivity : AppCompatActivity() {
             private val tvTime = v.findViewById<TextView>(R.id.tv_bill_time)
             private val ivIcon = v.findViewById<ImageView>(R.id.iv_bill_category_icon)
             private val iconContainer = v.findViewById<View>(R.id.layout_icon_container)
-            private val cbSelect = v.findViewById<View>(R.id.cb_bill_select)
+            private val cbSelect = v.findViewById<android.widget.CheckBox>(R.id.cb_bill_select)
+
+            fun updateMode(bill: Bill) {
+                cbSelect.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
+                cbSelect.isChecked = selectedBills.contains(bill)
+            }
+
+            fun updateSelection(bill: Bill) {
+                cbSelect.isChecked = selectedBills.contains(bill)
+            }
 
             fun bind(bill: Bill, position: Int) {
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER
@@ -435,7 +650,7 @@ class AssetDetailActivity : AppCompatActivity() {
                 val displayAmount = amountForAssetRow(bill, assetId)
 
                 val hasHeaderAbove = rows.getOrNull(position - 1) is MonthHeaderRow
-                val isGroupStart = position == 0 || hasHeaderAbove
+                val isGroupStart = position == 0 && !hasHeaderAbove
                 val isGroupEnd = position == rows.lastIndex || rows.getOrNull(position + 1) is MonthHeaderRow
                 itemView.setBackgroundResource(
                     when {
@@ -452,7 +667,7 @@ class AssetDetailActivity : AppCompatActivity() {
                         else -> R.drawable.bg_circle_soft
                     }
                 )
-                cbSelect.visibility = View.GONE
+                updateMode(bill)
 
                 tvCategory.text = when {
                     isRepayment -> "\u8FD8\u6B3E"
@@ -550,7 +765,43 @@ class AssetDetailActivity : AppCompatActivity() {
                     }
                 }
 
-                itemView.setOnClickListener { showBillDetailSheet(bill) }
+                itemView.setOnClickListener {
+                    if (isMultiSelectMode) {
+                        if (selectedBills.contains(bill)) {
+                            selectedBills.remove(bill)
+                        } else {
+                            selectedBills.add(bill)
+                        }
+                        if (selectedBills.isEmpty()) {
+                            isMultiSelectMode = false
+                            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+                        } else {
+                            val pos = adapterPosition
+                            if (pos != RecyclerView.NO_POSITION) {
+                                notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                            }
+                        }
+                        onSelectionChanged?.invoke(selectedBills.size)
+                    } else {
+                        onBillItemClick?.invoke(bill)
+                    }
+                }
+                itemView.setOnLongClickListener {
+                    if (!isMultiSelectMode) {
+                        isMultiSelectMode = true
+                        selectedBills.clear()
+                        selectedBills.add(bill)
+                        notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+                    } else {
+                        selectedBills.add(bill)
+                        val pos = adapterPosition
+                        if (pos != RecyclerView.NO_POSITION) {
+                            notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                        }
+                    }
+                    onSelectionChanged?.invoke(selectedBills.size)
+                    true
+                }
             }
         }
 

@@ -2,13 +2,13 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="12dp"
+    android:layout_marginTop="8dp"
     android:background="@drawable/bg_bill_group_top"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingHorizontal="12dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp">
+    android:paddingTop="9dp"
+    android:paddingBottom="9dp">
 
     <TextView
         android:id="@+id/tv_month_title"
@@ -17,7 +17,7 @@
         android:layout_weight="1"
         android:text="03月"
         android:textColor="#222222"
-        android:textSize="@dimen/text_size_16"
+        android:textSize="@dimen/text_size_15"
         android:textStyle="bold" />
 
     <TextView
@@ -28,6 +28,6 @@
         android:lines="2"
         android:text="流入:¥0.00&#10;流出:¥0.00"
         android:textColor="#9AA1AA"
-        android:textSize="@dimen/text_size_14" />
+        android:textSize="@dimen/text_size_13" />
 
 </LinearLayout>

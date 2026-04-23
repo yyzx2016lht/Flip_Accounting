@@ -428,27 +428,16 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             if (isMultiSelectMode) {
                 checkBox.visibility = View.VISIBLE
                 checkBox.isChecked = isSelected
-                if (animate) {
-                    itemView.animate().scaleX(0.95f).scaleY(0.95f).setDuration(200).start()
-                } else {
-                    itemView.scaleX = 0.95f
-                    itemView.scaleY = 0.95f
-                }
+                itemView.animate().cancel()
+                itemView.scaleX = 1f
+                itemView.scaleY = 1f
             } else {
                 checkBox.visibility = View.GONE
                 checkBox.isChecked = false
-                if (animate) {
-                    itemView.animate().scaleX(1f).scaleY(1f).setDuration(200).start()
-                    iconContainer?.apply {
-                        visibility = View.VISIBLE
-                        alpha = 0f
-                        animate().alpha(1f).setDuration(200).start()
-                    }
-                } else {
-                    itemView.scaleX = 1f
-                    itemView.scaleY = 1f
-                    iconContainer?.visibility = View.VISIBLE
-                }
+                itemView.animate().cancel()
+                itemView.scaleX = 1f
+                itemView.scaleY = 1f
+                iconContainer?.visibility = View.VISIBLE
             }
         }
 

@@ -1,5 +1,6 @@
 package tao.test.flipaccounting.ui.main.assets
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -7,10 +8,12 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -43,6 +46,8 @@ import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillAssetImpactService
 import tao.test.flipaccounting.logic.BillDisplayFormatter
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.logic.BillDeleteHelper
+import tao.test.flipaccounting.ui.activity.EditBillActivity
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import java.text.SimpleDateFormat
@@ -104,6 +109,11 @@ class AssetStatsActivity : AppCompatActivity() {
     private lateinit var btnBarIncome: TextView
     private lateinit var btnPieExpense: TextView
     private lateinit var btnPieIncome: TextView
+    private lateinit var layoutMultiSelectActions: View
+    private lateinit var btnMsCancel: TextView
+    private lateinit var btnMsSelectAll: TextView
+    private lateinit var btnMsMove: TextView
+    private lateinit var btnMsDelete: TextView
 
     private lateinit var dateStripAdapter: DateStripAdapter
     private lateinit var billAdapter: AssetStatsBillAdapter
@@ -124,7 +134,11 @@ class AssetStatsActivity : AppCompatActivity() {
     private var loadSequence: Int = 0
     private var fullBillsLoadJob: Job? = null
     private var billListProgressJob: Job? = null
+    private var pieRenderJob: Job? = null
+    private var pieChartHasRendered = false
     private val filteredBillsCache = mutableMapOf<String, List<Bill>>()
+    private val billRowsCache = mutableMapOf<String, List<Any>>()
+    private val pieRenderCache = mutableMapOf<String, PieRenderModel?>()
     private lateinit var barMarker: AssetBarMarkerView
 
     private val dfMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault())
@@ -134,6 +148,20 @@ class AssetStatsActivity : AppCompatActivity() {
     private val dfBillDate = SimpleDateFormat("MM-dd", Locale.getDefault())
 
     private val db by lazy { AppDatabase.getDatabase(this) }
+    private val piePalette = listOf(
+        "#26C6DA", "#66BB6A", "#42A5F5", "#FFB74D", "#FF7043", "#7E57C2",
+        "#29B6F6", "#9CCC65", "#5C6BC0", "#EC407A", "#AB47BC", "#FFA726"
+    ).map { Color.parseColor(it) }
+
+    private data class PieRenderModel(
+        val entries: List<PieEntry>,
+        val sliceColors: List<Int>,
+        val labelSize: Float,
+        val total: Double,
+        val rotation: Float,
+        val useOutsideLabel: Boolean,
+        val animate: Boolean
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,12 +176,14 @@ class AssetStatsActivity : AppCompatActivity() {
         initViews()
         initListeners()
         initCharts()
+        setupBackPressForMultiSelect()
         loadAssetAndBills()
     }
 
     override fun onDestroy() {
         fullBillsLoadJob?.cancel()
         billListProgressJob?.cancel()
+        pieRenderJob?.cancel()
         super.onDestroy()
     }
 
@@ -176,6 +206,11 @@ class AssetStatsActivity : AppCompatActivity() {
         btnBarIncome = findViewById(R.id.btn_bar_income)
         btnPieExpense = findViewById(R.id.btn_pie_expense)
         btnPieIncome = findViewById(R.id.btn_pie_income)
+        layoutMultiSelectActions = findViewById(R.id.layout_multi_select_actions)
+        btnMsCancel = findViewById(R.id.btn_ms_cancel)
+        btnMsSelectAll = findViewById(R.id.btn_ms_select_all)
+        btnMsMove = findViewById(R.id.btn_ms_move)
+        btnMsDelete = findViewById(R.id.btn_ms_delete)
 
         dateStripAdapter = DateStripAdapter { item ->
             when (item.type) {
@@ -197,9 +232,14 @@ class AssetStatsActivity : AppCompatActivity() {
         billAdapter = AssetStatsBillAdapter(
             currencyProvider = { currentAsset?.currency ?: "CNY" },
             amountProvider = { bill -> amountForAssetRow(bill, assetId) }
-        )
+        ).apply {
+            onBillItemClick = { bill -> openBillEditor(bill) }
+            onSelectionChanged = { count -> updateStatsMultiSelectUi(count) }
+        }
         rvBillList.layoutManager = LinearLayoutManager(this)
+        rvBillList.itemAnimator = null
         rvBillList.adapter = billAdapter
+        setupMultiSelectActions()
     }
 
     private fun initListeners() {
@@ -220,13 +260,152 @@ class AssetStatsActivity : AppCompatActivity() {
         btnPieExpense.setOnClickListener {
             pieMode = ChartMode.EXPENSE
             updatePieToggleState()
-            renderPieChart(filteredBills())
+            renderPieChartAsync(currentFilterCacheKey(), filteredBills())
         }
         btnPieIncome.setOnClickListener {
             pieMode = ChartMode.INCOME
             updatePieToggleState()
-            renderPieChart(filteredBills())
+            renderPieChartAsync(currentFilterCacheKey(), filteredBills())
         }
+    }
+
+    private fun setupBackPressForMultiSelect() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (billAdapter.isMultiSelectMode) {
+                    billAdapter.clearSelection()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+    }
+
+    private fun setupMultiSelectActions() {
+        btnMsCancel.setOnClickListener { billAdapter.clearSelection() }
+        btnMsSelectAll.setOnClickListener {
+            val selectableCount = billAdapter.getSelectableBills().size
+            if (selectableCount > 0 && billAdapter.selectedBills.size >= selectableCount) {
+                billAdapter.clearSelection()
+            } else {
+                billAdapter.selectAll()
+            }
+        }
+        btnMsDelete.setOnClickListener {
+            val targets = billAdapter.getSelectedBills()
+            if (targets.isEmpty()) return@setOnClickListener
+            lifecycleScope.launch(Dispatchers.IO) {
+                BillDeleteHelper.deleteBillsAndRevertBalance(db, targets)
+                withContext(Dispatchers.Main) {
+                    billAdapter.clearSelection()
+                    filteredBillsCache.clear()
+                    billRowsCache.clear()
+                    pieRenderCache.clear()
+                    loadAssetAndBills()
+                    Toast.makeText(
+                        this@AssetStatsActivity,
+                        "已删除 ${targets.size} 条账单",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+        btnMsMove.setOnClickListener {
+            val sourceAsset = currentAsset ?: return@setOnClickListener
+            val targets = billAdapter.getSelectedBills()
+            if (targets.isEmpty()) return@setOnClickListener
+            OverlayDialogs.showGridAssetPicker(
+                this,
+                sourceAsset.name,
+                "选择目标资产"
+            ) { selectedName ->
+                if (selectedName == sourceAsset.name) {
+                    Toast.makeText(this, "已在当前资产中", Toast.LENGTH_SHORT).show()
+                    return@showGridAssetPicker
+                }
+                lifecycleScope.launch {
+                    val result = withContext(Dispatchers.IO) {
+                        val targetAsset = db.assetDao().getAssetByName(selectedName) ?: return@withContext 0
+                        var moved = 0
+                        targets.forEach { bill ->
+                            val movedBill = moveBillToTargetAsset(bill, sourceAsset, targetAsset)
+                            if (movedBill != null) {
+                                db.billDao().updateBill(movedBill)
+                                moved++
+                            }
+                        }
+                        moved
+                    }
+                    billAdapter.clearSelection()
+                    if (result > 0) {
+                        filteredBillsCache.clear()
+                        billRowsCache.clear()
+                        pieRenderCache.clear()
+                        loadAssetAndBills()
+                    }
+                    Toast.makeText(this@AssetStatsActivity, "已移动 $result 条账单", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        updateStatsMultiSelectUi(0)
+    }
+
+    private fun updateStatsMultiSelectUi(selectedCount: Int) {
+        val active = selectedCount > 0 && billAdapter.isMultiSelectMode
+        layoutMultiSelectActions.visibility = if (active) View.VISIBLE else View.GONE
+        btnMsCancel.text = "退出多选"
+        btnMsDelete.text = if (selectedCount > 0) "删除($selectedCount)" else "删除"
+    }
+
+    private fun openBillEditor(bill: Bill) {
+        val intent = Intent(this, EditBillActivity::class.java)
+        intent.putExtra("BILL_ID", bill.id)
+        startActivity(intent)
+    }
+
+    private fun moveBillToTargetAsset(
+        bill: Bill,
+        sourceAsset: Asset,
+        targetAsset: Asset
+    ): Bill? {
+        val matchSourceAccount = bill.accountId == sourceAsset.id ||
+            (bill.accountId == null && bill.accountName == sourceAsset.name)
+        val matchSourceToAccount = bill.toAccountId == sourceAsset.id ||
+            (bill.toAccountId == null && bill.toAccountName == sourceAsset.name)
+
+        val updated = if (bill.type == Bill.TYPE_TRANSFER) {
+            when {
+                matchSourceAccount && matchSourceToAccount -> bill.copy(
+                    accountId = targetAsset.id,
+                    accountName = targetAsset.name,
+                    toAccountId = targetAsset.id,
+                    toAccountName = targetAsset.name
+                )
+                matchSourceAccount -> bill.copy(
+                    accountId = targetAsset.id,
+                    accountName = targetAsset.name
+                )
+                matchSourceToAccount -> bill.copy(
+                    toAccountId = targetAsset.id,
+                    toAccountName = targetAsset.name
+                )
+                else -> null
+            }
+        } else {
+            when {
+                matchSourceAccount -> bill.copy(
+                    accountId = targetAsset.id,
+                    accountName = targetAsset.name
+                )
+                matchSourceToAccount -> bill.copy(
+                    toAccountId = targetAsset.id,
+                    toAccountName = targetAsset.name
+                )
+                else -> null
+            }
+        }
+        return if (updated != null && updated != bill) updated else null
     }
 
     private fun initCharts() {
@@ -355,6 +534,8 @@ class AssetStatsActivity : AppCompatActivity() {
                 currentAsset = previewAsset
                 allAssetBills = previewBills
                 filteredBillsCache.clear()
+                billRowsCache.clear()
+                pieRenderCache.clear()
                 initDateChips(resetSelection = true)
                 renderAll()
             }
@@ -371,6 +552,8 @@ class AssetStatsActivity : AppCompatActivity() {
                 currentAsset = previewAsset
                 allAssetBills = fullBills
                 filteredBillsCache.clear()
+                billRowsCache.clear()
+                pieRenderCache.clear()
                 assetStatsCacheByAssetId[assetId] = AssetStatsCache(
                     asset = previewAsset,
                     bills = fullBills,
@@ -471,25 +654,33 @@ class AssetStatsActivity : AppCompatActivity() {
 
     private fun renderAll() {
         val asset = currentAsset ?: return
+        if (billAdapter.isMultiSelectMode) {
+            billAdapter.clearSelection()
+        }
         tvToolbarTitle.text = "资产统计-${asset.name}"
-        tvPeriodLabel.text = if (periodMode == PeriodMode.YEAR) {
+        val periodText = if (periodMode == PeriodMode.YEAR) {
             String.format(Locale.getDefault(), "%04d年", selectedYear)
         } else {
             String.format(Locale.getDefault(), "%04d-%02d", selectedYear, selectedMonth)
         }
+        tvPeriodLabel.text = "$periodText（点击可切换资产）"
 
         dateStripAdapter.submit(dateChips, periodMode, selectedYear, selectedMonth)
         scrollDateStripToSelection()
 
-        val bills = filteredBills()
+        val filterKey = currentFilterCacheKey()
+        val bills = filteredBills(filterKey)
         renderSummary(bills)
         renderBarChart(bills)
-        renderPieChart(bills)
-        renderBillSectionsProgressively(bills)
+        renderPieChartAsync(filterKey, bills)
+        renderBillSectionsProgressively(filterKey, bills)
     }
 
-    private fun filteredBills(): List<Bill> {
-        val key = "${periodMode.name}_${selectedYear}_${selectedMonth}_${allAssetBills.size}_${allAssetBills.firstOrNull()?.id ?: -1L}"
+    private fun currentFilterCacheKey(): String {
+        return "${periodMode.name}_${selectedYear}_${selectedMonth}_${allAssetBills.size}_${allAssetBills.firstOrNull()?.id ?: -1L}"
+    }
+
+    private fun filteredBills(key: String = currentFilterCacheKey()): List<Bill> {
         filteredBillsCache[key]?.let { return it }
         val cal = Calendar.getInstance()
         val result = allAssetBills.filter { bill ->
@@ -505,22 +696,44 @@ class AssetStatsActivity : AppCompatActivity() {
         return result
     }
 
-    private fun renderBillSectionsProgressively(bills: List<Bill>) {
+    private fun renderBillSectionsProgressively(filterKey: String, bills: List<Bill>) {
         billListProgressJob?.cancel()
         if (bills.isEmpty()) {
-            billAdapter.submitRows(emptyList())
+            billAdapter.replaceRows(emptyList())
             return
         }
-
-        var currentLimit = minOf(INITIAL_BILL_LIST_SIZE, bills.size)
-        renderBillSections(bills.take(currentLimit))
-        if (currentLimit >= bills.size) return
-
         billListProgressJob = lifecycleScope.launch {
-            while (isActive && currentLimit < bills.size) {
+            val allRows = billRowsCache[filterKey] ?: withContext(Dispatchers.Default) {
+                buildBillRows(bills)
+            }.also { built ->
+                billRowsCache[filterKey] = built
+            }
+            if (!isActive) return@launch
+            if (allRows.isEmpty()) {
+                billAdapter.replaceRows(emptyList())
+                return@launch
+            }
+            val chunkEnds = calculateRowChunkEnds(
+                rows = allRows,
+                initialBillCount = INITIAL_BILL_LIST_SIZE,
+                stepBillCount = BILL_LIST_STEP_SIZE
+            )
+            if (chunkEnds.isEmpty()) {
+                billAdapter.replaceRows(allRows)
+                return@launch
+            }
+
+            var previousEnd = 0
+            val firstEnd = chunkEnds.first()
+            billAdapter.replaceRows(allRows.subList(0, firstEnd).toList())
+            previousEnd = firstEnd
+
+            for (end in chunkEnds.drop(1)) {
+                if (!isActive) break
                 delay(48L)
-                currentLimit = minOf(currentLimit + BILL_LIST_STEP_SIZE, bills.size)
-                renderBillSections(bills.take(currentLimit))
+                val chunk = allRows.subList(previousEnd, end)
+                billAdapter.appendRows(chunk)
+                previousEnd = end
             }
         }
     }
@@ -789,63 +1002,100 @@ class AssetStatsActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderPieChart(bills: List<Bill>) {
+    private fun renderPieChartAsync(filterKey: String, bills: List<Bill>) {
+        pieRenderJob?.cancel()
+        val modeSnapshot = pieMode
+        val cacheKey = "${filterKey}_${modeSnapshot.name}"
+        pieRenderCache[cacheKey]?.let { cached ->
+            applyPieChartModel(cached)
+            return
+        }
+        pieRenderJob = lifecycleScope.launch {
+            // Give summary/bar/list one frame first to avoid first-frame contention.
+            delay(if (bills.size >= 220) 32L else 16L)
+            if (!isActive || modeSnapshot != pieMode) return@launch
+            val model = withContext(Dispatchers.Default) {
+                buildPieRenderModel(bills, modeSnapshot)
+            }
+            if (!isActive || modeSnapshot != pieMode) return@launch
+            pieRenderCache[cacheKey] = model
+            applyPieChartModel(model)
+        }
+    }
+
+    private fun buildPieRenderModel(bills: List<Bill>, mode: ChartMode): PieRenderModel? {
         val categoryMap = linkedMapOf<String, Double>()
         var total = 0.0
         bills.forEach { bill ->
-            val amount = amountForPie(bill)
+            val amount = amountForPieByMode(bill, mode)
             if (amount <= 0.0) return@forEach
             val category = topLevelCategory(bill.categoryName)
             categoryMap[category] = (categoryMap[category] ?: 0.0) + amount
             total += amount
         }
-        if (total <= 0.0) {
-            pieChart.clear()
-            return
-        }
+        if (total <= 0.0) return null
 
-        val sortedStats = categoryMap
-            .toList()
-            .sortedByDescending { it.second }
+        val sortedStats = categoryMap.toList().sortedByDescending { it.second }
+        val minPercent = 2.0
         val filteredStats = sortedStats
-            .filter { (_, amount) -> (amount / total * 100.0) >= 2.0 }
+            .filter { (_, amount) -> (amount / total * 100.0) >= minPercent }
             .sortedBy { it.second }
-        if (filteredStats.isEmpty()) {
-            pieChart.clear()
-            return
-        }
+        if (filteredStats.isEmpty()) return null
 
-        val palette = listOf(
-            "#26C6DA", "#66BB6A", "#42A5F5", "#FFB74D", "#FF7043", "#7E57C2",
-            "#29B6F6", "#9CCC65", "#5C6BC0", "#EC407A", "#AB47BC", "#FFA726"
-        ).map { Color.parseColor(it) }
         val colorByName = sortedStats.mapIndexed { index, pair ->
-            pair.first to palette[index % palette.size]
+            pair.first to piePalette[index % piePalette.size]
         }.toMap()
-
         val entries = filteredStats.map { PieEntry(it.second.toFloat(), it.first) }
-        val sliceColors = filteredStats.map { (name, _) -> colorByName[name] ?: palette[0] }
+        val sliceColors = filteredStats.map { (name, _) -> colorByName[name] ?: piePalette[0] }
+        val isHeavy = bills.size >= 220 || filteredStats.size >= 12
+        val useOutsideLabel = true
         val labelSize = when {
             filteredStats.size >= 12 -> 7.5f
             filteredStats.size >= 9 -> 8.0f
             else -> 9.0f
         }
 
-        val dataSet = PieDataSet(entries, "").apply {
-            colors = sliceColors
-            xValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
-            yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
+        return PieRenderModel(
+            entries = entries,
+            sliceColors = sliceColors,
+            labelSize = labelSize,
+            total = total,
+            rotation = findBestInitialRotation(entries.map { it.value }),
+            useOutsideLabel = useOutsideLabel,
+            animate = !isHeavy
+        )
+    }
+
+    private fun applyPieChartModel(model: PieRenderModel?) {
+        if (model == null) {
+            pieChart.clear()
+            pieChart.invalidate()
+            pieChartHasRendered = false
+            return
+        }
+        val total = model.total
+        val dataSet = PieDataSet(model.entries, "").apply {
+            colors = model.sliceColors
+            xValuePosition = if (model.useOutsideLabel) {
+                PieDataSet.ValuePosition.OUTSIDE_SLICE
+            } else {
+                PieDataSet.ValuePosition.INSIDE_SLICE
+            }
+            yValuePosition = if (model.useOutsideLabel) {
+                PieDataSet.ValuePosition.OUTSIDE_SLICE
+            } else {
+                PieDataSet.ValuePosition.INSIDE_SLICE
+            }
             valueLinePart1OffsetPercentage = 100f
-            valueLinePart1Length = if (filteredStats.size >= 10) 0.22f else 0.30f
-            valueLinePart2Length = if (filteredStats.size >= 10) 0.55f else 0.78f
+            valueLinePart1Length = if (model.entries.size >= 10) 0.22f else 0.30f
+            valueLinePart2Length = if (model.entries.size >= 10) 0.55f else 0.78f
             selectionShift = 4f
-            setValueLineVariableLength(true)
-            setUsingSliceColorAsValueLineColor(true)
-            valueTextSize = labelSize
-            setValueTextColors(sliceColors)
+            setValueLineVariableLength(model.useOutsideLabel)
+            setUsingSliceColorAsValueLineColor(model.useOutsideLabel)
+            valueTextSize = model.labelSize
+            setValueTextColors(model.sliceColors)
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String = ""
-
                 override fun getPieLabel(value: Float, pieEntry: PieEntry): String {
                     val pct = if (total > 0.0) (pieEntry.value / total.toFloat() * 100f) else 0f
                     return "${pieEntry.label} ${String.format(Locale.getDefault(), "%.1f%%", pct)}"
@@ -856,8 +1106,25 @@ class AssetStatsActivity : AppCompatActivity() {
         pieChart.data = PieData(dataSet).apply { setDrawValues(true) }
         pieChart.centerText = ""
         pieChart.setDrawEntryLabels(false)
-        pieChart.rotationAngle = findBestInitialRotation(entries.map { it.value })
-        pieChart.animateY(260)
+        pieChart.rotationAngle = model.rotation
+        pieChart.clearAnimation()
+        pieChart.animate().cancel()
+        if (!pieChartHasRendered) {
+            pieChart.alpha = 0f
+            pieChart.scaleX = 0.97f
+            pieChart.scaleY = 0.97f
+            pieChartHasRendered = true
+        } else {
+            pieChart.alpha = 0.94f
+            pieChart.scaleX = 0.985f
+            pieChart.scaleY = 0.985f
+        }
+        pieChart.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(if (model.animate) 180L else 120L)
+            .start()
         pieChart.invalidate()
     }
 
@@ -906,8 +1173,10 @@ class AssetStatsActivity : AppCompatActivity() {
         return sideScore(leftY) + sideScore(rightY)
     }
 
-    private fun amountForPie(bill: Bill): Double {
-        return when (pieMode) {
+    private fun amountForPie(bill: Bill): Double = amountForPieByMode(bill, pieMode)
+
+    private fun amountForPieByMode(bill: Bill, mode: ChartMode): Double {
+        return when (mode) {
             ChartMode.EXPENSE -> {
                 if (bill.type == Bill.TYPE_EXPENSE && bill.subType != Bill.SUBTYPE_REFUND) {
                     amountInAssetCurrency(bill, assetId, false)
@@ -925,7 +1194,7 @@ class AssetStatsActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderBillSections(bills: List<Bill>) {
+    private fun buildBillRows(bills: List<Bill>): List<Any> {
         val rows = mutableListOf<Any>()
         if (periodMode == PeriodMode.YEAR) {
             val groups = linkedMapOf<String, MutableList<Bill>>()
@@ -955,7 +1224,29 @@ class AssetStatsActivity : AppCompatActivity() {
                 dayBills.forEach { rows += BillRow(it) }
             }
         }
-        billAdapter.submitRows(rows)
+        return rows
+    }
+
+    private fun calculateRowChunkEnds(
+        rows: List<Any>,
+        initialBillCount: Int,
+        stepBillCount: Int
+    ): List<Int> {
+        if (rows.isEmpty()) return emptyList()
+        val result = mutableListOf<Int>()
+        var nextTarget = initialBillCount.coerceAtLeast(1)
+        var billCount = 0
+        rows.forEachIndexed { index, row ->
+            if (row is BillRow) billCount++
+            if (billCount >= nextTarget) {
+                result += (index + 1)
+                nextTarget += stepBillCount.coerceAtLeast(1)
+            }
+        }
+        if (result.isEmpty() || result.last() != rows.size) {
+            result += rows.size
+        }
+        return result
     }
 
     private fun calcSectionIncomeExpense(bills: List<Bill>): Pair<Double, Double> {
@@ -1124,15 +1415,53 @@ class AssetStatsActivity : AppCompatActivity() {
         private val currencyProvider: () -> String,
         private val amountProvider: (Bill) -> Double
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        private val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
+        private val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
 
         private val typeHeader = 0
         private val typeBill = 1
         private val rows = mutableListOf<Any>()
+        var isMultiSelectMode: Boolean = false
+        val selectedBills = mutableSetOf<Bill>()
+        var onBillItemClick: ((Bill) -> Unit)? = null
+        var onSelectionChanged: ((Int) -> Unit)? = null
 
-        fun submitRows(list: List<Any>) {
+        fun replaceRows(list: List<Any>) {
             rows.clear()
             rows.addAll(list)
+            val availableIds = rows.mapNotNull { (it as? BillRow)?.bill?.id }.toSet()
+            selectedBills.removeAll { it.id !in availableIds }
+            if (selectedBills.isEmpty()) {
+                isMultiSelectMode = false
+            }
+            onSelectionChanged?.invoke(selectedBills.size)
             notifyDataSetChanged()
+        }
+
+        fun appendRows(list: List<Any>) {
+            if (list.isEmpty()) return
+            val start = rows.size
+            rows.addAll(list)
+            notifyItemRangeInserted(start, list.size)
+        }
+
+        fun getSelectableBills(): List<Bill> = rows.mapNotNull { (it as? BillRow)?.bill }
+
+        fun getSelectedBills(): List<Bill> = selectedBills.toList()
+
+        fun selectAll() {
+            isMultiSelectMode = true
+            selectedBills.clear()
+            selectedBills.addAll(getSelectableBills())
+            onSelectionChanged?.invoke(selectedBills.size)
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+        }
+
+        fun clearSelection() {
+            selectedBills.clear()
+            isMultiSelectMode = false
+            onSelectionChanged?.invoke(0)
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
         }
 
         override fun getItemViewType(position: Int): Int {
@@ -1160,6 +1489,27 @@ class AssetStatsActivity : AppCompatActivity() {
             }
         }
 
+        override fun onBindViewHolder(
+            holder: RecyclerView.ViewHolder,
+            position: Int,
+            payloads: MutableList<Any>
+        ) {
+            if (payloads.isNotEmpty() && holder is BillVH) {
+                val row = rows.getOrNull(position) as? BillRow
+                if (row != null) {
+                    if (payloads.contains(PAYLOAD_MODE_CHANGE)) {
+                        holder.updateMode(row.bill)
+                        return
+                    }
+                    if (payloads.contains(PAYLOAD_SELECTION_CHANGE)) {
+                        holder.updateSelection(row.bill)
+                        return
+                    }
+                }
+            }
+            super.onBindViewHolder(holder, position, payloads)
+        }
+
         override fun getItemCount(): Int = rows.size
 
         inner class HeaderVH(v: View) : RecyclerView.ViewHolder(v) {
@@ -1181,7 +1531,16 @@ class AssetStatsActivity : AppCompatActivity() {
             private val tvAsset = v.findViewById<TextView>(R.id.tv_bill_asset)
             private val tvTime = v.findViewById<TextView>(R.id.tv_bill_time)
             private val iconContainer = v.findViewById<View>(R.id.layout_icon_container)
-            private val cbSelect = v.findViewById<View>(R.id.cb_bill_select)
+            private val cbSelect = v.findViewById<CheckBox>(R.id.cb_bill_select)
+
+            fun updateMode(bill: Bill) {
+                cbSelect.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
+                cbSelect.isChecked = selectedBills.contains(bill)
+            }
+
+            fun updateSelection(bill: Bill) {
+                cbSelect.isChecked = selectedBills.contains(bill)
+            }
 
             fun bind(bill: Bill, position: Int) {
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER
@@ -1190,7 +1549,8 @@ class AssetStatsActivity : AppCompatActivity() {
                 val symbol = CurrencyManager.getSymbol(currencyProvider())
                 val amount = amountProvider(bill)
 
-                val isGroupStart = position == 0 || rows.getOrNull(position - 1) is SectionHeaderRow
+                val hasHeaderAbove = rows.getOrNull(position - 1) is SectionHeaderRow
+                val isGroupStart = position == 0 && !hasHeaderAbove
                 val isGroupEnd = position == rows.lastIndex || rows.getOrNull(position + 1) is SectionHeaderRow
                 itemView.setBackgroundResource(
                     when {
@@ -1201,7 +1561,7 @@ class AssetStatsActivity : AppCompatActivity() {
                     }
                 )
 
-                cbSelect.visibility = View.GONE
+                updateMode(bill)
                 tvTime.visibility = View.GONE
 
                 tvCategory.text = when {
@@ -1253,6 +1613,45 @@ class AssetStatsActivity : AppCompatActivity() {
                         ivIcon.setImageResource(R.drawable.ic_money)
                         ivIcon.setColorFilter(Color.parseColor("#E85A67"))
                     }
+                }
+
+                itemView.setOnClickListener {
+                    if (isMultiSelectMode) {
+                        if (selectedBills.contains(bill)) {
+                            selectedBills.remove(bill)
+                        } else {
+                            selectedBills.add(bill)
+                        }
+                        if (selectedBills.isEmpty()) {
+                            isMultiSelectMode = false
+                            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+                        } else {
+                            val pos = adapterPosition
+                            if (pos != RecyclerView.NO_POSITION) {
+                                notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                            }
+                        }
+                        onSelectionChanged?.invoke(selectedBills.size)
+                    } else {
+                        onBillItemClick?.invoke(bill)
+                    }
+                }
+
+                itemView.setOnLongClickListener {
+                    if (!isMultiSelectMode) {
+                        isMultiSelectMode = true
+                        selectedBills.clear()
+                        selectedBills.add(bill)
+                        notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+                    } else {
+                        selectedBills.add(bill)
+                        val pos = adapterPosition
+                        if (pos != RecyclerView.NO_POSITION) {
+                            notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                        }
+                    }
+                    onSelectionChanged?.invoke(selectedBills.size)
+                    true
                 }
             }
         }

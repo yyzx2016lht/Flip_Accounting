@@ -2,12 +2,12 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="10dp"
-    android:background="#FFFFFF"
+    android:layout_marginTop="8dp"
+    android:background="@drawable/bg_bill_group_top"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="14dp">
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="10dp">
 
     <TextView
         android:id="@+id/tv_section_title"
@@ -15,8 +15,8 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="03月"
-        android:textColor="#111827"
-        android:textSize="@dimen/text_size_28"
+        android:textColor="#1F2937"
+        android:textSize="@dimen/text_size_18"
         android:textStyle="bold" />
 
     <TextView
@@ -24,8 +24,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="收:¥800.00 支:¥47.33"
-        android:textColor="#111827"
-        android:textSize="@dimen/text_size_14"
-        android:textStyle="bold" />
+        android:textColor="#8A93A3"
+        android:textSize="@dimen/text_size_13" />
 
 </LinearLayout>
