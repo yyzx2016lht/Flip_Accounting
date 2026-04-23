@@ -25,6 +25,13 @@ class BookOverviewAdapter(
 ) : RecyclerView.Adapter<BookOverviewAdapter.ViewHolder>() {
 
     private val items = mutableListOf<BookOverviewItem>()
+    private var isYearMode: Boolean = false
+
+    fun setYearMode(yearMode: Boolean) {
+        if (isYearMode == yearMode) return
+        isYearMode = yearMode
+        notifyDataSetChanged()
+    }
 
     fun submitList(newItems: List<BookOverviewItem>) {
         items.clear()
@@ -64,6 +71,8 @@ class BookOverviewAdapter(
         private val vGradient: View = itemView.findViewById(R.id.vCoverGradient)
         private val tvName: TextView = itemView.findViewById(R.id.tvBookName)
         private val tvTag: TextView = itemView.findViewById(R.id.tvActiveTag)
+        private val tvExpenseLabel: TextView = itemView.findViewById(R.id.tvBookExpenseLabel)
+        private val tvIncomeLabel: TextView = itemView.findViewById(R.id.tvBookIncomeLabel)
         private val tvExpense: TextView = itemView.findViewById(R.id.tvBookExpense)
         private val tvIncome: TextView = itemView.findViewById(R.id.tvBookIncome)
 
@@ -92,6 +101,8 @@ class BookOverviewAdapter(
 
             tvExpense.text = "¥${String.format("%.2f", item.expense)}"
             tvIncome.text = "¥${String.format("%.2f", item.income)}"
+            tvExpenseLabel.text = if (isYearMode) "年支出" else "月支出"
+            tvIncomeLabel.text = if (isYearMode) "年收入" else "月收入"
 
             itemView.setOnClickListener { onCardClick(item) }
         }

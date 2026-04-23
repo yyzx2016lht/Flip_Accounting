@@ -81,6 +81,7 @@ class BookOverviewActivity : AppCompatActivity() {
                 BookAccountManager.reorderBookAccounts(this, newOrder)
             }
         )
+        adapter.setYearMode(isYearMode)
         rvBookOverview.layoutManager = LinearLayoutManager(this)
         rvBookOverview.adapter = adapter
     }
@@ -145,6 +146,8 @@ class BookOverviewActivity : AppCompatActivity() {
             if (isYearMode) {
                 isYearMode = false
                 updateViewModeStyle()
+                updatePeriodText()
+                adapter.setYearMode(isYearMode)
                 loadData()
             }
         }
@@ -152,6 +155,8 @@ class BookOverviewActivity : AppCompatActivity() {
             if (!isYearMode) {
                 isYearMode = true
                 updateViewModeStyle()
+                updatePeriodText()
+                adapter.setYearMode(isYearMode)
                 loadData()
             }
         }

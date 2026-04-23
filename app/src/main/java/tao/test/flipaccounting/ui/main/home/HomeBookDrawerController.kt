@@ -263,19 +263,20 @@ internal class HomeBookDrawerController(
 
             val dbBooks = db.billDao().getAllBookNames()
             val mergedBooks = BookAccountManager.getBookAccounts(context, dbBooks)
-            val selectedFromPrefs = BookAccountManager.getSelectedBook(context, mergedBooks)
+            val booksWithAll = BookAccountManager.withAllBookOption(mergedBooks)
+            val selectedFromPrefs = BookAccountManager.getSelectedBook(context, booksWithAll)
 
             withContext(Dispatchers.Main) {
                 if (!fragment.isAdded) return@withContext
                 val currentSelected = getSelectedBookName()
                 val resolvedSelected = when {
-                    mergedBooks.contains(currentSelected) -> currentSelected
+                    booksWithAll.contains(currentSelected) -> currentSelected
                     else -> selectedFromPrefs
                 }
                 val bookChanged = resolvedSelected != currentSelected
                 setSelectedBookName(resolvedSelected)
                 BookAccountManager.setSelectedBook(fragment.requireContext(), resolvedSelected)
-                setAvailableBookNames(mergedBooks)
+                setAvailableBookNames(booksWithAll)
                 bookAccountAdapter.submitList(getAvailableBookNames(), getSelectedBookName())
                 if (drawerBooks.isDrawerOpen(GravityCompat.START)) {
                     scrollBookListToSelected(animate = false)
