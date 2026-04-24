@@ -18,6 +18,9 @@ object PrefsDisplaySupport {
     private const val KEY_RECEIPT_LANG_MODE = "receipt_lang_mode"
     private const val KEY_SAVE_OCR_DEBUG = "save_ocr_debug_before_ai"
     private const val KEY_AMOUNT_GROUPING = "amount_grouping_enabled"
+    private const val KEY_BILL_SHOW_CATEGORY_ICON = "bill_show_category_icon_v1"
+    private const val KEY_BILL_SHOW_FULL_CATEGORY = "bill_show_full_category_v1"
+    private const val KEY_BILL_REMARK_PRIORITY = "bill_remark_priority_v1"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -85,4 +88,19 @@ object PrefsDisplaySupport {
         prefs(ctx).getBoolean(KEY_AMOUNT_GROUPING, true)
     fun setAmountGroupingEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AMOUNT_GROUPING, enabled).apply()
+
+    fun isShowBillCategoryIcon(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_BILL_SHOW_CATEGORY_ICON, true)
+    fun setShowBillCategoryIcon(ctx: Context, show: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_BILL_SHOW_CATEGORY_ICON, show).apply()
+
+    fun isShowBillFullCategory(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_BILL_SHOW_FULL_CATEGORY, true)
+    fun setShowBillFullCategory(ctx: Context, show: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_BILL_SHOW_FULL_CATEGORY, show).apply()
+
+    fun isBillRemarkPriority(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_BILL_REMARK_PRIORITY, false)
+    fun setBillRemarkPriority(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_BILL_REMARK_PRIORITY, enabled).apply()
 }

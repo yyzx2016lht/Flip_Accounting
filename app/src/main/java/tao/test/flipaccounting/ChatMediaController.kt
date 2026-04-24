@@ -35,7 +35,7 @@ class ChatMediaController(
     private val ivChatBgProvider: () -> ImageView,
     private val adapterProvider: () -> RecyclerView.Adapter<*>,
     private val ensureAiImageFeatureEnabled: () -> Boolean,
-    private val showStyledCenterDialog: (AlertDialog, Float) -> Unit,
+    private val showPageCenterDialog: (AlertDialog, Float) -> Unit,
     private val updateConversationSubtitle: () -> Unit,
     private val appendUserMessage: (String, Int, String) -> Unit,
     private val callAiAccounting: (String) -> Unit,
@@ -89,7 +89,7 @@ class ChatMediaController(
             openImagePicker(reqPickAiAvatar, "选择 AI 头像")
         }
 
-        showStyledCenterDialog(dialog, 0.88f)
+        showPageCenterDialog(dialog, 0.88f)
     }
 
     fun pickImage() {
@@ -116,7 +116,7 @@ class ChatMediaController(
         view.findViewById<TextView>(R.id.btn_bg_setting_cancel).setOnClickListener {
             dialog.dismiss()
         }
-        showStyledCenterDialog(dialog, 0.9f)
+        showPageCenterDialog(dialog, 0.9f)
     }
 
     fun refreshAiProfile() {
@@ -331,7 +331,7 @@ class ChatMediaController(
             dialog.dismiss()
             onConfirm(sourceUri)
         }
-        showStyledCenterDialog(dialog, 0.9f)
+        showPageCenterDialog(dialog, 0.9f)
     }
 
     private fun saveAndApplyBackground(uri: Uri) {

@@ -20,13 +20,12 @@ class ChatUiHelperController(
     private val context: ChatActivity,
     private val displayMessagesProvider: () -> List<ChatDisplayItem>
 ) {
-    fun showStyledCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
-        OverlayDialogs.showStyledCenterDialog(
+    fun showPageCenterDialog(dialog: AlertDialog, widthRatio: Float = 0.86f) {
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = context,
             widthRatio = widthRatio,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -64,21 +63,20 @@ class ChatUiHelperController(
             onConfirm()
         }
 
-        showStyledCenterDialog(dialog)
+        showPageCenterDialog(dialog)
     }
 
-    fun showStyledBottomDialog(dialog: AlertDialog) {
+    fun showPageBottomDialog(dialog: AlertDialog) {
         val margin = (12 * context.resources.displayMetrics.density).toInt()
         val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
         val targetWidth = (screenWidth - margin * 2).coerceAtLeast(1)
         val widthRatio = targetWidth.toFloat() / screenWidth.toFloat()
-        OverlayDialogs.showStyledBottomDialog(
+        OverlayDialogs.showPageBottomDialog(
             dialog = dialog,
             ctx = context,
             widthRatio = widthRatio,
             y = 0,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }

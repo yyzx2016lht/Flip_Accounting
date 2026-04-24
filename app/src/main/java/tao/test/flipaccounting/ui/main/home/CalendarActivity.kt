@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting.ui.main.home
+package tao.test.flipaccounting.ui.main.home
 
 import androidx.appcompat.app.AlertDialog
 import android.content.Context
@@ -33,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.CategoryIconHelper
 import tao.test.flipaccounting.R
@@ -339,7 +340,7 @@ class CalendarActivity : AppCompatActivity() {
                 d.dismiss()
             }
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog, this, widthRatio = 0.86f)
+        OverlayDialogs.showPageCenterDialog(dialog, this, widthRatio = 0.86f)
     }
     private fun setDisplayMode(mode: Int) {
         currentMode = mode
@@ -398,7 +399,7 @@ class CalendarActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog, this, widthRatio = 0.86f)
+        OverlayDialogs.showPageCenterDialog(dialog, this, widthRatio = 0.86f)
     }
     private fun setupCalendar() {
         rvCalendar.layoutManager = GridLayoutManager(this, 7)
@@ -473,17 +474,19 @@ class CalendarActivity : AppCompatActivity() {
         val isTransfer = bill.type == Bill.TYPE_TRANSFER
         val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
         val isRefund = isRefundBill(bill)
+        val showCategoryIcon = Prefs.isShowBillCategoryIcon(this)
+        val showFullCategory = Prefs.isShowBillFullCategory(this)
+        val remarkPriority = Prefs.isBillRemarkPriority(this)
         val symbol = CurrencyManager.getSymbol(bill.currency)
         val baseCategory = stripRefundPrefix(bill.categoryName)
 
         row.setBackgroundResource(if (forceGrayStyle) R.drawable.bg_bill_item_refund else R.drawable.bg_bill_item)
         iconContainer?.setBackgroundResource(if (forceGrayStyle) R.drawable.bg_circle_refund else R.drawable.bg_circle_soft)
 
-        tvCategory.text = when {
+        val categoryText = when {
             isRepayment -> "还款"
             isTransfer -> "转账"
-            isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
-            else -> bill.categoryName.ifEmpty { "未分类" }
+            else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { "未分类" }
         }
 
         val refundAmount = refundAmountOfExpenseBill(bill)
@@ -544,6 +547,25 @@ class CalendarActivity : AppCompatActivity() {
             }
         }
 
+        val detailSuffix = if (isTransfer) {
+            buildString {
+                append(bill.accountName)
+                if (bill.toAccountName.isNotEmpty()) {
+                    append(" -> ")
+                    append(bill.toAccountName)
+                }
+            }
+        } else {
+            bill.accountName
+        }
+        val (primaryText, secondaryText) = BillDisplayFormatter.resolvePrimarySecondaryText(
+            categoryText = categoryText,
+            remarkText = bill.remark,
+            suffixText = detailSuffix,
+            remarkPriority = remarkPriority
+        )
+        tvCategory.text = primaryText
+
         if (forceGrayStyle) {
             tvDetail.text = dfDetailTimeShort.format(Date(bill.time))
             tvDetail.visibility = View.VISIBLE
@@ -554,8 +576,8 @@ class CalendarActivity : AppCompatActivity() {
                 tvTime.visibility = View.GONE
             }
         } else {
-            if (detailStr.isNotEmpty()) {
-                tvDetail.text = detailStr
+            if (secondaryText.isNotEmpty()) {
+                tvDetail.text = secondaryText
                 tvDetail.visibility = View.VISIBLE
             } else {
                 tvDetail.visibility = View.GONE
@@ -564,14 +586,48 @@ class CalendarActivity : AppCompatActivity() {
             tvTime.visibility = View.VISIBLE
         }
 
-        val iconLookupName = if (isRefund) baseCategory else bill.categoryName
-        val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
-        lifecycleScope.launch {
-            val iconUrl = CategoryIconHelper.findCategoryIcon(this@CalendarActivity, iconLookupName, iconLookupType)
-            if (iconUrl.isNotEmpty()) {
-                Glide.with(row).load(iconUrl).into(ivIcon)
-            } else {
-                ivIcon.setImageResource(R.mipmap.ic_launcher)
+        if (!showCategoryIcon) {
+            iconContainer?.setBackgroundColor(Color.TRANSPARENT)
+            iconContainer?.layoutParams = iconContainer?.layoutParams?.apply {
+                val widthPx = (row.resources.displayMetrics.density * 10).toInt()
+                val heightPx = (row.resources.displayMetrics.density * 44).toInt()
+                width = widthPx
+                height = heightPx
+            }
+            ivIcon.clearColorFilter()
+            ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                val px = (ivIcon.resources.displayMetrics.density * 6).toInt()
+                width = px
+                height = px
+            }
+            ivIcon.setImageResource(
+                when (bill.type) {
+                    Bill.TYPE_EXPENSE -> R.drawable.bg_bill_dot_expense
+                    Bill.TYPE_INCOME -> R.drawable.bg_bill_dot_income
+                    else -> R.drawable.bg_bill_dot_neutral
+                }
+            )
+        } else {
+            iconContainer?.layoutParams = iconContainer?.layoutParams?.apply {
+                val widthPx = (row.resources.displayMetrics.density * 44).toInt()
+                val heightPx = (row.resources.displayMetrics.density * 44).toInt()
+                width = widthPx
+                height = heightPx
+            }
+            ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                val px = (ivIcon.resources.displayMetrics.density * 21).toInt()
+                width = px
+                height = px
+            }
+            val iconLookupName = if (isRefund) baseCategory else bill.categoryName
+            val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
+            lifecycleScope.launch {
+                val iconUrl = CategoryIconHelper.findCategoryIcon(this@CalendarActivity, iconLookupName, iconLookupType)
+                if (iconUrl.isNotEmpty()) {
+                    Glide.with(row).load(iconUrl).into(ivIcon)
+                } else {
+                    ivIcon.setImageResource(R.mipmap.ic_launcher)
+                }
             }
         }
     }

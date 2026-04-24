@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.content.Intent
 import android.os.Bundle
@@ -114,7 +114,7 @@ class AssetActivity : AppCompatActivity() {
                 }
             }
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog, this)
+        OverlayDialogs.showPageCenterDialog(dialog, this)
     }
 
     private fun showDeleteAssetConfirm(asset: Asset) {
@@ -136,7 +136,7 @@ class AssetActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog, this)
+        OverlayDialogs.showPageCenterDialog(dialog, this)
     }
 
     inner class AssetListAdapter(

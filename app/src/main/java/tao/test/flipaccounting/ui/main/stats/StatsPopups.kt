@@ -28,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.CategoryIconHelper
 import tao.test.flipaccounting.R
@@ -325,6 +326,9 @@ class BillListBottomSheet(
         val isTransfer = bill.type == Bill.TYPE_TRANSFER
         val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
         val isRefund = bill.subType == Bill.SUBTYPE_REFUND
+        val showCategoryIcon = Prefs.isShowBillCategoryIcon(requireContext())
+        val showFullCategory = Prefs.isShowBillFullCategory(requireContext())
+        val remarkPriority = Prefs.isBillRemarkPriority(requireContext())
         val baseCategoryName = stripRefundPrefix(bill.categoryName)
         val symbol = CurrencyManager.getSymbol(bill.currency)
 
@@ -333,12 +337,18 @@ class BillListBottomSheet(
         tvCategory.setTextColor(if (isRefund) Color.parseColor("#8E98A3") else Color.parseColor("#333333"))
         tvDetail.setTextColor(if (isRefund) Color.parseColor("#A1A8AF") else Color.parseColor("#999999"))
 
-        tvCategory.text = when {
+        val categoryText = when {
             isRepayment -> "还款"
             isTransfer -> "转账"
-            isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
-            else -> bill.categoryName.ifEmpty { "未分类" }
+            else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { "未分类" }
         }
+        val (primaryText, secondaryText) = BillDisplayFormatter.resolvePrimarySecondaryText(
+            categoryText = categoryText,
+            remarkText = bill.remark,
+            suffixText = dfDate.format(Date(bill.time)),
+            remarkPriority = remarkPriority
+        )
+        tvCategory.text = primaryText
 
         val refundAmount = BillDisplayFormatter.refundAmountOfExpenseBill(bill)
         tvAmount.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {
@@ -365,35 +375,62 @@ class BillListBottomSheet(
             }
         )
 
-        val detail = buildString {
-            append(dfDate.format(Date(bill.time)))
-            if (bill.remark.isNotBlank()) {
-                append(" ")
-                append(bill.remark)
-            }
-        }
-        tvDetail.text = detail
+        tvDetail.text = secondaryText.ifBlank { dfDate.format(Date(bill.time)) }
         tvDetail.visibility = View.VISIBLE
         tvTime.visibility = View.GONE
 
-        val iconLookupName = if (isRefund) baseCategoryName else bill.categoryName
-        val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
-        val iconTint = when {
-            isRefund -> Color.parseColor("#8E98A3")
-            bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#FF5252")
-            bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
-            else -> Color.parseColor("#9E9E9E")
-        }
-        ivIcon.setImageResource(R.mipmap.ic_launcher)
-        ivIcon.setColorFilter(iconTint)
-        CoroutineScope(Dispatchers.IO).launch {
-            val iconUrl = CategoryIconHelper.findCategoryIcon(requireContext(), iconLookupName, iconLookupType)
-            withContext(Dispatchers.Main) {
-                if (iconUrl.isNotEmpty()) {
-                    Glide.with(this@BillListBottomSheet)
-                        .load(iconUrl)
-                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                        .into(ivIcon)
+        if (!showCategoryIcon) {
+            iconContainer.setBackgroundColor(Color.TRANSPARENT)
+            iconContainer.layoutParams = iconContainer.layoutParams.apply {
+                val widthPx = (itemView.resources.displayMetrics.density * 10).toInt()
+                val heightPx = (itemView.resources.displayMetrics.density * 44).toInt()
+                width = widthPx
+                height = heightPx
+            }
+            ivIcon.clearColorFilter()
+            ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                val px = (ivIcon.resources.displayMetrics.density * 6).toInt()
+                width = px
+                height = px
+            }
+            ivIcon.setImageResource(
+                when (bill.type) {
+                    Bill.TYPE_EXPENSE -> R.drawable.bg_bill_dot_expense
+                    Bill.TYPE_INCOME -> R.drawable.bg_bill_dot_income
+                    else -> R.drawable.bg_bill_dot_neutral
+                }
+            )
+        } else {
+            iconContainer.layoutParams = iconContainer.layoutParams.apply {
+                val widthPx = (itemView.resources.displayMetrics.density * 44).toInt()
+                val heightPx = (itemView.resources.displayMetrics.density * 44).toInt()
+                width = widthPx
+                height = heightPx
+            }
+            val iconLookupName = if (isRefund) baseCategoryName else bill.categoryName
+            val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
+            val iconTint = when {
+                isRefund -> Color.parseColor("#8E98A3")
+                bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#FF5252")
+                bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
+                else -> Color.parseColor("#9E9E9E")
+            }
+            ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                val px = (ivIcon.resources.displayMetrics.density * 21).toInt()
+                width = px
+                height = px
+            }
+            ivIcon.setImageResource(R.mipmap.ic_launcher)
+            ivIcon.setColorFilter(iconTint)
+            CoroutineScope(Dispatchers.IO).launch {
+                val iconUrl = CategoryIconHelper.findCategoryIcon(requireContext(), iconLookupName, iconLookupType)
+                withContext(Dispatchers.Main) {
+                    if (iconUrl.isNotEmpty()) {
+                        Glide.with(this@BillListBottomSheet)
+                            .load(iconUrl)
+                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                            .into(ivIcon)
+                    }
                 }
             }
         }

@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -194,7 +194,7 @@ class AiConfigActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
 
-            OverlayDialogs.showStyledCenterDialog(
+            OverlayDialogs.showPageCenterDialog(
                 dialog = dialog,
                 ctx = this@AiConfigActivity,
                 widthRatio = 0.9f

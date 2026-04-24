@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting.logic
+package tao.test.flipaccounting.logic
 
 import android.animation.ObjectAnimator
 import android.app.Activity
@@ -1554,12 +1554,11 @@ class AccountingFormController(
                 isMissingRateDialogShowing = false
             }
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = safeContext,
             widthRatio = 0.88f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -1603,14 +1602,23 @@ class AccountingFormController(
             .setCancelable(false)
             .create()
 
-        OverlayDialogs.showStyledCenterDialog(
-            dialog = dialog,
-            ctx = safeContext,
-            widthRatio = 0.88f,
-            cancelOnTouchOutside = false,
-            applyOverlayType = isOverlayContext,
-            useSolidPanelBackground = true
-        )
+        if (isOverlayContext) {
+            OverlayDialogs.showOverlayCenterDialog(
+                dialog = dialog,
+                ctx = safeContext,
+                widthRatio = 0.88f,
+                cancelOnTouchOutside = false,
+                useSolidPanelBackground = true
+            )
+        } else {
+            OverlayDialogs.showPageCenterDialog(
+                dialog = dialog,
+                ctx = safeContext,
+                widthRatio = 0.88f,
+                cancelOnTouchOutside = false,
+                useSolidPanelBackground = true
+            )
+        }
     }
 
     private fun showCreateRuleDialog(
@@ -1736,12 +1744,11 @@ class AccountingFormController(
             }
             .create()
 
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = safeContext,
             widthRatio = 0.88f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -1837,6 +1844,7 @@ class AccountingFormController(
     private var lastAiSuggestOriginalText: String? = null
 
     fun fillDataToUi(json: JSONObject, showToast: Boolean = true, forceMultiMode: Boolean = false) {
+        val localRuleCorrected = json.optBoolean("_local_rule_corrected", false)
         val original = json.takeIf { it.has("original_text_from_user") }?.optString("original_text_from_user")
         val remarks = json.takeIf { it.has("remarks") }?.optString("remarks")
         val remark = json.takeIf { it.has("remark") }?.optString("remark")
@@ -2039,6 +2047,9 @@ class AccountingFormController(
         }
 
         enforceTransferAssetConstraintIfNeeded(json, showToast)
+        if (showToast && localRuleCorrected) {
+            Utils.toast(ctx, "该笔账单已应用本地规则")
+        }
 
         if (editingBillId != null) {
             val savedExchangeRate = json.optDouble("exchange_rate", Double.NaN)

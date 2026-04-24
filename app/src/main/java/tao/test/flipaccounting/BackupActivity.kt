@@ -327,7 +327,7 @@ class BackupActivity : AppCompatActivity() {
                 )
                 .setPositiveButton("我知道了", null)
                 .create()
-            OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+            OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
         }
     }
 
@@ -439,7 +439,7 @@ class BackupActivity : AppCompatActivity() {
                 }
             }
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
     private fun performBackup(uri: Uri) {
@@ -516,7 +516,7 @@ class BackupActivity : AppCompatActivity() {
             .setItems(labels.toTypedArray()) { _, which -> actions[which].invoke() }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
     private fun getLastBackupPin(): String? =
@@ -780,7 +780,7 @@ class BackupActivity : AppCompatActivity() {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.92f, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+            OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.92f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
         }
     }
 
@@ -1005,7 +1005,7 @@ class BackupActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
     private fun promptPinForRestore(onPinConfirmed: (String) -> Unit) {
@@ -1028,7 +1028,7 @@ class BackupActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
     private fun performCsvExport(uri: Uri) {
@@ -1064,7 +1064,7 @@ class BackupActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
     private fun performCsvImportInternal(uri: Uri, targetBook: String) {
@@ -1095,7 +1095,7 @@ class BackupActivity : AppCompatActivity() {
                         }
                         .setNegativeButton("取消", null)
                         .create()
-                    OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+                    OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "解析 CSV 失败: ${e.message}") }
@@ -1116,7 +1116,7 @@ class BackupActivity : AppCompatActivity() {
             .setPositiveButton("验证并继续", null)
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, applyOverlayType = false, useSolidPanelBackground = true)
+        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val pin = etPin.text?.toString().orEmpty().trim()
             if (!pin.matches(Regex("^\\d{4}$"))) {

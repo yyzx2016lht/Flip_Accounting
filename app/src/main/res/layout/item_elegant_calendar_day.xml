@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="46dp">
+
+    <TextView
+        android:id="@+id/tv_calendar_day"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:textColor="#24374F"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+</FrameLayout>

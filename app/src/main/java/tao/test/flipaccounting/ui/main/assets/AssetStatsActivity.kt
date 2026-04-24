@@ -1,9 +1,9 @@
 package tao.test.flipaccounting.ui.main.assets
 
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.os.Build
 import android.util.Log
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -20,6 +20,7 @@ import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.PieChart
 import com.github.mikephil.charting.components.MarkerView
@@ -36,6 +37,8 @@ import com.github.mikephil.charting.listener.ChartTouchListener
 import com.github.mikephil.charting.listener.OnChartGestureListener
 import com.github.mikephil.charting.utils.MPPointD
 import com.github.mikephil.charting.utils.MPPointF
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -43,6 +46,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.R
+import tao.test.flipaccounting.CategoryIconHelper
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.Bill
@@ -50,9 +55,8 @@ import tao.test.flipaccounting.logic.BillAssetImpactService
 import tao.test.flipaccounting.logic.BillDisplayFormatter
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.logic.BillDeleteHelper
-import tao.test.flipaccounting.ui.activity.EditBillActivity
+import tao.test.flipaccounting.ui.dialog.ElegantDatePickerSheet
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
-import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -133,6 +137,9 @@ class AssetStatsActivity : AppCompatActivity() {
     private var pieMode: ChartMode = ChartMode.EXPENSE
     private var selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR)
     private var selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH) + 1
+    private var forcedStartTime: Long? = null
+    private var forcedEndTime: Long? = null
+    private var forcedLabel: String? = null
     private var currentBarLabels: List<String> = emptyList()
     private var currentBarValues: List<Float> = emptyList()
     private var selectedBarIndex: Int? = null
@@ -152,8 +159,29 @@ class AssetStatsActivity : AppCompatActivity() {
     private val dfDayTitle = SimpleDateFormat("MM.dd", Locale.getDefault())
     private val dfWeekday = SimpleDateFormat("E", Locale.CHINESE)
     private val dfBillDate = SimpleDateFormat("MM-dd", Locale.getDefault())
+    private val dfDateLabel = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private val db by lazy { AppDatabase.getDatabase(this) }
+    private val billDetailSheetController by lazy(LazyThreadSafetyMode.NONE) {
+        AssetBillDetailSheetController(
+            activity = this,
+            db = db,
+            scope = lifecycleScope,
+            getCurrentAssetCurrency = { currentAsset?.currency },
+            getDefaultAssetId = { assetId },
+            amountForAssetRow = ::amountForAssetRow,
+            detailOwnerAssetId = ::detailOwnerAssetId,
+            refundedAmountInBillCurrency = ::refundedAmountInBillCurrency,
+            baseOriginalAmount = ::baseOriginalAmount,
+            buildAssetDetailFormula = ::buildAssetDetailFormula,
+            onDataChanged = {
+                filteredBillsCache.clear()
+                billRowsCache.clear()
+                pieRenderCache.clear()
+                loadAssetAndBills()
+            }
+        )
+    }
     private val piePalette = listOf(
         "#26C6DA", "#66BB6A", "#42A5F5", "#FFB74D", "#FF7043", "#7E57C2",
         "#29B6F6", "#9CCC65", "#5C6BC0", "#EC407A", "#AB47BC", "#FFA726"
@@ -241,7 +269,7 @@ class AssetStatsActivity : AppCompatActivity() {
             currencyProvider = { currentAsset?.currency ?: "CNY" },
             amountProvider = { bill -> amountForAssetRow(bill, assetId) }
         ).apply {
-            onBillItemClick = { bill -> openBillEditor(bill) }
+            onBillItemClick = { bill -> billDetailSheetController.showBillDetailSheet(bill, detailOwnerAssetId(bill)) }
             onSelectionChanged = { count -> updateStatsMultiSelectUi(count) }
         }
         rvBillList.layoutManager = LinearLayoutManager(this)
@@ -253,7 +281,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private fun initListeners() {
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
         findViewById<View>(R.id.layout_asset_switch).setOnClickListener { switchAsset() }
-        findViewById<View>(R.id.btn_filter).setOnClickListener { showPeriodPicker() }
+        findViewById<View>(R.id.btn_filter).setOnClickListener { showCustomFilterSheet() }
         setupTopBarDoubleTapToTop()
 
         btnBarExpense.setOnClickListener {
@@ -390,12 +418,6 @@ class AssetStatsActivity : AppCompatActivity() {
         layoutMultiSelectActions.visibility = if (active) View.VISIBLE else View.GONE
         btnMsCancel.text = "退出多选"
         btnMsDelete.text = if (selectedCount > 0) "删除($selectedCount)" else "删除"
-    }
-
-    private fun openBillEditor(bill: Bill) {
-        val intent = Intent(this, EditBillActivity::class.java)
-        intent.putExtra("BILL_ID", bill.id)
-        startActivity(intent)
     }
 
     private fun moveBillToTargetAsset(
@@ -658,32 +680,280 @@ class AssetStatsActivity : AppCompatActivity() {
         }
     }
 
-    private fun showPeriodPicker() {
-        if (periodMode == PeriodMode.YEAR) {
-            YearMonthPickerDialog.show(
-                context = this,
-                title = "选择年份",
-                initialYear = selectedYear,
-                initialMonth = selectedMonth,
-                yearOnly = true
-            ) { year, _ ->
-                periodMode = PeriodMode.YEAR
-                selectedYear = year
-                renderAll()
+    private fun showCustomFilterSheet() {
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.layout_stats_filter_sheet, null)
+
+        val chipToday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_today)
+        val chipYesterday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_yesterday)
+        val chipThisWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_week)
+        val chipLastWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_week)
+        val chipThisMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_month)
+        val chipLastMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_month)
+        val chipThisYear = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_year)
+        val chipLastYear = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_year)
+        val chipAll = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_all)
+
+        val cardStart = view.findViewById<View>(R.id.tv_filter_start_date)
+        val cardEnd = view.findViewById<View>(R.id.tv_filter_end_date)
+        val tvStart = view.findViewById<TextView>(R.id.tv_filter_start_date_text)
+        val tvEnd = view.findViewById<TextView>(R.id.tv_filter_end_date_text)
+        val currencySection = view.findViewById<View>(R.id.layout_filter_currency_section)
+        val tvCurrency = view.findViewById<View>(R.id.tv_filter_currency_selector)
+
+        val btnClose = view.findViewById<View>(R.id.btn_close_filter_sheet)
+        val btnConfirm = view.findViewById<View>(R.id.btn_confirm_filter_sheet)
+        val btnReset = view.findViewById<View>(R.id.btn_reset_filter_sheet)
+
+        currencySection.visibility = View.GONE
+        tvCurrency.visibility = View.GONE
+
+        var customStart = forcedStartTime
+        var customEnd = forcedEndTime
+        var selectedQuickLabel = forcedLabel?.takeIf { isQuickLabel(it) }
+        var suppressQuickSync = false
+
+        fun clearQuickChips() {
+            suppressQuickSync = true
+            chipToday.isChecked = false
+            chipYesterday.isChecked = false
+            chipThisWeek.isChecked = false
+            chipLastWeek.isChecked = false
+            chipThisMonth.isChecked = false
+            chipLastMonth.isChecked = false
+            chipThisYear.isChecked = false
+            chipLastYear.isChecked = false
+            chipAll.isChecked = false
+            suppressQuickSync = false
+            selectedQuickLabel = null
+        }
+
+        fun resetDateLabels() {
+            tvStart.text = customStart?.let { dfDateLabel.format(Date(it)) } ?: "选择日期"
+            tvEnd.text = customEnd?.let { dfDateLabel.format(Date(it)) } ?: "选择日期"
+        }
+
+        fun setDayStart(cal: Calendar) {
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+        }
+
+        fun setDayEnd(cal: Calendar) {
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
+        }
+
+        fun updateCustomRangeByQuick(label: String) {
+            selectedQuickLabel = label
+            when (label) {
+                "今天" -> {
+                    val cal = Calendar.getInstance()
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "昨天" -> {
+                    val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "本周" -> {
+                    val cal = Calendar.getInstance().apply {
+                        firstDayOfWeek = Calendar.MONDAY
+                        set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.add(Calendar.DAY_OF_YEAR, 6)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "上周" -> {
+                    val cal = Calendar.getInstance().apply {
+                        firstDayOfWeek = Calendar.MONDAY
+                        set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                        add(Calendar.WEEK_OF_YEAR, -1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.add(Calendar.DAY_OF_YEAR, 6)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "本月" -> {
+                    val cal = Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH, 1) }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "上月" -> {
+                    val cal = Calendar.getInstance().apply {
+                        add(Calendar.MONTH, -1)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "今年" -> {
+                    val cal = Calendar.getInstance().apply {
+                        set(Calendar.MONTH, Calendar.JANUARY)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.MONTH, Calendar.DECEMBER)
+                    cal.set(Calendar.DAY_OF_MONTH, 31)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "去年" -> {
+                    val cal = Calendar.getInstance().apply {
+                        add(Calendar.YEAR, -1)
+                        set(Calendar.MONTH, Calendar.JANUARY)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                    }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    cal.set(Calendar.MONTH, Calendar.DECEMBER)
+                    cal.set(Calendar.DAY_OF_MONTH, 31)
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "全部" -> {
+                    customStart = null
+                    customEnd = null
+                }
             }
-        } else {
-            YearMonthPickerDialog.show(
-                context = this,
-                title = "选择年月",
-                initialYear = selectedYear,
-                initialMonth = selectedMonth
-            ) { year, month ->
-                periodMode = PeriodMode.MONTH
-                selectedYear = year
-                selectedMonth = month
-                renderAll()
+            resetDateLabels()
+        }
+
+        resetDateLabels()
+        when (selectedQuickLabel) {
+            "今天" -> chipToday.isChecked = true
+            "昨天" -> chipYesterday.isChecked = true
+            "本周" -> chipThisWeek.isChecked = true
+            "上周" -> chipLastWeek.isChecked = true
+            "本月" -> chipThisMonth.isChecked = true
+            "上月" -> chipLastMonth.isChecked = true
+            "今年" -> chipThisYear.isChecked = true
+            "去年" -> chipLastYear.isChecked = true
+            "全部" -> chipAll.isChecked = true
+        }
+
+        listOf(
+            chipToday to "今天",
+            chipYesterday to "昨天",
+            chipThisWeek to "本周",
+            chipLastWeek to "上周",
+            chipThisMonth to "本月",
+            chipLastMonth to "上月",
+            chipThisYear to "今年",
+            chipLastYear to "去年",
+            chipAll to "全部"
+        ).forEach { (chip, label) ->
+            chip.setOnCheckedChangeListener { _, isChecked ->
+                if (!isChecked || suppressQuickSync) return@setOnCheckedChangeListener
+                updateCustomRangeByQuick(label)
             }
         }
+
+        cardStart.setOnClickListener {
+            showDatePicker { ts ->
+                customStart = ts
+                resetDateLabels()
+                clearQuickChips()
+            }
+        }
+
+        cardEnd.setOnClickListener {
+            showDatePicker { ts ->
+                customEnd = ts
+                resetDateLabels()
+                clearQuickChips()
+            }
+        }
+
+        btnClose.setOnClickListener { dialog.dismiss() }
+
+        btnReset.setOnClickListener {
+            clearQuickChips()
+            customStart = null
+            customEnd = null
+            resetDateLabels()
+        }
+
+        btnConfirm.setOnClickListener {
+            when {
+                selectedQuickLabel == "全部" -> {
+                    forcedLabel = "全部"
+                    forcedStartTime = null
+                    forcedEndTime = null
+                }
+                selectedQuickLabel != null && customStart != null && customEnd != null -> {
+                    forcedLabel = selectedQuickLabel
+                    forcedStartTime = customStart
+                    forcedEndTime = customEnd
+                }
+                customStart != null && customEnd != null -> {
+                    forcedLabel = "自定义"
+                    forcedStartTime = customStart
+                    forcedEndTime = customEnd
+                }
+                customStart != null || customEnd != null -> {
+                    Toast.makeText(this, "请先选择完整的开始和结束日期", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                else -> {
+                    forcedLabel = null
+                    forcedStartTime = null
+                    forcedEndTime = null
+                }
+            }
+            filteredBillsCache.clear()
+            billRowsCache.clear()
+            pieRenderCache.clear()
+            renderAll()
+            dialog.dismiss()
+        }
+
+        dialog.setContentView(view)
+        dialog.setOnShowListener {
+            val bottomSheetId = resources.getIdentifier(
+                "design_bottom_sheet",
+                "id",
+                "com.google.android.material"
+            )
+            if (bottomSheetId == 0) return@setOnShowListener
+            val bottomSheet = dialog.findViewById<View>(bottomSheetId) ?: return@setOnShowListener
+            bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
+                height = (resources.displayMetrics.heightPixels * 0.82f).toInt()
+            }
+            BottomSheetBehavior.from(bottomSheet).apply {
+                skipCollapsed = true
+                isFitToContents = true
+                this.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        }
+        dialog.show()
+    }
+
+    private fun showDatePicker(onDateSelected: (Long) -> Unit) {
+        ElegantDatePickerSheet.show(
+            context = this,
+            onDateSelected = onDateSelected
+        )
     }
 
     private fun renderAll() {
@@ -697,7 +967,12 @@ class AssetStatsActivity : AppCompatActivity() {
         } else {
             String.format(Locale.getDefault(), "%04d-%02d", selectedYear, selectedMonth)
         }
-        tvPeriodLabel.text = "$periodText（点击可切换资产）"
+        val filterText = buildFilterLabel()
+        tvPeriodLabel.text = if (filterText.isNotBlank()) {
+            "$periodText｜$filterText（点击可切换资产）"
+        } else {
+            "$periodText（点击可切换资产）"
+        }
 
         dateStripAdapter.submit(dateChips, periodMode, selectedYear, selectedMonth)
         scrollDateStripToSelection()
@@ -711,23 +986,50 @@ class AssetStatsActivity : AppCompatActivity() {
     }
 
     private fun currentFilterCacheKey(): String {
-        return "${periodMode.name}_${selectedYear}_${selectedMonth}_${allAssetBills.size}_${allAssetBills.firstOrNull()?.id ?: -1L}"
+        return "${periodMode.name}_${selectedYear}_${selectedMonth}_${forcedLabel.orEmpty()}_${forcedStartTime ?: -1L}_${forcedEndTime ?: -1L}_${allAssetBills.size}_${allAssetBills.firstOrNull()?.id ?: -1L}"
     }
 
     private fun filteredBills(key: String = currentFilterCacheKey()): List<Bill> {
         filteredBillsCache[key]?.let { return it }
         val cal = Calendar.getInstance()
         val result = allAssetBills.filter { bill ->
-            cal.timeInMillis = bill.time
-            val year = cal.get(Calendar.YEAR)
-            if (periodMode == PeriodMode.YEAR) {
-                year == selectedYear
+            if (forcedLabel == "全部") {
+                true
+            } else if (forcedStartTime != null && forcedEndTime != null) {
+                bill.time in forcedStartTime!!..forcedEndTime!!
             } else {
-                year == selectedYear && (cal.get(Calendar.MONTH) + 1) == selectedMonth
+                cal.timeInMillis = bill.time
+                val year = cal.get(Calendar.YEAR)
+                if (periodMode == PeriodMode.YEAR) {
+                    year == selectedYear
+                } else {
+                    year == selectedYear && (cal.get(Calendar.MONTH) + 1) == selectedMonth
+                }
             }
         }
         filteredBillsCache[key] = result
         return result
+    }
+
+    private fun isQuickLabel(label: String?): Boolean {
+        return label == "今天" ||
+            label == "昨天" ||
+            label == "本周" ||
+            label == "上周" ||
+            label == "本月" ||
+            label == "上月" ||
+            label == "今年" ||
+            label == "去年" ||
+            label == "全部"
+    }
+
+    private fun buildFilterLabel(): String {
+        val label = forcedLabel ?: return ""
+        if (label == "全部") return "全部时间"
+        if (label == "自定义" && forcedStartTime != null && forcedEndTime != null) {
+            return "${dfDateLabel.format(Date(forcedStartTime!!))}至${dfDateLabel.format(Date(forcedEndTime!!))}"
+        }
+        return label
     }
 
     private fun renderBillSectionsProgressively(filterKey: String, bills: List<Bill>) {
@@ -1389,6 +1691,37 @@ class AssetStatsActivity : AppCompatActivity() {
         }
     }
 
+    private fun detailOwnerAssetId(bill: Bill): Long {
+        return when {
+            bill.subType == Bill.SUBTYPE_REFUND -> bill.accountId ?: assetId
+            bill.type == Bill.TYPE_TRANSFER -> when {
+                bill.accountId == assetId || bill.toAccountId == assetId -> assetId
+                bill.accountId != null -> bill.accountId
+                else -> bill.toAccountId ?: assetId
+            }
+            else -> bill.accountId ?: assetId
+        }
+    }
+
+    private fun refundedAmountInBillCurrency(bill: Bill): Double {
+        if (bill.type != Bill.TYPE_EXPENSE || bill.subType == Bill.SUBTYPE_REFUND) return 0.0
+        return (baseOriginalAmount(bill) - bill.amount).coerceAtLeast(0.0)
+    }
+
+    private fun buildAssetDetailFormula(bill: Bill, ownerAssetId: Long): String? {
+        return when {
+            bill.type == Bill.TYPE_EXPENSE && bill.accountId == ownerAssetId -> {
+                val refundedAmount = refundedAmountInBillCurrency(bill)
+                if (refundedAmount > 0.0) {
+                    "退款${BillDisplayFormatter.formatMoney(refundedAmount, bill.currency)}，实际支出${BillDisplayFormatter.formatMoney(bill.amount, bill.currency)}"
+                } else {
+                    BillDisplayFormatter.buildCrossCurrencyDetailFormula(bill, "CNY")
+                }
+            }
+            else -> BillDisplayFormatter.buildCrossCurrencyDetailFormula(bill, "CNY")
+        }
+    }
+
     private inner class DateStripAdapter(
         private val onClick: (DateChipItem) -> Unit
     ) : RecyclerView.Adapter<DateStripAdapter.VH>() {
@@ -1455,10 +1788,22 @@ class AssetStatsActivity : AppCompatActivity() {
         private val typeHeader = 0
         private val typeBill = 1
         private val rows = mutableListOf<Any>()
+        private val iconUrlCache = mutableMapOf<String, String>()
         var isMultiSelectMode: Boolean = false
         val selectedBills = mutableSetOf<Bill>()
         var onBillItemClick: ((Bill) -> Unit)? = null
         var onSelectionChanged: ((Int) -> Unit)? = null
+
+        private fun buildIconCacheKey(categoryName: String, type: Int): String = "$type|$categoryName"
+
+        private fun getCachedIconUrl(key: String): String? = synchronized(iconUrlCache) { iconUrlCache[key] }
+
+        private fun putCachedIconUrl(key: String, url: String) {
+            synchronized(iconUrlCache) {
+                if (iconUrlCache.size > 200) iconUrlCache.clear()
+                iconUrlCache[key] = url
+            }
+        }
 
         fun replaceRows(list: List<Any>) {
             rows.clear()
@@ -1546,6 +1891,13 @@ class AssetStatsActivity : AppCompatActivity() {
 
         override fun getItemCount(): Int = rows.size
 
+        override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+            super.onViewRecycled(holder)
+            if (holder is BillVH) {
+                Glide.with(holder.ivIcon.context).clear(holder.ivIcon)
+            }
+        }
+
         inner class HeaderVH(v: View) : RecyclerView.ViewHolder(v) {
             private val tvTitle = v.findViewById<TextView>(R.id.tv_section_title)
             private val tvSummary = v.findViewById<TextView>(R.id.tv_section_summary)
@@ -1558,7 +1910,7 @@ class AssetStatsActivity : AppCompatActivity() {
         }
 
         inner class BillVH(v: View) : RecyclerView.ViewHolder(v) {
-            private val ivIcon = v.findViewById<ImageView>(R.id.iv_bill_category_icon)
+            val ivIcon = v.findViewById<ImageView>(R.id.iv_bill_category_icon)
             private val tvCategory = v.findViewById<TextView>(R.id.tv_bill_category)
             private val tvDetail = v.findViewById<TextView>(R.id.tv_bill_detail)
             private val tvAmount = v.findViewById<TextView>(R.id.tv_bill_amount)
@@ -1566,6 +1918,23 @@ class AssetStatsActivity : AppCompatActivity() {
             private val tvTime = v.findViewById<TextView>(R.id.tv_bill_time)
             private val iconContainer = v.findViewById<View>(R.id.layout_icon_container)
             private val cbSelect = v.findViewById<CheckBox>(R.id.cb_bill_select)
+
+            private fun setIconSizeDp(dp: Int) {
+                val px = (itemView.resources.displayMetrics.density * dp).toInt()
+                ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                    width = px
+                    height = px
+                }
+            }
+
+            private fun setIconContainerSizeDp(widthDp: Int, heightDp: Int = 44) {
+                val widthPx = (itemView.resources.displayMetrics.density * widthDp).toInt()
+                val heightPx = (itemView.resources.displayMetrics.density * heightDp).toInt()
+                iconContainer.layoutParams = iconContainer.layoutParams.apply {
+                    width = widthPx
+                    height = heightPx
+                }
+            }
 
             fun updateMode(bill: Bill) {
                 cbSelect.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
@@ -1580,16 +1949,22 @@ class AssetStatsActivity : AppCompatActivity() {
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER
                 val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
                 val isRefund = bill.subType == Bill.SUBTYPE_REFUND
+                val showCategoryIcon = Prefs.isShowBillCategoryIcon(itemView.context)
+                val showFullCategory = Prefs.isShowBillFullCategory(itemView.context)
+                val remarkPriority = Prefs.isBillRemarkPriority(itemView.context)
                 val symbol = CurrencyManager.getSymbol(currencyProvider())
                 val amount = amountProvider(bill)
+                val baseCategory = BillDisplayFormatter.stripRefundPrefix(bill.categoryName)
 
                 val hasHeaderAbove = rows.getOrNull(position - 1) is SectionHeaderRow
-                val isGroupStart = position == 0 && !hasHeaderAbove
+                val isGroupStart = position == 0 || hasHeaderAbove
                 val isGroupEnd = position == rows.lastIndex || rows.getOrNull(position + 1) is SectionHeaderRow
                 itemView.setBackgroundResource(
                     when {
-                        isGroupStart && isGroupEnd -> R.drawable.bg_bill_group_single
-                        isGroupStart -> R.drawable.bg_bill_group_top
+                        isGroupStart && isGroupEnd ->
+                            if (hasHeaderAbove) R.drawable.bg_bill_group_bottom else R.drawable.bg_bill_group_single
+                        isGroupStart ->
+                            if (hasHeaderAbove) R.drawable.bg_bill_group_middle else R.drawable.bg_bill_group_top
                         isGroupEnd -> R.drawable.bg_bill_group_bottom
                         else -> R.drawable.bg_bill_group_middle
                     }
@@ -1598,54 +1973,117 @@ class AssetStatsActivity : AppCompatActivity() {
                 updateMode(bill)
                 tvTime.visibility = View.GONE
 
-                tvCategory.text = when {
+                val categoryText = when {
                     isRepayment -> "还款"
                     isTransfer -> "转账"
-                    isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
-                    else -> BillDisplayFormatter.normalizeCategoryDisplayName(bill.categoryName).ifEmpty { "未分类" }
+                    else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { "未分类" }
                 }
 
-                tvDetail.text = if (bill.remark.isNotBlank()) {
-                    "${dfBillDate.format(Date(bill.time))} ${bill.remark}"
+                val suffix = if (isTransfer) "${bill.accountName}->${bill.toAccountName}" else bill.accountName
+                val (primaryText, secondaryText) = BillDisplayFormatter.resolvePrimarySecondaryText(
+                    categoryText = categoryText,
+                    remarkText = bill.remark,
+                    suffixText = suffix,
+                    remarkPriority = remarkPriority
+                )
+                tvCategory.text = primaryText
+                if (secondaryText.isNotEmpty()) {
+                    tvDetail.text = secondaryText
+                    tvDetail.visibility = View.VISIBLE
                 } else {
-                    dfBillDate.format(Date(bill.time))
+                    tvDetail.visibility = View.GONE
                 }
 
                 tvAmount.text = when {
-                    isRefund -> "+$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+                    isRefund -> "$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
                     bill.type == Bill.TYPE_EXPENSE -> "-$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
                     bill.type == Bill.TYPE_INCOME -> "+$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
                     else -> "$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
                 }
                 tvAmount.setTextColor(
                     when {
-                        isRefund -> Color.parseColor("#18B777")
-                        bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#E85A67")
-                        bill.type == Bill.TYPE_INCOME -> Color.parseColor("#18B777")
-                        else -> Color.parseColor("#111827")
+                        isRefund -> Color.parseColor("#9AA1AA")
+                        bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#FF5252")
+                        bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
+                        else -> Color.parseColor("#757575")
                     }
                 )
+                tvCategory.setTextColor(if (isRefund) Color.parseColor("#8E98A3") else Color.parseColor("#333333"))
+                tvDetail.setTextColor(if (isRefund) Color.parseColor("#A1A8AF") else Color.parseColor("#999999"))
+                tvAsset.setTextColor(if (isRefund) Color.parseColor("#A1A8AF") else Color.parseColor("#999999"))
 
                 tvAsset.text = when {
                     bill.type == Bill.TYPE_TRANSFER -> "${bill.accountName}->${bill.toAccountName}"
                     else -> bill.accountName
                 }
 
-                when {
-                    isTransfer -> {
-                        iconContainer.setBackgroundResource(R.drawable.bg_circle_soft)
-                        ivIcon.setImageResource(R.drawable.ic_transfer)
-                        ivIcon.setColorFilter(Color.parseColor("#7B8794"))
+                if (!showCategoryIcon) {
+                    iconContainer.setBackgroundColor(Color.TRANSPARENT)
+                    setIconContainerSizeDp(10, 44)
+                    ivIcon.clearColorFilter()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        ivIcon.imageTintList = null
                     }
-                    bill.type == Bill.TYPE_INCOME || isRefund -> {
-                        iconContainer.setBackgroundResource(R.drawable.bg_circle_income_soft)
-                        ivIcon.setImageResource(R.drawable.ic_money)
-                        ivIcon.setColorFilter(Color.parseColor("#18B777"))
+                    setIconSizeDp(6)
+                    ivIcon.setImageResource(
+                        when (bill.type) {
+                            Bill.TYPE_EXPENSE -> R.drawable.bg_bill_dot_expense
+                            Bill.TYPE_INCOME -> R.drawable.bg_bill_dot_income
+                            else -> R.drawable.bg_bill_dot_neutral
+                        }
+                    )
+                } else {
+                    iconContainer.setBackgroundResource(
+                        when {
+                            !isRefund && bill.type == Bill.TYPE_EXPENSE -> R.drawable.bg_circle_expense_soft
+                            !isRefund && bill.type == Bill.TYPE_INCOME -> R.drawable.bg_circle_income_soft
+                            else -> R.drawable.bg_circle_soft
+                        }
+                    )
+                    setIconContainerSizeDp(44, 44)
+                    setIconSizeDp(21)
+                    val iconTint = when {
+                        isRefund -> Color.parseColor("#8E98A3")
+                        bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#FF5252")
+                        bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
+                        else -> Color.parseColor("#9E9E9E")
                     }
-                    else -> {
-                        iconContainer.setBackgroundResource(R.drawable.bg_circle_expense_soft)
-                        ivIcon.setImageResource(R.drawable.ic_money)
-                        ivIcon.setColorFilter(Color.parseColor("#E85A67"))
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        ivIcon.imageTintList = null
+                    }
+                    ivIcon.setColorFilter(iconTint)
+                    ivIcon.setImageDrawable(null)
+
+                    val iconLookupName = if (isRefund) baseCategory else bill.categoryName
+                    val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
+                    val iconCacheKey = buildIconCacheKey(iconLookupName, iconLookupType)
+                    ivIcon.tag = iconCacheKey
+                    val cachedIconUrl = getCachedIconUrl(iconCacheKey)
+                    if (cachedIconUrl != null) {
+                        if (cachedIconUrl.isNotEmpty()) {
+                            Glide.with(itemView.context)
+                                .load(cachedIconUrl)
+                                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                                .into(ivIcon)
+                        } else {
+                            ivIcon.setImageDrawable(null)
+                        }
+                    } else {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val iconUrl = CategoryIconHelper.findCategoryIcon(itemView.context, iconLookupName, iconLookupType)
+                            putCachedIconUrl(iconCacheKey, iconUrl)
+                            withContext(Dispatchers.Main) {
+                                if (ivIcon.tag != iconCacheKey) return@withContext
+                                if (iconUrl.isNotEmpty()) {
+                                    Glide.with(itemView.context)
+                                        .load(iconUrl)
+                                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                                        .into(ivIcon)
+                                } else {
+                                    ivIcon.setImageDrawable(null)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1691,3 +2129,4 @@ class AssetStatsActivity : AppCompatActivity() {
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.app.Activity
 import android.content.ClipData
@@ -72,10 +72,12 @@ import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.SupervisorJob
+import kotlin.coroutines.resume
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class ChatActivity : AppCompatActivity() {
+    private enum class RuleSaveOutcome { SAVED, OVERWRITTEN, CANCELED }
 
     companion object {
         const val MSG_TYPE_USER_TEXT = 0
@@ -279,7 +281,7 @@ class ChatActivity : AppCompatActivity() {
             parseDeprecatedBillIdsFromContent = ::parseDeprecatedBillIdsFromContent,
             parseBillsFromMessageContent = ::parseBillsFromMessageContent,
             isDeprecatedBillMessage = ::isDeprecatedBillMessage,
-            showStyledCenterDialog = { dialog, widthRatio -> uiHelperController.showStyledCenterDialog(dialog, widthRatio) },
+            showPageCenterDialog = { dialog, widthRatio -> uiHelperController.showPageCenterDialog(dialog, widthRatio) },
             showCustomConfirmDialog = { title, message, confirmText, isDanger, onConfirm ->
                 uiHelperController.showCustomConfirmDialog(title, message, confirmText, isDanger, onConfirm)
             },
@@ -297,7 +299,7 @@ class ChatActivity : AppCompatActivity() {
             ivChatBgProvider = { ivChatBg },
             adapterProvider = { adapter },
             ensureAiImageFeatureEnabled = ::ensureAiImageFeatureEnabled,
-            showStyledCenterDialog = { dialog, widthRatio -> uiHelperController.showStyledCenterDialog(dialog, widthRatio) },
+            showPageCenterDialog = { dialog, widthRatio -> uiHelperController.showPageCenterDialog(dialog, widthRatio) },
             updateConversationSubtitle = ::updateConversationSubtitle,
             appendUserMessage = ::appendUserMessage,
             callAiAccounting = { text -> callAiAccounting(text, appendUserBubble = false) },
@@ -317,7 +319,7 @@ class ChatActivity : AppCompatActivity() {
             context = this,
             onConversationSubtitleChanged = ::updateConversationSubtitle,
             refreshVoiceSupportHint = ::refreshVoiceSupportHint,
-            showStyledBottomDialog = { dialog -> uiHelperController.showStyledBottomDialog(dialog) }
+            showPageBottomDialog = { dialog -> uiHelperController.showPageBottomDialog(dialog) }
         )
     }
     private val messageMenuController: ChatMessageMenuController by lazy {
@@ -983,19 +985,24 @@ class ChatActivity : AppCompatActivity() {
         return when {
             acceptWords.any { normalized.contains(it) } -> {
                 lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        db.aiRuleDao().insertRule(
-                            AiRule(
-                                keyword = pending.keyword,
-                                targetType = pending.targetType,
-                                targetCategory = pending.targetCategory,
-                                targetAccount1 = pending.targetAccount1,
-                                targetAccount2 = pending.targetAccount2,
-                                isEnabled = true
-                            )
+                    val outcome = saveRuleWithKeywordConflictPrompt(
+                        AiRule(
+                            keyword = pending.keyword,
+                            targetType = pending.targetType,
+                            targetCategory = pending.targetCategory,
+                            targetAccount1 = pending.targetAccount1,
+                            targetAccount2 = pending.targetAccount2,
+                            isEnabled = true
                         )
+                    )
+                    when (outcome) {
+                        RuleSaveOutcome.SAVED ->
+                            appendAiTextMessage("好呀，已经帮你记成一条记账习惯啦 ${pending.summaryText}", isLoading = false)
+                        RuleSaveOutcome.OVERWRITTEN ->
+                            appendAiTextMessage("好呀，检测到同关键词规则，我已用这次内容覆盖旧规则 ${pending.summaryText}", isLoading = false)
+                        RuleSaveOutcome.CANCELED ->
+                            appendAiTextMessage("检测到同关键词旧规则，你取消了覆盖，这次就先不保存啦~", isLoading = false)
                     }
-                    appendAiTextMessage("好呀，已经帮你记成一条记账习惯啦 ${pending.summaryText}", isLoading = false)
                 }
                 pendingHabitSuggestion = null
                 true
@@ -1056,14 +1063,75 @@ class ChatActivity : AppCompatActivity() {
             defaultAcc2 = updatedBill.toAccountName.ifBlank { null },
             isOverlay = false,
             onSave = { newRule ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    db.aiRuleDao().insertRule(newRule)
-                    withContext(Dispatchers.Main) {
-                        Utils.toast(this@ChatActivity, "规则创建成功")
+                lifecycleScope.launch {
+                    when (saveRuleWithKeywordConflictPrompt(newRule)) {
+                        RuleSaveOutcome.SAVED -> Utils.toast(this@ChatActivity, "规则创建成功")
+                        RuleSaveOutcome.OVERWRITTEN -> Utils.toast(this@ChatActivity, "已覆盖同关键词旧规则")
+                        RuleSaveOutcome.CANCELED -> Utils.toast(this@ChatActivity, "已取消规则保存")
                     }
                 }
             },
             onDelete = null
+        )
+    }
+
+    private suspend fun saveRuleWithKeywordConflictPrompt(newRule: AiRule): RuleSaveOutcome =
+        withContext(Dispatchers.IO) {
+            val dao = db.aiRuleDao()
+            val keyword = newRule.keyword.trim()
+            val currentEditId = newRule.id.takeIf { it > 0 }
+            val conflicts = dao.getRulesByKeyword(keyword)
+                .filter { existing -> currentEditId == null || existing.id != currentEditId }
+
+            if (conflicts.isEmpty()) {
+                dao.insertRule(newRule.copy(keyword = keyword))
+                return@withContext RuleSaveOutcome.SAVED
+            }
+
+            val shouldOverwrite = withContext(Dispatchers.Main) {
+                promptKeywordOverwrite(keyword = keyword, existingCount = conflicts.size)
+            }
+            if (!shouldOverwrite) {
+                return@withContext RuleSaveOutcome.CANCELED
+            }
+
+            val target = conflicts.first()
+            dao.insertRule(newRule.copy(id = target.id, keyword = keyword))
+            currentEditId?.takeIf { it != target.id }?.let { dao.deleteRuleById(it) }
+            conflicts.drop(1).forEach { duplicate ->
+                if (duplicate.id != target.id) dao.deleteRuleById(duplicate.id)
+            }
+            RuleSaveOutcome.OVERWRITTEN
+        }
+
+    private suspend fun promptKeywordOverwrite(
+        keyword: String,
+        existingCount: Int
+    ): Boolean = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+        if (isFinishing || isDestroyed) {
+            cont.resume(false)
+            return@suspendCancellableCoroutine
+        }
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_FlipAccounting))
+            .setTitle("检测到同关键词规则")
+            .setMessage("关键词“$keyword”已有 $existingCount 条规则。\n\n继续保存将覆盖旧规则，是否继续？")
+            .setPositiveButton("继续并覆盖") { d, _ ->
+                d.dismiss()
+                if (cont.isActive) cont.resume(true)
+            }
+            .setNegativeButton("取消保存") { d, _ ->
+                d.dismiss()
+                if (cont.isActive) cont.resume(false)
+            }
+            .setOnCancelListener {
+                if (cont.isActive) cont.resume(false)
+            }
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
         )
     }
 

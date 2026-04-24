@@ -1,113 +1,117 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingStart="20dp"
-    android:paddingTop="18dp"
-    android:paddingEnd="20dp"
-    android:paddingBottom="24dp">
-
-    <TextView
-        android:id="@+id/tv_picker_title"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="选择月份"
-        android:textColor="#222222"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tv_picker_preview"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="2026-04"
-        android:textColor="#2196F3"
-        android:textSize="14sp" />
+    android:paddingBottom="6dp">
 
     <LinearLayout
+        android:id="@+id/layout_mode_switch"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:background="@android:color/white"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="年份"
-                android:textColor="#888888"
-                android:textSize="12sp" />
-
-            <NumberPicker
-                android:id="@+id/np_picker_year"
-                android:layout_width="wrap_content"
-                android:layout_height="150dp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/layout_month_container"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="月份"
-                android:textColor="#888888"
-                android:textSize="12sp" />
-
-            <NumberPicker
-                android:id="@+id/np_picker_month"
-                android:layout_width="wrap_content"
-                android:layout_height="150dp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:gravity="end"
-        android:orientation="horizontal">
+        android:layout_height="52dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp">
 
         <TextView
-            android:id="@+id/btn_picker_cancel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="显示方式"
+            android:textColor="#111827"
+            android:fontFamily="sans-serif-medium"
+            android:textSize="16sp"
+            android:textStyle="normal" />
+
+        <TextView
+            android:id="@+id/tv_mode_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
-            android:minWidth="64dp"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:text="取消"
-            android:textColor="#666666"
+            android:text="按月"
+            android:textColor="#98A2B3"
+            android:fontFamily="sans-serif-medium"
+            android:textSize="16sp" />
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_chevron_right"
+            android:tint="#9CA3AF" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEF2F7" />
+
+    <LinearLayout
+        android:id="@+id/panel_month"
+        android:layout_width="wrap_content"
+        android:layout_height="268dp"
+        android:orientation="horizontal"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_year_list"
+            android:layout_width="112dp"
+            android:layout_height="match_parent"
+            android:overScrollMode="never"
+            android:paddingHorizontal="4dp"
+            android:scrollbars="none" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="#EEF2F7" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_month_grid"
+            android:layout_width="152dp"
+            android:layout_height="match_parent"
+            android:overScrollMode="never"
+            android:paddingHorizontal="4dp"
+            android:scrollbars="none" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_year_grid"
+        android:layout_width="match_parent"
+        android:layout_height="292dp"
+        android:overScrollMode="never"
+        android:padding="6dp"
+        android:scrollbars="none"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/panel_all"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingExtra="2dp"
+            android:text="在首页加载【当前账本】下所有时间范围内的数据"
+            android:textColor="#9CA3AF"
             android:textSize="14sp" />
 
         <TextView
-            android:id="@+id/btn_picker_confirm"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_segmented_selected"
-            android:minWidth="72dp"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp"
+            android:id="@+id/btn_all_confirm"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_all_mode_confirm"
+            android:gravity="center"
             android:text="确定"
-            android:textColor="#333333"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textColor="#4A86D8"
+            android:fontFamily="sans-serif-medium"
+            android:textSize="18sp"
+            android:textStyle="normal" />
     </LinearLayout>
 
 </LinearLayout>

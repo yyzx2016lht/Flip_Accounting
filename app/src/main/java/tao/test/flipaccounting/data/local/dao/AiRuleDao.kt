@@ -27,6 +27,9 @@ interface AiRuleDao {
     @Delete
     suspend fun deleteRule(rule: AiRule)
 
+    @Query("DELETE FROM ai_rule WHERE id = :id")
+    suspend fun deleteRuleById(id: Int)
+
     @Query("DELETE FROM ai_rule")
     suspend fun deleteAll()
 }

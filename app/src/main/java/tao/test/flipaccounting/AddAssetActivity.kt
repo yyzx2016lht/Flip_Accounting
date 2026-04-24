@@ -614,12 +614,11 @@ class AddAssetActivity : AppCompatActivity() {
             .setNegativeButton("取消", null)
             .setPositiveButton("确定") { _, _ -> onConfirm() }
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = 0.88f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -662,12 +661,11 @@ class AddAssetActivity : AppCompatActivity() {
             }
         }
 
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = widthRatio,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }

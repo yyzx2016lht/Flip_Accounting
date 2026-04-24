@@ -126,6 +126,7 @@
         <activity android:name=".LogViewerActivity" android:label="日志查看器" />
     <activity android:name=".ui.CurrencyManagerActivity" android:label="货币管理" />
     <activity android:name=".ui.ExchangeRateActivity" android:label="汇率管理" />
+        <activity android:name=".BillDisplaySettingsActivity" android:label="账单显示效果" />
         <activity android:name=".ui.FlipSensitivityActivity" android:label="灵敏度调节" />
     <activity android:name=".ui.activity.EditBillActivity" android:label="编辑账单" android:theme="@style/Theme.FlipAccounting.Transparent" />
     <activity android:name=".ui.main.home.CalendarActivity" android:label="日历账单" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>

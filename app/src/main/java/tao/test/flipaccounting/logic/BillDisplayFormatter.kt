@@ -15,8 +15,44 @@ object BillDisplayFormatter {
 
     fun normalizeCategoryDisplayName(categoryName: String): String {
         return categoryName
-            .replace(Regex("\\s*[>＞]\\s*"), "-")
+            .replace(Regex("\\s*(/:::/|/::/|[>＞]|::|·|-)\\s*"), "-")
             .trim()
+    }
+
+    fun formatCategoryByPreference(categoryName: String, showFullCategory: Boolean): String {
+        val hasRefund = hasRefundPrefix(categoryName)
+        val normalizedBase = normalizeCategoryDisplayName(stripRefundPrefix(categoryName))
+        if (normalizedBase.isBlank()) return ""
+        val base = if (showFullCategory) {
+            normalizedBase
+        } else {
+            normalizedBase.substringAfterLast("-").ifBlank { normalizedBase }
+        }
+        return if (hasRefund) "退款：$base" else base
+    }
+
+    fun resolvePrimarySecondaryText(
+        categoryText: String,
+        remarkText: String,
+        suffixText: String = "",
+        remarkPriority: Boolean
+    ): Pair<String, String> {
+        val safeCategory = categoryText.ifBlank { "未分类" }
+        val safeRemark = remarkText.trim()
+        val safeSuffix = suffixText.trim()
+
+        val (primary, secondaryBase) = if (remarkPriority && safeRemark.isNotBlank()) {
+            safeRemark to safeCategory
+        } else {
+            safeCategory to safeRemark
+        }
+        val secondary = when {
+            secondaryBase.isNotBlank() && safeSuffix.isNotBlank() -> "$secondaryBase | $safeSuffix"
+            secondaryBase.isNotBlank() -> secondaryBase
+            safeSuffix.isNotBlank() -> safeSuffix
+            else -> ""
+        }
+        return primary to secondary
     }
 
     fun stripRefundPrefix(categoryName: String): String {

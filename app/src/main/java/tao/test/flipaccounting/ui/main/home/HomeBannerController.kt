@@ -73,12 +73,11 @@ internal class HomeBannerController(
 
             panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
             panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-            OverlayDialogs.showStyledCenterDialog(
+            OverlayDialogs.showPageCenterDialog(
                 dialog = dialog,
                 ctx = fragment.requireContext(),
                 widthRatio = 0.86f,
                 cancelOnTouchOutside = true,
-                applyOverlayType = false,
                 useSolidPanelBackground = false
             )
             true
@@ -213,12 +212,11 @@ internal class HomeBannerController(
 
         panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).text = "取消"
         panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = ctx,
             widthRatio = 0.86f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }

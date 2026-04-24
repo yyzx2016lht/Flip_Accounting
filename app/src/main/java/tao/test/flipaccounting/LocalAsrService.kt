@@ -216,12 +216,11 @@ object LocalAsrService {
             .setCancelable(false)
             .setNegativeButton("取消") { _, _ -> cancelDownload = true }
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = ctx,
             widthRatio = 0.84f,
             cancelOnTouchOutside = false,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
 
@@ -541,12 +540,11 @@ object LocalAsrService {
             .setCancelable(false)
             .setNegativeButton("取消") { _, _ -> cancelDownload = true }
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = ctx,
             widthRatio = 0.84f,
             cancelOnTouchOutside = false,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
 
@@ -563,12 +561,11 @@ object LocalAsrService {
                     .setPositiveButton("切换") { _, _ -> requestSwitch() }
                     .setNegativeButton("继续等待", null)
                     .create()
-                OverlayDialogs.showStyledCenterDialog(
+                OverlayDialogs.showPageCenterDialog(
                     dialog = slowDialog,
                     ctx = ctx,
                     widthRatio = 0.88f,
                     cancelOnTouchOutside = true,
-                    applyOverlayType = false,
                     useSolidPanelBackground = true
                 )
             },

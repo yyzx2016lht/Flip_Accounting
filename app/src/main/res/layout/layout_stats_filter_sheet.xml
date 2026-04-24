@@ -1,39 +1,39 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="#F6F8FC"
-    android:orientation="vertical"
-    android:paddingBottom="20dp">
+    android:layout_height="match_parent"
+    android:background="#F3F6FB"
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingTop="10dp">
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp">
 
         <View
-            android:layout_width="44dp"
-            android:layout_height="5dp"
+            android:layout_width="42dp"
+            android:layout_height="4dp"
             android:background="@drawable/bg_stats_sheet_handle" />
     </LinearLayout>
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="72dp"
-        android:paddingHorizontal="18dp">
+        android:layout_height="56dp"
+        android:paddingHorizontal="14dp">
 
         <ImageView
             android:id="@+id/btn_close_filter_sheet"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:layout_centerVertical="true"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="9dp"
+            android:padding="8dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
-            app:tint="#23324A" />
+            app:tint="#26364E" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -45,37 +45,25 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="自定义筛选"
-                android:textColor="#142033"
-                android:textSize="19sp"
+                android:text="筛选"
+                android:textColor="#13253F"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="调整统计时间和币种"
-                android:textColor="#7B8698"
-                android:textSize="12sp" />
+                android:layout_marginTop="1dp"
+                android:text="快捷范围与日期"
+                android:textColor="#708197"
+                android:textSize="11sp" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/btn_confirm_filter_sheet"
-            android:layout_width="92dp"
-            android:layout_height="40dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:background="@drawable/bg_stats_filter_confirm"
-            android:gravity="center"
-            android:text="应用"
-            android:textColor="@android:color/white"
-            android:textSize="15sp"
-            android:textStyle="bold" />
     </RelativeLayout>
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:fillViewport="true"
         android:overScrollMode="never">
 
@@ -83,39 +71,33 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="6dp">
+            android:paddingHorizontal="12dp"
+            android:paddingBottom="8dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_stats_filter_section_rect"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingHorizontal="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="12dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="快捷范围"
-                    android:textColor="#152238"
-                    android:textSize="16sp"
+                    android:textColor="#1A2C46"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="一键切换到常用统计区间"
-                    android:textColor="#7B8698"
-                    android:textSize="12sp" />
 
                 <com.google.android.material.chip.ChipGroup
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="8dp"
                     android:isScrollContainer="false"
-                    app:chipSpacingHorizontal="8dp"
-                    app:chipSpacingVertical="10dp"
+                    app:chipSpacingHorizontal="6dp"
+                    app:chipSpacingVertical="6dp"
                     app:singleLine="false"
                     app:singleSelection="true">
 
@@ -124,8 +106,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="今天"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -136,8 +119,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="昨天"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -148,8 +132,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="本周"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -160,8 +145,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="上周"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -172,8 +158,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="本月"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -184,8 +171,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="上月"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -196,8 +184,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="今年"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -208,8 +197,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="去年"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -220,8 +210,9 @@
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
+                        android:minWidth="0dp"
                         android:text="全部"
-                        android:textColor="#23324A"
+                        android:textColor="@color/stats_filter_chip_text_selector"
                         android:textSize="13sp"
                         app:chipBackgroundColor="@color/chip_bg_selector"
                         app:chipCornerRadius="8dp"
@@ -232,50 +223,44 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_stats_filter_section_rect"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingHorizontal="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="12dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="自定义日期"
-                    android:textColor="#152238"
-                    android:textSize="16sp"
+                    android:textColor="#1A2C46"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="选择开始和结束日期，精准筛选统计范围"
-                    android:textColor="#7B8698"
-                    android:textSize="12sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <LinearLayout
                         android:id="@+id/tv_filter_start_date"
                         android:layout_width="0dp"
-                        android:layout_height="60dp"
+                        android:layout_height="52dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_stats_filter_field_rect"
                         android:gravity="center_vertical"
                         android:orientation="vertical"
-                        android:paddingHorizontal="14dp">
+                        android:paddingHorizontal="12dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="开始"
                             android:textColor="#7B8698"
-                            android:textSize="11sp" />
+                            android:textSize="10sp" />
 
                         <TextView
                             android:id="@+id/tv_filter_start_date_text"
@@ -284,34 +269,34 @@
                             android:layout_marginTop="2dp"
                             android:text="选择日期"
                             android:textColor="#22324A"
-                            android:textSize="15sp"
+                            android:textSize="14sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="10dp"
+                        android:layout_marginHorizontal="8dp"
                         android:text="至"
                         android:textColor="#95A0AF"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <LinearLayout
                         android:id="@+id/tv_filter_end_date"
                         android:layout_width="0dp"
-                        android:layout_height="60dp"
+                        android:layout_height="52dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_stats_filter_field_rect"
                         android:gravity="center_vertical"
                         android:orientation="vertical"
-                        android:paddingHorizontal="14dp">
+                        android:paddingHorizontal="12dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="结束"
                             android:textColor="#7B8698"
-                            android:textSize="11sp" />
+                            android:textSize="10sp" />
 
                         <TextView
                             android:id="@+id/tv_filter_end_date_text"
@@ -320,63 +305,106 @@
                             android:layout_marginTop="2dp"
                             android:text="选择日期"
                             android:textColor="#22324A"
-                            android:textSize="15sp"
+                            android:textSize="14sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/layout_filter_currency_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_stats_filter_section_rect"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingHorizontal="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="12dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="币种范围"
-                    android:textColor="#152238"
-                    android:textSize="16sp"
+                    android:textColor="#1A2C46"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="按币种筛选统计结果"
-                    android:textColor="#7B8698"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:id="@+id/tv_filter_currency_selector"
+                <LinearLayout
+                    android:id="@+id/layout_filter_currency_selector"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="12dp"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
                     android:background="@drawable/bg_stats_filter_field_rect"
-                    android:drawableEnd="@drawable/ic_chevron_down_small"
-                    android:drawablePadding="8dp"
                     android:gravity="center_vertical"
-                    android:paddingHorizontal="14dp"
-                    android:text="全部币种"
-                    android:textColor="#22324A"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp">
 
-            <TextView
-                android:id="@+id/btn_reset_filter_sheet"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="14dp"
-                android:background="@drawable/bg_btn_outline_blue"
-                android:gravity="center"
-                android:text="重置筛选"
-                android:textColor="#2C74FF"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="当前币种"
+                        android:textColor="#73839B"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/tv_filter_currency_selector"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:text="全部币种"
+                        android:textAlignment="viewEnd"
+                        android:textColor="#22324A"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/iv_filter_currency_expand"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginStart="8dp"
+                        android:src="@drawable/ic_chevron_down_small"
+                        app:tint="#7F90A6" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/btn_reset_filter_sheet"
+            android:layout_width="0dp"
+            android:layout_height="42dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_btn_outline_blue"
+            android:gravity="center"
+            android:text="重置"
+            android:textColor="#2C74FF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_confirm_filter_sheet"
+            android:layout_width="0dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_stats_filter_confirm"
+            android:gravity="center"
+            android:text="应用"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

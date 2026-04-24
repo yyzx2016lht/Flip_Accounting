@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.CategoryIconHelper
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillDisplayFormatter
@@ -446,6 +447,23 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             checkBox.isChecked = isSelected
         }
 
+        private fun setIconSizeDp(dp: Int) {
+            val px = (itemView.resources.displayMetrics.density * dp).toInt()
+            ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                width = px
+                height = px
+            }
+        }
+
+        private fun setIconContainerSizeDp(widthDp: Int, heightDp: Int = 44) {
+            val widthPx = (itemView.resources.displayMetrics.density * widthDp).toInt()
+            val heightPx = (itemView.resources.displayMetrics.density * heightDp).toInt()
+            iconContainer?.layoutParams = iconContainer?.layoutParams?.apply {
+                width = widthPx
+                height = heightPx
+            }
+        }
+
         fun bind(displayBill: DisplayBill, position: Int) {
             val bill = displayBill.bill
             val isDeprecated = displayBill.isDeprecated
@@ -454,6 +472,9 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             val isTransfer = bill.type == Bill.TYPE_TRANSFER
             val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
             val isRefund = isRefundBill(bill)
+            val showCategoryIcon = Prefs.isShowBillCategoryIcon(itemView.context)
+            val showFullCategory = Prefs.isShowBillFullCategory(itemView.context)
+            val remarkPriority = Prefs.isBillRemarkPriority(itemView.context)
             val symbol = CurrencyManager.getSymbol(bill.currency)
             val refundAmount = refundAmountOfExpenseBill(bill)
             val baseCategoryName = stripRefundPrefix(bill.categoryName)
@@ -497,11 +518,10 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 }
             )
 
-            tvCategory.text = when {
+            val categoryText = when {
                 isRepayment -> "\u8FD8\u6B3E"
                 isTransfer -> "\u8F6C\u8D26"
-                isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
-                else -> BillDisplayFormatter.normalizeCategoryDisplayName(bill.categoryName).ifEmpty { "\u672A\u5206\u7C7B" }
+                else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { "\u672A\u5206\u7C7B" }
             }
 
             tvAmount.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {
@@ -573,17 +593,16 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 tvAsset.visibility = View.GONE
             }
 
-            val detailBuilder = SpannableStringBuilder()
-            if (bill.remark.isNotEmpty()) {
-                detailBuilder.append(bill.remark)
-            }
             val suffix = detailSuffixProvider?.invoke(bill).orEmpty()
-            if (suffix.isNotEmpty()) {
-                if (detailBuilder.isNotEmpty()) detailBuilder.append(" | ")
-                detailBuilder.append(suffix)
-            }
-            if (detailBuilder.isNotEmpty()) {
-                tvDetail.text = detailBuilder
+            val (primaryText, secondaryText) = BillDisplayFormatter.resolvePrimarySecondaryText(
+                categoryText = categoryText,
+                remarkText = bill.remark,
+                suffixText = suffix,
+                remarkPriority = remarkPriority
+            )
+            tvCategory.text = primaryText
+            if (secondaryText.isNotEmpty()) {
+                tvDetail.text = secondaryText
                 tvDetail.visibility = View.VISIBLE
             } else {
                 tvDetail.visibility = View.GONE
@@ -610,29 +629,54 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
             val iconCacheKey = buildIconCacheKey(iconLookupName, iconLookupType)
             iconJob?.cancel()
-            ivIcon.setImageDrawable(null)
-            val cachedIconUrl = getCachedIconUrl(iconCacheKey)
-            if (cachedIconUrl != null) {
-                if (cachedIconUrl.isNotEmpty()) {
-                    Glide.with(itemView.context)
-                        .load(cachedIconUrl)
-                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                        .into(ivIcon)
-                } else {
-                    ivIcon.setImageDrawable(null)
+            if (!showCategoryIcon) {
+                iconContainer?.setBackgroundColor(Color.TRANSPARENT)
+                setIconContainerSizeDp(10, 44)
+                ivIcon.clearColorFilter()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    ivIcon.imageTintList = null
                 }
+                setIconSizeDp(6)
+                val dotRes = when (bill.type) {
+                    Bill.TYPE_EXPENSE -> R.drawable.bg_bill_dot_expense
+                    Bill.TYPE_INCOME -> R.drawable.bg_bill_dot_income
+                    else -> R.drawable.bg_bill_dot_neutral
+                }
+                ivIcon.setImageResource(dotRes)
             } else {
-                iconJob = adapterScope.launch {
-                    val iconUrl = tao.test.flipaccounting.CategoryIconHelper.findCategoryIcon(itemView.context, iconLookupName, iconLookupType)
-                    putCachedIconUrl(iconCacheKey, iconUrl)
-                    withContext(Dispatchers.Main) {
-                        if (iconUrl.isNotEmpty()) {
-                            Glide.with(itemView.context)
-                                .load(iconUrl)
-                                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                                .into(ivIcon)
-                        } else {
-                            ivIcon.setImageDrawable(null)
+                iconContainer?.setBackgroundResource(
+                    when {
+                        !isRefund && bill.type == Bill.TYPE_EXPENSE -> R.drawable.bg_circle_expense_soft
+                        !isRefund && bill.type == Bill.TYPE_INCOME -> R.drawable.bg_circle_income_soft
+                        else -> R.drawable.bg_circle_soft
+                    }
+                )
+                setIconContainerSizeDp(44, 44)
+                setIconSizeDp(21)
+                ivIcon.setImageDrawable(null)
+                val cachedIconUrl = getCachedIconUrl(iconCacheKey)
+                if (cachedIconUrl != null) {
+                    if (cachedIconUrl.isNotEmpty()) {
+                        Glide.with(itemView.context)
+                            .load(cachedIconUrl)
+                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                            .into(ivIcon)
+                    } else {
+                        ivIcon.setImageDrawable(null)
+                    }
+                } else {
+                    iconJob = adapterScope.launch {
+                        val iconUrl = tao.test.flipaccounting.CategoryIconHelper.findCategoryIcon(itemView.context, iconLookupName, iconLookupType)
+                        putCachedIconUrl(iconCacheKey, iconUrl)
+                        withContext(Dispatchers.Main) {
+                            if (iconUrl.isNotEmpty()) {
+                                Glide.with(itemView.context)
+                                    .load(iconUrl)
+                                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                                    .into(ivIcon)
+                            } else {
+                                ivIcon.setImageDrawable(null)
+                            }
                         }
                     }
                 }

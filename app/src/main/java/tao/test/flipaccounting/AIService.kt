@@ -33,12 +33,21 @@ const val OCR_MODE_LOCAL      = 0   // 本地 ML Kit OCR + 文本 AI
 const val OCR_MODE_MULTIMODAL = 1   // 直接多模态 AI（发送图片）
 
 object AIService {
+    private const val LOCAL_RULE_APPLIED_FLAG = "_local_rule_applied"
+    private const val LOCAL_RULE_CORRECTED_FLAG = "_local_rule_corrected"
 
     private data class LocalRulePrefill(
         val type: Int? = null,
         val category: String? = null,
         val assetName: String? = null,
         val toAssetName: String? = null
+    )
+
+    private data class LocalRuleApplyResult(
+        val applied: Boolean,
+        val corrected: Boolean,
+        val correctedFields: List<String>,
+        val changedFields: List<String>
     )
 
     private data class AccountingPromptContext(
@@ -438,7 +447,19 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
                     enforceNoAssetMode(root)
                 }
                 if (!isMultiMode && localPrefill != null) {
-                    applyLocalPrefillToResult(root, localPrefill)
+                    val before = summarizeLocalRuleSensitiveFields(root)
+                    val applyResult = applyLocalPrefillToResult(root, localPrefill)
+                    if (applyResult.applied) {
+                        root.put(LOCAL_RULE_APPLIED_FLAG, true)
+                        if (applyResult.corrected) {
+                            root.put(LOCAL_RULE_CORRECTED_FLAG, true)
+                        }
+                        Logger.d(
+                            ctx,
+                            "AIService",
+                            "Local rule override applied; corrected=${applyResult.corrected}; correctedFields=${applyResult.correctedFields.joinToString(",")}; changed=${applyResult.changedFields.joinToString(",")}; before=$before; after=${summarizeLocalRuleSensitiveFields(root)}"
+                        )
+                    }
                 }
 
                 if (isMultiMode && root.has("bills") && !Prefs.isMultiBillFastMode(ctx)) {
@@ -1849,16 +1870,76 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
         return LocalRulePrefill(type, category, assetName, toAssetName)
     }
 
-    private fun applyLocalPrefillToResult(root: JSONObject, prefill: LocalRulePrefill) {
+    private fun applyLocalPrefillToResult(root: JSONObject, prefill: LocalRulePrefill): LocalRuleApplyResult {
+        val changedFields = linkedSetOf<String>()
+        val correctedFields = linkedSetOf<String>()
         prefill.type?.let { t ->
+            val hadValue = root.has("type")
+            val oldValue = root.optInt("type", Int.MIN_VALUE)
+            if (!hadValue || oldValue != t) {
+                changedFields += "type"
+                if (hadValue && oldValue != t) {
+                    correctedFields += "type"
+                }
+            }
             root.put("type", t)
             if (t == 2 && prefill.category == "还款") {
+                val hadSubType = root.has("subType")
+                val oldSubType = root.optInt("subType", Int.MIN_VALUE)
+                if (!hadSubType || oldSubType != 1) {
+                    changedFields += "subType"
+                    if (hadSubType && oldSubType != 1) {
+                        correctedFields += "subType"
+                    }
+                }
                 root.put("subType", 1)
             }
         }
-        prefill.category?.takeIf { it.isNotBlank() }?.let { root.put("category_name", it) }
-        prefill.assetName?.takeIf { it.isNotBlank() }?.let { root.put("asset_name", it) }
-        prefill.toAssetName?.takeIf { it.isNotBlank() }?.let { root.put("to_asset_name", it) }
+        prefill.category?.takeIf { it.isNotBlank() }?.let {
+            val old = root.optString("category_name", "")
+            if (!root.has("category_name") || old != it) {
+                changedFields += "category_name"
+                if (old.isNotBlank() && old != it) {
+                    correctedFields += "category_name"
+                }
+            }
+            root.put("category_name", it)
+        }
+        prefill.assetName?.takeIf { it.isNotBlank() }?.let {
+            val old = root.optString("asset_name", "")
+            if (!root.has("asset_name") || old != it) {
+                changedFields += "asset_name"
+                if (old.isNotBlank() && old != it) {
+                    correctedFields += "asset_name"
+                }
+            }
+            root.put("asset_name", it)
+        }
+        prefill.toAssetName?.takeIf { it.isNotBlank() }?.let {
+            val old = root.optString("to_asset_name", "")
+            if (!root.has("to_asset_name") || old != it) {
+                changedFields += "to_asset_name"
+                if (old.isNotBlank() && old != it) {
+                    correctedFields += "to_asset_name"
+                }
+            }
+            root.put("to_asset_name", it)
+        }
+        return LocalRuleApplyResult(
+            applied = changedFields.isNotEmpty(),
+            corrected = correctedFields.isNotEmpty(),
+            correctedFields = correctedFields.toList(),
+            changedFields = changedFields.toList()
+        )
+    }
+
+    private fun summarizeLocalRuleSensitiveFields(json: JSONObject): String {
+        val type = if (json.has("type")) json.optInt("type", -1).toString() else "null"
+        val subType = if (json.has("subType")) json.optInt("subType", -1).toString() else "null"
+        val category = json.optString("category_name", "")
+        val asset = json.optString("asset_name", "")
+        val toAsset = json.optString("to_asset_name", "")
+        return "type=$type,subType=$subType,category=$category,asset=$asset,toAsset=$toAsset"
     }
 
     private fun findBestMatch(input: String, candidates: List<String>): String? {

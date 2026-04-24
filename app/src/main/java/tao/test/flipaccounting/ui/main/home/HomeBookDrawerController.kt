@@ -645,12 +645,11 @@ internal class HomeBookDrawerController(
         }
         panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { popupDialog.dismiss() }
 
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = popupDialog,
             ctx = fragment.requireContext(),
             widthRatio = 0.92f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }
@@ -687,12 +686,11 @@ internal class HomeBookDrawerController(
             optionsContainer.addView(item)
         }
         panel.findViewById<TextView>(R.id.btn_followup_picker_cancel).setOnClickListener { dialog.dismiss() }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = fragment.requireContext(),
             widthRatio = 0.86f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }
@@ -727,12 +725,11 @@ internal class HomeBookDrawerController(
                 onConfirm()
             }
         }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = fragment.requireContext(),
             widthRatio = 0.86f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }

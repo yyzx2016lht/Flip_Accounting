@@ -322,6 +322,67 @@
                         android:layout_marginStart="68dp"
                         android:background="#F0F2F5" />
 
+                    <!-- 账单显示效果 -->
+                    <LinearLayout
+                        android:id="@+id/btn_bill_display_settings"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="18dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_purple">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_bill_display"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="账单显示效果"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="分类图标、分类层级与备注展示策略"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="›"
+                            android:textColor="#C0C8D4"
+                            android:textSize="22sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/divider_after_bill_display"
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="68dp"
+                        android:background="#F0F2F5" />
+
                     <!-- 多币种与汇率 -->
                     <LinearLayout
                         android:id="@+id/btn_manage_currencies"

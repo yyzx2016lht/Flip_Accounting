@@ -149,12 +149,11 @@ internal class HomeMultiSelectController(
         val targetHeight = min(maxHeight, estimatedContentHeight)
         optionsScroll.layoutParams = optionsScroll.layoutParams.apply { height = targetHeight }
         panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = fragment.requireContext(),
             widthRatio = 0.92f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }

@@ -312,7 +312,13 @@ class BookAccountAdapter(
             val newName = etName.text?.toString()?.trim().orEmpty()
             editingPosition = RecyclerView.NO_POSITION
             hideKeyboard(etName)
-            notifyItemChanged(pos)
+            // Focus changes may happen while RecyclerView is in layout/scroll.
+            // Post notify to next frame to avoid "Cannot call this method while RecyclerView is computing a layout".
+            itemView.post {
+                if (pos in 0 until itemCount) {
+                    notifyItemChanged(pos)
+                }
+            }
 
             if (newName.isBlank() || newName == oldName) return
             onRenameClick(oldName, newName)

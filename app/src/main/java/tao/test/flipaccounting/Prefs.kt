@@ -226,6 +226,18 @@ object Prefs {
         PrefsDisplaySupport.isAmountGroupingEnabled(ctx)
     fun setAmountGroupingEnabled(ctx: Context, enabled: Boolean) =
         PrefsDisplaySupport.setAmountGroupingEnabled(ctx, enabled)
+    fun isShowBillCategoryIcon(ctx: Context): Boolean =
+        PrefsDisplaySupport.isShowBillCategoryIcon(ctx)
+    fun setShowBillCategoryIcon(ctx: Context, show: Boolean) =
+        PrefsDisplaySupport.setShowBillCategoryIcon(ctx, show)
+    fun isShowBillFullCategory(ctx: Context): Boolean =
+        PrefsDisplaySupport.isShowBillFullCategory(ctx)
+    fun setShowBillFullCategory(ctx: Context, show: Boolean) =
+        PrefsDisplaySupport.setShowBillFullCategory(ctx, show)
+    fun isBillRemarkPriority(ctx: Context): Boolean =
+        PrefsDisplaySupport.isBillRemarkPriority(ctx)
+    fun setBillRemarkPriority(ctx: Context, enabled: Boolean) =
+        PrefsDisplaySupport.setBillRemarkPriority(ctx, enabled)
 
     fun addOcrDebugRecord(ctx: Context, text: String, source: String = "local_ocr_before_ai") =
         PrefsAiSupport.addOcrDebugRecord(ctx, text, source)

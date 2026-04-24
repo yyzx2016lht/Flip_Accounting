@@ -27,6 +27,7 @@ import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.ChatMessage
 import tao.test.flipaccounting.data.repository.CategoryRepository
 import tao.test.flipaccounting.logic.BillMutationService
+import tao.test.flipaccounting.logic.BillDisplayFormatter
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -391,12 +392,27 @@ class ChatAdapter(
                 val etAmount = card.findViewById<android.widget.EditText>(R.id.et_chat_bill_amount)
                 val tvBillTime = card.findViewById<TextView>(R.id.tv_chat_bill_time)
                 val ivIcon = card.findViewById<ImageView>(R.id.iv_chat_bill_icon)
+                val iconContainer = card.findViewById<View>(R.id.layout_chat_bill_icon_container)
                 val btnEdit = card.findViewById<TextView>(R.id.btn_chat_bill_edit_category)
                 val btnDelete = card.findViewById<TextView>(R.id.btn_chat_bill_delete)
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER
+                val showCategoryIcon = Prefs.isShowBillCategoryIcon(context)
+                val showFullCategory = Prefs.isShowBillFullCategory(context)
+                val remarkPriority = Prefs.isBillRemarkPriority(context)
 
-                tvCat.text = bill.categoryName
-                tvDetail.text = listOf(bill.accountName, bill.remark).filter { it.isNotBlank() }.joinToString(" | ")
+                val categoryText = when (bill.type) {
+                    Bill.TYPE_TRANSFER -> "转账"
+                    else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifBlank { "未分类" }
+                }
+                val (primaryText, secondaryText) = BillDisplayFormatter.resolvePrimarySecondaryText(
+                    categoryText = categoryText,
+                    remarkText = bill.remark,
+                    suffixText = bill.accountName,
+                    remarkPriority = remarkPriority
+                )
+                tvCat.text = primaryText
+                tvDetail.text = secondaryText
+                tvDetail.visibility = if (secondaryText.isBlank()) View.GONE else View.VISIBLE
                 val sign = when (bill.type) {
                     Bill.TYPE_INCOME -> "+"
                     Bill.TYPE_TRANSFER -> ""
@@ -449,29 +465,64 @@ class ChatAdapter(
                     1 -> Color.parseColor("#2E7D32")
                     else -> Color.parseColor("#7A8598")
                 }
-                ivIcon.setImageResource(android.R.drawable.ic_menu_info_details)
-                ivIcon.setColorFilter(iconTint)
-                lifecycleScope.launch {
-                    val iconUrl = withContext(Dispatchers.IO) {
-                        CategoryIconHelper.findCategoryIcon(context, bill.categoryName, bill.type)
+                if (!showCategoryIcon) {
+                    iconContainer.setBackgroundColor(Color.TRANSPARENT)
+                    iconContainer.layoutParams = iconContainer.layoutParams.apply {
+                        val widthPx = (iconContainer.resources.displayMetrics.density * 10).toInt()
+                        val heightPx = (iconContainer.resources.displayMetrics.density * 38).toInt()
+                        width = widthPx
+                        height = heightPx
                     }
-                    if (iconUrl.isNotBlank()) {
-                        Glide.with(ivIcon.context)
-                            .load(iconUrl)
-                            .diskCacheStrategy(DiskCacheStrategy.DATA)
-                            .into(ivIcon)
+                    ivIcon.clearColorFilter()
+                    ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                        val px = (ivIcon.resources.displayMetrics.density * 6).toInt()
+                        width = px
+                        height = px
+                    }
+                    val dotRes = when (bill.type) {
+                        Bill.TYPE_EXPENSE -> R.drawable.bg_bill_dot_expense
+                        Bill.TYPE_INCOME -> R.drawable.bg_bill_dot_income
+                        else -> R.drawable.bg_bill_dot_neutral
+                    }
+                    ivIcon.setImageResource(dotRes)
+                } else {
+                    iconContainer.setBackgroundResource(R.drawable.bg_chat_bill_icon_container)
+                    iconContainer.layoutParams = iconContainer.layoutParams.apply {
+                        val widthPx = (iconContainer.resources.displayMetrics.density * 38).toInt()
+                        val heightPx = (iconContainer.resources.displayMetrics.density * 38).toInt()
+                        width = widthPx
+                        height = heightPx
+                    }
+                    ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                        val px = (ivIcon.resources.displayMetrics.density * 26).toInt()
+                        width = px
+                        height = px
+                    }
+                    ivIcon.setImageResource(android.R.drawable.ic_menu_info_details)
+                    ivIcon.setColorFilter(iconTint)
+                    lifecycleScope.launch {
+                        val iconUrl = withContext(Dispatchers.IO) {
+                            CategoryIconHelper.findCategoryIcon(context, bill.categoryName, bill.type)
+                        }
+                        if (iconUrl.isNotBlank()) {
+                            Glide.with(ivIcon.context)
+                                .load(iconUrl)
+                                .diskCacheStrategy(DiskCacheStrategy.DATA)
+                                .into(ivIcon)
+                        }
                     }
                 }
 
                 btnEdit.setOnClickListener {
                     if (deprecated) return@setOnClickListener
-                    val pickerType = if (bill.type == 1) 1 else 0
+                    val pickerType = if (bill.type == Bill.TYPE_INCOME) Prefs.TYPE_INCOME else Prefs.TYPE_EXPENSE
+                    val categoryDbType = if (bill.type == Bill.TYPE_INCOME) 1 else 0
                     OverlayDialogs.showGridCategoryPicker(context, bill.categoryName, pickerType) { selected ->
                         val originalBill = bill.copy()
                         lifecycleScope.launch {
                             val updated = withContext(Dispatchers.IO) {
                                 val categoryEntity = CategoryRepository(db.categoryDao()).findCategoryByDisplayName(
-                                    pickerType,
+                                    categoryDbType,
                                     selected
                                 )
                                 BillMutationService.replaceBill(

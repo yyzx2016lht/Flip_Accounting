@@ -71,6 +71,14 @@ object OverlayDialogs {
         return if (ctx is Activity) Settings.canDrawOverlays(ctx) else true
     }
 
+    private fun unwrapContext(ctx: Context): Context {
+        return if (ctx is ContextThemeWrapper) ctx.baseContext else ctx
+    }
+
+    private fun shouldUseOverlayWindow(ctx: Context): Boolean {
+        return unwrapContext(ctx) !is Activity
+    }
+
     private fun applyOverlayTypeIfAllowed(dialog: AlertDialog, ctx: Context) {
         if (!canUseOverlayWindow(ctx)) return
         dialog.window?.setType(
@@ -118,7 +126,7 @@ object OverlayDialogs {
         height: Int = WindowManager.LayoutParams.WRAP_CONTENT,
         dimAmount: Float = 0.34f,
         clearDecorPadding: Boolean = false,
-        applyOverlayType: Boolean = true
+        applyOverlayType: Boolean = false
     ) {
         styleDialogWindow(
             dialog = dialog,
@@ -134,13 +142,12 @@ object OverlayDialogs {
         dialog.show()
     }
 
-    fun showStyledCenterDialog(
+    fun showPageCenterDialog(
         dialog: AlertDialog,
         ctx: Context,
         widthRatio: Float = 0.88f,
         cancelOnTouchOutside: Boolean = true,
         dimAmount: Float = 0.34f,
-        applyOverlayType: Boolean = true,
         useSolidPanelBackground: Boolean = true
     ) {
         dialog.setCanceledOnTouchOutside(cancelOnTouchOutside)
@@ -153,21 +160,45 @@ object OverlayDialogs {
             height = WindowManager.LayoutParams.WRAP_CONTENT,
             dimAmount = dimAmount,
             clearDecorPadding = false,
-            applyOverlayType = applyOverlayType
+            applyOverlayType = false
         )
         if (useSolidPanelBackground) {
             dialog.window?.setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
         }
     }
 
-    fun showStyledBottomDialog(
+    fun showOverlayCenterDialog(
+        dialog: AlertDialog,
+        ctx: Context,
+        widthRatio: Float = 0.88f,
+        cancelOnTouchOutside: Boolean = true,
+        dimAmount: Float = 0.34f,
+        useSolidPanelBackground: Boolean = true
+    ) {
+        dialog.setCanceledOnTouchOutside(cancelOnTouchOutside)
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = widthRatio,
+            gravity = Gravity.CENTER,
+            y = 0,
+            height = WindowManager.LayoutParams.WRAP_CONTENT,
+            dimAmount = dimAmount,
+            clearDecorPadding = false,
+            applyOverlayType = true
+        )
+        if (useSolidPanelBackground) {
+            dialog.window?.setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
+        }
+    }
+
+    fun showPageBottomDialog(
         dialog: AlertDialog,
         ctx: Context,
         widthRatio: Float = 0.94f,
         y: Int = 0,
         cancelOnTouchOutside: Boolean = true,
         dimAmount: Float = 0.34f,
-        applyOverlayType: Boolean = true,
         useSolidPanelBackground: Boolean = true
     ) {
         dialog.setCanceledOnTouchOutside(cancelOnTouchOutside)
@@ -180,7 +211,33 @@ object OverlayDialogs {
             height = WindowManager.LayoutParams.WRAP_CONTENT,
             dimAmount = dimAmount,
             clearDecorPadding = false,
-            applyOverlayType = applyOverlayType
+            applyOverlayType = false
+        )
+        if (useSolidPanelBackground) {
+            dialog.window?.setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
+        }
+    }
+
+    fun showOverlayBottomDialog(
+        dialog: AlertDialog,
+        ctx: Context,
+        widthRatio: Float = 0.94f,
+        y: Int = 0,
+        cancelOnTouchOutside: Boolean = true,
+        dimAmount: Float = 0.34f,
+        useSolidPanelBackground: Boolean = true
+    ) {
+        dialog.setCanceledOnTouchOutside(cancelOnTouchOutside)
+        showStyledDialog(
+            dialog = dialog,
+            ctx = ctx,
+            widthRatio = widthRatio,
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            y = y,
+            height = WindowManager.LayoutParams.WRAP_CONTENT,
+            dimAmount = dimAmount,
+            clearDecorPadding = false,
+            applyOverlayType = true
         )
         if (useSolidPanelBackground) {
             dialog.window?.setBackgroundDrawableResource(R.drawable.shape_dialog_bg)
@@ -1207,30 +1264,40 @@ object OverlayDialogs {
             return dialog
         }
 
-        val preferredCtx = if (ctx is ContextThemeWrapper) ctx.baseContext else ctx
+        val preferredCtx = unwrapContext(ctx)
+        val useOverlayWindow = shouldUseOverlayWindow(preferredCtx)
         try {
             val dialog = createDialog(preferredCtx)
-            showStyledDialog(
-                dialog = dialog,
-                ctx = preferredCtx,
-                widthRatio = 0.9f,
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
-                y = 150,
-                clearDecorPadding = true,
-                applyOverlayType = true,
-            )
+            if (useOverlayWindow) {
+                showOverlayBottomDialog(
+                    dialog = dialog,
+                    ctx = preferredCtx,
+                    widthRatio = 0.9f,
+                    y = 150,
+                    cancelOnTouchOutside = true,
+                    useSolidPanelBackground = true
+                )
+            } else {
+                showPageBottomDialog(
+                    dialog = dialog,
+                    ctx = preferredCtx,
+                    widthRatio = 0.9f,
+                    y = 150,
+                    cancelOnTouchOutside = true,
+                    useSolidPanelBackground = true
+                )
+            }
         } catch (e: BadTokenException) {
             try {
                 val appCtx = preferredCtx.applicationContext
                 val recoveryDialog = createDialog(appCtx)
-                showStyledDialog(
+                showOverlayBottomDialog(
                     dialog = recoveryDialog,
                     ctx = appCtx,
                     widthRatio = 0.9f,
-                    gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
                     y = 150,
-                    clearDecorPadding = true,
-                    applyOverlayType = true,
+                    cancelOnTouchOutside = true,
+                    useSolidPanelBackground = true
                 )
             } catch (ex: Exception) {
                 android.util.Log.e("OverlayDialogs", "Failed to show exchange rate dialog even after recovery attempt", ex)

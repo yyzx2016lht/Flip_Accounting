@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillDisplayFormatter
@@ -33,27 +34,33 @@ class BillAdapter(private val bills: List<Bill>) : RecyclerView.Adapter<BillAdap
         val isTransfer  = bill.type == Bill.TYPE_TRANSFER
         val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
         val isRefund = bill.subType == Bill.SUBTYPE_REFUND
-        holder.tvCategory.text = when {
+        val categoryText = when {
             isRepayment -> "还款"
             isTransfer  -> "转账"
-            else        -> bill.categoryName
+            else        -> BillDisplayFormatter.formatCategoryByPreference(
+                categoryName = bill.categoryName,
+                showFullCategory = Prefs.isShowBillFullCategory(holder.itemView.context)
+            ).ifBlank { "未分类" }
         }
-        
-        holder.tvDetail.text = buildString {
-            if (isTransfer) {
+        val detailSuffix = if (isTransfer) {
+            buildString {
                 append(bill.accountName)
                 if (bill.toAccountName.isNotEmpty()) {
                     append(" -> ")
                     append(bill.toAccountName)
                 }
-            } else {
-                append(bill.accountName)
             }
-            if (bill.remark.isNotEmpty()) {
-                append(" | ")
-                append(bill.remark)
-            }
+        } else {
+            bill.accountName
         }
+        val (primary, secondary) = BillDisplayFormatter.resolvePrimarySecondaryText(
+            categoryText = categoryText,
+            remarkText = bill.remark,
+            suffixText = detailSuffix,
+            remarkPriority = Prefs.isBillRemarkPriority(holder.itemView.context)
+        )
+        holder.tvCategory.text = primary
+        holder.tvDetail.text = secondary.ifBlank { bill.accountName }
         
         val refundAmount = BillDisplayFormatter.refundAmountOfExpenseBill(bill)
         holder.tvAmount.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {

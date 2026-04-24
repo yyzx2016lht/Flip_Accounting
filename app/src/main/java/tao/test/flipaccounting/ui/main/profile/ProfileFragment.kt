@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting.ui.main.profile
+package tao.test.flipaccounting.ui.main.profile
 
 import android.app.Activity
 import android.os.Bundle
@@ -307,6 +307,13 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 sampleAppbarFrames("BeforeStartActivityFrames:manage_categories", it, 6)
             }
             requireActivity().startActivity(Intent(requireContext(), SettingsActivity::class.java))
+        }
+        view.findViewById<View>(R.id.btn_bill_display_settings).setOnClickListener {
+            rootRef?.let {
+                dumpAppbarState("BeforeStartActivity:bill_display_settings", it)
+                sampleAppbarFrames("BeforeStartActivityFrames:bill_display_settings", it, 6)
+            }
+            requireActivity().startActivity(Intent(requireContext(), BillDisplaySettingsActivity::class.java))
         }
         view.findViewById<View>(R.id.btn_manage_currencies).setOnClickListener {
             rootRef?.let {
@@ -658,11 +665,10 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
             .setNegativeButton("稍后", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = requireContext(),
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -741,12 +747,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
             .create()
         dialog.setOnDismissListener { pendingEditUserAvatarView = null }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = ctx,
             widthRatio = 0.9f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -813,11 +818,10 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            OverlayDialogs.showStyledCenterDialog(
+            OverlayDialogs.showPageCenterDialog(
                 dialog = dialog,
                 ctx = requireContext(),
                 cancelOnTouchOutside = true,
-                applyOverlayType = false,
                 useSolidPanelBackground = true
             )
         }

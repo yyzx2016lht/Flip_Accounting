@@ -17,6 +17,7 @@ import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
+import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import java.util.Calendar
 
 private const val TAG = "HomePerf"
@@ -46,6 +47,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val selectedMonth: Int = SharedYearMonthSession.getYearMonth().second,
         val currentTimeRange: Int = 0,
         val currentType: Int = 0,
+        val displayMode: YearMonthPickerDialog.DisplayMode = YearMonthPickerDialog.DisplayMode.MONTH,
         val isChartHidden: Boolean = false,
         /** true 表示 Room 查询正在进行中（首次加载），false 表示已有数据 */
         val isLoading: Boolean = true
@@ -146,8 +148,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 更新月份并重新加载 */
     fun setMonth(year: Int, month: Int) {
-        _uiState.value = _uiState.value.copy(selectedYear = year, selectedMonth = month, isLoading = true)
+        _uiState.value = _uiState.value.copy(
+            selectedYear = year,
+            selectedMonth = month,
+            displayMode = YearMonthPickerDialog.DisplayMode.MONTH,
+            isLoading = true
+        )
         SharedYearMonthSession.setYearMonth(year, month)
+        startFlow()
+    }
+
+    fun setYearMode(year: Int) {
+        _uiState.value = _uiState.value.copy(
+            selectedYear = year,
+            displayMode = YearMonthPickerDialog.DisplayMode.YEAR,
+            isLoading = true
+        )
+        startFlow()
+    }
+
+    fun setAllBillsMode() {
+        _uiState.value = _uiState.value.copy(
+            displayMode = YearMonthPickerDialog.DisplayMode.ALL,
+            isLoading = true
+        )
         startFlow()
     }
 
@@ -173,11 +197,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val flowSnapshot = _uiState.value
         val selectedBookNormalized = BookAccountManager.normalizeBookName(flowSnapshot.selectedBookName)
         val aliases = BookAccountManager.rawAliases(flowSnapshot.selectedBookName).distinct()
-        val (monthStart, monthEnd) = getMonthRange(flowSnapshot.selectedYear, flowSnapshot.selectedMonth)
+        val (periodStart, periodEnd) = when (flowSnapshot.displayMode) {
+            YearMonthPickerDialog.DisplayMode.MONTH ->
+                getMonthRange(flowSnapshot.selectedYear, flowSnapshot.selectedMonth)
+            YearMonthPickerDialog.DisplayMode.YEAR ->
+                getYearRange(flowSnapshot.selectedYear)
+            YearMonthPickerDialog.DisplayMode.ALL ->
+                0L to Long.MAX_VALUE
+        }
         val chartStart = getStartTimeFromRange(flowSnapshot.currentTimeRange)
         val chartEnd = getEndTimeFromRange(flowSnapshot.currentTimeRange)
-        val queryStart = minOf(monthStart, chartStart)
-        val queryEnd = maxOf(monthEnd, chartEnd)
+        val queryStart = if (flowSnapshot.displayMode == YearMonthPickerDialog.DisplayMode.ALL) {
+            0L
+        } else {
+            minOf(periodStart, chartStart)
+        }
+        val queryEnd = if (flowSnapshot.displayMode == YearMonthPickerDialog.DisplayMode.ALL) {
+            Long.MAX_VALUE
+        } else {
+            maxOf(periodEnd, chartEnd)
+        }
         fetchJob = viewModelScope.launch {
             val billsFlow = if (selectedBookNormalized == BookAccountManager.ALL_BOOK) {
                 db.billDao().getBillsBetweenTimes(queryStart, queryEnd)
@@ -196,8 +235,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val (monthly, filtered) =
                     withContext(Dispatchers.Default) {
                         val filtered = allTransactions.sortedByDescending { it.time }
-                        val monthly = filtered.filter {
-                            isBillInSelectedMonth(it, flowSnapshot.selectedYear, flowSnapshot.selectedMonth)
+                        val monthly = when (flowSnapshot.displayMode) {
+                            YearMonthPickerDialog.DisplayMode.MONTH ->
+                                filtered.filter { isBillInSelectedMonth(it, flowSnapshot.selectedYear, flowSnapshot.selectedMonth) }
+                            YearMonthPickerDialog.DisplayMode.YEAR ->
+                                filtered.filter { isBillInSelectedYear(it, flowSnapshot.selectedYear) }
+                            YearMonthPickerDialog.DisplayMode.ALL ->
+                                filtered
                         }
                         monthly to filtered
                     }
@@ -217,6 +261,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     selectedMonth = flowSnapshot.selectedMonth,
                     currentTimeRange = flowSnapshot.currentTimeRange,
                     currentType = flowSnapshot.currentType,
+                    displayMode = flowSnapshot.displayMode,
                     monthlyBills = monthly,
                     filteredByBook = filtered,
                     chartStart = chartStart,
@@ -235,6 +280,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) + 1 == month
     }
 
+    private fun isBillInSelectedYear(bill: Bill, year: Int): Boolean {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = bill.time
+        return cal.get(Calendar.YEAR) == year
+    }
+
     private fun getMonthRange(year: Int, month: Int): Pair<Long, Long> {
         val cal = Calendar.getInstance()
         cal.set(year, month - 1, 1, 0, 0, 0)
@@ -244,6 +295,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         cal.set(Calendar.HOUR_OF_DAY, 23)
         cal.set(Calendar.MINUTE, 59)
         cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        return start to cal.timeInMillis
+    }
+
+    private fun getYearRange(year: Int): Pair<Long, Long> {
+        val cal = Calendar.getInstance()
+        cal.set(year, Calendar.JANUARY, 1, 0, 0, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+        cal.set(year, Calendar.DECEMBER, 31, 23, 59, 59)
         cal.set(Calendar.MILLISECOND, 999)
         return start to cal.timeInMillis
     }

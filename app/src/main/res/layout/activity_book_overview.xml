@@ -29,24 +29,24 @@
         android:elevation="0dp">
 
         <!-- 左箭头 -->
-        <TextView
+        <ImageView
             android:id="@+id/btnPeriodPrev"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="上一期"
-            android:gravity="center"
-            android:text="‹"
-            android:textColor="#7A8699"
-            android:textSize="24sp" />
+            android:padding="8dp"
+            android:src="@drawable/ic_chevron_left"
+            app:tint="#7A8699" />
 
         <!-- 年/月 文本，居中 -->
         <LinearLayout
+            android:id="@+id/layoutCurrentPeriodTrigger"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/tvCurrentPeriod"
@@ -57,19 +57,25 @@
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_chevron_down"
+                app:tint="#7A8699" />
+
         </LinearLayout>
 
         <!-- 右箭头 -->
-        <TextView
+        <ImageView
             android:id="@+id/btnPeriodNext"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="下一期"
-            android:gravity="center"
-            android:text="›"
-            android:textColor="#7A8699"
-            android:textSize="24sp" />
+            android:padding="8dp"
+            android:src="@drawable/ic_chevron_right"
+            app:tint="#7A8699" />
 
         <!-- 年/月 切换 Chip 组 -->
         <LinearLayout

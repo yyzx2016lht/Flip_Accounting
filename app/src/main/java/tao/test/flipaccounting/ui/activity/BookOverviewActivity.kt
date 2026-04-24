@@ -2,6 +2,7 @@ package tao.test.flipaccounting.ui.activity
 
 import android.os.Bundle
 import android.widget.TextView
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -16,6 +17,7 @@ import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
+import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import java.util.Calendar
 import java.util.Locale
 
@@ -35,8 +37,9 @@ class BookOverviewActivity : AppCompatActivity() {
     private lateinit var tvTotalExpense: TextView
     private lateinit var tvTotalIncome: TextView
     private lateinit var tvTotalBalance: TextView
-    private lateinit var btnPeriodPrev: TextView
-    private lateinit var btnPeriodNext: TextView
+    private lateinit var btnPeriodPrev: ImageView
+    private lateinit var btnPeriodNext: ImageView
+    private lateinit var layoutCurrentPeriodTrigger: android.view.View
     private lateinit var btnViewMonth: TextView
     private lateinit var btnViewYear: TextView
     private lateinit var rvBookOverview: RecyclerView
@@ -70,6 +73,7 @@ class BookOverviewActivity : AppCompatActivity() {
         tvTotalBalance = findViewById(R.id.tvTotalBalance)
         btnPeriodPrev = findViewById(R.id.btnPeriodPrev)
         btnPeriodNext = findViewById(R.id.btnPeriodNext)
+        layoutCurrentPeriodTrigger = findViewById(R.id.layoutCurrentPeriodTrigger)
         btnViewMonth = findViewById(R.id.btnViewMonth)
         btnViewYear = findViewById(R.id.btnViewYear)
         rvBookOverview = findViewById(R.id.rvBookOverview)
@@ -149,6 +153,7 @@ class BookOverviewActivity : AppCompatActivity() {
     private fun setupPeriodControls() {
         btnPeriodPrev.setOnClickListener { stepPeriod(-1) }
         btnPeriodNext.setOnClickListener { stepPeriod(+1) }
+        layoutCurrentPeriodTrigger.setOnClickListener { showPeriodPicker() }
 
         btnViewMonth.setOnClickListener {
             if (isYearMode) {
@@ -175,6 +180,34 @@ class BookOverviewActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         loadData()
+    }
+
+    private fun showPeriodPicker() {
+        if (isYearMode) {
+            YearMonthPickerDialog.show(
+                context = this,
+                title = "选择年份",
+                initialYear = selectedYear,
+                initialMonth = selectedMonth,
+                yearOnly = true
+            ) { year, _ ->
+                selectedYear = year
+                updatePeriodText()
+                loadData()
+            }
+        } else {
+            YearMonthPickerDialog.show(
+                context = this,
+                title = "选择年月",
+                initialYear = selectedYear,
+                initialMonth = selectedMonth
+            ) { year, month ->
+                selectedYear = year
+                selectedMonth = month
+                updatePeriodText()
+                loadData()
+            }
+        }
     }
 
     private fun stepPeriod(delta: Int) {

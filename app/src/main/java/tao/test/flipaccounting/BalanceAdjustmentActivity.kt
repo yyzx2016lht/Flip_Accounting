@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.content.Intent
 import android.graphics.Color
@@ -164,7 +164,7 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(dialog, this)
+        OverlayDialogs.showPageCenterDialog(dialog, this)
     }
 
     private fun showCategoryDialog() {

@@ -21,11 +21,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.AiRule
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
+import kotlin.coroutines.resume
 
 class AiRuleManageActivity : AppCompatActivity() {
 
@@ -44,6 +48,7 @@ class AiRuleManageActivity : AppCompatActivity() {
     private var keyword: String = ""
     private var isMultiSelectMode = false
     private val selectedRuleIds = mutableSetOf<Int>()
+    private enum class RuleSaveOutcome { SAVED, OVERWRITTEN, CANCELED }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -247,11 +252,10 @@ class AiRuleManageActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -263,10 +267,14 @@ class AiRuleManageActivity : AppCompatActivity() {
             referenceText = null,
             onSave = { newRule ->
                 lifecycleScope.launch {
-                    if (rule == null) {
-                        db.aiRuleDao().insertRule(newRule)
-                    } else {
-                        db.aiRuleDao().updateRule(newRule)
+                    val outcome = saveRuleWithKeywordConflictPrompt(
+                        newRule = newRule,
+                        editingRuleId = rule?.id
+                    )
+                    when (outcome) {
+                        RuleSaveOutcome.SAVED -> Utils.toast(this@AiRuleManageActivity, "规则保存成功")
+                        RuleSaveOutcome.OVERWRITTEN -> Utils.toast(this@AiRuleManageActivity, "已覆盖同关键词旧规则")
+                        RuleSaveOutcome.CANCELED -> Utils.toast(this@AiRuleManageActivity, "已取消规则保存")
                     }
                 }
             },
@@ -275,6 +283,72 @@ class AiRuleManageActivity : AppCompatActivity() {
                     db.aiRuleDao().deleteRule(it)
                 }
             }
+        )
+    }
+
+    private suspend fun saveRuleWithKeywordConflictPrompt(
+        newRule: AiRule,
+        editingRuleId: Int?
+    ): RuleSaveOutcome = withContext(Dispatchers.IO) {
+        val dao = db.aiRuleDao()
+        val keyword = newRule.keyword.trim()
+        val currentEditId = editingRuleId ?: newRule.id.takeIf { it > 0 }
+        val conflicts = dao.getRulesByKeyword(keyword)
+            .filter { existing -> currentEditId == null || existing.id != currentEditId }
+
+        if (conflicts.isEmpty()) {
+            val toSave = newRule.copy(keyword = keyword)
+            if (toSave.id > 0) dao.updateRule(toSave) else dao.insertRule(toSave)
+            return@withContext RuleSaveOutcome.SAVED
+        }
+
+        val shouldOverwrite = withContext(Dispatchers.Main) {
+            promptKeywordOverwrite(
+                keyword = keyword,
+                existingCount = conflicts.size
+            )
+        }
+        if (!shouldOverwrite) {
+            return@withContext RuleSaveOutcome.CANCELED
+        }
+
+        val target = conflicts.first()
+        dao.insertRule(newRule.copy(id = target.id, keyword = keyword))
+        currentEditId?.takeIf { it != target.id }?.let { dao.deleteRuleById(it) }
+        conflicts.drop(1).forEach { duplicate ->
+            if (duplicate.id != target.id) dao.deleteRuleById(duplicate.id)
+        }
+        RuleSaveOutcome.OVERWRITTEN
+    }
+
+    private suspend fun promptKeywordOverwrite(
+        keyword: String,
+        existingCount: Int
+    ): Boolean = suspendCancellableCoroutine { cont ->
+        if (isFinishing || isDestroyed) {
+            cont.resume(false)
+            return@suspendCancellableCoroutine
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("检测到同关键词规则")
+            .setMessage("关键词“$keyword”已有 $existingCount 条规则。\n\n继续保存将覆盖旧规则，是否继续？")
+            .setPositiveButton("继续并覆盖") { d, _ ->
+                d.dismiss()
+                if (cont.isActive) cont.resume(true)
+            }
+            .setNegativeButton("取消保存") { d, _ ->
+                d.dismiss()
+                if (cont.isActive) cont.resume(false)
+            }
+            .setOnCancelListener {
+                if (cont.isActive) cont.resume(false)
+            }
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
         )
     }
 

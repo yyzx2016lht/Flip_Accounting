@@ -17,7 +17,7 @@ class ChatPanelController(
     private val context: ChatActivity,
     private val onConversationSubtitleChanged: () -> Unit,
     private val refreshVoiceSupportHint: () -> Unit,
-    private val showStyledBottomDialog: (AlertDialog) -> Unit
+    private val showPageBottomDialog: (AlertDialog) -> Unit
 ) {
     fun showReplyStyleDialog() {
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_reply_style, null)
@@ -64,7 +64,7 @@ class ChatPanelController(
             .create()
         styleChatPanelWindow(dialog)
         btnCancel.setOnClickListener { dialog.dismiss() }
-        showStyledBottomDialog(dialog)
+        showPageBottomDialog(dialog)
     }
 
     fun showModelSwitchDialog() {
@@ -108,7 +108,7 @@ class ChatPanelController(
             }
         })
         btnCancel.setOnClickListener { dialog.dismiss() }
-        showStyledBottomDialog(dialog)
+        showPageBottomDialog(dialog)
     }
 
     private fun showCustomReplyStyleDialog() {
@@ -138,7 +138,7 @@ class ChatPanelController(
             dialog.dismiss()
         }
         btnCancel.setOnClickListener { dialog.dismiss() }
-        showStyledBottomDialog(dialog)
+        showPageBottomDialog(dialog)
     }
 
     private fun styleChatPanelWindow(dialog: AlertDialog) {

@@ -1,17 +1,19 @@
-﻿package tao.test.flipaccounting.ui.main.stats
+package tao.test.flipaccounting.ui.main.stats
 
-import android.app.DatePickerDialog
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.view.Choreographer
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.NumberPicker
+import android.widget.PopupWindow
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -45,6 +47,7 @@ import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.ui.dialog.ElegantDatePickerSheet
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import tao.test.flipaccounting.ui.main.home.HomeViewModel
@@ -788,7 +791,7 @@ class StatsFragment : Fragment() {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            OverlayDialogs.showStyledCenterDialog(dialog, requireContext())
+            OverlayDialogs.showPageCenterDialog(dialog, requireContext())
         } else {
             val npYear = NumberPicker(requireContext()).apply {
                 minValue = 2000
@@ -804,7 +807,7 @@ class StatsFragment : Fragment() {
                 }
                 .setNegativeButton("取消", null)
                 .create()
-            OverlayDialogs.showStyledCenterDialog(dialog, requireContext())
+            OverlayDialogs.showPageCenterDialog(dialog, requireContext())
         }
     }
 
@@ -946,7 +949,10 @@ class StatsFragment : Fragment() {
         val cardEnd = view.findViewById<View>(R.id.tv_filter_end_date)
         val tvStart = view.findViewById<TextView>(R.id.tv_filter_start_date_text)
         val tvEnd = view.findViewById<TextView>(R.id.tv_filter_end_date_text)
+        val currencySection = view.findViewById<View>(R.id.layout_filter_currency_section)
         val tvCurrency = view.findViewById<TextView>(R.id.tv_filter_currency_selector)
+        val currencySelectorContainer = view.findViewById<View>(R.id.layout_filter_currency_selector)
+        val currencyExpandIcon = view.findViewById<ImageView>(R.id.iv_filter_currency_expand)
 
         val btnClose = view.findViewById<View>(R.id.btn_close_filter_sheet)
         val btnConfirm = view.findViewById<View>(R.id.btn_confirm_filter_sheet)
@@ -958,6 +964,7 @@ class StatsFragment : Fragment() {
         var selectedCurrency: String? = state.selectedCurrency
         var availableCurrencies: List<String> = emptyList()
         var suppressQuickSync = false
+        var currencyPopup: PopupWindow? = null
 
         fun clearQuickChips() {
             suppressQuickSync = true
@@ -1161,31 +1168,46 @@ class StatsFragment : Fragment() {
                 .sorted()
             withContext(Dispatchers.Main) {
                 availableCurrencies = currencies
+                val hasMultipleCurrencies = availableCurrencies.size > 1
+                currencySection.visibility = if (hasMultipleCurrencies) View.VISIBLE else View.GONE
                 if (selectedCurrency != null && !availableCurrencies.contains(selectedCurrency)) {
                     selectedCurrency = null
+                    tvCurrency.text = "全部币种"
+                }
+                if (!hasMultipleCurrencies) {
+                    selectedCurrency = null
+                    currencyPopup?.dismiss()
+                    currencyPopup = null
+                    currencyExpandIcon.rotation = 0f
                     tvCurrency.text = "全部币种"
                 }
             }
         }
 
-        tvCurrency.setOnClickListener {
-            val options = mutableListOf("全部币种")
-            options.addAll(availableCurrencies)
-            val checked = if (selectedCurrency == null) 0 else options.indexOf(selectedCurrency).takeIf { it >= 0 } ?: 0
-
-            val dialog = AlertDialog.Builder(requireContext())
-                .setTitle("选择币种")
-                .setSingleChoiceItems(options.toTypedArray(), checked) { d, which ->
-                    selectedCurrency = if (which == 0) null else options[which]
+        (currencySelectorContainer ?: tvCurrency).setOnClickListener {
+            if (currencySection.visibility != View.VISIBLE) return@setOnClickListener
+            if (currencyPopup?.isShowing == true) {
+                currencyPopup?.dismiss()
+                return@setOnClickListener
+            }
+            currencyPopup = showCurrencyAnchorPopup(
+                anchor = currencySelectorContainer ?: tvCurrency,
+                options = mutableListOf("全部币种").apply { addAll(availableCurrencies) },
+                current = selectedCurrency,
+                onSelected = { selected ->
+                    selectedCurrency = selected
                     tvCurrency.text = selectedCurrency ?: "全部币种"
-                    d.dismiss()
+                },
+                onDismiss = {
+                    currencyExpandIcon.animate().rotation(0f).setDuration(140L).start()
+                    currencyPopup = null
                 }
-                .setNegativeButton("取消", null)
-                .create()
-            OverlayDialogs.showStyledCenterDialog(dialog, requireContext())
+            )
+            currencyExpandIcon.animate().rotation(180f).setDuration(140L).start()
         }
 
         btnClose.setOnClickListener {
+            currencyPopup?.dismiss()
             dialog.dismiss()
         }
 
@@ -1196,6 +1218,9 @@ class StatsFragment : Fragment() {
             selectedCurrency = null
             resetDateLabels()
             tvCurrency.text = "全部币种"
+            currencyPopup?.dismiss()
+            currencyPopup = null
+            currencyExpandIcon.rotation = 0f
         }
 
         btnConfirm.setOnClickListener {
@@ -1217,6 +1242,7 @@ class StatsFragment : Fragment() {
             }
 
             viewModel.setCurrencyFilter(selectedCurrency)
+            currencyPopup?.dismiss()
             dialog.dismiss()
         }
 
@@ -1242,25 +1268,114 @@ class StatsFragment : Fragment() {
     }
 
     private fun showDatePicker(onDateSelected: (Long) -> Unit) {
-        val cal = Calendar.getInstance()
-        DatePickerDialog(
-            requireContext(),
-            { _, year, month, dayOfMonth ->
-                val selected = Calendar.getInstance().apply {
-                    set(Calendar.YEAR, year)
-                    set(Calendar.MONTH, month)
-                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
+        ElegantDatePickerSheet.show(
+            context = requireContext(),
+            onDateSelected = onDateSelected
+        )
+    }
+
+    private fun showCurrencyAnchorPopup(
+        anchor: View,
+        options: List<String>,
+        current: String?,
+        onSelected: (String?) -> Unit,
+        onDismiss: () -> Unit
+    ): PopupWindow {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int): Int = (value * density).toInt()
+        val rowHeight = dp(38)
+        val rowGap = dp(4)
+        val panelPadding = dp(8)
+        val visibleRows = options.size.coerceIn(2, 5)
+        val desiredListHeight = (visibleRows * rowHeight) + ((visibleRows - 1) * rowGap)
+        val desiredPopupHeight = desiredListHeight + panelPadding * 2
+
+        val listContainer = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
+            setBackgroundResource(R.drawable.bg_currency_popup_panel)
+        }
+        val scroll = NestedScrollView(requireContext()).apply {
+            overScrollMode = View.OVER_SCROLL_NEVER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+        val rows = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+        scroll.addView(
+            rows,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        )
+        listContainer.addView(scroll)
+
+        val selectedValue = current ?: "全部币种"
+        var selectedRow: View? = null
+        var popupRef: PopupWindow? = null
+        options.forEachIndexed { index, option ->
+            val row = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    rowHeight
+                ).apply { if (index > 0) topMargin = rowGap }
+                setPadding(dp(10), 0, dp(10), 0)
+                if (option == selectedValue) {
+                    setBackgroundResource(R.drawable.bg_currency_popup_option_selected)
+                } else {
+                    setBackgroundColor(Color.TRANSPARENT)
                 }
-                onDateSelected(selected.timeInMillis)
-            },
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH),
-            cal.get(Calendar.DAY_OF_MONTH)
-        ).show()
+            }
+            val label = TextView(requireContext()).apply {
+                text = option
+                textSize = 13f
+                setTextColor(Color.parseColor(if (option == selectedValue) "#2C74FF" else "#22324A"))
+                if (option == selectedValue) {
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val check = ImageView(requireContext()).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
+                setImageResource(R.drawable.ic_check_circle)
+                imageTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#2C74FF"))
+                visibility = if (option == selectedValue) View.VISIBLE else View.INVISIBLE
+            }
+            row.addView(label)
+            row.addView(check)
+            row.setOnClickListener {
+                onSelected(if (option == "全部币种") null else option)
+                popupRef?.dismiss()
+            }
+            if (option == selectedValue) selectedRow = row
+            rows.addView(row)
+        }
+
+        val anchorLoc = IntArray(2)
+        anchor.getLocationOnScreen(anchorLoc)
+        val availableAbove = (anchorLoc[1] - dp(12)).coerceAtLeast(dp(92))
+        val popupHeight = desiredPopupHeight.coerceAtMost(availableAbove)
+        val popup = PopupWindow(
+            listContainer,
+            anchor.width,
+            popupHeight,
+            true
+        )
+        popup.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        popup.isOutsideTouchable = true
+        popup.isClippingEnabled = true
+        popup.setOnDismissListener(onDismiss)
+        popupRef = popup
+        popup.showAsDropDown(anchor, 0, -(anchor.height + popupHeight + dp(8)))
+
+        selectedRow?.let { row ->
+            scroll.post {
+                val target = (row.top - rowGap).coerceAtLeast(0)
+                scroll.scrollTo(0, target)
+            }
+        }
+        return popup
     }
 
     private fun showSubCategoryDetails(categoryName: String) {

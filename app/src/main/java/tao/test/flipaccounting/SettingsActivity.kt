@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.content.Intent
 import android.graphics.Color
@@ -643,12 +643,11 @@ class SettingsActivity : AppCompatActivity() {
             .setView(panel)
             .setCancelable(false)
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = 0.72f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
         return dialog
@@ -772,12 +771,11 @@ class SettingsActivity : AppCompatActivity() {
                 onConfirm()
             }
         }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = 0.88f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }
@@ -866,12 +864,11 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         panel.findViewById<TextView>(R.id.btn_option_picker_cancel).setOnClickListener { dialog.dismiss() }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = 0.9f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }
@@ -903,12 +900,11 @@ class SettingsActivity : AppCompatActivity() {
                 onConfirm()
             }
         }
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = 0.86f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = false
         )
     }

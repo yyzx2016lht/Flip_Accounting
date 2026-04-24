@@ -211,7 +211,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="分类：吃的 > 三餐"
+                android:text="分类：吃的-三餐"
                     android:textColor="#203049"
                     android:textSize="14sp"
                     android:textStyle="bold" />

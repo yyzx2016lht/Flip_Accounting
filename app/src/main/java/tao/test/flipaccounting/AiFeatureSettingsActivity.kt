@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.Manifest
 import android.content.Intent
@@ -125,11 +125,10 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                             }
                             .setNegativeButton("取消", null)
                             .create()
-                        OverlayDialogs.showStyledCenterDialog(
+                        OverlayDialogs.showPageCenterDialog(
                             dialog = dialog,
                             ctx = this,
                             cancelOnTouchOutside = true,
-                            applyOverlayType = false,
                             useSolidPanelBackground = true
                         )
                     }
@@ -156,11 +155,10 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                             }
                             .setNegativeButton("取消", null)
                             .create()
-                        OverlayDialogs.showStyledCenterDialog(
+                        OverlayDialogs.showPageCenterDialog(
                             dialog = dialog,
                             ctx = this,
                             cancelOnTouchOutside = true,
-                            applyOverlayType = false,
                             useSolidPanelBackground = true
                         )
                     }
@@ -314,12 +312,11 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 Utils.toast(this, "已清空 OCR 记录")
             }
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = 0.92f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }
@@ -362,12 +359,11 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         }
 
         val dialog = builder.create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             widthRatio = 0.9f,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }

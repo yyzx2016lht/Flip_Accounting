@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.CategoryIconHelper
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
@@ -51,17 +52,19 @@ internal class HomeBillSheetsController(
         val isTransfer = bill.type == Bill.TYPE_TRANSFER
         val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
         val isRefund = isRefundBill(bill)
+        val showCategoryIcon = Prefs.isShowBillCategoryIcon(fragment.requireContext())
+        val showFullCategory = Prefs.isShowBillFullCategory(fragment.requireContext())
+        val remarkPriority = Prefs.isBillRemarkPriority(fragment.requireContext())
         val symbol = CurrencyManager.getSymbol(bill.currency)
         val baseCategory = HomeBillFormatHelper.stripRefundPrefix(bill.categoryName)
 
         row.setBackgroundResource(R.drawable.bg_bill_group_single)
         iconContainer?.setBackgroundResource(R.drawable.bg_circle_soft)
 
-        tvCategory.text = when {
+        val categoryText = when {
             isRepayment -> "还款"
             isTransfer -> "转账"
-            isRefund -> BillDisplayFormatter.buildRefundCategoryLabel(bill.categoryName)
-            else -> bill.categoryName.ifEmpty { "未分类" }
+            else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { "未分类" }
         }
 
         val refundAmount = HomeBillFormatHelper.refundAmountOfExpenseBill(bill)
@@ -122,6 +125,25 @@ internal class HomeBillSheetsController(
             }
         }
 
+        val detailSuffix = if (isTransfer) {
+            buildString {
+                append(bill.accountName)
+                if (bill.toAccountName.isNotEmpty()) {
+                    append(" -> ")
+                    append(bill.toAccountName)
+                }
+            }
+        } else {
+            bill.accountName
+        }
+        val (primaryText, secondaryText) = BillDisplayFormatter.resolvePrimarySecondaryText(
+            categoryText = categoryText,
+            remarkText = bill.remark,
+            suffixText = detailSuffix,
+            remarkPriority = remarkPriority
+        )
+        tvCategory.text = primaryText
+
         if (forceGrayStyle) {
             tvDetail.text = dfDetailTimeShort.format(Date(bill.time))
             tvDetail.visibility = View.VISIBLE
@@ -132,8 +154,8 @@ internal class HomeBillSheetsController(
                 tvTime.visibility = View.GONE
             }
         } else {
-            if (detailStr.isNotEmpty()) {
-                tvDetail.text = detailStr
+            if (secondaryText.isNotEmpty()) {
+                tvDetail.text = secondaryText
                 tvDetail.visibility = View.VISIBLE
             } else {
                 tvDetail.visibility = View.GONE
@@ -142,24 +164,58 @@ internal class HomeBillSheetsController(
             tvTime.visibility = View.VISIBLE
         }
 
-        val iconLookupName = if (isRefund) baseCategory else bill.categoryName
-        val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
-        val iconTint = when {
-            forceGrayStyle || isRefund -> Color.parseColor("#8E98A3")
-            bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#C62828")
-            bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
-            else -> Color.parseColor("#9E9E9E")
-        }
-        ivIcon.setImageResource(R.mipmap.ic_launcher)
-        ivIcon.setColorFilter(iconTint)
-        fragment.viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val iconUrl = CategoryIconHelper.findCategoryIcon(fragment.requireContext(), iconLookupName, iconLookupType)
-            withContext(Dispatchers.Main) {
-                if (iconUrl.isNotEmpty()) {
-                    Glide.with(row)
-                        .load(iconUrl)
-                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.DATA)
-                        .into(ivIcon)
+        if (!showCategoryIcon) {
+            iconContainer?.setBackgroundColor(Color.TRANSPARENT)
+            iconContainer?.layoutParams = iconContainer?.layoutParams?.apply {
+                val widthPx = (row.resources.displayMetrics.density * 10).toInt()
+                val heightPx = (row.resources.displayMetrics.density * 44).toInt()
+                width = widthPx
+                height = heightPx
+            }
+            ivIcon.clearColorFilter()
+            ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                val px = (ivIcon.resources.displayMetrics.density * 6).toInt()
+                width = px
+                height = px
+            }
+            ivIcon.setImageResource(
+                when (bill.type) {
+                    Bill.TYPE_EXPENSE -> R.drawable.bg_bill_dot_expense
+                    Bill.TYPE_INCOME -> R.drawable.bg_bill_dot_income
+                    else -> R.drawable.bg_bill_dot_neutral
+                }
+            )
+        } else {
+            iconContainer?.layoutParams = iconContainer?.layoutParams?.apply {
+                val widthPx = (row.resources.displayMetrics.density * 44).toInt()
+                val heightPx = (row.resources.displayMetrics.density * 44).toInt()
+                width = widthPx
+                height = heightPx
+            }
+            val iconLookupName = if (isRefund) baseCategory else bill.categoryName
+            val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
+            val iconTint = when {
+                forceGrayStyle || isRefund -> Color.parseColor("#8E98A3")
+                bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#C62828")
+                bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
+                else -> Color.parseColor("#9E9E9E")
+            }
+            ivIcon.layoutParams = ivIcon.layoutParams.apply {
+                val px = (ivIcon.resources.displayMetrics.density * 21).toInt()
+                width = px
+                height = px
+            }
+            ivIcon.setImageResource(R.mipmap.ic_launcher)
+            ivIcon.setColorFilter(iconTint)
+            fragment.viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val iconUrl = CategoryIconHelper.findCategoryIcon(fragment.requireContext(), iconLookupName, iconLookupType)
+                withContext(Dispatchers.Main) {
+                    if (iconUrl.isNotEmpty()) {
+                        Glide.with(row)
+                            .load(iconUrl)
+                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.DATA)
+                            .into(ivIcon)
+                    }
                 }
             }
         }

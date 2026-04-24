@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.content.Intent
 import android.os.Bundle
@@ -166,11 +166,10 @@ class StorageCleanupActivity : AppCompatActivity() {
             .setPositiveButton("开始清理") { _, _ -> runCleanup(selected) }
             .setNegativeButton("取消", null)
             .create()
-        OverlayDialogs.showStyledCenterDialog(
+        OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = this,
             cancelOnTouchOutside = true,
-            applyOverlayType = false,
             useSolidPanelBackground = true
         )
     }

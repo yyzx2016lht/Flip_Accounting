@@ -59,7 +59,7 @@ class ChatSessionController(
     private val parseDeprecatedBillIdsFromContent: (String) -> Set<Long>,
     private val parseBillsFromMessageContent: (String) -> List<Bill>,
     private val isDeprecatedBillMessage: (String) -> Boolean,
-    private val showStyledCenterDialog: (AlertDialog, Float) -> Unit,
+    private val showPageCenterDialog: (AlertDialog, Float) -> Unit,
     private val showCustomConfirmDialog: (String, String, String, Boolean, () -> Unit) -> Unit,
     private val onPickBgImage: () -> Unit,
     private val onShowReplyStyleDialog: () -> Unit,
@@ -199,7 +199,7 @@ class ChatSessionController(
             panel.findViewById<View>(R.id.btn_delete_book_cancel).setOnClickListener {
                 dialog.dismiss()
             }
-            showStyledCenterDialog(dialog, 0.9f)
+            showPageCenterDialog(dialog, 0.9f)
         }
     }
 
@@ -219,7 +219,7 @@ class ChatSessionController(
             }
             .setNegativeButton("取消", null)
             .create()
-        showStyledCenterDialog(dialog, 0.9f)
+        showPageCenterDialog(dialog, 0.9f)
     }
 
     fun renameSessionInline(row: ChatSessionRow, newTitle: String) {
@@ -508,7 +508,7 @@ class ChatSessionController(
                 }
             }
 
-            showStyledCenterDialog(dialog, 0.92f)
+            showPageCenterDialog(dialog, 0.92f)
         }
     }
 

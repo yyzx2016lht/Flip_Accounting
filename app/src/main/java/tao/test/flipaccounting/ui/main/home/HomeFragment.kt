@@ -406,21 +406,8 @@ class HomeFragment : Fragment() {
             )
             // 同步状态栏：根据当前顶部背景明暗统一更新图标颜色。
             syncHomeStatusBarByWhiteOverlay(whiteAlpha)
-            // 同步更新固定顶栏图标/文字颜色：白色遮罩 > 50% 时切换为深色（适配白色背景）
-            if (whiteAlpha > 0.5f) {
-                applyBannerTextColor(useLightText = false)
-            } else {
-                // 恢复根据当前账本 banner 决定的颜色
-                val bannerPath = BookAccountManager.getBookBannerPath(requireContext(), selectedBookName)
-                applyBannerTextColor(useLightText = !bannerPath.isNullOrEmpty() ||
-                    run {
-                        val c = BookAccountManager.getBookColor(requireContext(), selectedBookName)
-                        val lum = 0.299 * android.graphics.Color.red(c) +
-                                  0.587 * android.graphics.Color.green(c) +
-                                  0.114 * android.graphics.Color.blue(c)
-                        lum < 160
-                    })
-            }
+            // 同步固定顶栏图标/文字颜色，避免白底白字。
+            syncBannerTopBarTextColorByWhiteOverlay(whiteAlpha)
         })
         uiListController = HomeUiListController(
             fragment = this,
@@ -699,21 +686,45 @@ class HomeFragment : Fragment() {
     }
 
     private fun updateMonthSelectorText() {
-        tvMonthSelector.text = "$selectedYear-${String.format(Locale.getDefault(), "%02d", selectedMonth)}"
+        val mode = homeViewModel.uiState.value.displayMode
+        tvMonthSelector.text = when (mode) {
+            YearMonthPickerDialog.DisplayMode.MONTH ->
+                "$selectedYear-${String.format(Locale.getDefault(), "%02d", selectedMonth)}"
+            YearMonthPickerDialog.DisplayMode.YEAR ->
+                "${selectedYear}年"
+            YearMonthPickerDialog.DisplayMode.ALL ->
+                "全部"
+        }
     }
 
     private fun showMonthYearPicker() {
-        YearMonthPickerDialog.show(
+        val state = homeViewModel.uiState.value
+        YearMonthPickerDialog.showModePicker(
             context = requireContext(),
-            title = "选择月份",
             initialYear = selectedYear,
-            initialMonth = selectedMonth
-        ) { year, month ->
+            initialMonth = selectedMonth,
+            initialMode = state.displayMode,
+            enabledModes = listOf(
+                YearMonthPickerDialog.DisplayMode.MONTH,
+                YearMonthPickerDialog.DisplayMode.YEAR,
+                YearMonthPickerDialog.DisplayMode.ALL
+            ),
+            onPickMonth = { year, month ->
                 selectedYear = year
                 selectedMonth = month
                 updateMonthSelectorText()
                 homeViewModel.setMonth(selectedYear, selectedMonth)
-        }
+            },
+            onPickYear = { year ->
+                selectedYear = year
+                updateMonthSelectorText()
+                homeViewModel.setYearMode(selectedYear)
+            },
+            onPickAll = {
+                updateMonthSelectorText()
+                homeViewModel.setAllBillsMode()
+            }
+        )
     }
 
     private fun setupBookDrawer() {
@@ -790,6 +801,8 @@ class HomeFragment : Fragment() {
     /** 根据当前账本刷新顶部横幅：有图片则显示图片，否则用账本专属颜色 */
     fun updateHeaderBanner() {
         bannerController.updateHeaderBanner()
+        // 防止在已折叠白底状态下被 updateHeaderBanner 重置成浅色文字。
+        syncBannerTopBarTextColorByWhiteOverlay(getCurrentHomeWhiteOverlayAlpha())
     }
 
     /**
@@ -823,6 +836,23 @@ class HomeFragment : Fragment() {
      */
     private fun applyBannerTextColor(useLightText: Boolean) {
         bannerController.applyBannerTextColor(useLightText)
+    }
+
+    private fun syncBannerTopBarTextColorByWhiteOverlay(whiteAlpha: Float) {
+        // 使用略低阈值，减少临界值抖动；白底阶段强制深色文字和图标。
+        if (whiteAlpha > 0.4f) {
+            applyBannerTextColor(useLightText = false)
+            return
+        }
+        val bannerPath = BookAccountManager.getBookBannerPath(requireContext(), selectedBookName)
+        val useLightText = !bannerPath.isNullOrEmpty() || run {
+            val c = BookAccountManager.getBookColor(requireContext(), selectedBookName)
+            val lum = 0.299 * android.graphics.Color.red(c) +
+                0.587 * android.graphics.Color.green(c) +
+                0.114 * android.graphics.Color.blue(c)
+            lum < 160
+        }
+        applyBannerTextColor(useLightText = useLightText)
     }
 
     // ──────────────────────────────────────────────────────────────────────────

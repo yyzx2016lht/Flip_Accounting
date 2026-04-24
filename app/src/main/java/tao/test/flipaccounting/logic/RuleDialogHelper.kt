@@ -204,13 +204,22 @@ object RuleDialogHelper {
         }
 
         dialog.setOnCancelListener { onCancel?.invoke() }
-        OverlayDialogs.showStyledCenterDialog(
-            dialog = dialog,
-            ctx = ctx,
-            widthRatio = 0.92f,
-            cancelOnTouchOutside = true,
-            applyOverlayType = isOverlay,
-            useSolidPanelBackground = true
-        )
+        if (isOverlay) {
+            OverlayDialogs.showOverlayCenterDialog(
+                dialog = dialog,
+                ctx = ctx,
+                widthRatio = 0.92f,
+                cancelOnTouchOutside = true,
+                useSolidPanelBackground = true
+            )
+        } else {
+            OverlayDialogs.showPageCenterDialog(
+                dialog = dialog,
+                ctx = ctx,
+                widthRatio = 0.92f,
+                cancelOnTouchOutside = true,
+                useSolidPanelBackground = true
+            )
+        }
     }
 }

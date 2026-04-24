@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_month_entry"
+    android:layout_width="match_parent"
+    android:layout_height="42dp"
+    android:fontFamily="sans-serif-medium"
+    android:gravity="center"
+    android:text="4月"
+    android:textColor="#111827"
+    android:textSize="16sp" />
