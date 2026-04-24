@@ -181,10 +181,10 @@ class HomeFragment : Fragment() {
     private lateinit var rvBookAccounts: RecyclerView
     private var rvBookAccountsBasePaddingTop: Int = 0
     private var rvBookAccountsBasePaddingBottom: Int = 0
-    private lateinit var btnSetDefaultBook: View
     private lateinit var btnAddBookAccount: View
     private lateinit var layoutAddBookInput: View
     private lateinit var etAddBookAccountName: EditText
+    private lateinit var btnAddBookSetDefaultToggle: TextView
     private lateinit var btnConfirmAddBook: View
     private lateinit var btnCancelAddBook: View
     private var bookDrawerBasePaddingBottom: Int = 0
@@ -294,10 +294,10 @@ class HomeFragment : Fragment() {
         rvBookAccounts = view.findViewById(R.id.rvBookAccounts)
         rvBookAccountsBasePaddingTop = rvBookAccounts.paddingTop
         rvBookAccountsBasePaddingBottom = rvBookAccounts.paddingBottom
-        btnSetDefaultBook = view.findViewById(R.id.btnSetDefaultBook)
         btnAddBookAccount = view.findViewById(R.id.btnAddBookAccount)
         layoutAddBookInput = view.findViewById(R.id.layoutAddBookInput)
         etAddBookAccountName = view.findViewById(R.id.etAddBookAccountName)
+        btnAddBookSetDefaultToggle = view.findViewById(R.id.btnAddBookSetDefaultToggle)
         btnConfirmAddBook = view.findViewById(R.id.btnConfirmAddBook)
         btnCancelAddBook = view.findViewById(R.id.btnCancelAddBook)
         bookDrawerController = HomeBookDrawerController(
@@ -306,10 +306,10 @@ class HomeFragment : Fragment() {
             drawerBooks = drawerBooks,
             layoutBookDrawer = layoutBookDrawer,
             rvBookAccounts = rvBookAccounts,
-            btnSetDefaultBook = btnSetDefaultBook,
             btnAddBookAccount = btnAddBookAccount,
             layoutAddBookInput = layoutAddBookInput,
             etAddBookAccountName = etAddBookAccountName,
+            btnAddBookSetDefaultToggle = btnAddBookSetDefaultToggle,
             btnConfirmAddBook = btnConfirmAddBook,
             btnCancelAddBook = btnCancelAddBook,
             bookDrawerBasePaddingBottom = bookDrawerBasePaddingBottom,
@@ -805,11 +805,13 @@ class HomeFragment : Fragment() {
                 kotlin.math.ceil((fm.descent - fm.ascent).toDouble()).toInt()
             }
             if (measuredIncomeHeight <= 0) return@post
+            val maxBottomInset = (8f * resources.displayMetrics.density).toInt()
+            val targetBottomInset = measuredIncomeHeight.coerceAtMost(maxBottomInset)
             layoutHeaderSummary.setPadding(
                 layoutHeaderSummary.paddingLeft,
                 layoutHeaderSummary.paddingTop,
                 layoutHeaderSummary.paddingRight,
-                measuredIncomeHeight
+                targetBottomInset
             )
         }
     }

@@ -902,7 +902,12 @@ class CalendarActivity : AppCompatActivity() {
         }
 
         layoutRefundTime.setOnClickListener {
-            OverlayDialogs.showCustomTimePicker(this) { timeStr ->
+            val initialTimeMillis = try {
+                dfDetailTime.parse(selectedTimeStr)?.time
+            } catch (_: Exception) {
+                null
+            }
+            OverlayDialogs.showCustomTimePicker(this, initialTimeMillis = initialTimeMillis) { timeStr ->
                 selectedTimeStr = timeStr
                 tvRefundTime.text = timeStr
             }

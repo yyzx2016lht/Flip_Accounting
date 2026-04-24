@@ -20,6 +20,7 @@ import kotlin.math.abs
 class BookAccountAdapter(
     private val onItemClick: (String) -> Unit,
     private val onRenameClick: (oldName: String, newName: String) -> Unit,
+    private val onSetDefaultClick: (name: String) -> Unit,
     private val onDeleteClick: (name: String) -> Unit,
     private val onOrderChanged: (newOrder: List<String>) -> Unit,
     private val onStartDrag: (RecyclerView.ViewHolder) -> Unit
@@ -103,7 +104,8 @@ class BookAccountAdapter(
         private val foreground: View = itemView.findViewById(R.id.layout_foreground)
         private val tvName: TextView = itemView.findViewById(R.id.tv_book_name)
         private val etName: EditText = itemView.findViewById(R.id.et_book_name)
-        private val ivSelected: ImageView = itemView.findViewById(R.id.iv_book_selected)
+        private val ivSelected: TextView = itemView.findViewById(R.id.iv_book_selected)
+        private val btnSetDefaultInline: TextView = itemView.findViewById(R.id.btn_book_set_default_inline)
         private val btnEdit: ImageView = itemView.findViewById(R.id.btn_book_edit)
         private val btnDelete: ImageView = itemView.findViewById(R.id.btn_book_delete)
 
@@ -146,6 +148,13 @@ class BookAccountAdapter(
                 if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
                 closeSwipeActions()
                 onDeleteClick(items[pos])
+            }
+            btnSetDefaultInline.setOnClickListener {
+                val pos = adapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                val target = items[pos]
+                if (BookAccountManager.normalizeBookName(target) == defaultBook) return@setOnClickListener
+                onSetDefaultClick(target)
             }
 
             etName.setOnEditorActionListener { _, actionId, event ->
@@ -352,6 +361,14 @@ class BookAccountAdapter(
             if (editing) {
                 tvName.visibility = View.GONE
                 etName.visibility = View.VISIBLE
+                if (!isAllBook) {
+                    btnSetDefaultInline.visibility = View.VISIBLE
+                    btnSetDefaultInline.isEnabled = !isDefaultBook
+                    btnSetDefaultInline.alpha = if (isDefaultBook) 0.6f else 1f
+                    btnSetDefaultInline.text = if (isDefaultBook) "已是默认" else "设为默认"
+                } else {
+                    btnSetDefaultInline.visibility = View.GONE
+                }
                 if (etName.text?.toString() != name) {
                     etName.setText(name)
                 }
@@ -366,6 +383,7 @@ class BookAccountAdapter(
             } else {
                 tvName.visibility = View.VISIBLE
                 etName.visibility = View.GONE
+                btnSetDefaultInline.visibility = View.GONE
             }
         }
     }

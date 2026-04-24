@@ -1178,7 +1178,13 @@ class AccountingFormController(
             val db = AppDatabase.getDatabase(ctx)
             val writableBook = BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
             val timeStr = tvTime.text.toString()
-            val timeLong = try { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(timeStr)?.time } catch (e: Exception) { System.currentTimeMillis() } ?: System.currentTimeMillis()
+            val parsedTimeLong = try {
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(timeStr)?.time
+            } catch (_: Exception) {
+                null
+            }
+            val oldBill = editingBillId?.let { db.billDao().getBillById(it) }
+            val timeLong = parsedTimeLong ?: oldBill?.time ?: System.currentTimeMillis()
 
             val asset1 = accountName1.takeIf { it.isNotBlank() }?.let { db.assetDao().getAssetByName(it) }
             val asset2 = if (type == 2) accountName2.takeIf { it.isNotBlank() }?.let { db.assetDao().getAssetByName(it) } else null
@@ -1324,22 +1330,19 @@ class AccountingFormController(
                 bookName = writableBook
             )
 
-            if (editingBillId != null) {
-                val oldBill = db.billDao().getBillById(editingBillId!!)
-                if (oldBill != null) {
-                    try {
-                        rBill = BillMutationService.replaceBill(
-                            db = db,
-                            oldBill = oldBill,
-                            newBill = rBill,
-                            applyAssetImpact = false
-                        )
-                    } catch (e: IllegalArgumentException) {
-                        withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, e.message ?: "保存失败")
-                        }
-                        return@launch
+            if (editingBillId != null && oldBill != null) {
+                try {
+                    rBill = BillMutationService.replaceBill(
+                        db = db,
+                        oldBill = oldBill,
+                        newBill = rBill,
+                        applyAssetImpact = false
+                    )
+                } catch (e: IllegalArgumentException) {
+                    withContext(Dispatchers.Main) {
+                        Utils.toast(ctx, e.message ?: "保存失败")
                     }
+                    return@launch
                 }
             }
 

@@ -536,7 +536,12 @@ internal class HomeBillSheetsController(
         }
 
         layoutRefundTime.setOnClickListener {
-            OverlayDialogs.showCustomTimePicker(fragment.requireContext()) { timeStr ->
+            val initialTimeMillis = try {
+                dfDetailTime.parse(selectedTimeStr)?.time
+            } catch (_: Exception) {
+                null
+            }
+            OverlayDialogs.showCustomTimePicker(fragment.requireContext(), initialTimeMillis = initialTimeMillis) { timeStr ->
                 selectedTimeStr = timeStr
                 tvRefundTime.text = timeStr
             }

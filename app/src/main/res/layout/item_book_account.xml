@@ -76,11 +76,35 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
-        <ImageView
+        <TextView
+            android:id="@+id/btn_book_set_default_inline"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_book_overview_entry_btn"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="设为默认"
+            android:textColor="#4F75E2"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/iv_book_selected"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_book_selected_check"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_book_selected_badge"
+            android:gravity="center"
+            android:minWidth="42dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="当前"
+            android:textColor="#3D67DA"
+            android:textSize="11sp"
+            android:textStyle="bold"
             android:visibility="gone" />
     </LinearLayout>
 

@@ -172,7 +172,7 @@ internal class HomeUiListController(
             }
         }
 
-        val baseSummaryTop = (76f * fragment.resources.displayMetrics.density).toInt()
+        val baseSummaryTop = (56f * fragment.resources.displayMetrics.density).toInt()
         if (layoutHeaderSummary.paddingTop != baseSummaryTop + statusBar) {
             layoutHeaderSummary.setPadding(
                 layoutHeaderSummary.paddingLeft,

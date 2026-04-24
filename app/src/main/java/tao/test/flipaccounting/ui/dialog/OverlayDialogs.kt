@@ -785,9 +785,14 @@ object OverlayDialogs {
         val cal = Calendar.getInstance().apply {
             initialTimeMillis?.let { timeInMillis = it }
         }
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        val initialYear = cal.get(Calendar.YEAR)
+        // 不再使用业务硬编码年份，改为宽范围动态窗口，覆盖历史补录和未来计划场景
+        val minYearBound = minOf(1900, initialYear - 50, currentYear - 50)
+        val maxYearBound = maxOf(2200, initialYear + 50, currentYear + 50)
         val npYear = view.findViewById<NumberPicker>(R.id.np_year).apply {
-            minValue = 2024
-            maxValue = 2030
+            minValue = minYearBound
+            maxValue = maxYearBound
             value = cal.get(Calendar.YEAR)
             wrapSelectorWheel = false
         }
