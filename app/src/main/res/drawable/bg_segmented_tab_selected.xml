@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="6dp" />
+    <!-- 极浅的灰色描边充当轻微的阴影效果 -->
+    <stroke android:width="0.5dp" android:color="#0D000000" />
+</shape>

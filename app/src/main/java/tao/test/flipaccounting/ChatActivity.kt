@@ -182,6 +182,7 @@ class ChatActivity : AppCompatActivity() {
             layoutVoiceSelectionBarProvider = { layoutVoiceSelectionBar },
             tvVoiceSelectionCountProvider = { tvVoiceSelectionCount },
             pendingTranscriptRevealAnimations = pendingTranscriptRevealAnimations,
+            visibleTranscriptPaths = visibleTranscriptPaths,
             transcribingPaths = transcribingPaths,
             transcribeVoiceToTextWithFallback = ::transcribeVoiceToTextWithFallback,
             scrollToBottom = ::scrollToBottom,
@@ -201,6 +202,7 @@ class ChatActivity : AppCompatActivity() {
             isMessageSelected = { voiceController.isItemSelected(it) },
             pendingVoiceBubbleAnimations = pendingVoiceBubbleAnimations,
             pendingTranscriptRevealAnimations = pendingTranscriptRevealAnimations,
+            visibleTranscriptPaths = visibleTranscriptPaths,
             transcribingPaths = transcribingPaths,
             isVoiceSelectionMode = { voiceController.isVoiceSelectionMode() },
             currentPlayingPath = { voiceController.currentPlayingPath() },
@@ -208,6 +210,7 @@ class ChatActivity : AppCompatActivity() {
             onToggleVoiceSelection = ::toggleVoiceSelection,
             onPlayVoiceMessage = ::playVoiceMessage,
             onShowVoiceMessageMenu = ::showVoiceMessageMenu,
+            onShowTranscriptMenu = ::showTranscriptMenu,
             onShowTextMessageMenu = ::showTextMessageMenu,
             parseVoicePayload = ::parseVoicePayload,
             copyToClipboard = { label, text, toast -> uiHelperController.copyToClipboard(label, text, toast) },
@@ -328,6 +331,7 @@ class ChatActivity : AppCompatActivity() {
             parseVoicePayload = ::parseVoicePayload,
             hideVoiceTranscript = ::hideVoiceTranscript,
             transcribeVoiceMessage = ::transcribeVoiceMessage,
+            isVoiceTranscriptVisible = ::isVoiceTranscriptVisible,
             copyToClipboard = { label, text, toast -> uiHelperController.copyToClipboard(label, text, toast) },
             enterVoiceSelectionMode = ::enterVoiceSelectionMode,
             requestDeleteFromLongPressMenu = ::requestDeleteFromLongPressMenu,
@@ -477,6 +481,7 @@ class ChatActivity : AppCompatActivity() {
     private var audioSupportProbeJob: Job? = null
     private val pendingVoiceBubbleAnimations = mutableSetOf<String>()
     private val pendingTranscriptRevealAnimations = mutableSetOf<String>()
+    private val visibleTranscriptPaths = mutableSetOf<String>()
     private val transcribingPaths = mutableSetOf<String>()
     private var inlineAmountEditingBillId: Long? = null
 
@@ -785,13 +790,6 @@ class ChatActivity : AppCompatActivity() {
             val transcript = withContext(Dispatchers.IO) {
                 transcribeVoiceToTextWithFallback(copiedFile)
             }.trim()
-            if (transcript.isNotBlank()) {
-                updateVoiceTranscriptByPath(
-                    audioPath = added.voice?.audioPath ?: copiedFile.absolutePath,
-                    transcript = transcript,
-                    revealTranscript = false
-                )
-            }
             if (transcript.isBlank()) {
                 removeLoadingMessage(loadingIdx)
                 appendAiTextMessage("这段语音没有识别清楚，你可以再说一遍，我会继续按“语音转文字”方式发送。", isLoading = false)
@@ -857,8 +855,16 @@ class ChatActivity : AppCompatActivity() {
         messageMenuController.showVoiceMessageMenu(anchor, item)
     }
 
+    private fun showTranscriptMenu(anchor: View, item: ChatDisplayItem) {
+        messageMenuController.showTranscriptMenu(anchor, item)
+    }
+
     private fun hideVoiceTranscript(item: ChatDisplayItem) {
         voiceController.hideVoiceTranscript(item)
+    }
+
+    private fun isVoiceTranscriptVisible(item: ChatDisplayItem): Boolean {
+        return voiceController.isTranscriptVisible(item)
     }
 
     private fun showTextMessageMenu(anchor: View, item: ChatDisplayItem) {

@@ -57,120 +57,59 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-            android:id="@+id/swipeRefreshCalendar"
+        <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:fillViewport="true">
 
-            <androidx.core.widget.NestedScrollView
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:clipChildren="false"
-                android:clipToPadding="false"
-                android:fillViewport="true">
+                android:orientation="vertical">
 
                 <LinearLayout
+                    android:id="@+id/layoutCalendarPanel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:clipChildren="false"
-                    android:orientation="vertical">
-
-                    <!-- 日历卡片滑动舞台：当前面板 + peek 面板并排 -->
-                    <FrameLayout
-                        android:id="@+id/calendarPanelStage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:clipChildren="false"
-                        android:clipToPadding="false">
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_calendar_panel"
+                    android:orientation="vertical"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="8dp">
 
                     <LinearLayout
-                        android:id="@+id/layoutCalendarPanel"
+                        android:id="@+id/layoutWeekdays"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="12dp"
-                        android:layout_marginTop="12dp"
-                        android:background="@drawable/bg_calendar_panel"
-                        android:orientation="vertical"
-                        android:paddingTop="16dp"
-                        android:paddingBottom="8dp">
+                        android:layout_marginBottom="4dp"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="8dp">
 
-                        <LinearLayout
-                            android:id="@+id/layoutWeekdays"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="4dp"
-                            android:orientation="horizontal"
-                            android:paddingHorizontal="8dp">
-
-                            <TextView android:id="@+id/tvW1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="一" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvW2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="二" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvW3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="三" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvW4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="四" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvW5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="五" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvW6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="六" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvW7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="日" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        </LinearLayout>
-
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/rvCalendar"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:nestedScrollingEnabled="false"
-                            android:paddingHorizontal="8dp" />
-
+                        <TextView android:id="@+id/tvW1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="一" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="二" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="三" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="四" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="五" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="六" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="日" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
                     </LinearLayout>
 
-                    <!-- peek 面板：平时在屏幕外，拖动时预加载下一个月 -->
-                    <LinearLayout
-                        android:id="@+id/layoutCalendarPanelPeek"
+                    <com.kizitonwose.calendar.view.CalendarView
+                        android:id="@+id/rvCalendar"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="12dp"
-                        android:layout_marginTop="12dp"
-                        android:background="@drawable/bg_calendar_panel"
-                        android:orientation="vertical"
-                        android:paddingTop="16dp"
-                        android:paddingBottom="8dp"
-                        android:visibility="invisible">
+                        android:layout_marginTop="8dp"
+                        android:nestedScrollingEnabled="false"
+                        android:overScrollMode="never"
+                        android:paddingHorizontal="8dp"
+                        app:cv_dayViewResource="@layout/item_calendar_day"
+                        app:cv_scrollPaged="true" />
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="4dp"
-                            android:orientation="horizontal"
-                            android:paddingHorizontal="8dp">
-
-                            <TextView android:id="@+id/tvPeekW1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="一" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvPeekW2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="二" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvPeekW3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="三" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvPeekW4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="四" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvPeekW5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="五" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvPeekW6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="六" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                            <TextView android:id="@+id/tvPeekW7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="日" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        </LinearLayout>
-
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/rvCalendarPeek"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:nestedScrollingEnabled="false"
-                            android:paddingHorizontal="8dp" />
-
-                        <TextView
-                            android:id="@+id/tvPeekMonthSummary"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:gravity="center"
-                            android:text=""
-                            android:textColor="#A0A0A0"
-                            android:textSize="@dimen/text_size_12"
-                            android:visibility="gone" />
-                    </LinearLayout>
-
-                    </FrameLayout><!-- end calendarPanelStage -->
+                </LinearLayout>
 
                     <!-- 独立的模式与月汇总面板：不并入日历滑动舞台 -->
                     <LinearLayout
@@ -303,9 +242,8 @@
                             android:visibility="gone" />
                     </LinearLayout>
 
-                </LinearLayout>
-            </androidx.core.widget.NestedScrollView>
-        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
 
         <LinearLayout
             android:id="@+id/layout_multi_select_actions"

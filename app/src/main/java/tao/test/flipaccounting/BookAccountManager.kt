@@ -148,7 +148,9 @@ object BookAccountManager {
         books.map(::normalizeBookName)
             .filter { it.isNotBlank() && it != ALL_BOOK }
             .forEach { result.add(it) }
-        result.add(ALL_BOOK)
+        if (result.size > 1) {
+            result.add(ALL_BOOK)
+        }
         return result.toList()
     }
 

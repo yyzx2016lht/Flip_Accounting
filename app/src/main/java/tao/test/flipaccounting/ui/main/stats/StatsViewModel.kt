@@ -752,6 +752,9 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             acc = (acc xor bill.subType.toLong()).times(1099511628211L)
             acc = (acc xor bill.amount.toRawBits()).times(1099511628211L)
             acc = (acc xor bill.exchangeRate.toRawBits()).times(1099511628211L)
+            acc = (acc xor bill.categoryName.hashCode().toLong()).times(1099511628211L)
+            acc = (acc xor bill.currency.hashCode().toLong()).times(1099511628211L)
+            acc = (acc xor bill.bookName.hashCode().toLong()).times(1099511628211L)
         }
         return acc xor bills.size.toLong()
     }

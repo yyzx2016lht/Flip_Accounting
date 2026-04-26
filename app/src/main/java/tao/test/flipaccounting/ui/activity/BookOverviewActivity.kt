@@ -18,6 +18,7 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
+import tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
 import java.util.Calendar
 import java.util.Locale
 
@@ -74,8 +75,9 @@ class BookOverviewActivity : AppCompatActivity() {
         btnPeriodPrev = findViewById(R.id.btnPeriodPrev)
         btnPeriodNext = findViewById(R.id.btnPeriodNext)
         layoutCurrentPeriodTrigger = findViewById(R.id.layoutCurrentPeriodTrigger)
-        btnViewMonth = findViewById(R.id.btnViewMonth)
-        btnViewYear = findViewById(R.id.btnViewYear)
+        val header: SecondaryPageHeaderView = findViewById(R.id.secondary_header)
+        btnViewMonth = header.viewModeMonthBtn
+        btnViewYear = header.viewModeYearBtn
         rvBookOverview = findViewById(R.id.rvBookOverview)
     }
 

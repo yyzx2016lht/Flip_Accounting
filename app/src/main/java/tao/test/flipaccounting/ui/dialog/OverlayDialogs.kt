@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -37,6 +38,8 @@ import java.io.File
 import java.util.*
 
 object OverlayDialogs {
+    private const val TAG = "OverlayDialogs"
+
     private fun setExactVisibleRowsHeight(target: View, rowHeight: Int, rows: Int = 4) {
         if (rowHeight <= 0) return
         val lp = target.layoutParams ?: return
@@ -77,6 +80,17 @@ object OverlayDialogs {
 
     private fun shouldUseOverlayWindow(ctx: Context): Boolean {
         return unwrapContext(ctx) !is Activity
+    }
+
+    private fun isContextAlive(ctx: Context): Boolean {
+        val unwrapped = unwrapContext(ctx)
+        if (unwrapped !is Activity) return true
+        if (unwrapped.isFinishing) return false
+        return !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && unwrapped.isDestroyed)
+    }
+
+    private fun isAnchorReady(anchor: View): Boolean {
+        return anchor.isAttachedToWindow && anchor.windowToken != null
     }
 
     private fun applyOverlayTypeIfAllowed(dialog: AlertDialog, ctx: Context) {
@@ -138,8 +152,15 @@ object OverlayDialogs {
             dimAmount = dimAmount,
             clearDecorPadding = clearDecorPadding
         )
-        if (applyOverlayType) applyOverlayTypeIfAllowed(dialog, ctx)
-        dialog.show()
+        if (!isContextAlive(ctx)) return
+        if (applyOverlayType || shouldUseOverlayWindow(ctx)) applyOverlayTypeIfAllowed(dialog, ctx)
+        try {
+            dialog.show()
+        } catch (e: BadTokenException) {
+            Log.w(TAG, "Ignore dialog show due to invalid token: ${e.message}")
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "Ignore dialog show due to illegal window state: ${e.message}")
+        }
     }
 
     fun showPageCenterDialog(
@@ -245,6 +266,7 @@ object OverlayDialogs {
     }
 
     fun showAnchoredMenu(ctx: Context, anchor: View, items: List<String>, onSelected: (String) -> Unit) {
+        if (!isContextAlive(ctx) || !isAnchorReady(anchor) || items.isEmpty()) return
         val popup = ListPopupWindow(ctx).apply {
             setAdapter(ArrayAdapter(ctx, android.R.layout.simple_list_item_1, items))
             anchorView = anchor
@@ -255,7 +277,13 @@ object OverlayDialogs {
                 dismiss()
             }
         }
-        popup.show()
+        try {
+            popup.show()
+        } catch (e: BadTokenException) {
+            Log.w(TAG, "Ignore anchored menu show due to invalid token: ${e.message}")
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "Ignore anchored menu show due to illegal window state: ${e.message}")
+        }
     }
     fun showGridCategoryPicker(ctx: Context, currentSelectionText: String, type: Int, onConfirm: (String) -> Unit) {
         val themeContext = ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting)

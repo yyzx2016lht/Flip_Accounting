@@ -52,6 +52,36 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <LinearLayout
+                android:id="@+id/layout_view_mode_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_segmented_container"
+                android:orientation="horizontal"
+                android:padding="2dp">
+
+                <TextView
+                    android:id="@+id/btn_view_mode_month"
+                    android:layout_width="44dp"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_segmented_selected"
+                    android:gravity="center"
+                    android:text="月"
+                    android:textColor="#4080FF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btn_view_mode_year"
+                    android:layout_width="44dp"
+                    android:layout_height="match_parent"
+                    android:background="@android:color/transparent"
+                    android:gravity="center"
+                    android:text="年"
+                    android:textColor="#888888"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/btn_header_action_text"
                 android:layout_width="wrap_content"

@@ -1031,7 +1031,6 @@ class AccountingFormController(
 
     private fun showExchangeDialog() {
         val money = parseAmountInput() ?: 0.0
-        val currency = spCurrency.selectedItem as? String ?: "CNY"
         scope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(ctx)
             val accountName1 = tvAccount.text.toString()
@@ -1044,6 +1043,10 @@ class AccountingFormController(
             val targetCurrency = asset2?.currency?.takeIf { it.isNotEmpty() } ?: "CNY"
             
             withContext(Dispatchers.Main) {
+                val currentSpinnerCurrency = spCurrency.selectedItem as? String ?: "CNY"
+                if (currentSpinnerCurrency != sourceCurrency) {
+                    setCurrency(sourceCurrency)
+                }
                 // 如果转出账户和转入账户的币种相同，无需确认汇率，直接标记已确认
                 if (sourceCurrency == targetCurrency) {
                     customTargetAmount = money
@@ -1054,7 +1057,7 @@ class AccountingFormController(
                     OverlayDialogs.showExchangeRateDialog(
                         ctx,
                         money,
-                        currency,
+                        sourceCurrency,
                         targetCurrency,
                         customTransferRate
                     ) { src, tgt, rate ->
@@ -1130,9 +1133,13 @@ class AccountingFormController(
                 val sourceCurrency = asset1?.currency?.takeIf { it.isNotEmpty() } ?: "CNY"
                 val targetCurrency = asset2?.currency?.takeIf { it.isNotEmpty() } ?: "CNY"
                 
-                withContext(Dispatchers.Main) {
-                    // 如果币种相同，无需弹窗，直接标记为已确认
-                    if (sourceCurrency == targetCurrency) {
+            withContext(Dispatchers.Main) {
+                val currentSpinnerCurrency = spCurrency.selectedItem as? String ?: "CNY"
+                if (currentSpinnerCurrency != sourceCurrency) {
+                    setCurrency(sourceCurrency)
+                }
+                // 如果币种相同，无需弹窗，直接标记为已确认
+                if (sourceCurrency == targetCurrency) {
                         customTargetAmount = money
                         customTransferRate = 1.0
                         hasConfirmedExchangeRate = true
@@ -1197,10 +1204,15 @@ class AccountingFormController(
             }
 
             val selectedCurrency = spCurrency.selectedItem as? String ?: "CNY"
+            val effectiveCurrency = if (type == Bill.TYPE_TRANSFER) {
+                asset1?.currency?.takeIf { it.isNotEmpty() } ?: selectedCurrency
+            } else {
+                selectedCurrency
+            }
             val ratesReady = ensureRequiredRatesReady(
                 type = type,
                 isRepayment = isRepayment,
-                selectedCurrency = selectedCurrency,
+                selectedCurrency = effectiveCurrency,
                 sourceAsset = asset1,
                 targetAsset = asset2
             )
@@ -1251,7 +1263,7 @@ class AccountingFormController(
                      // Amt(Trans) / Rate(CNY->Trans) * Rate(CNY->Source) ?
                      // Amt(Trans) / Rate(CNY->Trans) = Amt(CNY).
                      // Amt(CNY) * Rate(CNY->Source) = Amt(Source).
-                     val rateTransMapVal = CurrencyManager.getRate(selectedCurrency) ?: 1.0
+                     val rateTransMapVal = CurrencyManager.getRate(effectiveCurrency) ?: 1.0
                      if (rateTransMapVal != 0.0) {
                          sourceDelta = (money / rateTransMapVal) * sourceRateMapVal
                      }
@@ -1268,7 +1280,7 @@ class AccountingFormController(
                     if (money != 0.0) finalRate = targetDelta / money
                 } else {
                      val rateTargetMapVal = CurrencyManager.getRate(asset2?.currency ?: "CNY") ?: 1.0
-                     val rateTransMapVal = CurrencyManager.getRate(selectedCurrency) ?: 1.0
+                     val rateTransMapVal = CurrencyManager.getRate(effectiveCurrency) ?: 1.0
                      if (rateTransMapVal != 0.0) {
                          targetDelta = (money / rateTransMapVal) * rateTargetMapVal
                          if (money != 0.0) finalRate = targetDelta / money
@@ -1282,7 +1294,7 @@ class AccountingFormController(
                 } else if (customCurrencyTargetAmount != null) {
                     sourceDelta = customCurrencyTargetAmount!!
                 } else {
-                    val rateTransMapVal = CurrencyManager.getRate(selectedCurrency) ?: 1.0
+                    val rateTransMapVal = CurrencyManager.getRate(effectiveCurrency) ?: 1.0
                     val sourceRateMapVal = CurrencyManager.getRate(asset1?.currency ?: "CNY") ?: 1.0
                     if (rateTransMapVal != 0.0) {
                         sourceDelta = (money / rateTransMapVal) * sourceRateMapVal
@@ -1292,12 +1304,12 @@ class AccountingFormController(
                 // 统计时用 amount * exchangeRate 得到 CNY 等值，避免因汇率波动导致历史数据失真。
                 // 例：记了 10 PLN（账户也是 PLN）：rate=0.56，exchangeRate = 1/0.56 ≈ 1.785
                 //     统计：10 * 1.785 ≈ 17.85 CNY ✅
-                if (selectedCurrency == "CNY") {
+                if (effectiveCurrency == "CNY") {
                     finalRate = 1.0
                 } else {
                     // exchangeRate 始终保存“该币种 -> CNY”的换算率，
                     // 这样默认人民币统计和详情页“≈人民币”都能稳定成立。
-                    finalRate = BillAssetImpactService.estimateExchangeRateToCny(selectedCurrency)
+                    finalRate = BillAssetImpactService.estimateExchangeRateToCny(effectiveCurrency)
                 }
             }
 
@@ -1305,7 +1317,7 @@ class AccountingFormController(
             // 示例：微信转支付宝 100，手续费 1（均为 CNY），targetDelta = 100 - 1 = 99
             var feeInTargetCurrency = 0.0
             if (type == 2 && feeVal > 0.0) {
-                val rateTransMapVal = CurrencyManager.getRate(selectedCurrency) ?: 1.0
+                val rateTransMapVal = CurrencyManager.getRate(effectiveCurrency) ?: 1.0
                 val rateTargetMapVal = CurrencyManager.getRate(asset2?.currency ?: "CNY") ?: 1.0
                 feeInTargetCurrency = if (rateTransMapVal != 0.0)
                     (feeVal / rateTransMapVal) * rateTargetMapVal else feeVal
@@ -1324,7 +1336,7 @@ class AccountingFormController(
                 categoryName = finalCategory,
                 time = timeLong,
                 remark = etRemark.text.toString(),
-                currency = selectedCurrency,
+                currency = effectiveCurrency,
                 exchangeRate = finalRate,
                 fee = feeVal,
                 bookName = writableBook

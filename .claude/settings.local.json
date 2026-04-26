@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /mnt/e/FlipAccounting-AI/app/src -name *.xml -type f)",
+      "Bash(find /mnt/e/FlipAccounting-AI/app/src -name *.kt -type f)"
+    ]
+  }
+}

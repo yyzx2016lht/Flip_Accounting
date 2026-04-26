@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager.BadTokenException
 import android.widget.ImageView
 import android.widget.TextView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -159,7 +160,11 @@ object ElegantDatePickerSheet {
                 state = BottomSheetBehavior.STATE_EXPANDED
             }
         }
-        dialog.show()
+        try {
+            dialog.show()
+        } catch (_: BadTokenException) {
+        } catch (_: IllegalStateException) {
+        }
     }
 
     private fun Long.toLocalDate(zoneId: ZoneId): LocalDate {

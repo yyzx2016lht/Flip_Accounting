@@ -46,9 +46,6 @@ class BookAccountAdapter(
         if (!items.contains(defaultBook)) {
             items.add(0, defaultBook)
         }
-        if (!items.contains(BookAccountManager.ALL_BOOK)) {
-            items.add(BookAccountManager.ALL_BOOK)
-        }
         selectedBook = selected
 
         openedPosition = items.indexOf(openedName).takeIf { it >= 0 } ?: RecyclerView.NO_POSITION

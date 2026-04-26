@@ -43,6 +43,7 @@ class ChatAdapter(
     private val isMessageSelected: (ChatDisplayItem) -> Boolean,
     private val pendingVoiceBubbleAnimations: MutableSet<String>,
     private val pendingTranscriptRevealAnimations: MutableSet<String>,
+    private val visibleTranscriptPaths: MutableSet<String>,
     private val transcribingPaths: MutableSet<String>,
     private val isVoiceSelectionMode: () -> Boolean,
     private val currentPlayingPath: () -> String?,
@@ -50,6 +51,7 @@ class ChatAdapter(
     private val onToggleVoiceSelection: (ChatDisplayItem) -> Unit,
     private val onPlayVoiceMessage: (ChatDisplayItem) -> Unit,
     private val onShowVoiceMessageMenu: (View, ChatDisplayItem) -> Unit,
+    private val onShowTranscriptMenu: (View, ChatDisplayItem) -> Unit,
     private val onShowTextMessageMenu: (View, ChatDisplayItem) -> Unit,
     private val parseVoicePayload: (String) -> VoicePayload,
     private val copyToClipboard: (String, String, String) -> Unit,
@@ -217,9 +219,10 @@ class ChatAdapter(
 
         private fun bindVoiceTranscript(item: ChatDisplayItem, voice: VoicePayload) {
             val transcript = voice.transcript.trim()
+            val isVisible = visibleTranscriptPaths.contains(voice.audioPath)
             val isTranscribing = transcribingPaths.contains(voice.audioPath)
 
-            if (transcript.isBlank() && !isTranscribing) {
+            if ((!isVisible || transcript.isBlank()) && !isTranscribing) {
                 layoutVoiceTranscript.visibility = View.GONE
                 layoutVoiceTranscript.alpha = 1f
                 layoutVoiceTranscript.translationY = 0f
@@ -241,13 +244,13 @@ class ChatAdapter(
                 ivVoiceTranscriptCopy.setOnClickListener {
                     copyToClipboard("voice_transcript", transcript, "已复制转写文本")
                 }
-                val hideTranscriptLongClick = View.OnLongClickListener {
+                val transcriptLongClick = View.OnLongClickListener {
                     if (isVoiceSelectionMode()) return@OnLongClickListener false
-                    onShowVoiceMessageMenu(layoutVoiceTranscript, item)
+                    onShowTranscriptMenu(layoutVoiceTranscript, item)
                     true
                 }
-                layoutVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
-                tvVoiceTranscript.setOnLongClickListener(hideTranscriptLongClick)
+                layoutVoiceTranscript.setOnLongClickListener(transcriptLongClick)
+                tvVoiceTranscript.setOnLongClickListener(transcriptLongClick)
             }
         }
 

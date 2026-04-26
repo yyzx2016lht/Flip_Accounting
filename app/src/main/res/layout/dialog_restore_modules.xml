@@ -167,7 +167,7 @@
                 android:textStyle="bold" />
 
             <com.google.android.material.checkbox.MaterialCheckBox
-                android:id="@+id/cb_restore_settings_general"
+                android:id="@+id/cb_restore_settings_general_basic"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="基础设置"
@@ -176,10 +176,46 @@
                 android:visibility="gone" />
 
             <com.google.android.material.checkbox.MaterialCheckBox
-                android:id="@+id/cb_restore_settings_display"
+                android:id="@+id/cb_restore_settings_general_assets"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="显示设置"
+                android:text="资产与汇率"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_general_cloud"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="云端配置"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_display_entries"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="入口与卡片"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_display_bills"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="账单显示"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_display_multibill"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="多账本与 OCR"
                 android:textColor="#23324A"
                 android:textSize="14sp"
                 android:visibility="gone" />
@@ -221,10 +257,46 @@
                 android:visibility="gone" />
 
             <com.google.android.material.checkbox.MaterialCheckBox
-                android:id="@+id/cb_restore_settings_advanced"
+                android:id="@+id/cb_restore_settings_advanced_runtime"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="高级设置"
+                android:text="系统与调试"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_advanced_flip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="翻转参数"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_general_legacy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="基础设置（旧版整组）"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_display_legacy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="显示设置（旧版整组）"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_settings_advanced_legacy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="高级设置（旧版整组）"
                 android:textColor="#23324A"
                 android:textSize="14sp"
                 android:visibility="gone" />

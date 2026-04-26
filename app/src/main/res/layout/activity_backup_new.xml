@@ -342,7 +342,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="如果只是想迁移风格和配置，可以只勾这组。AI 核心配置里会包含 API 信息。"
+                            android:text="如果只是想迁移风格和配置，可以只勾这组。现在已经拆成更细的模块，方便单独带走某一部分设置。"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
 
@@ -353,7 +353,7 @@
                             android:columnCount="2">
 
                             <com.google.android.material.checkbox.MaterialCheckBox
-                                android:id="@+id/cb_settings_general"
+                                android:id="@+id/cb_settings_general_basic"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_columnWeight="1"
@@ -364,12 +364,56 @@
                                 app:buttonTint="#5C80EA" />
 
                             <com.google.android.material.checkbox.MaterialCheckBox
-                                android:id="@+id/cb_settings_display"
+                                android:id="@+id/cb_settings_general_assets"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_columnWeight="1"
                                 android:checked="true"
-                                android:text="显示设置"
+                                android:text="资产与汇率"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_general_cloud"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="云端配置"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_display_entries"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="入口与卡片"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_display_bills"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="账单显示"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_display_multibill"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="多账本与 OCR"
                                 android:textColor="#23324A"
                                 android:textSize="14sp"
                                 app:buttonTint="#5C80EA" />
@@ -419,12 +463,23 @@
                                 app:buttonTint="#5C80EA" />
 
                             <com.google.android.material.checkbox.MaterialCheckBox
-                                android:id="@+id/cb_settings_advanced"
+                                android:id="@+id/cb_settings_advanced_runtime"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_columnWeight="1"
                                 android:checked="true"
-                                android:text="高级设置"
+                                android:text="系统与调试"
+                                android:textColor="#23324A"
+                                android:textSize="14sp"
+                                app:buttonTint="#5C80EA" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/cb_settings_advanced_flip"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_columnWeight="1"
+                                android:checked="true"
+                                android:text="翻转参数"
                                 android:textColor="#23324A"
                                 android:textSize="14sp"
                                 app:buttonTint="#5C80EA" />

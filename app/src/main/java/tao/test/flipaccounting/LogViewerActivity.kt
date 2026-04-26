@@ -88,10 +88,10 @@ class LogViewerActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             val content = if (file.exists() && file.length() > 0) {
                 try {
-                    // 最新的在最上面；超大文件只取最后 500 行
-                    val lines = file.readLines()
-                    val tail = if (lines.size > 500) lines.takeLast(500) else lines
-                    tail.reversed().joinToString("\n")
+                    val text = file.readText()
+                    val entries = splitLogEntries(text)
+                    val tail = if (entries.size > 200) entries.takeLast(200) else entries
+                    tail.asReversed().joinToString("\n\n")
                 } catch (e: Exception) {
                     "读取失败: ${e.message}"
                 }
@@ -100,6 +100,26 @@ class LogViewerActivity : AppCompatActivity() {
             }
             withContext(Dispatchers.Main) { view.text = content }
         }
+    }
+
+    private fun splitLogEntries(text: String): List<String> {
+        val normalized = text.replace("\r\n", "\n")
+        val regex = Regex("(?m)^\\[\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}]")
+        val matches = regex.findAll(normalized).toList()
+        if (matches.isEmpty()) {
+            return listOf(normalized.trim()).filter { it.isNotEmpty() }
+        }
+
+        val entries = mutableListOf<String>()
+        for (index in matches.indices) {
+            val start = matches[index].range.first
+            val end = if (index + 1 < matches.size) matches[index + 1].range.first else normalized.length
+            val entry = normalized.substring(start, end).trim()
+            if (entry.isNotEmpty()) {
+                entries.add(entry)
+            }
+        }
+        return entries
     }
 
     private fun shareLogs() {

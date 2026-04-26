@@ -17,6 +17,10 @@
       "icon": "http://res3.qianjiapp.com/cateic_jiaotong.png"
     },
     {
+      "name": "住房",
+      "icon": "http://res3.qianjiapp.com/ic_cate2_zujin.png"
+    },
+    {
       "name": "居家",
       "icon": "http://res3.qianjiapp.com/ic_cate2_shuidianmei.png"
     },
@@ -89,11 +93,11 @@
       "icon": "http://res3.qianjiapp.com/ic_cate2_qichebaoxian.png"
     },
     {
-      "name": "美护",
-      "icon": "http://res3.qianjiapp.com/ic_cate2_baojian.png"
+      "name": "美妆",
+      "icon": "http://res3.qianjiapp.com/cateic_meizhuang.png"
     },
     {
-      "name": "烟酒",
+      "name": "零食",
       "icon": "http://res3.qianjiapp.com/cateic_lingshi.png"
     },
     {
@@ -102,7 +106,7 @@
     },
     {
       "name": "维修",
-      "icon": "http://res3.qianjiapp.com/cateic_other.png"
+      "icon": "http://res3.qianjiapp.com/cate_tool.png"
     },
     {
       "name": "会员",
@@ -156,6 +160,10 @@
     },
     {
       "name": "礼金",
+      "icon": "http://res3.qianjiapp.com/cateic_fahongbao.png"
+    },
+    {
+      "name": "红包",
       "icon": "http://res3.qianjiapp.com/cateic_fahongbao.png"
     },
     {

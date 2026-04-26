@@ -12,6 +12,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.view.WindowManager.BadTokenException
 import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -614,7 +615,13 @@ class AiAssistant(private val ctx: Context) {
             setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
-        dialog.show()
+        try {
+            dialog.show()
+        } catch (_: BadTokenException) {
+            return dialog to view
+        } catch (_: IllegalStateException) {
+            return dialog to view
+        }
         dialog.window?.let { win ->
             val dm = ctx.resources.displayMetrics
             val maxCardWidth = (360 * dm.density).toInt()

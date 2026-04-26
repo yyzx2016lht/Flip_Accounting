@@ -7,10 +7,8 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.icu.util.ChineseCalendar
 import android.os.Bundle
-import android.view.GestureDetector
 import android.view.Gravity
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -21,15 +19,23 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.children
+import androidx.core.view.isGone
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.bumptech.glide.Glide
+import com.kizitonwose.calendar.core.CalendarDay
+import com.kizitonwose.calendar.core.DayPosition
+import com.kizitonwose.calendar.core.OutDateStyle
+import com.kizitonwose.calendar.view.CalendarView
+import com.kizitonwose.calendar.view.DaySize
+import com.kizitonwose.calendar.view.MonthDayBinder
+import com.kizitonwose.calendar.view.ViewContainer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,20 +52,23 @@ import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import java.text.SimpleDateFormat
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.math.max
 
 class CalendarActivity : AppCompatActivity() {
 
     private lateinit var tvMonthSelector: TextView
-    private lateinit var rvCalendar: RecyclerView
+    private lateinit var rvCalendar: CalendarView
     private lateinit var rvDailyBills: RecyclerView
     private lateinit var tvMonthSummary: TextView
     private lateinit var tvDailyDate: TextView
     private lateinit var tvDailySummary: TextView
     private lateinit var tvDailyEmpty: TextView
     private lateinit var btnMore: ImageView
-    private lateinit var swipeRefreshCalendar: SwipeRefreshLayout
 
     private lateinit var tvW1: TextView
     private lateinit var tvW2: TextView
@@ -133,6 +142,9 @@ class CalendarActivity : AppCompatActivity() {
 
     private lateinit var calendarAdapter: CalendarAdapter
     private lateinit var dailyAdapter: HomeAdapter
+    private var monthLoadJob: Job? = null
+    private lateinit var calendarStartMonth: YearMonth
+    private lateinit var calendarEndMonth: YearMonth
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -188,7 +200,6 @@ class CalendarActivity : AppCompatActivity() {
         btnMore = findViewById(R.id.btnMore)
         rvCalendar = findViewById(R.id.rvCalendar)
         rvDailyBills = findViewById(R.id.rvDailyBills)
-        swipeRefreshCalendar = findViewById(R.id.swipeRefreshCalendar)
         tvMonthSummary = findViewById(R.id.tvMonthSummary)
         tvDailyDate = findViewById(R.id.tvDailyDate)
         tvDailySummary = findViewById(R.id.tvDailySummary)
@@ -238,60 +249,14 @@ class CalendarActivity : AppCompatActivity() {
 
         btnMore.setOnClickListener { showFirstDayOfWeekDialog() }
 
-        swipeRefreshCalendar.setOnRefreshListener {
-            loadDataForMonth()
-        }
-
         btnModeBoth.setOnClickListener { setDisplayMode(MODE_BOTH) }
         btnModeBalance.setOnClickListener { setDisplayMode(MODE_BALANCE) }
         btnModeIncome.setOnClickListener { setDisplayMode(MODE_INCOME) }
         btnModeExpense.setOnClickListener { setDisplayMode(MODE_EXPENSE) }
-
-        setupMonthSwipeGesture()
-    }
-
-    private fun setupMonthSwipeGesture() {
-        val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDown(e: MotionEvent): Boolean = true
-
-            override fun onFling(
-                e1: MotionEvent?,
-                e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float
-            ): Boolean {
-                if (e1 == null) return false
-                val dx = e2.x - e1.x
-                val dy = e2.y - e1.y
-                if (kotlin.math.abs(dx) > kotlin.math.abs(dy) && kotlin.math.abs(dx) > 120f && kotlin.math.abs(velocityX) > 200f) {
-                    if (dx < 0) moveMonth(1) else moveMonth(-1)
-                    return true
-                }
-                return false
-            }
-        })
-
-        val touchListener = View.OnTouchListener { _, event ->
-            detector.onTouchEvent(event)
-            false
-        }
-        rvCalendar.setOnTouchListener(touchListener)
-        findViewById<View>(R.id.layoutWeekdays).setOnTouchListener(touchListener)
     }
 
     private fun moveMonth(delta: Int) {
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.YEAR, selectedYear)
-            set(Calendar.MONTH, selectedMonth - 1)
-            set(Calendar.DAY_OF_MONTH, 1)
-            add(Calendar.MONTH, delta)
-        }
-        selectedYear = cal.get(Calendar.YEAR)
-        selectedMonth = cal.get(Calendar.MONTH) + 1
-        selectedDay = 1
-        SharedYearMonthSession.setYearMonth(selectedYear, selectedMonth)
-        updateMonthText()
-        loadDataForMonth()
+        rvCalendar.smoothScrollToMonth(YearMonth.of(selectedYear, selectedMonth).plusMonths(delta.toLong()))
     }
 
     private fun setupMultiSelectActions() {
@@ -336,7 +301,9 @@ class CalendarActivity : AppCompatActivity() {
                     .putInt("first_day_of_week", firstDayOfWeekOption)
                     .apply()
                 updateWeekdaysHeader()
-                calendarAdapter.buildCalendar()
+                setupCalendar()
+                rvCalendar.scrollToDate(selectedLocalDate())
+                rvCalendar.notifyCalendarChanged()
                 d.dismiss()
             }
             .create()
@@ -360,7 +327,7 @@ class CalendarActivity : AppCompatActivity() {
         selectedBtn.setBackgroundResource(R.drawable.bg_segmented_selected)
         selectedBtn.setTextColor(Color.parseColor("#333333"))
 
-        calendarAdapter.notifyDataSetChanged()
+        rvCalendar.notifyCalendarChanged()
     }
 
     private fun showMonthYearPicker() {
@@ -402,9 +369,35 @@ class CalendarActivity : AppCompatActivity() {
         OverlayDialogs.showPageCenterDialog(dialog, this, widthRatio = 0.86f)
     }
     private fun setupCalendar() {
-        rvCalendar.layoutManager = GridLayoutManager(this, 7)
         calendarAdapter = CalendarAdapter()
-        rvCalendar.adapter = calendarAdapter
+        val currentMonth = YearMonth.of(selectedYear, selectedMonth)
+        calendarStartMonth = currentMonth.minusYears(30)
+        calendarEndMonth = currentMonth.plusYears(10)
+        rvCalendar.apply {
+            orientation = RecyclerView.HORIZONTAL
+            scrollPaged = true
+            outDateStyle = OutDateStyle.EndOfRow
+            daySize = DaySize.SeventhWidth
+            dayBinder = calendarAdapter
+            setup(
+                calendarStartMonth,
+                calendarEndMonth,
+                firstDayOfWeekOption.toDayOfWeek()
+            )
+            scrollToMonth(currentMonth)
+            monthScrollListener = { month ->
+                val visibleMonth = month.yearMonth
+                syncCalendarHeightToMonth(visibleMonth, month.weekDays.count { it.isNotEmpty() })
+                if (visibleMonth.year != selectedYear || visibleMonth.monthValue != selectedMonth) {
+                    selectedYear = visibleMonth.year
+                    selectedMonth = visibleMonth.monthValue
+                    selectedDay = 1
+                    SharedYearMonthSession.setYearMonth(selectedYear, selectedMonth)
+                    updateMonthText()
+                    loadDataForMonth()
+                }
+            }
+        }
     }
 
     private fun showUnifiedMonthYearPicker() {
@@ -414,12 +407,16 @@ class CalendarActivity : AppCompatActivity() {
             initialYear = selectedYear,
             initialMonth = selectedMonth
         ) { year, month ->
-            selectedYear = year
-            selectedMonth = month
+            val targetMonth = YearMonth.of(year, month)
+            val currentMonth = YearMonth.of(selectedYear, selectedMonth)
             selectedDay = 1
-            SharedYearMonthSession.setYearMonth(selectedYear, selectedMonth)
-            updateMonthText()
-            loadDataForMonth()
+            if (targetMonth == currentMonth) {
+                SharedYearMonthSession.setYearMonth(selectedYear, selectedMonth)
+                updateMonthText()
+                loadDataForMonth()
+            } else {
+                rvCalendar.smoothScrollToMonth(targetMonth)
+            }
         }
     }
 
@@ -1066,14 +1063,14 @@ class CalendarActivity : AppCompatActivity() {
             set(Calendar.MILLISECOND, 999)
         }
 
-        lifecycleScope.launch {
+        monthLoadJob?.cancel()
+        monthLoadJob = lifecycleScope.launch {
             db.billDao().getBillsBetweenTimes(calStart.timeInMillis, calEnd.timeInMillis).collectLatest { bills ->
                 currentMonthBills = bills
                     .filter { BookAccountManager.isBillInBook(it.bookName, selectedBookName) }
                     .sortedByDescending { it.time }
                 processMonthData()
                 updateSelectedDayDetails()
-                swipeRefreshCalendar.isRefreshing = false
             }
         }
     }
@@ -1111,7 +1108,11 @@ class CalendarActivity : AppCompatActivity() {
         buildLevelMapForMode(MODE_EXPENSE, expenseLevelMap)
         buildLevelMapForMode(MODE_BALANCE, balanceLevelMap)
 
-        calendarAdapter.buildCalendar()
+        rvCalendar.notifyMonthChanged(YearMonth.of(selectedYear, selectedMonth))
+        syncCalendarHeightToMonth(
+            YearMonth.of(selectedYear, selectedMonth),
+            calculateCalendarRowCount(YearMonth.of(selectedYear, selectedMonth))
+        )
     }
 
     private fun buildLevelMapForMode(mode: Int, target: MutableMap<String, Int>) {
@@ -1269,129 +1270,108 @@ class CalendarActivity : AppCompatActivity() {
         )
     }
 
-    inner class CalendarAdapter : RecyclerView.Adapter<CalendarAdapter.DayViewHolder>() {
+    inner class CalendarAdapter : MonthDayBinder<CalendarAdapter.DayViewContainer> {
 
-        private val cells = mutableListOf<DayCell>()
+        override fun create(view: View): DayViewContainer = DayViewContainer(view)
 
-        fun buildCalendar() {
-            cells.clear()
-            val cal = Calendar.getInstance().apply {
-                set(Calendar.YEAR, selectedYear)
-                set(Calendar.MONTH, selectedMonth - 1)
-                set(Calendar.DAY_OF_MONTH, 1)
-            }
-
-            val firstDayOfCurrentMonth = cal.get(Calendar.DAY_OF_WEEK)
-
-            var offset = firstDayOfCurrentMonth - firstDayOfWeekOption
-            if (offset < 0) offset += 7
-
-            val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-            for (i in 0 until offset) {
-                cells.add(DayCell(0, "", DailySummary()))
-            }
-
-            for (day in 1..daysInMonth) {
-                val dateStr = String.format(Locale.getDefault(), "%04d-%02d-%02d", selectedYear, selectedMonth, day)
-                cells.add(DayCell(day, dateStr, dailySummaryMap[dateStr] ?: DailySummary()))
-            }
-
-            notifyDataSetChanged()
+        override fun bind(container: DayViewContainer, data: CalendarDay) {
+            container.bind(data)
         }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DayViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_calendar_day, parent, false)
-            return DayViewHolder(view)
-        }
-
-        override fun onBindViewHolder(holder: DayViewHolder, position: Int) {
-            holder.bind(cells[position])
-        }
-
-        override fun getItemCount(): Int = cells.size
-
-        inner class DayViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        inner class DayViewContainer(itemView: View) : ViewContainer(itemView) {
             private val tvDayNumber: TextView = itemView.findViewById(R.id.tvDayNumber)
             private val tvTopValue: TextView = itemView.findViewById(R.id.tvTopValue)
             private val tvBottomValue: TextView = itemView.findViewById(R.id.tvBottomValue)
             private val layoutCell: View = itemView.findViewById(R.id.layoutCell)
 
-            fun bind(cell: DayCell) {
-                if (cell.day == 0) {
+            fun bind(day: CalendarDay) {
+                if (day.position != DayPosition.MonthDate) {
                     tvDayNumber.text = ""
                     tvTopValue.visibility = View.GONE
                     tvBottomValue.visibility = View.GONE
-                    layoutCell.isSelected = false
                     layoutCell.background = null
-                    itemView.setOnClickListener(null)
+                    view.setOnClickListener(null)
+                    view.isClickable = false
+                    view.alpha = 0f
                     return
                 }
 
-                tvDayNumber.text = cell.day.toString()
+                view.alpha = 1f
+                view.isClickable = true
+
+                val date = day.date
+                val dateStr = date.toDateKey()
+                val summary = dailySummaryMap[dateStr] ?: DailySummary()
+                val selected = date == selectedLocalDate()
+
+                tvDayNumber.text = date.dayOfMonth.toString()
                 tvTopValue.visibility = View.INVISIBLE
                 tvBottomValue.visibility = View.INVISIBLE
                 tvTopValue.text = ""
                 tvBottomValue.text = ""
 
-                val s = cell.summary
-                val selected = (cell.day == selectedDay)
-
                 when (currentMode) {
                     MODE_BOTH -> {
-                        if (s.expense > 0) {
-                            tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = "-${formatAmt(s.expense)}"
-                            tvTopValue.setTextColor(Color.parseColor("#FF5252"))
-                        }
-                        if (s.income > 0) {
-                            tvBottomValue.visibility = View.VISIBLE
-                            tvBottomValue.text = "+${formatAmt(s.income)}"
-                            tvBottomValue.setTextColor(Color.parseColor("#4CAF50"))
-                        }
-                        if (s.expense <= 0 && s.income <= 0) {
-                            tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = lunarOrFestivalText(selectedYear, selectedMonth, cell.day)
-                            tvTopValue.setTextColor(Color.parseColor("#8E97A4"))
+                        when {
+                            summary.expense > 0 -> {
+                                tvTopValue.visibility = View.VISIBLE
+                                tvTopValue.text = "-${formatAmt(summary.expense)}"
+                                tvTopValue.setTextColor(Color.parseColor("#FF5252"))
+                                if (summary.income > 0) {
+                                    tvBottomValue.visibility = View.VISIBLE
+                                    tvBottomValue.text = "+${formatAmt(summary.income)}"
+                                    tvBottomValue.setTextColor(Color.parseColor("#4CAF50"))
+                                }
+                            }
+                            summary.income > 0 -> {
+                                tvTopValue.visibility = View.VISIBLE
+                                tvTopValue.text = "+${formatAmt(summary.income)}"
+                                tvTopValue.setTextColor(Color.parseColor("#4CAF50"))
+                            }
+                            else -> {
+                                tvTopValue.visibility = View.VISIBLE
+                                tvTopValue.text = lunarOrFestivalText(date.year, date.monthValue, date.dayOfMonth)
+                                tvTopValue.setTextColor(Color.parseColor("#8E97A4"))
+                            }
                         }
                     }
                     MODE_BALANCE -> {
-                        val balance = s.income - s.expense
+                        val balance = summary.income - summary.expense
                         if (balance != 0.0) {
                             tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = if (balance > 0) "+${formatAmt(balance)}" else "${formatAmt(balance)}"
+                            tvTopValue.text = if (balance > 0) "+${formatAmt(balance)}" else formatAmt(balance)
                             tvTopValue.setTextColor(if (balance > 0) Color.parseColor("#4CAF50") else Color.parseColor("#FF5252"))
-                        } else if (s.expense <= 0 && s.income <= 0) {
+                        } else if (summary.expense <= 0 && summary.income <= 0) {
                             tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = lunarOrFestivalText(selectedYear, selectedMonth, cell.day)
+                            tvTopValue.text = lunarOrFestivalText(date.year, date.monthValue, date.dayOfMonth)
                             tvTopValue.setTextColor(Color.parseColor("#8E97A4"))
                         }
                     }
                     MODE_INCOME -> {
-                        if (s.income > 0) {
+                        if (summary.income > 0) {
                             tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = "+${formatAmt(s.income)}"
+                            tvTopValue.text = "+${formatAmt(summary.income)}"
                             tvTopValue.setTextColor(Color.parseColor("#4CAF50"))
-                        } else if (s.expense <= 0 && s.income <= 0) {
+                        } else if (summary.expense <= 0 && summary.income <= 0) {
                             tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = lunarOrFestivalText(selectedYear, selectedMonth, cell.day)
+                            tvTopValue.text = lunarOrFestivalText(date.year, date.monthValue, date.dayOfMonth)
                             tvTopValue.setTextColor(Color.parseColor("#8E97A4"))
                         }
                     }
                     MODE_EXPENSE -> {
-                        if (s.expense > 0) {
+                        if (summary.expense > 0) {
                             tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = "-${formatAmt(s.expense)}"
+                            tvTopValue.text = "-${formatAmt(summary.expense)}"
                             tvTopValue.setTextColor(Color.parseColor("#FF5252"))
-                        } else if (s.expense <= 0 && s.income <= 0) {
+                        } else if (summary.expense <= 0 && summary.income <= 0) {
                             tvTopValue.visibility = View.VISIBLE
-                            tvTopValue.text = lunarOrFestivalText(selectedYear, selectedMonth, cell.day)
+                            tvTopValue.text = lunarOrFestivalText(date.year, date.monthValue, date.dayOfMonth)
                             tvTopValue.setTextColor(Color.parseColor("#8E97A4"))
                         }
                     }
                 }
 
-                val bgColor = if (selected) Color.parseColor("#DCEBFF") else buildCellBackgroundColor(cell.dateStr, s)
+                val bgColor = if (selected) Color.parseColor("#DCEBFF") else buildCellBackgroundColor(dateStr, summary)
                 layoutCell.background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
                     cornerRadius = 10f * resources.displayMetrics.density
@@ -1406,19 +1386,101 @@ class CalendarActivity : AppCompatActivity() {
                     tvDayNumber.setTextColor(Color.parseColor("#333333"))
                 }
 
-                itemView.setOnClickListener {
-                    selectedDay = cell.day
-                    notifyDataSetChanged()
+                view.setOnClickListener {
+                    val oldDate = selectedLocalDate()
+                    selectedYear = date.year
+                    selectedMonth = date.monthValue
+                    selectedDay = date.dayOfMonth
+                    rvCalendar.notifyDateChanged(oldDate)
+                    rvCalendar.notifyDateChanged(date)
                     updateSelectedDayDetails()
                 }
-            }
-
-            private fun formatAmt(amt: Double): String {
-                val s = String.format(Locale.getDefault(), "%.2f", amt)
-                return if (s.endsWith(".00")) s.replace(".00", "") else s
             }
         }
     }
 
-    data class DayCell(val day: Int, val dateStr: String, val summary: DailySummary)
+    private fun selectedLocalDate(): LocalDate = LocalDate.of(selectedYear, selectedMonth, selectedDay)
+
+    private fun Int.toDayOfWeek(): DayOfWeek {
+        return when (this) {
+            Calendar.SUNDAY -> DayOfWeek.SUNDAY
+            Calendar.MONDAY -> DayOfWeek.MONDAY
+            Calendar.TUESDAY -> DayOfWeek.TUESDAY
+            Calendar.WEDNESDAY -> DayOfWeek.WEDNESDAY
+            Calendar.THURSDAY -> DayOfWeek.THURSDAY
+            Calendar.FRIDAY -> DayOfWeek.FRIDAY
+            Calendar.SATURDAY -> DayOfWeek.SATURDAY
+            else -> DayOfWeek.MONDAY
+        }
+    }
+
+    private fun LocalDate.toDateKey(): String {
+        return String.format(Locale.getDefault(), "%04d-%02d-%02d", year, monthValue, dayOfMonth)
+    }
+
+    private fun syncCalendarHeightToMonth(month: YearMonth, rowCount: Int) {
+        rvCalendar.post {
+            val position = ChronoUnit.MONTHS.between(calendarStartMonth, month).toInt()
+            if (position < 0) return@post
+
+            val holder = rvCalendar.findViewHolderForAdapterPosition(position) ?: run {
+                rvCalendar.requestLayout()
+                findViewById<View>(R.id.layoutCalendarPanel)?.requestLayout()
+                return@post
+            }
+
+            holder.itemView.requestLayout()
+            holder.itemView.post {
+                val root = holder.itemView as? ViewGroup
+                val visibleChildren = root?.children?.filter { !it.isGone }?.toList().orEmpty()
+                val sampleRowHeight = visibleChildren.firstOrNull()?.let { child ->
+                    val childHeight = child.measuredHeight.takeIf { it > 0 }
+                        ?: child.height.takeIf { it > 0 }
+                        ?: 0
+                    val lp = child.layoutParams as? ViewGroup.MarginLayoutParams
+                    childHeight + (lp?.topMargin ?: 0) + (lp?.bottomMargin ?: 0)
+                } ?: 0
+                val contentHeight = if (sampleRowHeight > 0 && rowCount > 0) {
+                    sampleRowHeight * rowCount
+                } else {
+                    visibleChildren.sumOf { child ->
+                        val childHeight = child.measuredHeight.takeIf { it > 0 }
+                            ?: child.height.takeIf { it > 0 }
+                            ?: 0
+                        val lp = child.layoutParams as? ViewGroup.MarginLayoutParams
+                        childHeight + (lp?.topMargin ?: 0) + (lp?.bottomMargin ?: 0)
+                    }
+                }
+                val height = contentHeight.takeIf { it > 0 }
+                    ?: holder.itemView.measuredHeight.takeIf { it > 0 }
+                    ?: holder.itemView.height.takeIf { it > 0 }
+                    ?: return@post
+                if (rvCalendar.layoutParams.height != height) {
+                    rvCalendar.layoutParams = rvCalendar.layoutParams.apply {
+                        this.height = height
+                    }
+                    rvCalendar.requestLayout()
+                    findViewById<View>(R.id.layoutCalendarPanel)?.requestLayout()
+                }
+            }
+        }
+    }
+
+    private fun calculateCalendarRowCount(yearMonth: YearMonth): Int {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, yearMonth.year)
+            set(Calendar.MONTH, yearMonth.monthValue - 1)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+        val firstDayOfCurrentMonth = cal.get(Calendar.DAY_OF_WEEK)
+        var offset = firstDayOfCurrentMonth - firstDayOfWeekOption
+        if (offset < 0) offset += 7
+        val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        return ((offset + daysInMonth) + 6) / 7
+    }
+
+    private fun formatAmt(amt: Double): String {
+        val text = String.format(Locale.getDefault(), "%.2f", amt)
+        return if (text.endsWith(".00")) text.replace(".00", "") else text
+    }
 }

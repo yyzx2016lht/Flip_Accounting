@@ -25,6 +25,7 @@ class ChatVoiceController(
     private val layoutVoiceSelectionBarProvider: () -> View,
     private val tvVoiceSelectionCountProvider: () -> TextView,
     private val pendingTranscriptRevealAnimations: MutableSet<String>,
+    private val visibleTranscriptPaths: MutableSet<String>,
     private val transcribingPaths: MutableSet<String>,
     private val transcribeVoiceToTextWithFallback: suspend (File) -> String,
     private val scrollToBottom: () -> Unit,
@@ -56,6 +57,13 @@ class ChatVoiceController(
     fun currentPlayingPath(): String? = currentPlayingPath
 
     fun isMediaPlaying(): Boolean = mediaPlayer?.isPlaying == true
+
+    fun isTranscriptVisible(item: ChatDisplayItem): Boolean {
+        val voice = item.voice ?: parseVoicePayload(item.content)
+        val path = voice.audioPath.trim()
+        if (path.isBlank()) return false
+        return visibleTranscriptPaths.contains(path)
+    }
 
     fun isItemSelected(item: ChatDisplayItem): Boolean =
         selectedVoiceMessageIds.contains(selectionKey(item))
@@ -257,13 +265,14 @@ class ChatVoiceController(
 
     fun hideVoiceTranscript(item: ChatDisplayItem) {
         val voice = item.voice ?: parseVoicePayload(item.content)
-        if (voice.transcript.isBlank()) return
+        val path = voice.audioPath.trim()
+        if (voice.transcript.isBlank() || path.isBlank()) return
+        visibleTranscriptPaths.remove(path)
         val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
         if (idx >= 0) {
-            pendingTranscriptRevealAnimations += voice.audioPath
             adapterProvider().notifyItemChanged(idx)
         }
-        Utils.toast(context, "转写已保存，可直接复制")
+        Utils.toast(context, "已收起转写文本")
     }
 
     fun transcribeVoiceMessage(item: ChatDisplayItem, showResult: Boolean, force: Boolean = false) {
@@ -272,6 +281,7 @@ class ChatVoiceController(
         if (!force && cachedTranscript.isNotBlank()) {
             val idx = findVoiceItemIndex(item.dbId, voice.audioPath)
             if (showResult && idx >= 0) {
+                visibleTranscriptPaths += voice.audioPath
                 pendingTranscriptRevealAnimations += voice.audioPath
                 adapterProvider().notifyItemChanged(idx)
                 scrollToBottom()
@@ -322,6 +332,7 @@ class ChatVoiceController(
             }
             val updatedVoice = voice.copy(transcript = text)
             if (showResult) {
+                visibleTranscriptPaths += updatedVoice.audioPath
                 pendingTranscriptRevealAnimations += updatedVoice.audioPath
             }
             updateVoiceMessageContent(item, updatedVoice)
@@ -337,7 +348,10 @@ class ChatVoiceController(
         val item = displayMessages[idx]
         val voice = item.voice ?: parseVoicePayload(item.content)
         if (voice.transcript == transcript) return
-        if (revealTranscript) pendingTranscriptRevealAnimations += audioPath
+        if (revealTranscript) {
+            visibleTranscriptPaths += audioPath
+            pendingTranscriptRevealAnimations += audioPath
+        }
         updateVoiceMessageContent(item, voice.copy(transcript = transcript))
     }
 

@@ -71,11 +71,13 @@
                         android:textStyle="bold" />
 
                     <ImageView
+                        android:id="@+id/iv_date_selector_arrow"
                         android:layout_width="14dp"
                         android:layout_height="14dp"
                         android:layout_marginStart="4dp"
                         android:src="@drawable/ic_chevron_down"
-                        app:tint="#6B7280" />
+                        android:visibility="visible"
+                        app:tint="#000000" />
                 </LinearLayout>
 
                 <ImageView

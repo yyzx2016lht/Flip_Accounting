@@ -1,6 +1,7 @@
 package tao.test.flipaccounting.ui.main.stats
 
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.SystemClock
@@ -10,6 +11,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager.BadTokenException
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.NumberPicker
@@ -84,6 +86,7 @@ class StatsFragment : Fragment() {
     private lateinit var categoryAdapter: CategoryStatsAdapter
     private var isCategoryExpense = true
 
+
     private lateinit var tvTotalExpense: TextView
     private lateinit var tvTotalIncome: TextView
     private lateinit var tvBalance: TextView
@@ -99,8 +102,6 @@ class StatsFragment : Fragment() {
     private lateinit var btnCategoryIncome: TextView
     private lateinit var indicatorModeMonth: View
     private lateinit var indicatorModeYear: View
-    private lateinit var indicatorCategoryExpense: View
-    private lateinit var indicatorCategoryIncome: View
 
     private lateinit var rowTransfer: View
     private lateinit var rowRepayment: View
@@ -277,8 +278,6 @@ class StatsFragment : Fragment() {
         btnCategoryIncome = root.findViewById(R.id.btn_category_income)
         indicatorModeMonth = root.findViewById(R.id.indicator_mode_month)
         indicatorModeYear = root.findViewById(R.id.indicator_mode_year)
-        indicatorCategoryExpense = root.findViewById(R.id.indicator_category_expense)
-        indicatorCategoryIncome = root.findViewById(R.id.indicator_category_income)
 
         rowTransfer = root.findViewById(R.id.row_total_transfer)
         rowRepayment = root.findViewById(R.id.row_total_repayment)
@@ -329,13 +328,19 @@ class StatsFragment : Fragment() {
         }
 
         btnCategoryExpense.setOnClickListener {
-            isCategoryExpense = true
-            updateUI(viewModel.uiState.value)
+            if (!isCategoryExpense) {
+                isCategoryExpense = true
+                (statsContentContainer as? ViewGroup)?.let { androidx.transition.TransitionManager.beginDelayedTransition(it) }
+                updateUI(viewModel.uiState.value)
+            }
         }
 
         btnCategoryIncome.setOnClickListener {
-            isCategoryExpense = false
-            updateUI(viewModel.uiState.value)
+            if (isCategoryExpense) {
+                isCategoryExpense = false
+                (statsContentContainer as? ViewGroup)?.let { androidx.transition.TransitionManager.beginDelayedTransition(it) }
+                updateUI(viewModel.uiState.value)
+            }
         }
 
         btnModeMonth.setOnClickListener {
@@ -366,36 +371,9 @@ class StatsFragment : Fragment() {
             }
         })
 
-        ivOverviewExpand.setOnClickListener {
+        root.findViewById<View>(R.id.btn_overview_expand_area).setOnClickListener {
             isOverviewExpanded = !isOverviewExpanded
             updateOverviewExpandState()
-        }
-
-        rowTransfer.setOnClickListener {
-            val bills = viewModel.getTransferBills()
-            if (bills.isEmpty()) {
-                Toast.makeText(requireContext(), "当前时间段没有转账记录", Toast.LENGTH_SHORT).show()
-            } else {
-                BillListBottomSheet("转账记录", bills).show(childFragmentManager, "transfer_bills")
-            }
-        }
-
-        rowRepayment.setOnClickListener {
-            val bills = viewModel.getRepaymentBills()
-            if (bills.isEmpty()) {
-                Toast.makeText(requireContext(), "当前时间段没有信用卡还款记录", Toast.LENGTH_SHORT).show()
-            } else {
-                BillListBottomSheet("信用卡还款记录", bills).show(childFragmentManager, "repayment_bills")
-            }
-        }
-
-        rowRefund.setOnClickListener {
-            val bills = viewModel.getRefundBills()
-            if (bills.isEmpty()) {
-                Toast.makeText(requireContext(), "当前时间段没有退款记录", Toast.LENGTH_SHORT).show()
-            } else {
-                BillListBottomSheet("退款记录", bills).show(childFragmentManager, "refund_bills")
-            }
         }
     }
 
@@ -409,8 +387,8 @@ class StatsFragment : Fragment() {
     private fun updateCategoryTabStyles(isExpenseTab: Boolean) {
         btnCategoryExpense.setTextColor(Color.parseColor(if (isExpenseTab) "#111827" else "#6B7280"))
         btnCategoryIncome.setTextColor(Color.parseColor(if (isExpenseTab) "#6B7280" else "#111827"))
-        indicatorCategoryExpense.setBackgroundColor(Color.parseColor(if (isExpenseTab) "#111827" else "#00000000"))
-        indicatorCategoryIncome.setBackgroundColor(Color.parseColor(if (isExpenseTab) "#00000000" else "#111827"))
+        btnCategoryExpense.setBackgroundResource(if (isExpenseTab) R.drawable.bg_segmented_tab_selected else android.R.color.transparent)
+        btnCategoryIncome.setBackgroundResource(if (isExpenseTab) android.R.color.transparent else R.drawable.bg_segmented_tab_selected)
     }
 
     private fun updateOverviewExpandState() {
@@ -454,7 +432,6 @@ class StatsFragment : Fragment() {
 
         tvTotalExpense.text = "$symbol${AmountFormatHelper.formatAmount(state.totalExpense)}"
         tvTotalIncome.text = "$symbol${AmountFormatHelper.formatAmount(state.totalIncome)}"
-        tvBalance.text = "$symbol${AmountFormatHelper.formatAmount(state.balance)}"
         val avgLabel = if (state.isMonthMode) "日均支出" else "月均支出"
         val avgValue = state.dailyAvg
         tvDailyAvgLabel.text = avgLabel
@@ -471,20 +448,29 @@ class StatsFragment : Fragment() {
         if (modeChanged) playModeSwitchAnimation(state)
         lastModeIsMonth = state.isMonthMode
 
-        tvBalance.setTextColor(
-            when {
-                state.balance > 0 -> Color.parseColor("#237E4B")
-                state.balance < 0 -> Color.parseColor("#CF2F2F")
-                else -> Color.parseColor("#1F2D44")
-            }
-        )
-
-        val hasData = state.bills.isNotEmpty()
-        val showLoadingPlaceholder = state.isLoading && !hasData
-        emptyStateContainer.visibility = if (!hasData && !showLoadingPlaceholder) View.VISIBLE else View.GONE
-        statsContentContainer.visibility = if (hasData || showLoadingPlaceholder) View.VISIBLE else View.GONE
+        val hasAnyCategoryData = state.categoryStatsExpense.isNotEmpty() || state.categoryStatsIncome.isNotEmpty()
+        
+        emptyStateContainer.visibility = if (!hasAnyCategoryData && !state.isLoading) View.VISIBLE else View.GONE
+        statsContentContainer.visibility = if (hasAnyCategoryData) View.VISIBLE else View.GONE
 
         val list = if (isCategoryExpense) state.categoryStatsExpense else state.categoryStatsIncome
+        
+        // 处理当前 Tab 的空状态展示
+        val layoutTabEmptyState = view?.findViewById<View>(R.id.layout_tab_empty_state)
+        val tvTabEmptyText = view?.findViewById<TextView>(R.id.tv_tab_empty_text)
+        val layoutCategoryTip = view?.findViewById<View>(R.id.layout_category_tip)
+        
+        if (list.isNotEmpty()) {
+            pieChart.visibility = View.VISIBLE
+            layoutTabEmptyState?.visibility = View.GONE
+            layoutCategoryTip?.visibility = View.VISIBLE
+        } else {
+            pieChart.visibility = View.INVISIBLE
+            layoutTabEmptyState?.visibility = View.VISIBLE
+            layoutCategoryTip?.visibility = View.INVISIBLE
+            tvTabEmptyText?.text = if (isCategoryExpense) "本期暂无支出数据" else "本期暂无收入数据"
+        }
+
         val listRenderKey = buildCategoryListRenderKey(list, isCategoryExpense, symbol)
         val shouldSkipTransientEmptyList = state.isLoading && list.isEmpty() && lastCategoryListRenderKey == null
         if (!shouldSkipTransientEmptyList && listRenderKey != lastCategoryListRenderKey) {
@@ -889,13 +875,14 @@ class StatsFragment : Fragment() {
                 .distinct()
 
             withContext(Dispatchers.Main) {
-                val options = mutableListOf(BookAccountManager.ALL_BOOK).apply {
-                    addAll(normalizedBooks)
-                }
+                val options = BookAccountManager.withAllBookOption(
+                    books = normalizedBooks,
+                    defaultBookName = BookAccountManager.getDefaultBook(requireContext(), normalizedBooks)
+                )
                 val currentSelection = viewModel.uiState.value.selectedBookName
                     ?.let { BookAccountManager.normalizeBookName(it) }
                     ?.takeIf { it.isNotBlank() && options.contains(it) }
-                    ?: BookAccountManager.ALL_BOOK
+                    ?: options.firstOrNull().orEmpty()
 
                 OverlayDialogs.showBookPickerDialog(
                     ctx = requireContext(),
@@ -980,9 +967,21 @@ class StatsFragment : Fragment() {
             suppressQuickSync = false
         }
 
+        fun updateDateField(view: TextView, value: Long?, placeholder: String) {
+            if (value == null) {
+                view.text = placeholder
+                view.setTextColor(Color.parseColor("#8A97A8"))
+                view.setTypeface(null, Typeface.BOLD)
+            } else {
+                view.text = dfDateLabel.format(Date(value))
+                view.setTextColor(Color.parseColor("#22324A"))
+                view.setTypeface(null, Typeface.BOLD)
+            }
+        }
+
         fun resetDateLabels() {
-            tvStart.text = customStart?.let { dfDateLabel.format(Date(it)) } ?: "\u9009\u62e9\u65e5\u671f"
-            tvEnd.text = customEnd?.let { dfDateLabel.format(Date(it)) } ?: "\u9009\u62e9\u65e5\u671f"
+            updateDateField(tvStart, customStart, "开始")
+            updateDateField(tvEnd, customEnd, "结束")
         }
 
         fun setDayStart(cal: Calendar) {
@@ -1215,6 +1214,8 @@ class StatsFragment : Fragment() {
             clearQuickChips()
             customStart = null
             customEnd = null
+            chipThisMonth.isChecked = true
+            updateCustomRangeByQuick("本月")
             selectedCurrency = null
             resetDateLabels()
             tvCurrency.text = "全部币种"
@@ -1264,7 +1265,12 @@ class StatsFragment : Fragment() {
                 this.state = BottomSheetBehavior.STATE_EXPANDED
             }
         }
-        dialog.show()
+        if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
+        try {
+            dialog.show()
+        } catch (_: BadTokenException) {
+        } catch (_: IllegalStateException) {
+        }
     }
 
     private fun showDatePicker(onDateSelected: (Long) -> Unit) {
@@ -1367,7 +1373,17 @@ class StatsFragment : Fragment() {
         popup.isClippingEnabled = true
         popup.setOnDismissListener(onDismiss)
         popupRef = popup
-        popup.showAsDropDown(anchor, 0, -(anchor.height + popupHeight + dp(8)))
+        try {
+            if (anchor.isAttachedToWindow && anchor.windowToken != null) {
+                popup.showAsDropDown(anchor, 0, -(anchor.height + popupHeight + dp(8)))
+            } else {
+                onDismiss()
+            }
+        } catch (_: BadTokenException) {
+            onDismiss()
+        } catch (_: IllegalStateException) {
+            onDismiss()
+        }
 
         selectedRow?.let { row ->
             scroll.post {

@@ -221,13 +221,18 @@ class BackupActivity : AppCompatActivity() {
             findViewById<MaterialCheckBox>(R.id.cb_rules).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_chat_messages).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_chat_media).isChecked = value
-            findViewById<MaterialCheckBox>(R.id.cb_settings_general).isChecked = value
-            findViewById<MaterialCheckBox>(R.id.cb_settings_display).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_general_basic).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_general_assets).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_general_cloud).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_display_entries).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_display_bills).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_display_multibill).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_ai_core).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_ai_prompts).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_ai_chat).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_books).isChecked = value
-            findViewById<MaterialCheckBox>(R.id.cb_settings_advanced).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_advanced_runtime).isChecked = value
+            findViewById<MaterialCheckBox>(R.id.cb_settings_advanced_flip).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_banners).isChecked = value
         }
 
@@ -243,7 +248,7 @@ class BackupActivity : AppCompatActivity() {
                 hint.text = "完整备份会包含聊天资源，体积最大，适合做完整归档。"
             }
             BackupPreset.CUSTOM -> {
-                hint.text = "自定义模式已开启：请按需勾选要备份的模块。"
+                hint.text = "自定义模式已开启：请按需勾选更细的模块。"
             }
         }
     }
@@ -569,22 +574,29 @@ class BackupActivity : AppCompatActivity() {
             backupRules = findViewById<MaterialCheckBox>(R.id.cb_rules).isChecked,
             backupChatMessages = findViewById<MaterialCheckBox>(R.id.cb_chat_messages).isChecked,
             backupChatMedia = findViewById<MaterialCheckBox>(R.id.cb_chat_media).isChecked,
-            backupSettingsGeneral = findViewById<MaterialCheckBox>(R.id.cb_settings_general).isChecked,
-            backupSettingsDisplay = findViewById<MaterialCheckBox>(R.id.cb_settings_display).isChecked,
+            backupSettingsGeneralBasic = findViewById<MaterialCheckBox>(R.id.cb_settings_general_basic).isChecked,
+            backupSettingsGeneralAssets = findViewById<MaterialCheckBox>(R.id.cb_settings_general_assets).isChecked,
+            backupSettingsGeneralCloud = findViewById<MaterialCheckBox>(R.id.cb_settings_general_cloud).isChecked,
+            backupSettingsDisplayEntries = findViewById<MaterialCheckBox>(R.id.cb_settings_display_entries).isChecked,
+            backupSettingsDisplayBills = findViewById<MaterialCheckBox>(R.id.cb_settings_display_bills).isChecked,
+            backupSettingsDisplayMultiBill = findViewById<MaterialCheckBox>(R.id.cb_settings_display_multibill).isChecked,
             backupSettingsAiCore = findViewById<MaterialCheckBox>(R.id.cb_settings_ai_core).isChecked,
             backupSettingsAiPrompts = findViewById<MaterialCheckBox>(R.id.cb_settings_ai_prompts).isChecked,
             backupSettingsAiChat = findViewById<MaterialCheckBox>(R.id.cb_settings_ai_chat).isChecked,
             backupSettingsBooks = findViewById<MaterialCheckBox>(R.id.cb_settings_books).isChecked,
-            backupSettingsAdvanced = findViewById<MaterialCheckBox>(R.id.cb_settings_advanced).isChecked,
+            backupSettingsAdvancedRuntime = findViewById<MaterialCheckBox>(R.id.cb_settings_advanced_runtime).isChecked,
+            backupSettingsAdvancedFlip = findViewById<MaterialCheckBox>(R.id.cb_settings_advanced_flip).isChecked,
             backupBanners = findViewById<MaterialCheckBox>(R.id.cb_banners).isChecked
         )
     }
 
     private fun BackupOptions.hasAnyModuleSelected(): Boolean {
         return backupAssets || backupCategories || backupBills || backupRules ||
-            backupChatMessages || backupChatMedia || backupSettingsGeneral || backupSettingsDisplay ||
-            backupSettingsAiCore || backupSettingsAiPrompts || backupSettingsAiChat || backupSettingsBooks ||
-            backupSettingsAdvanced || backupBanners
+            backupChatMessages || backupChatMedia || backupSettingsGeneralBasic || backupSettingsGeneralAssets ||
+            backupSettingsGeneralCloud || backupSettingsDisplayEntries || backupSettingsDisplayBills ||
+            backupSettingsDisplayMultiBill || backupSettingsAiCore || backupSettingsAiPrompts ||
+            backupSettingsAiChat || backupSettingsBooks || backupSettingsAdvancedRuntime ||
+            backupSettingsAdvancedFlip || backupBanners
     }
 
     private fun performBackupInternal(uri: Uri, options: BackupOptions, settingsPin: String?) {
@@ -621,8 +633,12 @@ class BackupActivity : AppCompatActivity() {
         if (options.backupChatMessages) fullData["chat_messages"]?.let { toBackup["chat_messages"] = it }
 
         val settingsModules = Prefs.serializeSettingsModules(this@BackupActivity)
-        if (options.backupSettingsGeneral) settingsModules["settings_general"]?.let { toBackup["settings_general"] = it }
-        if (options.backupSettingsDisplay) settingsModules["settings_display"]?.let { toBackup["settings_display"] = it }
+        if (options.backupSettingsGeneralBasic) settingsModules["settings_general_basic"]?.let { toBackup["settings_general_basic"] = it }
+        if (options.backupSettingsGeneralAssets) settingsModules["settings_general_assets"]?.let { toBackup["settings_general_assets"] = it }
+        if (options.backupSettingsGeneralCloud) settingsModules["settings_general_cloud"]?.let { toBackup["settings_general_cloud"] = it }
+        if (options.backupSettingsDisplayEntries) settingsModules["settings_display_entries"]?.let { toBackup["settings_display_entries"] = it }
+        if (options.backupSettingsDisplayBills) settingsModules["settings_display_bills"]?.let { toBackup["settings_display_bills"] = it }
+        if (options.backupSettingsDisplayMultiBill) settingsModules["settings_display_multibill"]?.let { toBackup["settings_display_multibill"] = it }
         if (options.backupSettingsAiCore) {
             val raw = settingsModules["settings_ai_core"] ?: "{}"
             val protected = if (!settingsPin.isNullOrBlank()) {
@@ -633,7 +649,8 @@ class BackupActivity : AppCompatActivity() {
         if (options.backupSettingsAiPrompts) settingsModules["settings_ai_prompts"]?.let { toBackup["settings_ai_prompts"] = it }
         if (options.backupSettingsAiChat) settingsModules["settings_ai_chat"]?.let { toBackup["settings_ai_chat"] = it }
         if (options.backupSettingsBooks) settingsModules["settings_books"]?.let { toBackup["settings_books"] = it }
-        if (options.backupSettingsAdvanced) settingsModules["settings_advanced"]?.let { toBackup["settings_advanced"] = it }
+        if (options.backupSettingsAdvancedRuntime) settingsModules["settings_advanced_runtime"]?.let { toBackup["settings_advanced_runtime"] = it }
+        if (options.backupSettingsAdvancedFlip) settingsModules["settings_advanced_flip"]?.let { toBackup["settings_advanced_flip"] = it }
 
         val bannerDir = if (options.backupBanners) File(filesDir, "banners").takeIf { it.isDirectory } else null
         val chatMediaFiles = if (options.backupChatMedia) collectChatMediaFiles() else emptyMap()
@@ -705,13 +722,21 @@ class BackupActivity : AppCompatActivity() {
                 "rules" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_rules),
                 "chat_messages" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_chat_messages),
                 "chat_media" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_chat_media),
-                "settings_general" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_general),
-                "settings_display" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_display),
+                "settings_general_basic" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_general_basic),
+                "settings_general_assets" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_general_assets),
+                "settings_general_cloud" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_general_cloud),
+                "settings_display_entries" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_display_entries),
+                "settings_display_bills" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_display_bills),
+                "settings_display_multibill" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_display_multibill),
                 "settings_ai_core" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_ai_core),
                 "settings_ai_prompts" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_ai_prompts),
                 "settings_ai_chat" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_ai_chat),
                 "settings_books" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_books),
-                "settings_advanced" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_advanced),
+                "settings_advanced_runtime" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_advanced_runtime),
+                "settings_advanced_flip" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_advanced_flip),
+                "settings_general" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_general_legacy),
+                "settings_display" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_display_legacy),
+                "settings_advanced" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_advanced_legacy),
                 "banners" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_banners)
             )
 
@@ -742,12 +767,20 @@ class BackupActivity : AppCompatActivity() {
                 moduleViews.getValue("chat_media")
             )
             groupSettings.visibility = visibleIfAny(
+                moduleViews.getValue("settings_general_basic"),
+                moduleViews.getValue("settings_general_assets"),
+                moduleViews.getValue("settings_general_cloud"),
+                moduleViews.getValue("settings_display_entries"),
+                moduleViews.getValue("settings_display_bills"),
+                moduleViews.getValue("settings_display_multibill"),
                 moduleViews.getValue("settings_general"),
                 moduleViews.getValue("settings_display"),
                 moduleViews.getValue("settings_ai_core"),
                 moduleViews.getValue("settings_ai_prompts"),
                 moduleViews.getValue("settings_ai_chat"),
                 moduleViews.getValue("settings_books"),
+                moduleViews.getValue("settings_advanced_runtime"),
+                moduleViews.getValue("settings_advanced_flip"),
                 moduleViews.getValue("settings_advanced")
             )
 
@@ -766,13 +799,21 @@ class BackupActivity : AppCompatActivity() {
                         restoreRules = moduleViews.getValue("rules").isChecked,
                         restoreChatMessages = moduleViews.getValue("chat_messages").isChecked,
                         restoreChatMedia = moduleViews.getValue("chat_media").isChecked,
-                        restoreSettingsGeneral = moduleViews.getValue("settings_general").isChecked,
-                        restoreSettingsDisplay = moduleViews.getValue("settings_display").isChecked,
+                        restoreSettingsGeneralBasic = moduleViews.getValue("settings_general_basic").isChecked,
+                        restoreSettingsGeneralAssets = moduleViews.getValue("settings_general_assets").isChecked,
+                        restoreSettingsGeneralCloud = moduleViews.getValue("settings_general_cloud").isChecked,
+                        restoreSettingsDisplayEntries = moduleViews.getValue("settings_display_entries").isChecked,
+                        restoreSettingsDisplayBills = moduleViews.getValue("settings_display_bills").isChecked,
+                        restoreSettingsDisplayMultiBill = moduleViews.getValue("settings_display_multibill").isChecked,
                         restoreSettingsAiCore = moduleViews.getValue("settings_ai_core").isChecked,
                         restoreSettingsAiPrompts = moduleViews.getValue("settings_ai_prompts").isChecked,
                         restoreSettingsAiChat = moduleViews.getValue("settings_ai_chat").isChecked,
                         restoreSettingsBooks = moduleViews.getValue("settings_books").isChecked,
-                        restoreSettingsAdvanced = moduleViews.getValue("settings_advanced").isChecked,
+                        restoreSettingsAdvancedRuntime = moduleViews.getValue("settings_advanced_runtime").isChecked,
+                        restoreSettingsAdvancedFlip = moduleViews.getValue("settings_advanced_flip").isChecked,
+                        restoreSettingsGeneralLegacy = moduleViews.getValue("settings_general").isChecked,
+                        restoreSettingsDisplayLegacy = moduleViews.getValue("settings_display").isChecked,
+                        restoreSettingsAdvancedLegacy = moduleViews.getValue("settings_advanced").isChecked,
                         restoreBanners = moduleViews.getValue("banners").isChecked
                     )
                     val action: (String?) -> Unit = { pin -> restoreData(dataMap, options, tempFile, pin) }
@@ -807,12 +848,20 @@ class BackupActivity : AppCompatActivity() {
                 )
 
                 val settingsModules = listOf(
-                    options.restoreSettingsGeneral to "settings_general",
-                    options.restoreSettingsDisplay to "settings_display",
+                    options.restoreSettingsGeneralBasic to "settings_general_basic",
+                    options.restoreSettingsGeneralAssets to "settings_general_assets",
+                    options.restoreSettingsGeneralCloud to "settings_general_cloud",
+                    options.restoreSettingsDisplayEntries to "settings_display_entries",
+                    options.restoreSettingsDisplayBills to "settings_display_bills",
+                    options.restoreSettingsDisplayMultiBill to "settings_display_multibill",
                     options.restoreSettingsAiPrompts to "settings_ai_prompts",
                     options.restoreSettingsAiChat to "settings_ai_chat",
                     options.restoreSettingsBooks to "settings_books",
-                    options.restoreSettingsAdvanced to "settings_advanced"
+                    options.restoreSettingsAdvancedRuntime to "settings_advanced_runtime",
+                    options.restoreSettingsAdvancedFlip to "settings_advanced_flip",
+                    options.restoreSettingsGeneralLegacy to "settings_general",
+                    options.restoreSettingsDisplayLegacy to "settings_display",
+                    options.restoreSettingsAdvancedLegacy to "settings_advanced"
                 )
                 settingsModules.forEach { (enabled, key) ->
                     if (enabled) dataMap[key]?.let { Prefs.importAll(this@BackupActivity, parseSettingsRoot(it)) }
@@ -897,8 +946,13 @@ class BackupActivity : AppCompatActivity() {
     }
 
     private fun syncRestoredRuntimeState(options: RestoreOptions) {
-        val touchedGeneral = options.restoreSettingsGeneral
-        val touchedAdvanced = options.restoreSettingsAdvanced
+        val touchedGeneral = options.restoreSettingsGeneralBasic ||
+            options.restoreSettingsGeneralAssets ||
+            options.restoreSettingsGeneralCloud ||
+            options.restoreSettingsGeneralLegacy
+        val touchedAdvanced = options.restoreSettingsAdvancedRuntime ||
+            options.restoreSettingsAdvancedFlip ||
+            options.restoreSettingsAdvancedLegacy
         if (!touchedGeneral && !touchedAdvanced) return
 
         val serviceIntent = Intent(this, OverlayService::class.java).apply {
@@ -1176,13 +1230,18 @@ data class BackupOptions(
     val backupRules: Boolean,
     val backupChatMessages: Boolean,
     val backupChatMedia: Boolean,
-    val backupSettingsGeneral: Boolean,
-    val backupSettingsDisplay: Boolean,
+    val backupSettingsGeneralBasic: Boolean,
+    val backupSettingsGeneralAssets: Boolean,
+    val backupSettingsGeneralCloud: Boolean,
+    val backupSettingsDisplayEntries: Boolean,
+    val backupSettingsDisplayBills: Boolean,
+    val backupSettingsDisplayMultiBill: Boolean,
     val backupSettingsAiCore: Boolean,
     val backupSettingsAiPrompts: Boolean,
     val backupSettingsAiChat: Boolean,
     val backupSettingsBooks: Boolean,
-    val backupSettingsAdvanced: Boolean,
+    val backupSettingsAdvancedRuntime: Boolean,
+    val backupSettingsAdvancedFlip: Boolean,
     val backupBanners: Boolean
 )
 
@@ -1193,13 +1252,21 @@ data class RestoreOptions(
     val restoreRules: Boolean,
     val restoreChatMessages: Boolean,
     val restoreChatMedia: Boolean,
-    val restoreSettingsGeneral: Boolean,
-    val restoreSettingsDisplay: Boolean,
+    val restoreSettingsGeneralBasic: Boolean,
+    val restoreSettingsGeneralAssets: Boolean,
+    val restoreSettingsGeneralCloud: Boolean,
+    val restoreSettingsDisplayEntries: Boolean,
+    val restoreSettingsDisplayBills: Boolean,
+    val restoreSettingsDisplayMultiBill: Boolean,
     val restoreSettingsAiCore: Boolean,
     val restoreSettingsAiPrompts: Boolean,
     val restoreSettingsAiChat: Boolean,
     val restoreSettingsBooks: Boolean,
-    val restoreSettingsAdvanced: Boolean,
+    val restoreSettingsAdvancedRuntime: Boolean,
+    val restoreSettingsAdvancedFlip: Boolean,
+    val restoreSettingsGeneralLegacy: Boolean,
+    val restoreSettingsDisplayLegacy: Boolean,
+    val restoreSettingsAdvancedLegacy: Boolean,
     val restoreBanners: Boolean
 )
 

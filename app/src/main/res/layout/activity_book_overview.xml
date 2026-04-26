@@ -14,7 +14,7 @@
         app:headerTitle="账本总览" />
 
     <!-- 年月选择栏 -->
-    <LinearLayout
+    <RelativeLayout
         android:id="@+id/layoutPeriodSelector"
         android:layout_width="match_parent"
         android:layout_height="52dp"
@@ -22,29 +22,28 @@
         android:layout_marginTop="10dp"
         android:layout_marginEnd="16dp"
         android:background="@drawable/shape_floating_card"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:elevation="0dp">
 
-        <!-- 左箭头 -->
         <ImageView
             android:id="@+id/btnPeriodPrev"
             android:layout_width="36dp"
             android:layout_height="36dp"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@id/layoutCurrentPeriodTrigger"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="上一期"
+            android:layout_marginEnd="6dp"
             android:padding="8dp"
             android:src="@drawable/ic_chevron_left"
             app:tint="#7A8699" />
 
-        <!-- 年/月 文本，居中 -->
         <LinearLayout
             android:id="@+id/layoutCurrentPeriodTrigger"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_centerInParent="true"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -58,57 +57,30 @@
                 android:textStyle="bold" />
 
             <ImageView
+                android:id="@+id/ivCurrentPeriodArrow"
                 android:layout_width="14dp"
                 android:layout_height="14dp"
                 android:layout_marginStart="4dp"
                 android:src="@drawable/ic_chevron_down"
-                app:tint="#7A8699" />
+                android:visibility="visible"
+                app:tint="#000000" />
 
         </LinearLayout>
 
-        <!-- 右箭头 -->
         <ImageView
             android:id="@+id/btnPeriodNext"
             android:layout_width="36dp"
             android:layout_height="36dp"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/layoutCurrentPeriodTrigger"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="下一期"
+            android:layout_marginStart="6dp"
             android:padding="8dp"
             android:src="@drawable/ic_chevron_right"
             app:tint="#7A8699" />
 
-        <!-- 年/月 切换 Chip 组 -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="32dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_segmented_container"
-            android:orientation="horizontal"
-            android:padding="2dp">
-
-            <TextView
-                android:id="@+id/btnViewMonth"
-                android:layout_width="44dp"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_segmented_selected"
-                android:gravity="center"
-                android:text="月"
-                android:textColor="#4080FF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/btnViewYear"
-                android:layout_width="44dp"
-                android:layout_height="match_parent"
-                android:background="@android:color/transparent"
-                android:gravity="center"
-                android:text="年"
-                android:textColor="#888888"
-                android:textSize="13sp" />
-
-        </LinearLayout>
-    </LinearLayout>
+    </RelativeLayout>
 
     <!-- 全部账本汇总条 -->
     <LinearLayout

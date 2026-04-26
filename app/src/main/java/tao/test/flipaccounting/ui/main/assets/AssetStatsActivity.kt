@@ -1,6 +1,7 @@
 package tao.test.flipaccounting.ui.main.assets
 
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Build
@@ -728,9 +729,21 @@ class AssetStatsActivity : AppCompatActivity() {
             selectedQuickLabel = null
         }
 
+        fun updateDateField(view: TextView, value: Long?, placeholder: String) {
+            if (value == null) {
+                view.text = placeholder
+                view.setTextColor(Color.parseColor("#8A97A8"))
+                view.setTypeface(null, Typeface.BOLD)
+            } else {
+                view.text = dfDateLabel.format(Date(value))
+                view.setTextColor(Color.parseColor("#22324A"))
+                view.setTypeface(null, Typeface.BOLD)
+            }
+        }
+
         fun resetDateLabels() {
-            tvStart.text = customStart?.let { dfDateLabel.format(Date(it)) } ?: "选择日期"
-            tvEnd.text = customEnd?.let { dfDateLabel.format(Date(it)) } ?: "选择日期"
+            updateDateField(tvStart, customStart, "开始")
+            updateDateField(tvEnd, customEnd, "结束")
         }
 
         fun setDayStart(cal: Calendar) {

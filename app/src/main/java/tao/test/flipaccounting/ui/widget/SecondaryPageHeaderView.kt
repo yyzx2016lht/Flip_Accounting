@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.DrawableRes
@@ -22,6 +23,9 @@ class SecondaryPageHeaderView @JvmOverloads constructor(
     private val btnActionSecondary: ImageView
     private val btnAction: ImageView
     private val btnActionText: TextView
+    private val layoutViewModeSwitch: LinearLayout
+    private val btnViewModeMonth: TextView
+    private val btnViewModeYear: TextView
 
     init {
         LayoutInflater.from(context).inflate(R.layout.view_secondary_page_header, this, true)
@@ -30,6 +34,9 @@ class SecondaryPageHeaderView @JvmOverloads constructor(
         btnActionSecondary = findViewById(R.id.btn_header_action_secondary)
         btnAction = findViewById(R.id.btn_header_action)
         btnActionText = findViewById(R.id.btn_header_action_text)
+        layoutViewModeSwitch = findViewById(R.id.layout_view_mode_switch)
+        btnViewModeMonth = findViewById(R.id.btn_view_mode_month)
+        btnViewModeYear = findViewById(R.id.btn_view_mode_year)
 
         context.obtainStyledAttributes(attrs, R.styleable.SecondaryPageHeaderView).use { ta ->
             setTitle(ta.getString(R.styleable.SecondaryPageHeaderView_headerTitle).orEmpty())
@@ -101,4 +108,8 @@ class SecondaryPageHeaderView @JvmOverloads constructor(
         btnActionText.text = content
         btnActionText.visibility = if (content.isEmpty()) View.GONE else View.VISIBLE
     }
+
+    val viewModeSwitch: LinearLayout get() = layoutViewModeSwitch
+    val viewModeMonthBtn: TextView get() = btnViewModeMonth
+    val viewModeYearBtn: TextView get() = btnViewModeYear
 }

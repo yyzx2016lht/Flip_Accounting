@@ -2,9 +2,11 @@ package tao.test.flipaccounting
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager.BadTokenException
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.PopupWindow
@@ -15,6 +17,7 @@ class ChatMessageMenuController(
     private val parseVoicePayload: (String) -> VoicePayload,
     private val hideVoiceTranscript: (ChatDisplayItem) -> Unit,
     private val transcribeVoiceMessage: (ChatDisplayItem, Boolean, Boolean) -> Unit,
+    private val isVoiceTranscriptVisible: (ChatDisplayItem) -> Boolean,
     private val copyToClipboard: (String, String, String) -> Unit,
     private val enterVoiceSelectionMode: (ChatDisplayItem?) -> Unit,
     private val requestDeleteFromLongPressMenu: (ChatDisplayItem) -> Unit,
@@ -25,6 +28,21 @@ class ChatMessageMenuController(
     private val showSoftKeyboard: (View) -> Unit,
     private val updateInputActionUi: () -> Unit
 ) {
+    private fun canShowPopup(anchor: View): Boolean {
+        if (!anchor.isAttachedToWindow || anchor.windowToken == null) return false
+        if (context.isFinishing) return false
+        return !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && context.isDestroyed)
+    }
+
+    private fun safeShowAsDropDown(popup: PopupWindow, anchor: View, xOff: Int, yOff: Int) {
+        if (!canShowPopup(anchor)) return
+        try {
+            popup.showAsDropDown(anchor, xOff, yOff)
+        } catch (_: BadTokenException) {
+        } catch (_: IllegalStateException) {
+        }
+    }
+
     fun showVoiceMessageMenu(anchor: View, item: ChatDisplayItem) {
         val popupView = LayoutInflater.from(context).inflate(R.layout.popup_msg_menu, null)
         val popup = PopupWindow(
@@ -39,20 +57,36 @@ class ChatMessageMenuController(
         popupView.findViewById<View>(R.id.menu_item_copy).visibility = View.GONE
         popupView.findViewById<View>(R.id.menu_item_edit_resend).visibility = View.GONE
         popupView.findViewById<View>(R.id.menu_item_transcribe).visibility = View.VISIBLE
-        popupView.findViewById<View>(R.id.menu_item_retranscribe).visibility = View.VISIBLE
         val voice = item.voice ?: parseVoicePayload(item.content)
         val hasTranscript = voice.transcript.trim().isNotBlank()
+        val transcriptVisible = hasTranscript && isVoiceTranscriptVisible(item)
+        popupView.findViewById<View>(R.id.menu_item_retranscribe).visibility =
+            if (hasTranscript) View.VISIBLE else View.GONE
         popupView.findViewById<View>(R.id.menu_item_copy_transcript).visibility =
             if (hasTranscript) View.VISIBLE else View.GONE
         val tvTranscribe = popupView.findViewById<TextView>(R.id.tv_menu_transcribe)
         val ivTranscribe = popupView.findViewById<ImageView>(R.id.iv_menu_transcribe)
-        tvTranscribe.text = if (hasTranscript) "查看转写" else "转文字"
-        ivTranscribe.setImageResource(if (hasTranscript) R.drawable.ic_check_circle else R.drawable.ic_mic)
+        tvTranscribe.text = when {
+            !hasTranscript -> "转文字"
+            transcriptVisible -> "收起文本"
+            else -> "查看转写"
+        }
+        ivTranscribe.setImageResource(
+            when {
+                !hasTranscript -> R.drawable.ic_mic
+                transcriptVisible -> R.drawable.ic_chevron_down_small
+                else -> R.drawable.ic_check_circle
+            }
+        )
         ivTranscribe.setColorFilter(Color.WHITE)
 
         popupView.findViewById<View>(R.id.menu_item_transcribe).setOnClickListener {
             popup.dismiss()
-            transcribeVoiceMessage(item, true, false)
+            if (hasTranscript && transcriptVisible) {
+                hideVoiceTranscript(item)
+            } else {
+                transcribeVoiceMessage(item, true, false)
+            }
         }
         popupView.findViewById<View>(R.id.menu_item_retranscribe).setOnClickListener {
             popup.dismiss()
@@ -73,7 +107,25 @@ class ChatMessageMenuController(
             popup.dismiss()
             requestDeleteFromLongPressMenu(item)
         }
-        popup.showAsDropDown(anchor, -40, -anchor.height - 16)
+        safeShowAsDropDown(popup, anchor, -40, -anchor.height - 16)
+    }
+
+    fun showTranscriptMenu(anchor: View, item: ChatDisplayItem) {
+        val popupView = LayoutInflater.from(context).inflate(R.layout.popup_transcript_menu, null)
+        val popup = PopupWindow(
+            popupView,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+        popup.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        popup.isOutsideTouchable = true
+
+        popupView.findViewById<View>(R.id.popup_transcript_menu_root).setOnClickListener {
+            popup.dismiss()
+            hideVoiceTranscript(item)
+        }
+        safeShowAsDropDown(popup, anchor, -20, -anchor.height - 12)
     }
 
     fun showTextMessageMenu(anchor: View, item: ChatDisplayItem) {
@@ -122,6 +174,6 @@ class ChatMessageMenuController(
             popup.dismiss()
             requestDeleteFromLongPressMenu(item)
         }
-        popup.showAsDropDown(anchor, -40, -anchor.height - 16)
+        safeShowAsDropDown(popup, anchor, -40, -anchor.height - 16)
     }
 }

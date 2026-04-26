@@ -643,7 +643,7 @@ class OverlayManager(private val ctx: Context) {
             System.currentTimeMillis()
         }
         val remark = obj.optString("remarks", "")
-        val currency = obj.optString("currency", "CNY").ifBlank { "CNY" }
+        val recognizedCurrency = obj.optString("currency", "CNY").ifBlank { "CNY" }
         val fee = obj.optDouble("fee", 0.0).coerceAtLeast(0.0)
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -655,21 +655,27 @@ class OverlayManager(private val ctx: Context) {
                 toAssetObj = db.assetDao().getAssetByName(asset2)
                 toAssetId = toAssetObj?.id
             }
+            val effectiveCurrency = if (typeIndex == Bill.TYPE_TRANSFER) {
+                asset1Obj?.currency?.takeIf { it.isNotBlank() } ?: recognizedCurrency
+            } else {
+                recognizedCurrency
+            }
+
             val exchangeRate = when {
                 typeIndex == 2 && toAssetObj != null && amount > 0.0 ->
                     tao.test.flipaccounting.logic.BillAssetImpactService.estimateExchangeRateToTarget(
                         amount,
-                        currency,
+                        effectiveCurrency,
                         toAssetObj.currency
                     )
-                currency == "CNY" -> 1.0
-                else -> tao.test.flipaccounting.logic.BillAssetImpactService.estimateExchangeRateToCny(currency)
+                effectiveCurrency == "CNY" -> 1.0
+                else -> tao.test.flipaccounting.logic.BillAssetImpactService.estimateExchangeRateToCny(effectiveCurrency)
             }
 
             val bill = Bill(
                 amount = amount,
                 type = typeIndex,
-                currency = currency,
+                currency = effectiveCurrency,
                 exchangeRate = exchangeRate,
                 fee = fee,
                 accountName = asset1,

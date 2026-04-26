@@ -18,22 +18,13 @@
         android:padding="14dp">
 
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="总览"
-            android:textColor="#6B7280"
-            android:textSize="@dimen/text_size_12" />
-
-        <TextView
             android:id="@+id/tv_balance"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
             android:gravity="center"
-            android:text="¥0.00"
+            android:text="收支总览"
             android:textColor="#111827"
-            android:textSize="@dimen/text_size_32"
+            android:textSize="@dimen/text_size_16"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -248,15 +239,25 @@
             </LinearLayout>
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/iv_overview_expand"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_chevron_down_small"
-            app:tint="#9CA3AF" />
+        <FrameLayout
+            android:id="@+id/btn_overview_expand_area"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/iv_overview_expand"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:layout_marginVertical="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:duplicateParentState="true"
+                android:src="@drawable/ic_chevron_down_small"
+                app:tint="#9CA3AF" />
+        </FrameLayout>
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

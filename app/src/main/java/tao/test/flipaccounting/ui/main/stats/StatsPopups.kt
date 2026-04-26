@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting.ui.main.stats
+package tao.test.flipaccounting.ui.main.stats
 
 import android.content.Intent
 import android.graphics.Color
@@ -235,15 +235,21 @@ class BillListBottomSheet(
     private val title: String,
     private val bills: List<Bill>
 ) : BottomSheetDialogFragment() {
+    companion object {
+        private const val SHEET_SCREEN_RATIO = 0.58f
+        private const val MIN_SHEET_HEIGHT_DP = 360
+    }
 
     private val dfDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var newestFirst = true
     private var displayBills: List<Bill> = emptyList()
 
+    private lateinit var rootView: View
     private lateinit var rvBills: RecyclerView
     private lateinit var tvSheetTitle: TextView
     private lateinit var btnSortTime: TextView
     private lateinit var adapter: RecyclerView.Adapter<RecyclerView.ViewHolder>
+    private var sheetCallback: BottomSheetBehavior.BottomSheetCallback? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -251,6 +257,7 @@ class BillListBottomSheet(
         savedInstanceState: Bundle?
     ): View {
         val root = inflater.inflate(R.layout.bottom_sheet_bill_list, container, false)
+        rootView = root
         tvSheetTitle = root.findViewById(R.id.tv_sheet_title)
         btnSortTime = root.findViewById(R.id.btn_sheet_sort_time)
         rvBills = root.findViewById(R.id.rv_sheet_bills)
@@ -297,11 +304,27 @@ class BillListBottomSheet(
         bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
             height = ViewGroup.LayoutParams.MATCH_PARENT
         }
-        behavior.isFitToContents = true
-        behavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+        behavior.isFitToContents = false
         behavior.isHideable = true
-        behavior.skipCollapsed = true
         behavior.isDraggable = true
+        behavior.skipCollapsed = false
+
+        rootView.post {
+            if (!isAdded) return@post
+            
+            // 让 rootView 撑满整个 BottomSheet 容器，这样 RecyclerView 凭借 weight=1 会自动填满屏幕，
+            // 上滑时就能直接看到已经渲染好的内容，而不需要等待状态变为 EXPANDED 才去修改高度。
+            rootView.layoutParams = rootView.layoutParams.apply {
+                height = ViewGroup.LayoutParams.MATCH_PARENT
+            }
+            
+            val targetSheetHeight = computeTargetSheetHeight()
+            behavior.peekHeight = targetSheetHeight
+            behavior.expandedOffset = 0
+            sheetCallback?.let(behavior::removeBottomSheetCallback)
+            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
+        }
     }
 
     private fun applySort() {
@@ -313,6 +336,46 @@ class BillListBottomSheet(
         tvSheetTitle.text = "$title (${displayBills.size}条)"
         btnSortTime.text = if (newestFirst) "时间 ↓" else "时间 ↑"
         adapter.notifyDataSetChanged()
+    }
+
+    private fun computeSheetChromeHeight(): Int {
+        val recyclerTop = rvBills.top.takeIf { it > 0 } ?: 0
+        return recyclerTop + rootView.paddingBottom
+    }
+
+    private fun computeTargetSheetHeight(): Int {
+        val chromeHeight = computeSheetChromeHeight()
+        val listHeight = computeListHeight(5) // 刚好显示 5 条
+        val targetHeight = chromeHeight + listHeight
+        
+        val screenHeight = resources.displayMetrics.heightPixels
+        val minHeight = (MIN_SHEET_HEIGHT_DP * resources.displayMetrics.density).toInt()
+        
+        return targetHeight.coerceAtLeast(minHeight).coerceAtMost((screenHeight * 0.9f).toInt())
+    }
+
+    private fun computeListHeight(itemCount: Int): Int {
+        if (itemCount <= 0) return 0
+        val visibleCount = itemCount.coerceAtMost(displayBills.size)
+        val itemHeight = measureBillItemHeight()
+        val verticalPadding = rvBills.paddingTop + rvBills.paddingBottom
+        return itemHeight * visibleCount + verticalPadding
+    }
+
+    private fun measureBillItemHeight(): Int {
+        val widthSpec = View.MeasureSpec.makeMeasureSpec(
+            rvBills.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels,
+            View.MeasureSpec.EXACTLY
+        )
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        val holder = adapter.createViewHolder(rvBills, 0)
+        if (displayBills.isNotEmpty()) {
+            adapter.bindViewHolder(holder, 0)
+        }
+        holder.itemView.measure(widthSpec, heightSpec)
+        return holder.itemView.measuredHeight
+            .takeIf { it > 0 }
+            ?: (72 * resources.displayMetrics.density).toInt()
     }
 
     private fun bindBillItem(itemView: View, bill: Bill) {
