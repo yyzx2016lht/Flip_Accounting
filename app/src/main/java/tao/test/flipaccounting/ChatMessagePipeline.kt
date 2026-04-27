@@ -5,6 +5,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import tao.test.flipaccounting.chat.ai.AiBookkeepingMode
+import tao.test.flipaccounting.chat.ai.AiIntentRouter
+import tao.test.flipaccounting.chat.ai.AiIntentType
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.ChatMessage
 import java.io.File
@@ -23,7 +26,6 @@ class ChatMessagePipeline(
     private val updateLoadingMessage: (Int, String) -> Unit,
     private val finalizeLoadingMessage: (Int, String) -> Unit,
     private val buildAnalysisInput: suspend (String) -> String,
-    private val decideSingleOrMultiForChat: (String) -> Boolean,
     private val processBillResult: suspend (JSONObject, String) -> List<Bill>,
     private val buildBillSummary: (List<Bill>) -> String,
     private val transcribeVoiceToTextWithFallback: suspend (File) -> String,
@@ -49,12 +51,81 @@ class ChatMessagePipeline(
         updateInputActionUi()
         appendUserMessage(text, ChatActivity.MSG_TYPE_USER_TEXT)
         if (consumePendingHabitSuggestionReply(text)) return
-        callAiAccounting(text, appendUserBubble = false)
+        routeAndHandleText(text)
+    }
+
+    private fun routeAndHandleText(userText: String) {
+        val loadingIdx = appendAiTextMessage("正在理解你的消息...", true)
+        aiWorkScope.launch {
+            val rawRoute = try {
+                withContext(Dispatchers.IO) {
+                    AIService.routeIntentWithModel(context, userText)
+                } ?: AiIntentRouter.route(userText)
+            } catch (e: Exception) {
+                Logger.d(context, "AiIntentRouter", "model route failed, fallback=local, err=${e.javaClass.simpleName}")
+                AiIntentRouter.route(userText)
+            }
+            val routedType = when (rawRoute.intentType) {
+                AiIntentType.BOOKKEEPING -> AiIntentType.BOOKKEEPING
+                AiIntentType.UNKNOWN -> AiIntentType.UNKNOWN
+                AiIntentType.QUERY,
+                AiIntentType.GENERAL_CHAT -> AiIntentType.GENERAL_CHAT
+            }
+            Logger.d(
+                context,
+                "AiIntentRouter",
+                "raw=\"$userText\", intent=$routedType, rawIntent=${rawRoute.intentType}, confidence=${rawRoute.confidence}, slots=${rawRoute.slots}"
+            )
+            removeLoadingMessage(loadingIdx)
+            when (routedType) {
+                AiIntentType.BOOKKEEPING -> callAiAccounting(
+                    userText,
+                    appendUserBubble = false,
+                    bookkeepingMode = rawRoute.bookkeepingMode
+                )
+                AiIntentType.UNKNOWN -> {
+                    if (AiIntentRouter.isHighRiskWrite(userText)) {
+                        appendUnknownIntentReply(userText)
+                    } else {
+                        callGeneralChat(userText)
+                    }
+                }
+                AiIntentType.QUERY,
+                AiIntentType.GENERAL_CHAT -> callGeneralChat(userText)
+            }
+        }
+    }
+
+    private fun appendUnknownIntentReply(userText: String) {
+        val msg = "这个请求我不太确定该怎么安全处理。涉及删除、批量修改或覆盖之类的操作时，我需要你先明确说明并二次确认。"
+        appendAiTextMessage(msg, false)
+        aiWorkScope.launch { persistAiTextMessage(msg) }
+        Logger.d(context, "AiIntentRouter", "unknown intent, raw=\"$userText\"")
+    }
+
+    private fun callGeneralChat(userText: String) {
+        val loadingIdx = appendAiTextMessage("正在生成回复...", true)
+        aiWorkScope.launch {
+            try {
+                val reply = withContext(Dispatchers.IO) {
+                    AIService.generateGeneralChatReply(context, userText)
+                }.ifBlank { "我在呢。你可以直接跟我说要记什么账，或者问我某段时间的支出。" }
+                removeLoadingMessage(loadingIdx)
+                appendAiTextMessage(reply, false)
+                persistAiTextMessage(reply)
+            } catch (e: Exception) {
+                removeLoadingMessage(loadingIdx)
+                val msg = mapAiErrorToUserMessage(e)
+                appendAiTextMessage(msg, false)
+                persistAiTextMessage(msg)
+            }
+        }
     }
 
     fun callAiAccounting(
         userText: String,
         appendUserBubble: Boolean = true,
+        bookkeepingMode: AiBookkeepingMode = AiBookkeepingMode.UNSPECIFIED,
         forceTextReply: Boolean = false,
         loadingIdxOverride: Int? = null,
         loadingBootstrapText: String = ""
@@ -79,7 +150,7 @@ class ChatMessagePipeline(
         aiWorkScope.launch {
             try {
                 val analysisInput = buildAnalysisInput(userText)
-                val autoMultiMode = decideSingleOrMultiForChat(userText)
+                val autoMultiMode = resolveMultiMode(bookkeepingMode, userText)
                 val result = try {
                     withContext(Dispatchers.IO) {
                         if (userText.startsWith("[MULTIMODAL_IMAGE]")) {
@@ -88,7 +159,11 @@ class ChatMessagePipeline(
                             val base64 = parts.getOrElse(0) { "" }
                             val mime = parts.getOrElse(1) { "image/jpeg" }
                             val visionResult = AIService.analyzeReceiptByImage(context, base64, mime)
-                            AIService.analyzeAccounting(context, visionResult) { status ->
+                            AIService.analyzeAccounting(
+                                ctx = context,
+                                userInput = visionResult,
+                                isMultiModeOverride = autoMultiMode
+                            ) { status ->
                                 runOnUiIfAlive { pushLoadingStatus(status) }
                             }
                         } else {
@@ -167,7 +242,7 @@ class ChatMessagePipeline(
                 val voiceUserText = "[语音输入]"
                 val autoMultiMode = withContext(Dispatchers.IO) {
                     val transcript = transcribeVoiceToTextWithFallback(audioFile)
-                    decideSingleOrMultiForChat(transcript)
+                    resolveMultiMode(AiIntentRouter.route(transcript).bookkeepingMode, transcript)
                 }
                 val result = try {
                     withContext(Dispatchers.IO) {
@@ -218,6 +293,14 @@ class ChatMessagePipeline(
                 appendAiTextMessage(msg, false)
                 persistAiTextMessage(msg)
             }
+        }
+    }
+
+    private fun resolveMultiMode(bookkeepingMode: AiBookkeepingMode, userText: String): Boolean {
+        return when (bookkeepingMode) {
+            AiBookkeepingMode.MULTI -> true
+            AiBookkeepingMode.SINGLE -> false
+            AiBookkeepingMode.UNSPECIFIED -> AiIntentRouter.detectBookkeepingMode(userText) == AiBookkeepingMode.MULTI
         }
     }
 

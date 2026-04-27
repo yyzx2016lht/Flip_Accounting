@@ -149,7 +149,6 @@ class ChatActivity : AppCompatActivity() {
             updateLoadingMessage = ::updateLoadingMessage,
             finalizeLoadingMessage = ::finalizeLoadingMessage,
             buildAnalysisInput = ::buildAnalysisInput,
-            decideSingleOrMultiForChat = ::decideSingleOrMultiForChat,
             processBillResult = ::processBillResult,
             buildBillSummary = ::buildBillSummary,
             transcribeVoiceToTextWithFallback = ::transcribeVoiceToTextWithFallback,
@@ -963,11 +962,19 @@ class ChatActivity : AppCompatActivity() {
     private fun callAiAccounting(
         userText: String,
         appendUserBubble: Boolean = true,
+        bookkeepingMode: tao.test.flipaccounting.chat.ai.AiBookkeepingMode = tao.test.flipaccounting.chat.ai.AiBookkeepingMode.UNSPECIFIED,
         forceTextReply: Boolean = false,
         loadingIdxOverride: Int? = null,
         loadingBootstrapText: String = ""
     ) {
-        messagePipeline.callAiAccounting(userText, appendUserBubble, forceTextReply, loadingIdxOverride, loadingBootstrapText)
+        messagePipeline.callAiAccounting(
+            userText = userText,
+            appendUserBubble = appendUserBubble,
+            bookkeepingMode = bookkeepingMode,
+            forceTextReply = forceTextReply,
+            loadingIdxOverride = loadingIdxOverride,
+            loadingBootstrapText = loadingBootstrapText
+        )
     }
 
     private fun callAiAccountingWithVoice(audioFile: File) {
@@ -1032,10 +1039,6 @@ class ChatActivity : AppCompatActivity() {
 
     private suspend fun processBillResult(result: JSONObject, userText: String): List<Bill> {
         return billCorrectionService.processBillResult(result, userText)
-    }
-
-    private fun decideSingleOrMultiForChat(text: String): Boolean {
-        return billCorrectionService.decideSingleOrMultiForChat(text)
     }
 
     private fun parseTimeToMillis(timeStr: String): Long {

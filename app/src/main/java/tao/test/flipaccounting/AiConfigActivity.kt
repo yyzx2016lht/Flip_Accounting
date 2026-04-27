@@ -74,6 +74,7 @@ class AiConfigActivity : AppCompatActivity() {
         val btnScreenAccounting = findViewById<Chip>(R.id.btn_screen_accounting_prompt)
         val btnOcrRefine = findViewById<Chip>(R.id.btn_ocr_refine_prompt)
         val btnSpeech = findViewById<Chip>(R.id.btn_speech_prompt)
+        val btnRouter = findViewById<Chip>(R.id.btn_router_prompt)
         val promptModeGrid = findViewById<GridLayout>(R.id.chip_group_prompt_modes)
 
         val btnTest = findViewById<MaterialButton>(R.id.btn_test_conn)
@@ -98,6 +99,7 @@ class AiConfigActivity : AppCompatActivity() {
         val modeModels = mutableMapOf(
             "single" to Prefs.getAiSingleModel(this),
             "multi" to Prefs.getAiMultiModel(this),
+            "router" to Prefs.getAiRouterModel(this),
             "rule" to Prefs.getAiRuleModel(this),
             "receipt" to Prefs.getAiReceiptModel(this),
             "receipt_vision" to Prefs.getAiReceiptVisionModel(this),
@@ -222,6 +224,7 @@ class AiConfigActivity : AppCompatActivity() {
             btnScreenAccounting.isChecked = canShowScreenAccounting && currentMode == "screen_accounting"
             btnOcrRefine.isChecked = currentMode == "ocr_refine"
             btnSpeech.isChecked = currentMode == "speech"
+            btnRouter.isChecked = currentMode == "router"
 
             tvSelectedModel.text = modeModels[currentMode] ?: ""
         }
@@ -243,6 +246,7 @@ class AiConfigActivity : AppCompatActivity() {
         btnScreenAccounting.setOnClickListener { switchMode("screen_accounting") }
         btnOcrRefine.setOnClickListener { switchMode("ocr_refine") }
         btnSpeech.setOnClickListener { switchMode("speech") }
+        btnRouter.setOnClickListener { switchMode("router") }
 
         spinnerProviders.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -336,6 +340,7 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiModel(this, modeModels["single"] ?: "")
             Prefs.setAiSingleModel(this, modeModels["single"] ?: "")
             Prefs.setAiMultiModel(this, modeModels["multi"] ?: "")
+            Prefs.setAiRouterModel(this, modeModels["router"] ?: "")
             Prefs.setAiRuleModel(this, modeModels["rule"] ?: "")
             Prefs.setAiReceiptModel(this, modeModels["receipt"] ?: "")
             Prefs.setAiReceiptVisionModel(this, modeModels["receipt_vision"] ?: "")

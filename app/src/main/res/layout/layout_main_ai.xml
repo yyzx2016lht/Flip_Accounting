@@ -297,6 +297,21 @@
                         android:textSize="@dimen/text_size_13"
                         app:checkedIconVisible="false"
                         app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_router_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:gravity="center"
+                        android:textAlignment="center"
+                        android:checkable="true"
+                        android:text="意图路由"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
                 </GridLayout>
 
                 <LinearLayout

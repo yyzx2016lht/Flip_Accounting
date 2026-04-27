@@ -32,61 +32,6 @@ class ChatBillCorrectionService(
         val currency: String?
     )
 
-    fun decideSingleOrMultiForChat(text: String): Boolean {
-        val normalized = text
-            .removePrefix("[图片OCR文本]: ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-            .lowercase(Locale.getDefault())
-        if (normalized.isBlank()) return false
-
-        val explicitMulti = Regex("分别|各[记来]?一笔|再来一笔|还有一笔|一共\\d+笔|两笔|三笔|多笔").containsMatchIn(normalized)
-        if (explicitMulti) return true
-        val explicitSingle = Regex("就这一笔|只记一笔|单笔|一笔就行|这笔就行").containsMatchIn(normalized)
-        if (explicitSingle) return false
-
-        var multiScore = 0
-        val moneyUnitRegex = Regex("\\d+(?:\\.\\d{1,2})?\\s*(元|块钱|块|rmb|cny|pln|usd|eur|€|\\$)")
-        val actionAmountRegex = Regex("(花了|花费|支付|付款|收了|收到|转账|还款|充值|提现|赚了|收入)\\s*\\d+(?:\\.\\d{1,2})?")
-        val amountCount = maxOf(
-            moneyUnitRegex.findAll(normalized).count(),
-            actionAmountRegex.findAll(normalized).count()
-        )
-        if (amountCount >= 2) multiScore += 3
-
-        val actionWords = listOf("买", "花", "支付", "付款", "收", "到账", "退款", "转账", "还款", "充值", "提现", "借出", "收回")
-        val actionHitCount = actionWords.count { normalized.contains(it) }
-        if (actionHitCount >= 2) multiScore += 2
-
-        val connectorRegex = Regex("然后|再|又|另外|同时|并且|以及|分别|之后")
-        val connectorCount = connectorRegex.findAll(normalized).count().coerceAtMost(3)
-        multiScore += connectorCount
-
-        val sentenceLikeCount = normalized
-            .split(Regex("[,，。；;、\\n]+"))
-            .map { it.trim() }
-            .count { seg ->
-                seg.isNotBlank() &&
-                    (moneyUnitRegex.containsMatchIn(seg) ||
-                        actionAmountRegex.containsMatchIn(seg) ||
-                        actionWords.any { seg.contains(it) })
-            }
-        if (sentenceLikeCount >= 2) multiScore += 2
-
-        val hasIncome = listOf("收入", "收到", "到账", "退款到账", "报销到账", "工资").any { normalized.contains(it) }
-        val hasExpense = listOf("买", "花", "支付", "付款", "消费").any { normalized.contains(it) }
-        val hasTransferOrRepay = listOf("转账", "还款", "还卡").any { normalized.contains(it) }
-        if ((hasIncome && hasExpense) || (hasExpense && hasTransferOrRepay)) multiScore += 2
-
-        val assetNames = Prefs.getAssets(context).mapNotNull { it.name?.trim() }.filter { it.isNotBlank() }.distinct()
-        val mentionedAssetCount = assetNames.count { normalized.contains(it.lowercase(Locale.getDefault())) }
-        if (mentionedAssetCount >= 2) multiScore += 1
-
-        if (amountCount <= 1 && actionHitCount <= 1 && connectorCount == 0) multiScore -= 2
-        if (amountCount == 0 && actionHitCount == 0) multiScore -= 2
-        return multiScore >= 4
-    }
-
     fun buildBillSummary(bills: List<Bill>): String {
         return bills.joinToString("；") { bill ->
             val typeLabel = when (bill.type) {
