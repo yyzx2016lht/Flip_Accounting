@@ -15,7 +15,8 @@ object BillDisplayFormatter {
 
     fun normalizeCategoryDisplayName(categoryName: String): String {
         return categoryName
-            .replace(Regex("\\s*(/:::/|/::/|[>＞]|::|·|-)\\s*"), "-")
+            .replace(Regex("\\s*(/:::/|/::/|[>＞]|::|·|-)\\s*"), " - ")
+            .replace(Regex("\\s+"), " ")
             .trim()
     }
 

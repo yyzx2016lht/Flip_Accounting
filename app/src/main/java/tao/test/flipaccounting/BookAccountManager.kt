@@ -158,6 +158,7 @@ object BookAccountManager {
         val normalizedAvailable = (availableBooks ?: getBookAccounts(context)).map { normalizeBookName(it) }
         val selected = normalizeBookName(prefs(context).getString(KEY_SELECTED_BOOK, null))
         return when {
+            selected == ALL_BOOK -> ALL_BOOK
             normalizedAvailable.isEmpty() -> DEFAULT_BOOK
             normalizedAvailable.contains(selected) -> selected
             else -> normalizedAvailable.first().also { setSelectedBook(context, it) }

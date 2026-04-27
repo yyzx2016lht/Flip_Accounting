@@ -76,6 +76,7 @@ class BookOverviewActivity : AppCompatActivity() {
         btnPeriodNext = findViewById(R.id.btnPeriodNext)
         layoutCurrentPeriodTrigger = findViewById(R.id.layoutCurrentPeriodTrigger)
         val header: SecondaryPageHeaderView = findViewById(R.id.secondary_header)
+        header.viewModeSwitch.visibility = android.view.View.VISIBLE
         btnViewMonth = header.viewModeMonthBtn
         btnViewYear = header.viewModeYearBtn
         rvBookOverview = findViewById(R.id.rvBookOverview)

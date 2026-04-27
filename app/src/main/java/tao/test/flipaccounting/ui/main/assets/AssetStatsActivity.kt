@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -38,6 +39,7 @@ import com.github.mikephil.charting.listener.ChartTouchListener
 import com.github.mikephil.charting.listener.OnChartGestureListener
 import com.github.mikephil.charting.utils.MPPointD
 import com.github.mikephil.charting.utils.MPPointF
+import com.github.mikephil.charting.animation.Easing
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +73,8 @@ class AssetStatsActivity : AppCompatActivity() {
         private const val TAG_BAR = "AssetStatsBar"
         private const val INITIAL_BILL_LIST_SIZE = 50
         private const val BILL_LIST_STEP_SIZE = 200
+        private const val PIE_LOADING_MIN_MS = 140L
+        private const val PIE_ANIM_DURATION_MS = 560
 
         private data class AssetStatsCache(
             val asset: Asset,
@@ -148,7 +152,14 @@ class AssetStatsActivity : AppCompatActivity() {
     private var fullBillsLoadJob: Job? = null
     private var billListProgressJob: Job? = null
     private var pieRenderJob: Job? = null
+    private var billRenderToken: Long = 0L
+    private var pieRenderToken: Long = 0L
     private var pieChartHasRendered = false
+    private var pagedBillRows: List<Any> = emptyList()
+    private var pagedBillChunkEnds: List<Int> = emptyList()
+    private var pagedNextChunkIndex: Int = 0
+    private var pagedFilterKey: String = ""
+    private var pagedAppendInFlight: Boolean = false
     private val filteredBillsCache = mutableMapOf<String, List<Bill>>()
     private val billRowsCache = mutableMapOf<String, List<Any>>()
     private val pieRenderCache = mutableMapOf<String, PieRenderModel?>()
@@ -192,10 +203,16 @@ class AssetStatsActivity : AppCompatActivity() {
         val entries: List<PieEntry>,
         val sliceColors: List<Int>,
         val labelSize: Float,
-        val total: Double,
+        val labelByCategory: Map<String, String>,
         val rotation: Float,
-        val useOutsideLabel: Boolean,
-        val animate: Boolean
+        val useOutsideLabel: Boolean
+    )
+
+    private data class BillRenderPlan(
+        val initialBillCount: Int,
+        val stepBillCount: Int,
+        val chunkDelayMs: Long,
+        val firstRenderDelayMs: Long
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -304,6 +321,10 @@ class AssetStatsActivity : AppCompatActivity() {
             pieMode = ChartMode.INCOME
             updatePieToggleState()
             renderPieChartAsync(currentFilterCacheKey(), filteredBills())
+        }
+        nsvContent.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            if (scrollY <= oldScrollY) return@setOnScrollChangeListener
+            tryAppendNextBillChunkByScroll()
         }
     }
 
@@ -1047,44 +1068,116 @@ class AssetStatsActivity : AppCompatActivity() {
 
     private fun renderBillSectionsProgressively(filterKey: String, bills: List<Bill>) {
         billListProgressJob?.cancel()
+        resetBillPaginationState(filterKey)
         if (bills.isEmpty()) {
             billAdapter.replaceRows(emptyList())
             return
         }
+        val token = ++billRenderToken
         billListProgressJob = lifecycleScope.launch {
+            val plan = when {
+                bills.size >= 600 -> BillRenderPlan(
+                    initialBillCount = 12,
+                    stepBillCount = 40,
+                    chunkDelayMs = 92L,
+                    firstRenderDelayMs = PIE_ANIM_DURATION_MS.toLong() + 180L
+                )
+                bills.size >= 300 -> BillRenderPlan(
+                    initialBillCount = 18,
+                    stepBillCount = 70,
+                    chunkDelayMs = 76L,
+                    firstRenderDelayMs = PIE_ANIM_DURATION_MS.toLong() + 120L
+                )
+                bills.size >= 150 -> BillRenderPlan(
+                    initialBillCount = 16,
+                    stepBillCount = 48,
+                    chunkDelayMs = 78L,
+                    firstRenderDelayMs = PIE_ANIM_DURATION_MS.toLong() + 100L
+                )
+                else -> BillRenderPlan(
+                    initialBillCount = INITIAL_BILL_LIST_SIZE,
+                    stepBillCount = BILL_LIST_STEP_SIZE,
+                    chunkDelayMs = 48L,
+                    firstRenderDelayMs = 40L
+                )
+            }
             val allRows = billRowsCache[filterKey] ?: withContext(Dispatchers.Default) {
                 buildBillRows(bills)
             }.also { built ->
                 billRowsCache[filterKey] = built
             }
-            if (!isActive) return@launch
+            if (!isActive || token != billRenderToken) return@launch
             if (allRows.isEmpty()) {
                 billAdapter.replaceRows(emptyList())
                 return@launch
             }
             val chunkEnds = calculateRowChunkEnds(
                 rows = allRows,
-                initialBillCount = INITIAL_BILL_LIST_SIZE,
-                stepBillCount = BILL_LIST_STEP_SIZE
+                initialBillCount = plan.initialBillCount,
+                stepBillCount = plan.stepBillCount
             )
             if (chunkEnds.isEmpty()) {
                 billAdapter.replaceRows(allRows)
                 return@launch
             }
 
-            var previousEnd = 0
+            delay(plan.firstRenderDelayMs)
+            if (!isActive || token != billRenderToken) return@launch
             val firstEnd = chunkEnds.first()
             billAdapter.replaceRows(allRows.subList(0, firstEnd).toList())
-            previousEnd = firstEnd
-
-            for (end in chunkEnds.drop(1)) {
-                if (!isActive) break
-                delay(48L)
-                val chunk = allRows.subList(previousEnd, end)
-                billAdapter.appendRows(chunk)
-                previousEnd = end
-            }
+            pagedBillRows = allRows
+            pagedBillChunkEnds = chunkEnds
+            pagedNextChunkIndex = 1
+            pagedFilterKey = filterKey
+            pagedAppendInFlight = false
+            // If first page does not fill one screen, eagerly append once to avoid dead-end.
+            nsvContent.post { ensureBillListCanScrollOrFullyLoaded() }
         }
+    }
+
+    private fun resetBillPaginationState(filterKey: String) {
+        ++billRenderToken
+        pagedBillRows = emptyList()
+        pagedBillChunkEnds = emptyList()
+        pagedNextChunkIndex = 0
+        pagedFilterKey = filterKey
+        pagedAppendInFlight = false
+    }
+
+    private fun tryAppendNextBillChunkByScroll() {
+        if (pagedBillChunkEnds.isEmpty()) return
+        if (pagedNextChunkIndex >= pagedBillChunkEnds.size) return
+        if (pagedAppendInFlight) return
+        if (!nsvContent.canScrollVertically(1)) return
+        val child = nsvContent.getChildAt(0) ?: return
+        val preloadPx = (80f * resources.displayMetrics.density).roundToInt()
+        val reachedBottom =
+            (nsvContent.scrollY + nsvContent.height) >= (child.height - preloadPx)
+        if (!reachedBottom) return
+        appendNextBillChunk()
+    }
+
+    private fun appendNextBillChunk() {
+        if (pagedAppendInFlight) return
+        if (pagedNextChunkIndex >= pagedBillChunkEnds.size) return
+        val end = pagedBillChunkEnds[pagedNextChunkIndex]
+        val start = pagedBillChunkEnds[pagedNextChunkIndex - 1]
+        if (start >= end || end > pagedBillRows.size) {
+            pagedNextChunkIndex = pagedBillChunkEnds.size
+            return
+        }
+        pagedAppendInFlight = true
+        billAdapter.appendRows(pagedBillRows.subList(start, end))
+        pagedNextChunkIndex += 1
+        pagedAppendInFlight = false
+        nsvContent.post { ensureBillListCanScrollOrFullyLoaded() }
+    }
+
+    private fun ensureBillListCanScrollOrFullyLoaded() {
+        if (pagedAppendInFlight) return
+        if (pagedNextChunkIndex >= pagedBillChunkEnds.size) return
+        if (nsvContent.canScrollVertically(1)) return
+        appendNextBillChunk()
     }
 
     private fun renderSummary(bills: List<Bill>) {
@@ -1353,21 +1446,27 @@ class AssetStatsActivity : AppCompatActivity() {
 
     private fun renderPieChartAsync(filterKey: String, bills: List<Bill>) {
         pieRenderJob?.cancel()
+        val token = ++pieRenderToken
         val modeSnapshot = pieMode
         val cacheKey = "${filterKey}_${modeSnapshot.name}"
-        pieRenderCache[cacheKey]?.let { cached ->
-            applyPieChartModel(cached)
-            return
-        }
+        val loadingStartedAtMs = SystemClock.elapsedRealtime()
+        showPieLoadingState()
         pieRenderJob = lifecycleScope.launch {
-            // Give summary/bar/list one frame first to avoid first-frame contention.
-            delay(if (bills.size >= 220) 32L else 16L)
-            if (!isActive || modeSnapshot != pieMode) return@launch
-            val model = withContext(Dispatchers.Default) {
+            // 至少给 UI 一个帧周期，确保“加载中 -> 动画”过渡可见。
+            delay(18L)
+            if (!isActive || modeSnapshot != pieMode || token != pieRenderToken) return@launch
+            val model = pieRenderCache[cacheKey] ?: withContext(Dispatchers.Default) {
                 buildPieRenderModel(bills, modeSnapshot)
             }
-            if (!isActive || modeSnapshot != pieMode) return@launch
-            pieRenderCache[cacheKey] = model
+            if (!isActive || modeSnapshot != pieMode || token != pieRenderToken) return@launch
+            if (!pieRenderCache.containsKey(cacheKey)) {
+                pieRenderCache[cacheKey] = model
+            }
+            val elapsed = SystemClock.elapsedRealtime() - loadingStartedAtMs
+            if (elapsed < PIE_LOADING_MIN_MS) {
+                delay(PIE_LOADING_MIN_MS - elapsed)
+            }
+            if (!isActive || modeSnapshot != pieMode || token != pieRenderToken) return@launch
             applyPieChartModel(model)
         }
     }
@@ -1396,33 +1495,34 @@ class AssetStatsActivity : AppCompatActivity() {
         }.toMap()
         val entries = filteredStats.map { PieEntry(it.second.toFloat(), it.first) }
         val sliceColors = filteredStats.map { (name, _) -> colorByName[name] ?: piePalette[0] }
-        val isHeavy = bills.size >= 220 || filteredStats.size >= 12
+        val labelByCategory = filteredStats.associate { (name, amount) ->
+            val pct = (amount / total * 100.0)
+            name to "${name} ${String.format(Locale.getDefault(), "%.1f%%", pct)}"
+        }
         val useOutsideLabel = true
         val labelSize = when {
             filteredStats.size >= 12 -> 7.5f
             filteredStats.size >= 9 -> 8.0f
             else -> 9.0f
         }
+        val rotation = findBestInitialRotation(entries.map { it.value })
 
         return PieRenderModel(
             entries = entries,
             sliceColors = sliceColors,
             labelSize = labelSize,
-            total = total,
-            rotation = findBestInitialRotation(entries.map { it.value }),
-            useOutsideLabel = useOutsideLabel,
-            animate = !isHeavy
+            labelByCategory = labelByCategory,
+            rotation = rotation,
+            useOutsideLabel = useOutsideLabel
         )
     }
 
     private fun applyPieChartModel(model: PieRenderModel?) {
         if (model == null) {
-            pieChart.clear()
-            pieChart.invalidate()
+            showPieEmptyState()
             pieChartHasRendered = false
             return
         }
-        val total = model.total
         val dataSet = PieDataSet(model.entries, "").apply {
             colors = model.sliceColors
             xValuePosition = if (model.useOutsideLabel) {
@@ -1446,34 +1546,52 @@ class AssetStatsActivity : AppCompatActivity() {
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String = ""
                 override fun getPieLabel(value: Float, pieEntry: PieEntry): String {
-                    val pct = if (total > 0.0) (pieEntry.value / total.toFloat() * 100f) else 0f
-                    return "${pieEntry.label} ${String.format(Locale.getDefault(), "%.1f%%", pct)}"
+                    return model.labelByCategory[pieEntry.label] ?: pieEntry.label
                 }
             }
         }
 
-        pieChart.data = PieData(dataSet).apply { setDrawValues(true) }
+        val pieData = PieData(dataSet).apply { setDrawValues(false) }
+        pieChart.data = pieData
+        pieChart.data?.notifyDataChanged()
+        pieChart.notifyDataSetChanged()
+        pieChart.highlightValues(null)
         pieChart.centerText = ""
         pieChart.setDrawEntryLabels(false)
         pieChart.rotationAngle = model.rotation
         pieChart.clearAnimation()
         pieChart.animate().cancel()
-        if (!pieChartHasRendered) {
-            pieChart.alpha = 0f
-            pieChart.scaleX = 0.97f
-            pieChart.scaleY = 0.97f
-            pieChartHasRendered = true
-        } else {
-            pieChart.alpha = 0.94f
-            pieChart.scaleX = 0.985f
-            pieChart.scaleY = 0.985f
-        }
+        pieChart.isRotationEnabled = true
+        pieChartHasRendered = true
+        pieChart.alpha = 0f
         pieChart.animate()
             .alpha(1f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .setDuration(if (model.animate) 180L else 120L)
+            .setDuration(280L)
             .start()
+        pieChart.post {
+            pieChart.animateY(PIE_ANIM_DURATION_MS, Easing.EaseInOutCubic)
+            pieChart.postDelayed({
+                pieChart.data?.setDrawValues(true)
+                pieChart.data?.notifyDataChanged()
+                pieChart.notifyDataSetChanged()
+                pieChart.invalidate()
+            }, PIE_ANIM_DURATION_MS.toLong() + 16L)
+        }
+    }
+
+    private fun showPieLoadingState() {
+        pieChart.clearAnimation()
+        pieChart.animate().cancel()
+        pieChart.setNoDataText("数据加载中...")
+        pieChart.clear()
+        pieChart.invalidate()
+    }
+
+    private fun showPieEmptyState() {
+        pieChart.clearAnimation()
+        pieChart.animate().cancel()
+        pieChart.setNoDataText("暂无图表数据")
+        pieChart.clear()
         pieChart.invalidate()
     }
 

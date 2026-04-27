@@ -509,13 +509,13 @@ class CalendarActivity : AppCompatActivity() {
             tvDetail.setTextColor(Color.parseColor("#A1A8AF"))
             tvTime.setTextColor(Color.parseColor("#A1A8AF"))
         } else {
-            tvCategory.setTextColor(Color.parseColor("#333333"))
-            tvDetail.setTextColor(Color.parseColor("#999999"))
-            tvTime.setTextColor(Color.parseColor("#999999"))
+            tvCategory.setTextColor(Color.parseColor("#1A1A1A"))
+            tvDetail.setTextColor(Color.parseColor("#8A8A8E"))
+            tvTime.setTextColor(Color.parseColor("#8A8A8E"))
             when (bill.type) {
-                Bill.TYPE_EXPENSE -> tvAmount.setTextColor(Color.parseColor("#FF5252"))
+                Bill.TYPE_EXPENSE -> tvAmount.setTextColor(Color.parseColor("#FF3B30"))
                 Bill.TYPE_INCOME -> tvAmount.setTextColor(Color.parseColor("#4CAF50"))
-                else -> tvAmount.setTextColor(Color.parseColor("#757575"))
+                else -> tvAmount.setTextColor(Color.parseColor("#5F6772"))
             }
         }
 
@@ -727,7 +727,7 @@ class CalendarActivity : AppCompatActivity() {
             tvAmountLabel.text = "金额"
             layoutCategory.visibility = View.VISIBLE
             lineCategory.visibility = View.VISIBLE
-            tvCategory.text = bill.categoryName
+            tvCategory.text = BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifEmpty { "未分类" }
 
             if (isRefund) {
                 tvAmount.text = formatMoney(bill.amount, bill.currency)
@@ -920,7 +920,7 @@ class CalendarActivity : AppCompatActivity() {
 
         val sourceOriginalAmount = originalAmountOfExpenseBill(originalBill)
         tvOrigAmount.text = formatMoney(sourceOriginalAmount, originalBill.currency)
-        tvOrigCategory.text = stripRefundPrefix(originalBill.categoryName)
+        tvOrigCategory.text = BillDisplayFormatter.formatCategoryByPreference(originalBill.categoryName, true).ifEmpty { "未分类" }
 
         val defaultRefundAmount = editingRefund?.amount ?: originalBill.amount
         etRefundAmount.setText(String.format(Locale.getDefault(), "%.2f", defaultRefundAmount))

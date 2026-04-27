@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -58,7 +58,10 @@
             android:name=".OverlayService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="microphone|specialUse" />
+            android:foregroundServiceType="microphone|specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                      android:value="flip_sensor_detection" />
+        </service>
 
         <service
             android:name=".QuickStartTileService"
@@ -130,7 +133,7 @@
         <activity android:name=".ui.FlipSensitivityActivity" android:label="灵敏度调节" />
     <activity android:name=".ui.activity.EditBillActivity" android:label="编辑账单" android:theme="@style/Theme.FlipAccounting.Transparent" />
     <activity android:name=".ui.main.home.CalendarActivity" android:label="日历账单" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
-    <activity android:name=".ui.main.home.BillSearchActivity" android:label="搜索账单" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
+    <activity android:name=".ui.main.home.BillSearchActivity" android:label="搜索账单" android:windowSoftInputMode="stateVisible|adjustResize" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
     <activity android:name=".ui.activity.BookOverviewActivity" android:label="账本总览" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"

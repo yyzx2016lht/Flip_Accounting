@@ -2,6 +2,7 @@ package tao.test.flipaccounting.ui.main.assets
 
 import android.content.Intent
 import android.graphics.Color
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.EditText
@@ -46,6 +47,11 @@ internal class AssetBillDetailSheetController(
     private val buildAssetDetailFormula: (Bill, Long) -> String?,
     private val onDataChanged: () -> Unit = {}
 ) {
+    private var activeDetailSheet: BottomSheetDialog? = null
+    private var lastDetailBillId: Long = -1L
+    private var lastDetailShowAtMs: Long = 0L
+    private val detailShowDebounceMs: Long = 500L
+
     private val layoutInflater: LayoutInflater
         get() = activity.layoutInflater
 
@@ -103,14 +109,14 @@ internal class AssetBillDetailSheetController(
             tvTime.setTextColor(Color.parseColor("#A1A8AF"))
             tvAsset.setTextColor(Color.parseColor("#A1A8AF"))
         } else {
-            tvCategory.setTextColor(Color.parseColor("#333333"))
-            tvDetail.setTextColor(Color.parseColor("#999999"))
-            tvTime.setTextColor(Color.parseColor("#999999"))
-            tvAsset.setTextColor(Color.parseColor("#999999"))
+            tvCategory.setTextColor(Color.parseColor("#1A1A1A"))
+            tvDetail.setTextColor(Color.parseColor("#8A8A8E"))
+            tvTime.setTextColor(Color.parseColor("#8A8A8E"))
+            tvAsset.setTextColor(Color.parseColor("#8A8A8E"))
             when (bill.type) {
-                Bill.TYPE_EXPENSE -> tvAmount.setTextColor(Color.parseColor("#C62828"))
+                Bill.TYPE_EXPENSE -> tvAmount.setTextColor(Color.parseColor("#FF3B30"))
                 Bill.TYPE_INCOME -> tvAmount.setTextColor(Color.parseColor("#4CAF50"))
-                else -> tvAmount.setTextColor(Color.parseColor("#757575"))
+                else -> tvAmount.setTextColor(Color.parseColor("#5F6772"))
             }
         }
 
@@ -174,7 +180,7 @@ internal class AssetBillDetailSheetController(
             val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
             val iconTint = when {
                 forceGrayStyle || isRefund -> Color.parseColor("#8E98A3")
-                bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#C62828")
+                bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#FF3B30")
                 bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
                 else -> Color.parseColor("#9E9E9E")
             }
@@ -246,7 +252,21 @@ internal class AssetBillDetailSheetController(
     }
 
     fun showBillDetailSheet(bill: Bill, displayAssetId: Long = detailOwnerAssetId(bill)) {
+        val now = SystemClock.elapsedRealtime()
+        if (activeDetailSheet?.isShowing == true) {
+            if (lastDetailBillId == bill.id) {
+                return
+            }
+            activeDetailSheet?.dismiss()
+        }
+        if (lastDetailBillId == bill.id && now - lastDetailShowAtMs < detailShowDebounceMs) {
+            return
+        }
+        lastDetailBillId = bill.id
+        lastDetailShowAtMs = now
+
         val bottomSheet = BottomSheetDialog(activity)
+        activeDetailSheet = bottomSheet
         val view = layoutInflater.inflate(R.layout.layout_bill_detail_bottom_sheet, null)
         val assetCurrency = getCurrentAssetCurrency() ?: bill.currency
         val symbol = CurrencyManager.getSymbol(assetCurrency)
@@ -350,7 +370,8 @@ internal class AssetBillDetailSheetController(
 
             layoutCategory.visibility = View.VISIBLE
             lineCategory.visibility = View.VISIBLE
-            view.findViewById<TextView>(R.id.tv_detail_category).text = bill.categoryName
+            view.findViewById<TextView>(R.id.tv_detail_category).text =
+                BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { "未分类" }
 
             layoutFeeDetail.visibility = View.GONE
             lineFeeDetail.visibility = View.GONE
@@ -482,6 +503,11 @@ internal class AssetBillDetailSheetController(
 
         bottomSheet.setContentView(view)
         configureDetailBottomSheet(bottomSheet)
+        bottomSheet.setOnDismissListener {
+            if (activeDetailSheet === bottomSheet) {
+                activeDetailSheet = null
+            }
+        }
         bottomSheet.show()
     }
 
@@ -546,7 +572,7 @@ internal class AssetBillDetailSheetController(
         tvTitle.text = if (editingRefund == null) "退款" else "编辑退款"
         val sourceOriginalAmount = baseOriginalAmount(originalBill)
         tvOrigAmount.text = BillDisplayFormatter.formatMoney(sourceOriginalAmount, originalBill.currency)
-        tvOrigCategory.text = BillDisplayFormatter.stripRefundPrefix(originalBill.categoryName)
+        tvOrigCategory.text = BillDisplayFormatter.formatCategoryByPreference(originalBill.categoryName, true).ifBlank { "未分类" }
 
         val defaultRefundAmount = editingRefund?.amount ?: originalBill.amount
         etRefundAmount.setText(String.format(Locale.getDefault(), "%.2f", defaultRefundAmount))

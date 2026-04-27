@@ -58,7 +58,8 @@
                 android:layout_height="32dp"
                 android:background="@drawable/bg_segmented_container"
                 android:orientation="horizontal"
-                android:padding="2dp">
+                android:padding="2dp"
+                android:visibility="gone">
 
                 <TextView
                     android:id="@+id/btn_view_mode_month"

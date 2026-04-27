@@ -1,9 +1,9 @@
 package tao.test.flipaccounting.ui.main.home
 
-import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.inputmethod.InputMethodManager
 import android.view.View
 import android.widget.EditText
 import android.widget.TextView
@@ -21,7 +21,7 @@ import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillDisplayFormatter
-import tao.test.flipaccounting.ui.activity.EditBillActivity
+import tao.test.flipaccounting.ui.main.stats.BillDetailBottomSheet
 import java.util.Locale
 
 class BillSearchActivity : AppCompatActivity() {
@@ -61,9 +61,12 @@ class BillSearchActivity : AppCompatActivity() {
         rvResults.adapter = adapter
 
         adapter.onBillItemClick = { bill ->
-            startActivity(Intent(this, EditBillActivity::class.java).apply {
-                putExtra("BILL_ID", bill.id)
-            })
+            if (!isFinishing && !supportFragmentManager.isStateSaved) {
+                BillDetailBottomSheet(bill).show(
+                    supportFragmentManager,
+                    "bill_detail_${bill.id}_${System.currentTimeMillis()}"
+                )
+            }
         }
         adapter.detailSuffixProvider = { bill ->
             if (sourceBookName == BookAccountManager.ALL_BOOK) {
@@ -93,6 +96,12 @@ class BillSearchActivity : AppCompatActivity() {
         })
 
         loadAllBills()
+
+        etSearch.post {
+            etSearch.requestFocus()
+            val imm = getSystemService(InputMethodManager::class.java)
+            imm?.showSoftInput(etSearch, InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     private fun loadAllBills() {

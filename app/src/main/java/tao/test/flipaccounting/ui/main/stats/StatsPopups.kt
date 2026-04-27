@@ -559,7 +559,8 @@ class BillDetailBottomSheet(
         amountFormula.visibility = View.GONE
 
         root.findViewById<TextView>(R.id.tv_title).text = "详情"
-        root.findViewById<TextView>(R.id.tv_detail_category).text = bill.categoryName
+        root.findViewById<TextView>(R.id.tv_detail_category).text =
+            BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { "未分类" }
         root.findViewById<TextView>(R.id.tv_detail_account).text =
             if (isTransfer && bill.toAccountName.isNotBlank()) {
                 "${bill.accountName} -> ${bill.toAccountName}"

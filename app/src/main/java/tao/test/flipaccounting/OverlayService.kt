@@ -1,4 +1,4 @@
-﻿package tao.test.flipaccounting
+package tao.test.flipaccounting
 
 import android.app.*
 import android.content.BroadcastReceiver
@@ -255,12 +255,24 @@ class OverlayService : Service() {
     }
 
     private fun startForegroundCompat() {
+        val notification = buildNotification("记账助手正在后台运行")
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val type = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                startForeground(NOTIF_ID, buildNotification("记账助手正在后台运行"), type)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Android 14+：显式声明为 specialUse，避免系统回退到 manifest 全量类型导致权限校验异常。
+                startForeground(
+                    NOTIF_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
             } else {
-                startForeground(NOTIF_ID, buildNotification("记账助手正在后台运行"))
+                startForeground(NOTIF_ID, notification)
+            }
+        } catch (se: SecurityException) {
+            Logger.d(this, "OverlayService", "startForeground security fallback: ${se.message}")
+            try {
+                startForeground(NOTIF_ID, notification)
+            } catch (fallbackError: Exception) {
+                Logger.d(this, "OverlayService", "🚨 startForeground fallback Error: ${fallbackError.message}")
             }
         } catch (e: Exception) {
             Logger.d(this, "OverlayService", "🚨 startForeground Error: ${e.message}")
