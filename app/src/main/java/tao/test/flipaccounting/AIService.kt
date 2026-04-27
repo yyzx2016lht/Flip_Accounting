@@ -398,7 +398,7 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
                  "- 已预设字段会在后续本地规则中补全或校正，AI 本轮重点只需要抽取金额、时间、备注、币种、手续费等基础信息。\n" +
                  "- 如果分类或账户拿不准，可以留空，不要为了凑字段勉强猜测。\n"
         }
-        p += "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name。Do not return markdown or extra explanation.\n"
+        p += "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name、target_amount、target_currency（仅在用户明确提到到账金额时输出）。Do not return markdown or extra explanation.\n"
 
         val promptExpenseCats = if (!isMultiMode && !localPrefill?.category.isNullOrBlank()) emptyList() else expenseCats
         val promptIncomeCats = if (!isMultiMode && !localPrefill?.category.isNullOrBlank()) emptyList() else incomeCats

@@ -64,6 +64,10 @@ object AIPrompts {
 5. currency 必须输出大写币种代码；未提及时默认 CNY。
 6. time 必须输出 yyyy-MM-dd HH:mm:ss；未提及时结合 {{TIME}} 理解。
 7. 严禁输出 Markdown、解释、代码块、前后缀文本。
+8. 跨币种转账时，若用户明确给出“到账/收到/入账”金额，必须额外输出：
+   - target_amount（到账金额，数字）
+   - target_currency（到账币种，3位大写代码）
+   若用户未明确给出到账金额，不要臆造这两个字段。
 
 【输出格式】
 {"amount":0.0,"type":0,"asset_name":"","category_name":"","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY","to_asset_name":"","fee":0.0}
@@ -91,6 +95,10 @@ object AIPrompts {
 6. time 必须输出 yyyy-MM-dd HH:mm:ss；同段多条账单可按 1 秒递增。
 7. currency 必须输出大写币种代码；未提及时默认 CNY。
 8. 严禁输出 Markdown、解释、代码块、前后缀文本。
+9. 跨币种转账时，若某条账单用户明确给出“到账/收到/入账”金额，该条必须额外输出：
+   - target_amount（到账金额，数字）
+   - target_currency（到账币种，3位大写代码）
+   若未明确给出到账金额，不要臆造这两个字段。
 
 【输出格式】
 {"bills":[{"amount":0.0,"type":0,"asset_name":"","category_name":"","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY","to_asset_name":"","fee":0.0}]}

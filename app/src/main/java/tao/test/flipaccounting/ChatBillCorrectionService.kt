@@ -27,6 +27,11 @@ class ChatBillCorrectionService(
     private val parseTimeToMillis: (String) -> Long,
     private val buildBillMessageContent: (List<Bill>, Set<Long>) -> String
 ) {
+    private data class TransferSettlementHint(
+        val amount: Double,
+        val currency: String?
+    )
+
     fun decideSingleOrMultiForChat(text: String): Boolean {
         val normalized = text
             .removePrefix("[图片OCR文本]: ")
@@ -93,7 +98,58 @@ class ChatBillCorrectionService(
         }
     }
 
-    suspend fun processBillResult(result: JSONObject, _userText: String): List<Bill> {
+    private fun parsePositiveDouble(raw: Any?): Double? {
+        return when (raw) {
+            is Number -> raw.toDouble().takeIf { it > 0.0 }
+            is String -> raw.trim().takeIf { it.isNotBlank() }?.toDoubleOrNull()?.takeIf { it > 0.0 }
+            else -> null
+        }
+    }
+
+    private fun normalizeCurrencyCode(raw: String?): String? {
+        val cleaned = raw?.trim()?.uppercase(Locale.ROOT).orEmpty()
+        if (cleaned.isBlank()) return null
+        return when (cleaned) {
+            "人民币", "元", "块", "块钱", "RMB" -> "CNY"
+            "欧元" -> "EUR"
+            "美元" -> "USD"
+            "兹罗提", "兹羅提" -> "PLN"
+            else -> cleaned
+        }
+    }
+
+    private fun readTransferTargetAmountFromJson(billJson: JSONObject): Double? {
+        val keys = listOf("target_amount", "received_amount", "to_amount", "arrival_amount", "in_amount")
+        keys.forEach { key ->
+            if (!billJson.has(key)) return@forEach
+            parsePositiveDouble(billJson.opt(key))?.let { return it }
+        }
+        return null
+    }
+
+    private fun readTransferTargetCurrencyFromJson(billJson: JSONObject): String? {
+        val keys = listOf("target_currency", "received_currency", "to_currency", "arrival_currency", "in_currency")
+        keys.forEach { key ->
+            if (!billJson.has(key)) return@forEach
+            normalizeCurrencyCode(billJson.optString(key, ""))?.let { return it }
+        }
+        return null
+    }
+
+    private fun extractSingleTransferSettlementHint(userText: String): TransferSettlementHint? {
+        if (userText.isBlank()) return null
+        val pattern = Regex(
+            "(到账|入账|到手|实际到账|实到|收到)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([A-Za-z]{3}|人民币|元|块钱|块|RMB|CNY|PLN|USD|EUR|欧元|美元|兹罗提|兹羅提)?",
+            RegexOption.IGNORE_CASE
+        )
+        val match = pattern.find(userText) ?: return null
+        val amount = match.groupValues.getOrNull(2)?.toDoubleOrNull() ?: return null
+        if (amount <= 0.0) return null
+        val currency = normalizeCurrencyCode(match.groupValues.getOrNull(3))
+        return TransferSettlementHint(amount = amount, currency = currency)
+    }
+
+    suspend fun processBillResult(result: JSONObject, userText: String): List<Bill> {
         val rawBills = mutableListOf<JSONObject>()
         when {
             result.has("bills") -> {
@@ -117,6 +173,11 @@ class ChatBillCorrectionService(
             getCurrentBookName().ifBlank { BookAccountManager.getSelectedBook(context) }
         )
         setCurrentBookName(activeBookName)
+        val singleTransferSettlementHint = if (rawBills.size == 1) {
+            extractSingleTransferSettlementHint(userText)
+        } else {
+            null
+        }
 
         withContext(Dispatchers.IO) {
             for (billJson in rawBills) {
@@ -131,7 +192,7 @@ class ChatBillCorrectionService(
                 val toAssetName = billJson.optString("to_asset_name", "")
                 val amount = billJson.optDouble("amount", 0.0)
                 val remark = billJson.optString("remarks", billJson.optString("remark", ""))
-                val currency = billJson.optString("currency", "CNY")
+                val currency = billJson.optString("currency", "CNY").ifBlank { "CNY" }
                 val fee = billJson.optDouble("fee", 0.0).coerceAtLeast(0.0)
 
                 val categoryEntity = CategoryRepository(db.categoryDao()).findCategoryByDisplayName(
@@ -140,7 +201,28 @@ class ChatBillCorrectionService(
                 )
                 val assetEntity = if (assetName.isNotEmpty()) db.assetDao().getAssetByName(assetName) else null
                 val toAssetEntity = if (toAssetName.isNotEmpty()) db.assetDao().getAssetByName(toAssetName) else null
+                val explicitTargetAmount = readTransferTargetAmountFromJson(billJson)
+                    ?: if (finalType == Bill.TYPE_TRANSFER) singleTransferSettlementHint?.amount else null
+                val explicitTargetCurrency = readTransferTargetCurrencyFromJson(billJson)
+                    ?: if (finalType == Bill.TYPE_TRANSFER) singleTransferSettlementHint?.currency else null
+                val explicitTransferRate = if (
+                    finalType == Bill.TYPE_TRANSFER &&
+                    toAssetEntity != null &&
+                    amount > 0.0 &&
+                    explicitTargetAmount != null &&
+                    explicitTargetAmount > 0.0
+                ) {
+                    val targetCurrency = explicitTargetCurrency ?: toAssetEntity.currency
+                    if (targetCurrency.equals(toAssetEntity.currency, ignoreCase = true)) {
+                        BillAssetImpactService.roundRate(explicitTargetAmount / amount)
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
                 val exchangeRate = when {
+                    explicitTransferRate != null -> explicitTransferRate
                     finalType == Bill.TYPE_TRANSFER && toAssetEntity != null && amount > 0.0 ->
                         BillAssetImpactService.estimateExchangeRateToTarget(amount, currency, toAssetEntity.currency)
                     currency.equals("CNY", ignoreCase = true) -> 1.0
