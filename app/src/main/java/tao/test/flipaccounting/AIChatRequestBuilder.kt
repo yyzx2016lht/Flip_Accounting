@@ -9,7 +9,8 @@ internal fun buildTextChatRequest(
     systemPrompt: String? = null,
     userText: String,
     jsonObjectResponse: Boolean = false,
-    stream: Boolean = false
+    stream: Boolean = false,
+    enableThinking: Boolean = false
 ): JsonObject {
     val messages = JsonArray().apply {
         systemPrompt?.let { add(buildTextMessage("system", it)) }
@@ -20,7 +21,8 @@ internal fun buildTextChatRequest(
         temperature = temperature,
         messages = messages,
         jsonObjectResponse = jsonObjectResponse,
-        stream = stream
+        stream = stream,
+        enableThinking = enableThinking
     )
 }
 
@@ -30,7 +32,8 @@ internal fun buildAudioChatRequest(
     systemPrompt: String? = null,
     leadText: String,
     audioBase64: String,
-    audioFormat: String
+    audioFormat: String,
+    enableThinking: Boolean = false
 ): JsonObject {
     val messages = JsonArray().apply {
         systemPrompt?.let { add(buildTextMessage("system", it)) }
@@ -47,7 +50,8 @@ internal fun buildAudioChatRequest(
     return buildChatRequest(
         model = model,
         temperature = temperature,
-        messages = messages
+        messages = messages,
+        enableThinking = enableThinking
     )
 }
 
@@ -56,7 +60,8 @@ internal fun buildVisionChatRequest(
     temperature: Double,
     systemPrompt: String? = null,
     dataUrl: String,
-    userText: String
+    userText: String,
+    enableThinking: Boolean = false
 ): JsonObject {
     val messages = JsonArray().apply {
         systemPrompt?.let { add(buildTextMessage("system", it)) }
@@ -73,7 +78,8 @@ internal fun buildVisionChatRequest(
     return buildChatRequest(
         model = model,
         temperature = temperature,
-        messages = messages
+        messages = messages,
+        enableThinking = enableThinking
     )
 }
 
@@ -82,12 +88,15 @@ private fun buildChatRequest(
     temperature: Double,
     messages: JsonArray,
     jsonObjectResponse: Boolean = false,
-    stream: Boolean = false
+    stream: Boolean = false,
+    enableThinking: Boolean = false
 ): JsonObject {
     return JsonObject().apply {
         addProperty("model", model)
         addProperty("temperature", temperature)
-        addProperty("enable_thinking", false)
+        // Some providers treat a missing thinking flag as provider-default behavior.
+        // Always send the boolean explicitly so "off" really means off.
+        addProperty("enable_thinking", enableThinking)
         if (stream) addProperty("stream", true)
         add("messages", messages)
         if (jsonObjectResponse) {

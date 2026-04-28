@@ -10,6 +10,7 @@ object PrefsAiSupport {
     private const val KEY_AI_MODEL = "ai_model_id"
     private const val KEY_AI_SINGLE_MODEL = "ai_single_model_id"
     private const val KEY_AI_MULTI_MODEL = "ai_multi_model_id"
+    private const val KEY_AI_MODIFY_MODEL = "ai_modify_model_id"
     private const val KEY_AI_CATEGORY_REFINE_MODEL = "ai_category_refine_model_id"
     private const val KEY_AI_ROUTER_MODEL = "ai_router_model_id"
     private const val KEY_AI_RULE_MODEL = "ai_rule_model_id"
@@ -30,6 +31,11 @@ object PrefsAiSupport {
     private const val KEY_AI_RECEIPT_OCR_REFINE_MODEL = "ai_receipt_ocr_refine_model_id"
     private const val KEY_RECEIPT_OCR_REFINE_PROMPT = "receipt_ocr_refine_prompt"
     private const val KEY_AI_SPEECH_MODEL = "ai_speech_model_id"
+    private const val KEY_AI_ENABLE_THINKING = "ai_enable_thinking"
+    private const val KEY_AI_THINKING_SINGLE_BILL = "ai_thinking_single_bill"
+    private const val KEY_AI_THINKING_MULTI_BILL = "ai_thinking_multi_bill"
+    private const val KEY_AI_THINKING_MODIFY_BILL = "ai_thinking_modify_bill"
+    private const val KEY_AI_THINKING_VISION = "ai_thinking_vision"
     private const val KEY_AI_RULES = "ai_rules_v1"
     private const val KEY_OCR_DEBUG_RECORDS = "ocr_debug_records_v1"
     private const val OCR_DEBUG_MAX_RECORDS = 20
@@ -54,6 +60,11 @@ object PrefsAiSupport {
         prefs(ctx).getString(KEY_AI_MULTI_MODEL, "") ?: getAiModel(ctx)
     fun setAiMultiModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_MULTI_MODEL, value).apply()
+
+    fun getAiModifyModel(ctx: Context): String =
+        (prefs(ctx).getString(KEY_AI_MODIFY_MODEL, "") ?: "").ifBlank { getAiSingleModel(ctx) }
+    fun setAiModifyModel(ctx: Context, value: String) =
+        prefs(ctx).edit().putString(KEY_AI_MODIFY_MODEL, value).apply()
 
     fun getAiCategoryRefineModel(ctx: Context): String =
         (prefs(ctx).getString(KEY_AI_CATEGORY_REFINE_MODEL, "") ?: "").trim()
@@ -113,6 +124,31 @@ object PrefsAiSupport {
     fun setAiSpeechModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_SPEECH_MODEL, value).apply()
 
+    fun getAiEnableThinking(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_ENABLE_THINKING, false)
+    fun setAiEnableThinking(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_ENABLE_THINKING, enabled).apply()
+
+    fun isAiThinkingSingleBillEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_THINKING_SINGLE_BILL, false)
+    fun setAiThinkingSingleBillEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_THINKING_SINGLE_BILL, enabled).apply()
+
+    fun isAiThinkingMultiBillEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_THINKING_MULTI_BILL, false)
+    fun setAiThinkingMultiBillEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_THINKING_MULTI_BILL, enabled).apply()
+
+    fun isAiThinkingModifyBillEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_THINKING_MODIFY_BILL, false)
+    fun setAiThinkingModifyBillEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_THINKING_MODIFY_BILL, enabled).apply()
+
+    fun isAiThinkingVisionEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_THINKING_VISION, true)
+    fun setAiThinkingVisionEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_THINKING_VISION, enabled).apply()
+
     fun getAiModelsCache(ctx: Context): List<String> =
         (prefs(ctx).getStringSet(KEY_AI_MODELS_CACHE, null) ?: emptySet()).toList()
     fun setAiModelsCache(ctx: Context, models: List<String>) =
@@ -138,6 +174,10 @@ object PrefsAiSupport {
     fun getAiPrompt(ctx: Context): String = prefs(ctx).getString(KEY_AI_PROMPT, "") ?: ""
     fun setAiPrompt(ctx: Context, prompt: String) =
         prefs(ctx).edit().putString(KEY_AI_PROMPT, prompt).apply()
+
+    fun getModifyBillPrompt(ctx: Context): String = prefs(ctx).getString("modify_bill_prompt", "") ?: ""
+    fun setModifyBillPrompt(ctx: Context, prompt: String) =
+        prefs(ctx).edit().putString("modify_bill_prompt", prompt).apply()
 
     fun getMultiBillPrompt(ctx: Context): String =
         prefs(ctx).getString(KEY_MULTI_BILL_PROMPT, "") ?: ""

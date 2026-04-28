@@ -84,27 +84,49 @@
 
         <!-- 加载中动画 -->
         <LinearLayout
-            android:id="@+id/layout_ai_loading"
+            android:id="@+id/layout_ai_loading_row"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/bg_chat_bubble_ai"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
+            android:gravity="top"
             android:visibility="gone">
-            <ProgressBar
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:indeterminateTint="#999999"
-                android:layout_marginEnd="8dp"/>
-            <TextView
-                android:id="@+id/tv_ai_loading_text"
+
+            <LinearLayout
+                android:id="@+id/layout_ai_loading"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="正在思考..."
-                android:textSize="13sp"
-                android:textColor="#999999" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_chat_bubble_ai"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="10dp">
+                <ProgressBar
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:indeterminateTint="#999999"
+                    android:layout_marginEnd="8dp"/>
+                <TextView
+                    android:id="@+id/tv_ai_loading_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="正在思考..."
+                    android:textSize="13sp"
+                    android:textColor="#999999" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/iv_ai_interrupt"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="4dp"
+                android:padding="5dp"
+                android:src="@drawable/ic_close_small"
+                android:background="@drawable/bg_chat_interrupt_btn"
+                android:contentDescription="中断生成"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless" />
         </LinearLayout>
 
     </LinearLayout>

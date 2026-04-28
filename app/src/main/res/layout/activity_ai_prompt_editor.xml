@@ -106,6 +106,21 @@
                         app:chipMinHeight="36dp" />
 
                     <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_modify_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:checkable="true"
+                        android:gravity="center"
+                        android:text="修改账单"
+                        android:textAlignment="center"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
                         android:id="@+id/btn_receipt_prompt"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="0dp"
@@ -247,6 +262,22 @@
                         android:fadeScrollbars="false"
                         android:gravity="top"
                         android:hint="多账单模式默认提示词..."
+                        android:maxLines="8"
+                        android:minLines="5"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:textColor="#444444"
+                        android:textSize="@dimen/text_size_13"
+                        android:visibility="gone" />
+
+                    <EditText
+                        android:id="@+id/et_modify_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_search_box"
+                        android:fadeScrollbars="false"
+                        android:gravity="top"
+                        android:hint="修改账单模式默认提示词..."
                         android:maxLines="8"
                         android:minLines="5"
                         android:padding="12dp"

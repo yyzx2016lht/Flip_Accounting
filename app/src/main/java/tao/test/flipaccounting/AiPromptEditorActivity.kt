@@ -16,6 +16,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
     private lateinit var etSingle: EditText
     private lateinit var etMulti: EditText
+    private lateinit var etModify: EditText
     private lateinit var etRule: EditText
     private lateinit var etReceipt: EditText
     private lateinit var etReceiptVision: EditText
@@ -24,6 +25,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
     private lateinit var btnSingle: Chip
     private lateinit var btnMulti: Chip
+    private lateinit var btnModify: Chip
     private lateinit var btnRule: Chip
     private lateinit var btnReceipt: Chip
     private lateinit var btnReceiptVision: Chip
@@ -44,6 +46,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
         etSingle = findViewById(R.id.et_custom_prompt)
         etMulti = findViewById(R.id.et_multi_prompt)
+        etModify = findViewById(R.id.et_modify_prompt)
         etRule = findViewById(R.id.et_rule_prompt)
         etReceipt = findViewById(R.id.et_receipt_prompt)
         etReceiptVision = findViewById(R.id.et_receipt_vision_prompt)
@@ -52,6 +55,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
         btnSingle = findViewById(R.id.btn_single_prompt)
         btnMulti = findViewById(R.id.btn_multi_prompt)
+        btnModify = findViewById(R.id.btn_modify_prompt)
         btnRule = findViewById(R.id.btn_rule_prompt)
         btnReceipt = findViewById(R.id.btn_receipt_prompt)
         btnReceiptVision = findViewById(R.id.btn_receipt_vision_prompt)
@@ -72,6 +76,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
         etSingle.setText(Prefs.getAiPrompt(this).ifBlank { AIService.getDefaultSingleBillPrompt(this) })
         etMulti.setText(Prefs.getMultiBillPrompt(this).ifBlank { AIService.getDefaultMultiBillPrompt(this) })
+        etModify.setText(Prefs.getModifyBillPrompt(this).ifBlank { AIService.MODIFY_BILL_PROMPT_DEFAULT })
         etRule.setText(Prefs.getRulePrompt(this).ifBlank { AIService.RULE_EXTRACT_PROMPT_DEFAULT })
         etReceipt.setText(Prefs.getReceiptBillPrompt(this).ifBlank { AIService.RECEIPT_BILL_PROMPT })
         etReceiptVision.setText(Prefs.getReceiptVisionPrompt(this).ifBlank { AIService.RECEIPT_VISION_RETRY_PROMPT_DEFAULT })
@@ -84,6 +89,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
             val promptEnabled = isEditMode && modeHasPrompt(currentMode)
             etSingle.isEnabled = isEditMode
             etMulti.isEnabled = isEditMode
+            etModify.isEnabled = isEditMode
             etRule.isEnabled = isEditMode
             etReceipt.isEnabled = isEditMode
             etReceiptVision.isEnabled = isEditMode
@@ -93,6 +99,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
             val alpha = if (promptEnabled) 1.0f else 0.7f
             etSingle.alpha = alpha
             etMulti.alpha = alpha
+            etModify.alpha = alpha
             etRule.alpha = alpha
             etReceipt.alpha = alpha
             etReceiptVision.alpha = alpha
@@ -110,6 +117,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
         fun updateUI() {
             etSingle.visibility = if (currentMode == "single") View.VISIBLE else View.GONE
             etMulti.visibility = if (currentMode == "multi") View.VISIBLE else View.GONE
+            etModify.visibility = if (currentMode == "modify") View.VISIBLE else View.GONE
             etRule.visibility = if (currentMode == "rule") View.VISIBLE else View.GONE
             etReceipt.visibility = if (currentMode == "receipt") View.VISIBLE else View.GONE
             etReceiptVision.visibility = if (currentMode == "receipt_vision") View.VISIBLE else View.GONE
@@ -119,6 +127,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
             btnSingle.isChecked = currentMode == "single"
             btnMulti.isChecked = currentMode == "multi"
+            btnModify.isChecked = currentMode == "modify"
             btnRule.isChecked = currentMode == "rule"
             btnReceipt.isChecked = currentMode == "receipt"
             btnReceiptVision.isChecked = currentMode == "receipt_vision"
@@ -141,6 +150,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
         }
         etSingle.setOnTouchListener(touchListener)
         etMulti.setOnTouchListener(touchListener)
+        etModify.setOnTouchListener(touchListener)
         etRule.setOnTouchListener(touchListener)
         etReceipt.setOnTouchListener(touchListener)
         etReceiptVision.setOnTouchListener(touchListener)
@@ -158,6 +168,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
             val maxLines = if (isExpanded) 100 else 8
             etSingle.maxLines = maxLines
             etMulti.maxLines = maxLines
+            etModify.maxLines = maxLines
             etRule.maxLines = maxLines
             etReceipt.maxLines = maxLines
             etReceiptVision.maxLines = maxLines
@@ -168,6 +179,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
         btnSingle.setOnClickListener { switchMode("single") }
         btnMulti.setOnClickListener { switchMode("multi") }
+        btnModify.setOnClickListener { switchMode("modify") }
         btnRule.setOnClickListener { switchMode("rule") }
         btnReceipt.setOnClickListener { switchMode("receipt") }
         btnReceiptVision.setOnClickListener { switchMode("receipt_vision") }
@@ -178,6 +190,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
             when (currentMode) {
                 "single" -> etSingle.setText(AIService.getDefaultSingleBillPrompt(this))
                 "multi" -> etMulti.setText(AIService.getDefaultMultiBillPrompt(this))
+                "modify" -> etModify.setText(AIService.MODIFY_BILL_PROMPT_DEFAULT)
                 "rule" -> etRule.setText(AIService.RULE_EXTRACT_PROMPT_DEFAULT)
                 "receipt" -> etReceipt.setText(AIService.RECEIPT_BILL_PROMPT)
                 "receipt_vision" -> etReceiptVision.setText(AIService.RECEIPT_VISION_RETRY_PROMPT_DEFAULT)
@@ -190,6 +203,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
         btnSavePrompt.setOnClickListener {
             val singleText = etSingle.text.toString().trim()
             val multiText = etMulti.text.toString().trim()
+            val modifyText = etModify.text.toString().trim()
             val ruleText = etRule.text.toString().trim()
             val receiptText = etReceipt.text.toString().trim()
             val receiptVisionText = etReceiptVision.text.toString().trim()
@@ -198,6 +212,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
             val singleDefault = AIService.getDefaultSingleBillPrompt(this).trim()
             val multiDefault = AIService.getDefaultMultiBillPrompt(this).trim()
+            val modifyDefault = AIService.MODIFY_BILL_PROMPT_DEFAULT.trim()
             val ruleDefault = AIService.RULE_EXTRACT_PROMPT_DEFAULT.trim()
             val receiptDefault = AIService.RECEIPT_BILL_PROMPT.trim()
             val receiptVisionDefault = AIService.RECEIPT_VISION_RETRY_PROMPT_DEFAULT.trim()
@@ -206,6 +221,7 @@ class AiPromptEditorActivity : AppCompatActivity() {
 
             Prefs.setAiPrompt(this, if (singleText == singleDefault) "" else singleText)
             Prefs.setMultiBillPrompt(this, if (multiText == multiDefault) "" else multiText)
+            Prefs.setModifyBillPrompt(this, if (modifyText == modifyDefault) "" else modifyText)
             Prefs.setRulePrompt(this, if (ruleText == ruleDefault) "" else ruleText)
             Prefs.setReceiptBillPrompt(this, if (receiptText == receiptDefault) "" else receiptText)
             Prefs.setReceiptVisionPrompt(this, if (receiptVisionText == receiptVisionDefault) "" else receiptVisionText)

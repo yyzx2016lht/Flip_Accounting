@@ -2,6 +2,8 @@ package tao.test.flipaccounting
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -14,6 +16,7 @@ import java.io.File
 import java.util.LinkedHashMap
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.coroutines.coroutineContext
 
 class ChatMessagePipeline(
     private val context: ChatActivity,
@@ -39,6 +42,26 @@ class ChatMessagePipeline(
     private val getCurrentConversationId: () -> String
 ) {
     private var isUserTextDispatching: Boolean = false
+    private var activeRequestJob: Job? = null
+    private var activeLoadingIdx: Int? = null
+
+    private fun registerActiveJob(job: Job, loadingIdx: Int?) {
+        activeRequestJob?.cancel()
+        activeRequestJob = job
+        activeLoadingIdx = loadingIdx
+    }
+
+    fun cancelCurrentRequest() {
+        activeRequestJob?.cancel()
+        activeRequestJob = null
+        val loadingIdx = activeLoadingIdx
+        activeLoadingIdx = null
+        isUserTextDispatching = false
+        if (loadingIdx != null) {
+            runOnUiIfAlive { removeLoadingMessage(loadingIdx) }
+        }
+        appendAiTextMessage("已中断本次请求。", false)
+    }
 
     private fun isUiAlive(): Boolean = !(context.isDestroyed || context.isFinishing)
 
@@ -73,7 +96,7 @@ class ChatMessagePipeline(
 
     private fun routeAndHandleText(userText: String) {
         val loadingIdx = appendAiTextMessage("正在理解你的消息...", true)
-        aiWorkScope.launch {
+        val job = aiWorkScope.launch {
             try {
                 val historyCtx = buildChatHistoryContext(userText)
                 val rawRoute = try {
@@ -96,6 +119,7 @@ class ChatMessagePipeline(
                     "AiIntentRouter",
                     "raw=\"$userText\", intent=$routedType, rawIntent=${rawRoute.intentType}, confidence=${rawRoute.confidence}, slots=${rawRoute.slots}"
                 )
+                if (!isActive) return@launch
                 removeLoadingMessage(loadingIdx)
                 when (routedType) {
                     AiIntentType.BOOKKEEPING -> callAiAccounting(
@@ -116,8 +140,13 @@ class ChatMessagePipeline(
                 }
             } finally {
                 isUserTextDispatching = false
+                if (activeRequestJob == coroutineContext[Job]) {
+                    activeRequestJob = null
+                    activeLoadingIdx = null
+                }
             }
         }
+        registerActiveJob(job, loadingIdx)
     }
 
     private fun appendUnknownIntentReply(userText: String) {
@@ -130,42 +159,96 @@ class ChatMessagePipeline(
         return withContext(Dispatchers.IO) {
             val book = getCurrentBookName()
             val convId = getCurrentConversationId()
-            val recent = db.chatMessageDao().getRecentMessages(book, convId, 10)
+            val recent = db.chatMessageDao().getRecentMessages(book, convId, 12).toMutableList()
             if (recent.isEmpty()) return@withContext ""
-            
-            val sb = StringBuilder()
-            for (msg in recent) {
-                // Ignore empty or system messages
-                if (msg.content.isBlank()) continue
-                val role = if (msg.msgType in 0..2) "用户" else "AI"
-                sb.append("[$role]: ${msg.content}\n")
+
+            val currentUserText = userText.trim()
+            if (recent.isNotEmpty()) {
+                val last = recent.last()
+                val lastText = last.content.trim()
+                if (last.msgType in 0..2 && lastText.isNotEmpty() && lastText == currentUserText) {
+                    recent.removeAt(recent.lastIndex)
+                }
             }
-            sb.toString().trim()
+
+            val lines = recent
+                .takeLast(8)
+                .mapNotNull { msg ->
+                    val summary = summarizeHistoryMessage(msg)
+                    if (summary.isBlank()) return@mapNotNull null
+                    val role = if (msg.msgType in 0..2) "用户" else "AI"
+                    "[$role] $summary"
+                }
+            if (lines.isEmpty()) return@withContext ""
+            lines.joinToString("\n")
         }
+    }
+
+    private fun summarizeHistoryMessage(msg: ChatMessage): String {
+        val raw = msg.content.trim()
+        if (raw.isBlank()) return ""
+        return when (msg.msgType) {
+            ChatActivity.MSG_TYPE_USER_TEXT -> compactHistoryText(raw)
+            ChatActivity.MSG_TYPE_USER_IMAGE -> "[图片消息]"
+            ChatActivity.MSG_TYPE_USER_VOICE -> {
+                val transcript = runCatching {
+                    JSONObject(raw).optString("transcript").trim()
+                }.getOrDefault("")
+                if (transcript.isNotBlank()) {
+                    "语音：${compactHistoryText(transcript, 160)}"
+                } else {
+                    "[语音消息]"
+                }
+            }
+            ChatActivity.MSG_TYPE_AI_BILL -> "[账单结果]"
+            ChatActivity.MSG_TYPE_AI_TEXT -> compactHistoryText(raw)
+            else -> compactHistoryText(raw)
+        }
+    }
+
+    private fun compactHistoryText(text: String, maxLen: Int = 180): String {
+        val normalized = text
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        if (normalized.length <= maxLen) return normalized
+        return normalized.take(maxLen).trimEnd() + "…"
     }
 
     private fun callGeneralChat(userText: String, historyCtx: String = "") {
         val loadingIdx = appendAiTextMessage("正在生成回复...", true)
-        aiWorkScope.launch {
+        val streamed = StringBuilder()
+        val job = aiWorkScope.launch {
             try {
                 val ctx = if (historyCtx.isNotBlank()) historyCtx else buildChatHistoryContext(userText)
                 val reply = withContext(Dispatchers.IO) {
-                    AIService.generateGeneralChatReply(context, userText, ctx)
+                    AIService.generateGeneralChatReply(context, userText, ctx) { delta ->
+                        if (delta.isNotBlank()) {
+                            streamed.append(delta)
+                            runOnUiIfAlive {
+                                updateLoadingMessage(loadingIdx, streamed.toString())
+                            }
+                        }
+                    }
                 }.ifBlank { "我在呢。你可以直接跟我说要记什么账，或者问我某段时间的支出。" }
                 removeLoadingMessage(loadingIdx)
-                appendAiTextMessage(reply, false)
+                if (reply.isNotBlank() && streamed.isEmpty()) {
+                    appendAiTextMessage(reply, false)
+                }
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                removeLoadingMessage(loadingIdx)
             } catch (e: Exception) {
                 removeLoadingMessage(loadingIdx)
                 val msg = mapAiErrorToUserMessage(e)
                 appendAiTextMessage(msg, false)
             }
         }
+        registerActiveJob(job, loadingIdx)
     }
 
     private fun callAiAccountingModify(userText: String) {
         val loadingIdx = appendAiTextMessage("正在修改账单...", true)
         var loadingRemoved = false
-        aiWorkScope.launch {
+        val job = aiWorkScope.launch {
             try {
                 val book = getCurrentBookName()
                 val convId = getCurrentConversationId()
@@ -213,9 +296,20 @@ class ChatMessagePipeline(
                     AIService.generateAccountingModifyReply(context, userText, billsJsonArray.toString())
                 }
                 removeLoadingMessage(applyLoadingIdx)
+                Logger.d(
+                    context,
+                    "ModifyBill",
+                    "modify reply raw=$modifiedJson"
+                )
 
-                val parsedJson = runCatching { org.json.JSONObject(cleanJsonString(modifiedJson)) }.getOrNull()
-                if (parsedJson == null || modifiedJson.isBlank()) {
+                val jsonObjectText = extractFirstJsonObjectText(cleanJsonString(modifiedJson))
+                val parsedJson = runCatching { jsonObjectText?.let { org.json.JSONObject(it) } }.getOrNull()
+                if (parsedJson == null || jsonObjectText.isNullOrBlank()) {
+                    Logger.d(
+                        context,
+                        "ModifyBill",
+                        "modify reply parse failed, raw=${modifiedJson.take(500)}"
+                    )
                     val msg = "AI 返回的修改结果无法解析，请再试一次。"
                     appendAiTextMessage(msg, false)
                     return@launch
@@ -230,6 +324,10 @@ class ChatMessagePipeline(
                 // 目标账单由用户显式选择，强制覆盖为该 id，避免模型改错单。
                 parsedJson.put("bill_db_id", targetBill.id)
                 processBillModifyResult(parsedJson, userText, targetBill)
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                if (!loadingRemoved) {
+                    removeLoadingMessage(loadingIdx)
+                }
             } catch (e: Exception) {
                 if (!loadingRemoved) {
                     removeLoadingMessage(loadingIdx)
@@ -239,6 +337,7 @@ class ChatMessagePipeline(
                 appendAiTextMessage(msg, false)
             }
         }
+        registerActiveJob(job, loadingIdx)
     }
 
     private suspend fun resolveModifyCandidates(userText: String, book: String, convId: String): List<Bill> {
@@ -379,7 +478,16 @@ class ChatMessagePipeline(
         if (appendUserBubble) appendUserMessage(userText, ChatActivity.MSG_TYPE_USER_TEXT)
         val loadingIdx = loadingIdxOverride ?: appendAiTextMessage("正在理解你的消息...", true)
         var loadingStage = 1
+        val streamedRaw = StringBuilder()
         fun pushLoadingStatus(raw: String) {
+            if (raw.startsWith("AI_STREAM_TEXT::")) {
+                val delta = raw.removePrefix("AI_STREAM_TEXT::")
+                if (delta.isNotBlank()) {
+                    streamedRaw.append(delta)
+                    updateLoadingMessage(loadingIdx, formatStreamingBillPreview(streamedRaw.toString()))
+                }
+                return
+            }
             val (stage, text) = mapProgressToNaturalStatus(raw)
             val nextStage = maxOf(loadingStage, stage)
             loadingStage = nextStage
@@ -393,7 +501,7 @@ class ChatMessagePipeline(
         if (loadingIdxOverride != null && loadingBootstrapText.isNotBlank()) {
             updateLoadingMessage(loadingIdx, loadingBootstrapText)
         }
-        aiWorkScope.launch {
+        val job = aiWorkScope.launch {
             try {
                 val analysisInput = buildAnalysisInput(userText)
                 val autoMultiMode = resolveMultiMode(bookkeepingMode, userText)
@@ -461,18 +569,30 @@ class ChatMessagePipeline(
                         extractorReplyHint = ""
                     )
                 }
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                removeLoadingMessage(loadingIdx)
             } catch (e: Exception) {
                 removeLoadingMessage(loadingIdx)
                 val msg = mapAiErrorToUserMessage(e)
                 appendAiTextMessage(msg, false)
             }
         }
+        registerActiveJob(job, loadingIdx)
     }
 
     fun callAiAccountingWithVoice(audioFile: File) {
         val loadingIdx = appendAiTextMessage("正在理解你的消息...", true)
         var loadingStage = 1
+        val streamedRaw = StringBuilder()
         fun pushLoadingStatus(raw: String) {
+            if (raw.startsWith("AI_STREAM_TEXT::")) {
+                val delta = raw.removePrefix("AI_STREAM_TEXT::")
+                if (delta.isNotBlank()) {
+                    streamedRaw.append(delta)
+                    updateLoadingMessage(loadingIdx, formatStreamingBillPreview(streamedRaw.toString()))
+                }
+                return
+            }
             val (stage, text) = mapProgressToNaturalStatus(raw)
             loadingStage = maxOf(loadingStage, stage)
             val stableText = when (loadingStage) {
@@ -482,7 +602,7 @@ class ChatMessagePipeline(
             }
             updateLoadingMessage(loadingIdx, stableText)
         }
-        aiWorkScope.launch {
+        val job = aiWorkScope.launch {
             try {
                 val voiceUserText = "[语音输入]"
                 val autoMultiMode = withContext(Dispatchers.IO) {
@@ -532,12 +652,15 @@ class ChatMessagePipeline(
                         extractorReplyHint = ""
                     )
                 }
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                removeLoadingMessage(loadingIdx)
             } catch (e: Exception) {
                 removeLoadingMessage(loadingIdx)
                 val msg = mapAiErrorToUserMessage(e)
                 appendAiTextMessage(msg, false)
             }
         }
+        registerActiveJob(job, loadingIdx)
     }
 
     private fun resolveMultiMode(bookkeepingMode: AiBookkeepingMode, userText: String): Boolean {
@@ -663,5 +786,47 @@ class ChatMessagePipeline(
 
             else -> 1 to "正在理解你的消息..."
         }
+    }
+
+    private fun formatStreamingBillPreview(raw: String): String {
+        val compact = raw.replace("\n", "")
+        val objectRegex = Regex("\\{[^{}]*\\}")
+        val objects = objectRegex.findAll(compact).map { it.value }.toList()
+        if (objects.isEmpty()) return "正在识别账单..."
+
+        val lines = mutableListOf<String>()
+        var index = 1
+        objects.forEach { obj ->
+            val amount = extractJsonNumber(obj, "amount")
+            val remark = extractJsonString(obj, "remarks")
+                ?: extractJsonString(obj, "remark")
+                ?: "未命名账单"
+            val category = extractJsonString(obj, "category_name").orEmpty()
+            if (amount == null && category.isBlank() && remark == "未命名账单") return@forEach
+            val amountText = amount?.let { String.format(Locale.getDefault(), "%.2f", it) } ?: "--"
+            lines += "$index. $remark  ¥$amountText"
+            if (category.isNotBlank()) {
+                lines += "   分类: $category"
+            }
+            index += 1
+            if (index > 8) return@forEach
+        }
+        return if (lines.isEmpty()) {
+            "正在识别账单..."
+        } else {
+            "正在识别账单...\n" + lines.joinToString("\n")
+        }
+    }
+
+    private fun extractJsonString(obj: String, key: String): String? {
+        val escapedKey = Regex.escape(key)
+        val regex = Regex("\"$escapedKey\"\\s*:\\s*\"([^\"]*)\"")
+        return regex.find(obj)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun extractJsonNumber(obj: String, key: String): Double? {
+        val escapedKey = Regex.escape(key)
+        val regex = Regex("\"$escapedKey\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)")
+        return regex.find(obj)?.groupValues?.getOrNull(1)?.toDoubleOrNull()
     }
 }

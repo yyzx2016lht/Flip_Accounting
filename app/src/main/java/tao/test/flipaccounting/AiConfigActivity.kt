@@ -68,6 +68,7 @@ class AiConfigActivity : AppCompatActivity() {
 
         val btnSingle = findViewById<Chip>(R.id.btn_single_prompt)
         val btnMulti = findViewById<Chip>(R.id.btn_multi_prompt)
+        val btnModify = findViewById<Chip>(R.id.btn_modify_prompt)
         val btnCategoryRefine = findViewById<Chip>(R.id.btn_category_refine_prompt)
         val btnRule = findViewById<Chip>(R.id.btn_rule_prompt)
         val btnReceipt = findViewById<Chip>(R.id.btn_receipt_prompt)
@@ -82,6 +83,10 @@ class AiConfigActivity : AppCompatActivity() {
         val btnSave = findViewById<View>(R.id.btn_save_config)
         val tvToggleExpand = findViewById<TextView>(R.id.tv_toggle_expand)
         val tvEditPrompt = findViewById<TextView>(R.id.tv_edit_prompt)
+        val switchEnableThinkingSingle = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_single)
+        val switchEnableThinkingMulti = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_multi)
+        val switchEnableThinkingModify = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_modify)
+        val switchEnableThinkingVision = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_vision)
         val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
 
         val providerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providers)
@@ -90,6 +95,23 @@ class AiConfigActivity : AppCompatActivity() {
 
         etUrl.setText(Prefs.getAiUrl(this))
         etKey.setText(Prefs.getAiKey(this))
+
+        switchEnableThinkingSingle.isChecked = Prefs.isAiThinkingSingleBillEnabled(this)
+        switchEnableThinkingSingle.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setAiThinkingSingleBillEnabled(this, isChecked)
+        }
+        switchEnableThinkingMulti.isChecked = Prefs.isAiThinkingMultiBillEnabled(this)
+        switchEnableThinkingMulti.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setAiThinkingMultiBillEnabled(this, isChecked)
+        }
+        switchEnableThinkingModify.isChecked = Prefs.isAiThinkingModifyBillEnabled(this)
+        switchEnableThinkingModify.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setAiThinkingModifyBillEnabled(this, isChecked)
+        }
+        switchEnableThinkingVision.isChecked = Prefs.isAiThinkingVisionEnabled(this)
+        switchEnableThinkingVision.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setAiThinkingVisionEnabled(this, isChecked)
+        }
 
         switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)
         switchEnableReceiptOcrRefine.setOnCheckedChangeListener { _, isChecked ->
@@ -100,6 +122,7 @@ class AiConfigActivity : AppCompatActivity() {
         val modeModels = mutableMapOf(
             "single" to Prefs.getAiSingleModel(this),
             "multi" to Prefs.getAiMultiModel(this),
+            "modify" to Prefs.getAiModifyModel(this),
             "category_refine" to Prefs.getAiCategoryRefineModel(this),
             "router" to Prefs.getAiRouterModel(this),
             "rule" to Prefs.getAiRuleModel(this),
@@ -220,6 +243,7 @@ class AiConfigActivity : AppCompatActivity() {
         fun updateUI() {
             btnSingle.isChecked = currentMode == "single"
             btnMulti.isChecked = currentMode == "multi"
+            btnModify.isChecked = currentMode == "modify"
             btnCategoryRefine.isChecked = currentMode == "category_refine"
             btnRule.isChecked = currentMode == "rule"
             btnReceipt.isChecked = currentMode == "receipt"
@@ -243,6 +267,7 @@ class AiConfigActivity : AppCompatActivity() {
 
         btnSingle.setOnClickListener { switchMode("single") }
         btnMulti.setOnClickListener { switchMode("multi") }
+        btnModify.setOnClickListener { switchMode("modify") }
         btnCategoryRefine.setOnClickListener { switchMode("category_refine") }
         btnRule.setOnClickListener { switchMode("rule") }
         btnReceipt.setOnClickListener { switchMode("receipt") }
@@ -344,6 +369,7 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiModel(this, modeModels["single"] ?: "")
             Prefs.setAiSingleModel(this, modeModels["single"] ?: "")
             Prefs.setAiMultiModel(this, modeModels["multi"] ?: "")
+            Prefs.setAiModifyModel(this, modeModels["modify"] ?: "")
             Prefs.setAiCategoryRefineModel(this, modeModels["category_refine"] ?: "")
             Prefs.setAiRouterModel(this, modeModels["router"] ?: "")
             Prefs.setAiRuleModel(this, modeModels["rule"] ?: "")
@@ -352,6 +378,10 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiScreenModel(this, if (canShowScreenAccounting) (modeModels["screen_accounting"] ?: "") else "")
             Prefs.setAiReceiptOcrRefineModel(this, modeModels["ocr_refine"] ?: "")
             Prefs.setAiSpeechModel(this, modeModels["speech"] ?: "")
+            Prefs.setAiThinkingSingleBillEnabled(this, switchEnableThinkingSingle.isChecked)
+            Prefs.setAiThinkingMultiBillEnabled(this, switchEnableThinkingMulti.isChecked)
+            Prefs.setAiThinkingModifyBillEnabled(this, switchEnableThinkingModify.isChecked)
+            Prefs.setAiThinkingVisionEnabled(this, switchEnableThinkingVision.isChecked)
             Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
 
             Utils.toast(this, "所有 AI 配置已保存")

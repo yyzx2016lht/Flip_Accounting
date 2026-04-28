@@ -88,6 +88,9 @@ object Prefs {
     fun getAiMultiModel(ctx: Context): String = PrefsAiSupport.getAiMultiModel(ctx)
     fun setAiMultiModel(ctx: Context, value: String) = PrefsAiSupport.setAiMultiModel(ctx, value)
 
+    fun getAiModifyModel(ctx: Context): String = PrefsAiSupport.getAiModifyModel(ctx)
+    fun setAiModifyModel(ctx: Context, value: String) = PrefsAiSupport.setAiModifyModel(ctx, value)
+
     fun getAiCategoryRefineModel(ctx: Context): String = PrefsAiSupport.getAiCategoryRefineModel(ctx)
     fun setAiCategoryRefineModel(ctx: Context, value: String) =
         PrefsAiSupport.setAiCategoryRefineModel(ctx, value)
@@ -114,6 +117,25 @@ object Prefs {
         PrefsAiSupport.setAiReceiptOcrRefineModel(ctx, value)
     fun getAiSpeechModel(ctx: Context): String = PrefsAiSupport.getAiSpeechModel(ctx)
     fun setAiSpeechModel(ctx: Context, value: String) = PrefsAiSupport.setAiSpeechModel(ctx, value)
+    fun isAiThinkingEnabled(ctx: Context): Boolean = PrefsAiSupport.getAiEnableThinking(ctx)
+    fun setAiThinkingEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiEnableThinking(ctx, enabled)
+    fun isAiThinkingSingleBillEnabled(ctx: Context): Boolean =
+        PrefsAiSupport.isAiThinkingSingleBillEnabled(ctx)
+    fun setAiThinkingSingleBillEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiThinkingSingleBillEnabled(ctx, enabled)
+    fun isAiThinkingMultiBillEnabled(ctx: Context): Boolean =
+        PrefsAiSupport.isAiThinkingMultiBillEnabled(ctx)
+    fun setAiThinkingMultiBillEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiThinkingMultiBillEnabled(ctx, enabled)
+    fun isAiThinkingModifyBillEnabled(ctx: Context): Boolean =
+        PrefsAiSupport.isAiThinkingModifyBillEnabled(ctx)
+    fun setAiThinkingModifyBillEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiThinkingModifyBillEnabled(ctx, enabled)
+    fun isAiThinkingVisionEnabled(ctx: Context): Boolean =
+        PrefsAiSupport.isAiThinkingVisionEnabled(ctx)
+    fun setAiThinkingVisionEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiThinkingVisionEnabled(ctx, enabled)
 
     fun getAiModelsCache(ctx: Context): List<String> = PrefsAiSupport.getAiModelsCache(ctx)
     fun setAiModelsCache(ctx: Context, models: List<String>) =
@@ -127,6 +149,8 @@ object Prefs {
 
     fun getAiPrompt(ctx: Context): String = PrefsAiSupport.getAiPrompt(ctx)
     fun setAiPrompt(ctx: Context, prompt: String) = PrefsAiSupport.setAiPrompt(ctx, prompt)
+    fun getModifyBillPrompt(ctx: Context): String = PrefsAiSupport.getModifyBillPrompt(ctx)
+    fun setModifyBillPrompt(ctx: Context, prompt: String) = PrefsAiSupport.setModifyBillPrompt(ctx, prompt)
 
     fun getMultiBillPrompt(ctx: Context): String = PrefsAiSupport.getMultiBillPrompt(ctx)
     fun setMultiBillPrompt(ctx: Context, prompt: String) =

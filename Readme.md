@@ -1,28 +1,288 @@
-翻转记账 - MVP 项目（说明）
+![Android](https://img.shields.io/badge/platform-Android-green)
+![Kotlin](https://img.shields.io/badge/language-Kotlin-blue)
+# Flip Accounting
 
-包名：tao.test.flipaccounting
-minSdk：24
-UI：XML（传统 View）
+Flip Accounting 是一款 **AI 驱动的 Android 记账应用**。
 
-功能（MVP）：
-- 前台服务（OverlayService）保持运行（由 MainActivity 启动/停止）。
-- 手动触发悬浮窗（MainActivity -> "手动显示悬浮窗"）。
-- 悬浮窗表单：金额、类型、账户、分类、货币、时间、备注；保存后构造 qianji:// URL 调用钱迹。
-- 设置页：用逗号分隔管理账户/分类/货币列表（SharedPreferences 简单实现）。
+它不是传统表单式记账工具，而是围绕：
 
-如何在 Android Studio 打开并测试：
-1. 将上述文件放入一个新的 Android 项目（确保包名为 tao.test.flipaccounting），或用现有项目按路径替换相应文件。
-2. 在真机上运行（推荐真机）：连接设备并运行 app。
-3. 在应用中先点击“请求悬浮窗权限”，在系统界面里允许“在其它应用上层显示”权限。
-4. 点击“启动前台服务”启动 OverlayService（服务在通知栏显示）。
-5. 点击“手动显示悬浮窗”测试悬浮窗弹出并输入数据。
-6. 点击“保存”后，应用会尝试通过 Intent 打开 qianji://publicapi/addbill?...（需要钱迹 App 已安装才能成功跳转）。
+> **自然语言 / 语音 / 图片 / 截图 → AI 理解 → 结构化账单 → 本地执行**
 
-备注与后续：
-- 我已参考你给出的 AutoAccounting 源码（FlipDetector、FloatingTip、BillWindowManager、OverlayService），并按 MVP 精简实现。后续如需把翻转检测接入：把 FlipDetector 的实现（你可粘入原仓库中的 FlipDetector.kt）放入项目，并在 OverlayService 中注册/启动检测器，在回调中调用 overlayManager.showOverlay() 即可。
-- 当你提供钱迹的官方文档或确认参数规则后，我会把 Utils.buildQianjiUrl 调整为文档精确实现（支持 fee、coupon、catechoose、catetheme、showresult 等可选参数）。
+构建的一套轻量级 Agent 工作流。
 
-如果这些文件没问题，我可以继续：
-- 把整个项目打包成 ZIP（包含 gradle wrapper 与 settings.gradle），
-- 或把代码扩展为更接近 AutoAccounting 的悬浮窗样式（倒计时、位置配置、动画），
-- 或在你粘入 FlipDetector 之后把翻转触发接入服务。
+---
+
+## ✨ 核心能力
+
+### 🧑‍💻 用户视角
+
+- **自然语言记账**  
+  输入：`早餐 12，地铁 4` → 自动拆分多条账单
+
+- **语音记账**  
+  支持录音 / 直接音频理解
+
+- **图片 / 小票 / 截图记账**  
+  OCR + 多模态解析账单信息
+
+- **上下文账单修正**  
+  支持：
+
+    - “刚刚那笔”
+
+    - “上一笔改成 40”
+
+- **资产 / 分类管理**
+
+- **悬浮窗快速记账**
+
+
+---
+
+### ⚙️ 技术视角
+
+- LLM 负责：
+
+    - 意图识别
+
+    - 信息抽取
+
+    - 上下文理解
+
+- 本地系统负责：
+
+    - JSON 校验
+
+    - 规则修正
+
+    - 数据落库
+
+- 使用 **固定 JSON Schema** 连接 AI 与业务逻辑
+
+
+---
+
+## 🧠 Agent 架构设计
+
+### 架构类型
+
+> **Single Agent + Workflow Orchestration**
+
+---
+
+### 🔁 工作流
+
+```mermaid
+flowchart TD
+    A[用户输入] --> B[ChatMessagePipeline]
+    B --> C[构建上下文]
+    C --> D[意图识别]
+
+    D -->|BOOKKEEPING| E[记账抽取]
+    D -->|MODIFY_BILL| F[账单修改]
+    D -->|GENERAL_CHAT| G[普通对话]
+    D -->|UNKNOWN| H[兜底]
+
+    E --> I[JSON解析]
+    I --> J[本地规则修正]
+    J --> K[数据库写入]
+    K --> L[资产影响计算]
+```
+
+---
+
+## 🔍 核心模块
+
+### 1. 意图识别（Routing）
+
+支持意图：
+
+```json
+{
+  "intent_type": "BOOKKEEPING",
+  "confidence": 0.9,
+  "bookkeeping_mode": "MULTI"
+}
+```
+
+- 模型优先
+
+- 本地规则 fallback
+
+- 支持上下文表达（刚刚那笔）
+
+
+---
+
+### 2. 信息抽取（Extraction）
+
+#### 单账单
+
+```json
+{
+  "amount": 12.5,
+  "type": 0,
+  "category_name": "餐饮",
+  "remarks": "早餐"
+}
+```
+
+#### 多账单
+
+```json
+{
+  "bills": [
+    { "amount": 12, "category_name": "餐饮" },
+    { "amount": 4, "category_name": "交通" }
+  ]
+}
+```
+
+#### 无账单
+
+```json
+{
+  "no_bill": true,
+  "reply": "未识别到可记账内容"
+}
+```
+
+---
+
+### 3. 上下文理解（Context）
+
+支持：
+
+- “刚刚那笔”
+
+- “上一笔”
+
+- “改成微信支付”
+
+
+→ 自动定位并修改账单
+
+---
+
+### 4. 工具调用（本地执行）
+
+```text
+JSON → Bill → DAO → DB → Asset Impact
+```
+
+关键组件：
+
+- `BillMutationService`
+
+- `AppDatabase`
+
+- `BillAssetImpactService`
+
+
+---
+
+## 🚀 使用示例
+
+### 示例 1：多账单
+
+```
+早餐 12，地铁 4
+```
+
+→ 自动拆分两笔
+
+---
+
+### 示例 2：修改账单
+
+```
+刚刚那笔改成 40
+```
+
+→ 修改上一条记录
+
+---
+
+### 示例 3：语音记账
+
+```
+今天午饭 28，打车 42
+```
+
+→ 自动拆分 + 入库
+
+---
+
+## 🧩 技术栈
+
+- Kotlin / Android
+
+- Room
+
+- Retrofit / OkHttp
+
+- Coroutines
+
+- ML Kit OCR
+
+- sherpa-onnx (语音)
+
+- MPAndroidChart
+
+
+---
+
+## 📂 项目结构
+
+```bash
+Flip_Accounting/
+├── app/
+│   ├── AIService.kt
+│   ├── ChatMessagePipeline.kt
+│   ├── chat/ai/
+│   │   ├── AiIntentRouter.kt
+│   │   └── AiIntentModels.kt
+│   ├── data/local/
+│   │   ├── AppDatabase.kt
+│   │   └── dao/
+│   ├── logic/
+│   │   ├── BillMutationService.kt
+│   │   └── BillAssetImpactService.kt
+│   └── ui/
+```
+
+---
+
+## ⚠️ 当前边界
+
+- 单 Agent（非多 Agent）
+
+- 暂未实现自然语言查账执行器
+
+- 依赖外部 LLM API
+
+- 无 LICENSE
+
+
+---
+
+## 🔧 后续扩展方向
+
+- 自然语言查账（QUERY → DB）
+
+- Tool 抽象（Agent Tool）
+
+- 低置信度确认机制
+
+- Prompt / Schema 版本管理
+
+- 测试体系
+
+
+---
+
+## 总结一句话
+
+> Flip Accounting = **LLM + JSON + 本地执行引擎的记账 Agent**
+
+---

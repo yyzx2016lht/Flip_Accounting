@@ -66,7 +66,8 @@ class ChatAdapter(
     private val setInlineAmountEditingBillId: (Long?) -> Unit,
     private val onMaybeShowRuleDialogForChatBillCategoryEdit: (ChatDisplayItem, Bill, Bill) -> Unit,
     private val showCustomConfirmDialog: (String, String, String, Boolean, () -> Unit) -> Unit,
-    private val onInteractiveBillAction: (ChatDisplayItem, Bill, Int) -> Unit
+    private val onInteractiveBillAction: (ChatDisplayItem, Bill, Int) -> Unit,
+    private val onInterruptAiLoading: () -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     override fun getItemCount(): Int = displayMessages.size
@@ -341,8 +342,10 @@ class ChatAdapter(
     inner class AiTextVH(v: View) : RecyclerView.ViewHolder(v) {
         private val tvText: TextView = v.findViewById(R.id.tv_ai_text)
         private val tvTime: TextView = v.findViewById(R.id.tv_ai_time)
+        private val loadingRow: LinearLayout = v.findViewById(R.id.layout_ai_loading_row)
         private val loading: LinearLayout = v.findViewById(R.id.layout_ai_loading)
         private val tvLoading: TextView = v.findViewById(R.id.tv_ai_loading_text)
+        private val ivInterrupt: ImageView = v.findViewById(R.id.iv_ai_interrupt)
         private val ivAvatar: ImageView = v.findViewById(R.id.iv_ai_avatar_msg)
         private val cbSelect: android.widget.CheckBox = v.findViewById(R.id.cb_ai_text_select)
 
@@ -353,13 +356,15 @@ class ChatAdapter(
             cbSelect.visibility = if (isVoiceSelectionMode() && !item.isLoading && item.content.isNotBlank()) View.VISIBLE else View.GONE
             cbSelect.isChecked = isMessageSelected(item)
             if (item.isLoading) {
-                loading.visibility = View.VISIBLE
+                loadingRow.visibility = View.VISIBLE
                 tvText.visibility = View.GONE
                 tvLoading.text = item.content.ifBlank { "分析中..." }
+                ivInterrupt.setOnClickListener { onInterruptAiLoading() }
             } else {
-                loading.visibility = View.GONE
+                loadingRow.visibility = View.GONE
                 tvText.visibility = View.VISIBLE
                 tvText.text = item.content
+                ivInterrupt.setOnClickListener(null)
             }
             tvText.alpha = if (isVoiceSelectionMode() && isMessageSelected(item)) 0.8f else 1f
             itemView.setOnClickListener {

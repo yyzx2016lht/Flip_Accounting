@@ -62,6 +62,33 @@ internal fun cleanJsonString(input: String): String {
     return s.trim()
 }
 
+internal fun extractFirstJsonObjectText(input: String): String? {
+    val start = input.indexOf('{')
+    if (start < 0) return null
+    var depth = 0
+    var inString = false
+    var escaped = false
+    for (i in start until input.length) {
+        val ch = input[i]
+        if (escaped) {
+            escaped = false
+            continue
+        }
+        when (ch) {
+            '\\' -> if (inString) escaped = true
+            '"' -> inString = !inString
+            '{' -> if (!inString) depth++
+            '}' -> if (!inString) {
+                depth--
+                if (depth == 0) {
+                    return input.substring(start, i + 1).trim()
+                }
+            }
+        }
+    }
+    return null
+}
+
 internal fun buildProbeAudioBase64(): String {
     val wavBytes = byteArrayOf(
         82, 73, 70, 70, 40, 0, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32,

@@ -248,7 +248,8 @@ class ChatActivity : AppCompatActivity() {
             showCustomConfirmDialog = { title, message, confirmText, isDanger, onConfirm ->
                 uiHelperController.showCustomConfirmDialog(title, message, confirmText, isDanger, onConfirm)
             },
-            onInteractiveBillAction = ::onInteractiveBillAction
+            onInteractiveBillAction = ::onInteractiveBillAction,
+            onInterruptAiLoading = ::interruptAiResponse
         )
     }
     private val sessionAdapter by lazy {
@@ -1006,6 +1007,10 @@ class ChatActivity : AppCompatActivity() {
 
     private fun callAiAccountingWithVoice(audioFile: File) {
         messagePipeline.callAiAccountingWithVoice(audioFile)
+    }
+
+    private fun interruptAiResponse() {
+        messagePipeline.cancelCurrentRequest()
     }
 
     private fun ensureLastMessageVisible(force: Boolean = false) {

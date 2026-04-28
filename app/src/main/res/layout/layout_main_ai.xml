@@ -154,6 +154,50 @@
                 android:layout_marginBottom="24dp">
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_enable_thinking_single"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="单账单启用思考"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_13"
+                    android:layout_marginBottom="2dp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_enable_thinking_multi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="多账单启用思考"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_13"
+                    android:layout_marginBottom="2dp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_enable_thinking_modify"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="修改账单启用思考"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_13"
+                    android:layout_marginBottom="2dp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_enable_thinking_vision"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="图片识别启用思考"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_13"
+                    android:layout_marginBottom="2dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="路由模型与多账单二次分类固定关闭思考，避免不必要耗时。单/多账单默认关闭，图片识别默认开启。"
+                    android:textColor="#999999"
+                    android:textSize="@dimen/text_size_11"
+                    android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/switch_enable_receipt_ocr_refine"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -205,6 +249,21 @@
                         android:textAlignment="center"
                         android:checkable="true"
                         android:text="多笔账单"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_modify_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:gravity="center"
+                        android:textAlignment="center"
+                        android:checkable="true"
+                        android:text="修改账单"
                         android:textSize="@dimen/text_size_13"
                         app:checkedIconVisible="false"
                         app:chipMinHeight="36dp" />
@@ -298,6 +357,7 @@
                         android:textSize="@dimen/text_size_13"
                         app:checkedIconVisible="false"
                         app:chipMinHeight="36dp" />
+
                     <com.google.android.material.chip.Chip
                         android:id="@+id/btn_speech_prompt"
                         style="@style/Widget.MaterialComponents.Chip.Choice"

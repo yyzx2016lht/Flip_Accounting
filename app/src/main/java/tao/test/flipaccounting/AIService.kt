@@ -3,11 +3,11 @@ package tao.test.flipaccounting
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.google.gson.Gson
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.AiRule as DbAiRule
 import tao.test.flipaccounting.data.local.entity.Bill
-import com.google.gson.Gson
 import com.google.gson.JsonObject
 import android.util.Base64
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -36,6 +36,20 @@ const val OCR_MODE_MULTIMODAL = 1   // 直接多模态 AI（发送图片）
 object AIService {
     private const val LOCAL_RULE_APPLIED_FLAG = "_local_rule_applied"
     private const val LOCAL_RULE_CORRECTED_FLAG = "_local_rule_corrected"
+    private const val MODIFY_BILL_LOG_TAG = "ModifyBill"
+    private const val ACCOUNTING_SINGLE_LOG_TAG = "AccountingSingle"
+    private const val ACCOUNTING_MULTI_LOG_TAG = "AccountingMulti"
+    private const val ACCOUNTING_AUDIO_SINGLE_LOG_TAG = "AccountingAudioSingle"
+    private const val ACCOUNTING_AUDIO_MULTI_LOG_TAG = "AccountingAudioMulti"
+    private const val RECEIPT_OCR_LOG_TAG = "ReceiptOcr"
+    private const val RECEIPT_OCR_REFINE_LOG_TAG = "ReceiptOcrRefine"
+    private const val RECEIPT_VISION_LOG_TAG = "ReceiptVision"
+    private const val SCREEN_ACCOUNTING_LOG_TAG = "ScreenAccounting"
+    private const val ACCOUNTING_ASSISTANT_LOG_TAG = "AccountingAssistant"
+    private const val GENERAL_CHAT_LOG_TAG = "GeneralChat"
+    private const val CATEGORY_REFINE_LOG_TAG = "CategoryRefine"
+    private const val SIMPLE_CHAT_LOG_TAG = "SimpleChat"
+    private const val ROUTER_LOG_TAG = "IntentRouter"
 
     // 兼容旧版配置页引用（AiConfigActivity 等地方直接用 AIService.XXX 引用这些常量）
     const val DEFAULT_PROMPT                     = AIPrompts.SINGLE_BILL_PROMPT_DEFAULT
@@ -57,8 +71,19 @@ object AIService {
     private const val MAX_OCR_TEXT_CHARS = 14000
     private const val MAX_ASSISTANT_INPUT_CHARS = 4000
     private const val MAX_ASSISTANT_SUMMARY_CHARS = 2500
+    private const val API_CONNECT_TIMEOUT_SECONDS = 60L
+    private const val API_READ_TIMEOUT_SECONDS = 90L
+    private const val API_WRITE_TIMEOUT_SECONDS = 90L
+    private const val SPEECH_CONNECT_TIMEOUT_SECONDS = 60L
+    private const val SPEECH_READ_TIMEOUT_SECONDS = 180L
+    private const val SPEECH_WRITE_TIMEOUT_SECONDS = 180L
+    private const val CONFIDENCE_HIGH_THRESHOLD = 0.85
+    private const val CONFIDENCE_MID_THRESHOLD = 0.65
     private const val DEFAULT_CUSTOM_REPLY_STYLE_GUIDE =
         "回复风格：按用户自定义要求回复。请直接对用户说自然的人话，不要输出场景标签、英文状态词、JSON 或内部指令。"
+    private fun enableThinkingForAccounting(ctx: Context, isMultiMode: Boolean): Boolean =
+        if (isMultiMode) Prefs.isAiThinkingMultiBillEnabled(ctx) else Prefs.isAiThinkingSingleBillEnabled(ctx)
+    private fun enableThinkingForVision(ctx: Context): Boolean = Prefs.isAiThinkingVisionEnabled(ctx)
 
     fun getDefaultSingleBillPrompt(ctx: Context): String =
         if (Prefs.isAssetFeatureEnabled(ctx)) {
@@ -77,9 +102,9 @@ object AIService {
     private fun getApi(ctx: Context): SiliconFlowApi {
         val baseUrl = normalizeBaseUrl(Prefs.getAiUrl(ctx))
         val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(API_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
         return Retrofit.Builder()
             .baseUrl(baseUrl)
@@ -92,9 +117,9 @@ object AIService {
     private fun getSpeechApi(ctx: Context): SiliconFlowApi {
         val baseUrl = normalizeBaseUrl(Prefs.getAiUrl(ctx))
         val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(120, TimeUnit.SECONDS)
+            .connectTimeout(SPEECH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(SPEECH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(SPEECH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
         return Retrofit.Builder()
             .baseUrl(baseUrl)
@@ -155,6 +180,7 @@ object AIService {
         Logger.d(ctx, "AIService", "Analyzing: $safeUserInput")
         val apiKey = Prefs.getAiKey(ctx)
         val isMultiMode = isMultiModeOverride ?: Prefs.isMultiBillEnabled(ctx)
+        val enableThinking = enableThinkingForAccounting(ctx, isMultiMode)
         val model = if (isMultiMode) Prefs.getAiMultiModel(ctx) else Prefs.getAiSingleModel(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
         val promptContext = buildAccountingPromptContext(ctx)
@@ -184,14 +210,24 @@ object AIService {
                 model = model,
                 temperature = 0.3,
                 systemPrompt = systemPrompt,
-                userText = safeUserInput
+                userText = safeUserInput,
+                enableThinking = enableThinking
             )
             if (!isMultiMode && matchedPromptRules.isNotEmpty()) {
                 onProgress?.invoke("本地规则匹配中...")
             }
             onProgress?.invoke("智能分析中...")
-            val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-            val content = response.choices.first().message.content
+            val useDetailedStream = isMultiMode && !Prefs.isMultiBillFastMode(ctx)
+            val useTextPreviewStream = !useDetailedStream
+            val content = requestAccountingContentStreamed(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                onProgress = onProgress,
+                emitTextDelta = useTextPreviewStream,
+                logReasoning = enableThinking,
+                reasoningLogTag = if (isMultiMode) ACCOUNTING_MULTI_LOG_TAG else ACCOUNTING_SINGLE_LOG_TAG
+            )
             Logger.d(ctx, "AIService", "AI Response: $content")
 
             // 直接解析，不再对原始 JSON 字符串做规则覆盖
@@ -223,6 +259,12 @@ object AIService {
                 }
 
                 if (isMultiMode && root.has("bills") && !Prefs.isMultiBillFastMode(ctx)) {
+                    scoreMultiBillsConfidence(
+                        root = root,
+                        expenseCats = promptContext.expenseCats,
+                        incomeCats = promptContext.incomeCats,
+                        assetNames = promptContext.assetNames.toSet()
+                    )
                     refineMultiBillCategories(
                         ctx = ctx,
                         root = root,
@@ -259,6 +301,7 @@ object AIService {
 
         val apiKey = Prefs.getAiKey(ctx)
         val isMultiMode = isMultiModeOverride ?: Prefs.isMultiBillEnabled(ctx)
+        val enableThinking = enableThinkingForAccounting(ctx, isMultiMode)
         val model = if (isMultiMode) Prefs.getAiMultiModel(ctx) else Prefs.getAiSingleModel(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
         val promptContext = buildAccountingPromptContext(ctx)
@@ -282,11 +325,19 @@ object AIService {
                 systemPrompt = systemPrompt,
                 leadText = "这是一段用户口述记账语音。请严格按系统提示词要求提取账单 JSON。",
                 audioBase64 = audioBase64,
-                audioFormat = audioFormat
+                audioFormat = audioFormat,
+                enableThinking = enableThinking
             )
             onProgress?.invoke("智能分析中...")
-            val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-            val content = response.choices.first().message.content
+            val streamed = requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = enableThinking,
+                reasoningLogTag = if (isMultiMode) ACCOUNTING_AUDIO_MULTI_LOG_TAG else ACCOUNTING_AUDIO_SINGLE_LOG_TAG,
+                onProgressChars = { currentLen -> onProgress?.invoke("智能分析中...（已接收 $currentLen 字）") }
+            )
+            val content = streamed.content
             Logger.d(ctx, "AIService", "AI Audio Response: $content")
             val result = parseAnalyzeResult(content, isMultiMode)
 
@@ -338,12 +389,19 @@ object AIService {
             temperature = 0.3,
             systemPrompt = systemPrompt,
             dataUrl = dataUrl,
-            userText = "请分析这张小票订单图片，转为自然语言清单。"
+            userText = "请分析这张小票订单图片，转为自然语言清单。",
+            enableThinking = enableThinkingForVision(ctx)
         )
 
         return try {
-            val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-            val content = response.choices.first().message.content
+            val streamed = requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = enableThinkingForVision(ctx),
+                reasoningLogTag = RECEIPT_VISION_LOG_TAG
+            )
+            val content = streamed.content
             Logger.d(ctx, "AIService", "Receipt multimodal response: $content")
             content
         } catch (e: Exception) {
@@ -364,7 +422,8 @@ object AIService {
                 model = model,
                 temperature = 0.1,
                 dataUrl = "data:image/png;base64,${buildProbeImageBase64(ctx)}",
-                userText = "Reply with OK only."
+                userText = "Reply with OK only.",
+                enableThinking = enableThinkingForVision(ctx)
             )
             val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
             Logger.d(ctx, "AIService", "Vision input support probe succeeded. model=$model")
@@ -406,12 +465,19 @@ object AIService {
                 "这是一张手机屏幕截图。请忽略界面装饰，只提取真实交易信息，并直接返回 {\"bills\":[...]}。"
             } else {
                 "这是一张手机屏幕截图。请忽略界面装饰，只提取最明确的一条真实交易，并直接返回单个 JSON 对象。"
-            }
+            },
+            enableThinking = enableThinkingForVision(ctx)
         )
 
         return try {
-            val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-            val content = response.choices.first().message.content
+            val streamed = requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = enableThinkingForVision(ctx),
+                reasoningLogTag = SCREEN_ACCOUNTING_LOG_TAG
+            )
+            val content = streamed.content
             Logger.d(ctx, "AIService", "Screen accounting multimodal response: $content")
             val result = parseAnalyzeResult(content, isMultiMode)
 
@@ -465,18 +531,31 @@ object AIService {
                     temperature = 0.1,
                     systemPrompt = systemPrompt,
                     userText = "请执行「小票结构化提取」并严格只返回一个 JSON 对象。\nJSON 结构：\n{\n  \"currency\": \"PLN\",\n  \"items\": [\n    {\"name\":\"商品名\",\"price\":5.89,\"currency\":\"PLN\"}\n  ]\n}\n\n约束：\n1. 只保留同时具备「商品名 + 实付金额」的商品行。\n2. 不要输出总计行、税率行、NIP、日期时间、店铺编号、Discount 等非商品行。\n3. OCR 重复行只保留一条，不能重复计数。\n4. 价格必须来自 OCR 原文，禁止臆造。\n5. 若存在\"数量 x 单价 金额\"结构，优先使用该结构确定数量和最终实付金额。\n6. 如果遇到 Opust/Discount，应使用折后金额（净额）作为该商品金额。\n\n${localHintBlock}以下是 OCR 文本：\n$cleanedOcrText",
-                    jsonObjectResponse = forceJsonResponse
+                    jsonObjectResponse = forceJsonResponse,
+                    enableThinking = enableThinkingForVision(ctx)
                 )
             }
 
-            val response = try {
-                getApi(ctx).chatRaw("Bearer $apiKey", buildRequestJson(forceJsonResponse = true))
+            val streamed = try {
+                requestChatContentStreamedWithReasoning(
+                    ctx = ctx,
+                    apiKey = apiKey,
+                    requestJson = buildRequestJson(forceJsonResponse = true),
+                    logReasoning = enableThinkingForVision(ctx),
+                    reasoningLogTag = RECEIPT_OCR_LOG_TAG
+                )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Logger.d(ctx, "AIService", "Receipt OCR json_object mode failed, retry: ${detailedHttpError(e)}")
-                getApi(ctx).chatRaw("Bearer $apiKey", buildRequestJson(forceJsonResponse = false))
+                requestChatContentStreamedWithReasoning(
+                    ctx = ctx,
+                    apiKey = apiKey,
+                    requestJson = buildRequestJson(forceJsonResponse = false),
+                    logReasoning = enableThinkingForVision(ctx),
+                    reasoningLogTag = RECEIPT_OCR_LOG_TAG
+                )
             }
-            val content = response.choices.first().message.content
+            val content = streamed.content
             Logger.d(ctx, "AIService", "Receipt OCR structured response: $content")
             AIReceiptHelper.buildReceiptSummaryFromStructured(content, ocrText)
         } catch (e: Exception) {
@@ -507,11 +586,18 @@ object AIService {
             model = model,
             temperature = 0.1,
             systemPrompt = systemPrompt,
-            userText = "本地OCR已提取清单（金额可信）：\n$localSummary\n\n原始OCR（仅用于校对，不允许引入新金额）：\n$cleanedOcrText"
+            userText = "本地OCR已提取清单（金额可信）：\n$localSummary\n\n原始OCR（仅用于校对，不允许引入新金额）：\n$cleanedOcrText",
+            enableThinking = enableThinkingForVision(ctx)
         )
 
-        val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-        val content = response.choices.first().message.content.trim()
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = requestJson,
+            logReasoning = enableThinkingForVision(ctx),
+            reasoningLogTag = RECEIPT_OCR_REFINE_LOG_TAG
+        )
+        val content = streamed.content.trim()
         return AIReceiptHelper.sanitizeReceiptSummaryText(content, originalOcrText)
             ?: content.ifBlank { localSummary }
     }
@@ -565,8 +651,14 @@ object AIService {
             messages = listOf(MessageUnion.Text(Message("user", prompt))),
             response_format = null
         )
-        val response = getApi(ctx).chatRaw("Bearer $apiKey", buildRawRequest(request))
-        return response.choices.first().message.content
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = buildRawRequest(request),
+            logReasoning = true,
+            reasoningLogTag = SIMPLE_CHAT_LOG_TAG
+        )
+        return streamed.content
     }
 
     suspend fun routeIntentWithModel(
@@ -587,11 +679,18 @@ object AIService {
             temperature = 0.0,
             systemPrompt = INTENT_ROUTER_PROMPT_DEFAULT.trim() + contextBlock,
             userText = safeUserInput,
-            jsonObjectResponse = true
+            jsonObjectResponse = true,
+            enableThinking = false
         )
 
-        val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-        val content = response.choices.firstOrNull()?.message?.content.orEmpty()
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = requestJson,
+            logReasoning = false,
+            reasoningLogTag = ROUTER_LOG_TAG
+        )
+        val content = streamed.content
         return parseRouterResult(content, userInput)
     }
 
@@ -602,16 +701,46 @@ object AIService {
     ): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
-        val model = Prefs.getAiSingleModel(ctx)
+        val model = Prefs.getAiModifyModel(ctx)
         val safeInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
+        val promptContext = buildAccountingPromptContext(ctx)
+        val systemPrompt = renderModifyBillPrompt(
+            Prefs.getModifyBillPrompt(ctx).ifBlank { AIPrompts.MODIFY_BILL_PROMPT_DEFAULT },
+            promptContext
+        )
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.0,
-            systemPrompt = AIPrompts.MODIFY_BILL_PROMPT_DEFAULT.trim(),
-            userText = "上一批次账单列表（JSON数组）：\n$oldBillJson\n\n用户修改指令：$safeInput"
+            systemPrompt = systemPrompt,
+            userText = "上一批次账单列表（JSON数组）：\n$oldBillJson\n\n用户修改指令：$safeInput",
+            jsonObjectResponse = true,
+            enableThinking = false
         )
-        val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-        return response.choices.firstOrNull()?.message?.content?.trim().orEmpty()
+        val streamResult = runCatching {
+            requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = false,
+                reasoningLogTag = MODIFY_BILL_LOG_TAG
+            )
+        }.getOrElse {
+            Logger.d(ctx, MODIFY_BILL_LOG_TAG, "stream failed, fallback raw: ${detailedHttpError(it as? Exception ?: Exception(it.message))}")
+            val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
+            StreamedResponse(
+                content = response.choices.firstOrNull()?.message?.content?.trim().orEmpty(),
+                reasoning = ""
+            )
+        }
+        return streamResult.content
+    }
+
+    private fun renderModifyBillPrompt(prompt: String, promptContext: AIAccountingPromptContext): String {
+        return prompt
+            .replace("{{ASSETS}}", Gson().toJson(promptContext.assetInfoList))
+            .replace("{{EXPENSE_CATS}}", Gson().toJson(promptContext.expenseCats))
+            .replace("{{INCOME_CATS}}", Gson().toJson(promptContext.incomeCats))
+            .replace("{{CURRENCIES}}", Gson().toJson(promptContext.currencies))
     }
 
     private fun parseRouterResult(content: String, userInput: String): AiRouteResult? {
@@ -659,41 +788,68 @@ object AIService {
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val safeBillSummary = shortenForModel(billSummary, MAX_ASSISTANT_SUMMARY_CHARS)
         val safeReplyHint = shortenForModel(extractorReplyHint, MAX_ASSISTANT_INPUT_CHARS, preserveTail = false)
-        val styleInstruction = buildAssistantStyleInstruction(ctx, DEFAULT_CUSTOM_REPLY_STYLE_GUIDE)
+        val systemPrompt = buildAssistantSystemPrompt(
+            ctx = ctx,
+            defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE,
+            chatHistoryContext = chatHistoryContext
+        )
         val userPrompt = buildAccountingAssistantUserPrompt(
             userInput = safeUserInput,
             billSummary = safeBillSummary,
-            extractorReplyHint = safeReplyHint,
-            styleInstruction = styleInstruction,
-            chatHistoryContext = chatHistoryContext
+            extractorReplyHint = safeReplyHint
         )
 
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.7,
-            systemPrompt = CHAT_ASSISTANT_PROMPT_DEFAULT,
-            userText = userPrompt
+            systemPrompt = systemPrompt,
+            userText = userPrompt,
+            stream = true,
+            enableThinking = false
         )
-        val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-        return response.choices.firstOrNull()?.message?.content?.trim().orEmpty()
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = requestJson,
+            logReasoning = false,
+            reasoningLogTag = ACCOUNTING_ASSISTANT_LOG_TAG
+        )
+        return streamed.content.trim()
     }
 
-    suspend fun generateGeneralChatReply(ctx: Context, userInput: String, chatHistoryContext: String = ""): String {
+    suspend fun generateGeneralChatReply(
+        ctx: Context,
+        userInput: String,
+        chatHistoryContext: String = "",
+        onDelta: ((String) -> Unit)? = null
+    ): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
         val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiSingleModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
-        val styleInstruction = buildAssistantStyleInstruction(ctx, DEFAULT_CUSTOM_REPLY_STYLE_GUIDE)
-        val contextBlock = if (chatHistoryContext.isNotBlank()) "【相关历史对话记录】\n$chatHistoryContext\n\n【用户最新输入】\n" else ""
+        val systemPrompt = buildAssistantSystemPrompt(
+            ctx = ctx,
+            defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE,
+            chatHistoryContext = chatHistoryContext
+        )
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.7,
-            systemPrompt = "你是 FlipAccounting 的 AI 对话助手。用户在记账应用里和你聊天；如果不是记账或查询任务，请自然、简洁地回复，不要输出 JSON 或内部标签。",
-            userText = "$styleInstruction\n${contextBlock}用户：$safeUserInput"
+            systemPrompt = systemPrompt,
+            userText = "用户：$safeUserInput",
+            stream = true,
+            enableThinking = false
         )
-        val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-        return response.choices.firstOrNull()?.message?.content?.trim().orEmpty()
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = requestJson,
+            logReasoning = false,
+            reasoningLogTag = GENERAL_CHAT_LOG_TAG,
+            onContentDelta = onDelta
+        )
+        return streamed.content.trim()
     }
 
     suspend fun streamAccountingAssistantReply(
@@ -711,43 +867,35 @@ object AIService {
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val safeBillSummary = shortenForModel(billSummary, MAX_ASSISTANT_SUMMARY_CHARS)
         val safeReplyHint = shortenForModel(extractorReplyHint, MAX_ASSISTANT_INPUT_CHARS, preserveTail = false)
-        val styleInstruction = buildAssistantStyleInstruction(ctx, DEFAULT_CUSTOM_REPLY_STYLE_GUIDE)
+        val systemPrompt = buildAssistantSystemPrompt(
+            ctx = ctx,
+            defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE,
+            chatHistoryContext = chatHistoryContext
+        )
         val userPrompt = buildAccountingAssistantUserPrompt(
             userInput = safeUserInput,
             billSummary = safeBillSummary,
-            extractorReplyHint = safeReplyHint,
-            styleInstruction = styleInstruction,
-            chatHistoryContext = chatHistoryContext
+            extractorReplyHint = safeReplyHint
         )
 
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.7,
-            systemPrompt = CHAT_ASSISTANT_PROMPT_DEFAULT,
+            systemPrompt = systemPrompt,
             userText = userPrompt,
-            stream = true
+            stream = true,
+            enableThinking = false
         )
 
         return try {
-            val body = getApi(ctx).chatStreamRaw("Bearer $apiKey", requestJson)
-            body.use { responseBody ->
-                val source = responseBody.source()
-                while (!source.exhausted()) {
-                    val line = source.readUtf8Line() ?: break
-                    if (!line.startsWith("data:")) continue
-                    val payload = line.removePrefix("data:").trim()
-                    if (payload == "[DONE]") break
-                    runCatching {
-                        val root = JSONObject(payload)
-                        val delta = root.optJSONArray("choices")
-                            ?.optJSONObject(0)
-                            ?.optJSONObject("delta")
-                            ?.optString("content")
-                            .orEmpty()
-                        if (delta.isNotEmpty()) onDelta(delta)
-                    }
-                }
-            }
+            requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = false,
+                reasoningLogTag = ACCOUNTING_ASSISTANT_LOG_TAG,
+                onContentDelta = onDelta
+            )
             true
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -767,7 +915,8 @@ object AIService {
                 systemPrompt = null,
                 leadText = "Reply with OK only.",
                 audioBase64 = buildProbeAudioBase64(),
-                audioFormat = "wav"
+                audioFormat = "wav",
+                enableThinking = false
             )
             val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
             response.choices.firstOrNull()?.message?.content != null
@@ -1018,6 +1167,8 @@ object AIService {
             if (remark.isBlank()) continue
 
             val candidates = if (type == 1) incomeCats else expenseCats
+            val finalConfidence = bill.optDouble("_final_confidence", 0.0).coerceIn(0.0, 1.0)
+            val originalCategory = bill.optString("category_name", "").trim()
             val matchedRules = if (Prefs.isAiPromptCorrectionEnabled(ctx)) {
                 findMatchedPromptRules(remark, allPromptRules)
             } else {
@@ -1033,6 +1184,16 @@ object AIService {
                     "Multi refine precheck idx=${i + 1}/${bills.length()}, remark=${remark.take(24)}, resolvedBy=local_rule, category=$localCategory"
                 )
             } else {
+                if (finalConfidence >= CONFIDENCE_HIGH_THRESHOLD && originalCategory.isNotBlank()) {
+                    progressLines[i] = "${i + 1}. ${remark.take(18)} -> ${originalCategory.take(12)}"
+                    onProgress?.invoke(
+                        buildString {
+                            append("本地规则匹配中 ${i + 1}/${bills.length()}...\n")
+                            append(progressLines.filter { it.isNotBlank() }.joinToString("\n"))
+                        }
+                    )
+                    continue
+                }
                 bill.put("category_name", "")
                 unresolvedIndexes += i
                 unresolvedRemarks += remark
@@ -1080,6 +1241,15 @@ object AIService {
                     )
                 }.getOrNull()
                 bill.put("category_name", refined ?: "")
+                if (bill.has("_final_confidence")) {
+                    val baseConf = bill.optDouble("_final_confidence", 0.0).coerceIn(0.0, 1.0)
+                    val boosted = when {
+                        refined.isNullOrBlank() && baseConf < CONFIDENCE_MID_THRESHOLD -> baseConf
+                        refined.isNullOrBlank() -> (baseConf + 0.03).coerceAtMost(1.0)
+                        else -> (baseConf + 0.1).coerceAtMost(1.0)
+                    }
+                    bill.put("_final_confidence", boosted)
+                }
                 Logger.d(
                     ctx,
                     "AIService",
@@ -1125,11 +1295,18 @@ object AIService {
             model = model,
             temperature = 0.1,
             systemPrompt = systemPrompt,
-            userText = userPrompt
+            userText = userPrompt,
+            enableThinking = true
         )
 
-        val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-        val content = response.choices.firstOrNull()?.message?.content.orEmpty()
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = requestJson,
+            logReasoning = true,
+            reasoningLogTag = CATEGORY_REFINE_LOG_TAG
+        )
+        val content = streamed.content
         val parsed = runCatching { parseAnalyzeResult(content, isMultiMode = false) }
             .getOrElse {
                 Logger.d(
@@ -1204,6 +1381,147 @@ object AIService {
 
     private fun categoryToken(value: String): String =
         value.lowercase(Locale.ROOT).replace(" ", "")
+
+    private fun scoreMultiBillsConfidence(
+        root: JSONObject,
+        expenseCats: List<String>,
+        incomeCats: List<String>,
+        assetNames: Set<String>
+    ) {
+        val bills = root.optJSONArray("bills") ?: return
+        for (i in 0 until bills.length()) {
+            val bill = bills.optJSONObject(i) ?: continue
+            val type = normalizeBillType(bill.optInt("type", 0))
+            val candidates = if (type == 1) incomeCats else expenseCats
+            val localConfidence = computeLocalConfidence(bill, type, candidates, assetNames)
+            val modelConfidence = bill.optDouble("confidence", 0.5).let { if (it.isNaN()) 0.5 else it.coerceIn(0.0, 1.0) }
+            val finalConfidence = (0.6 * localConfidence + 0.4 * modelConfidence).coerceIn(0.0, 1.0)
+            bill.put("_local_confidence", localConfidence)
+            bill.put("_model_confidence", modelConfidence)
+            bill.put("_final_confidence", finalConfidence)
+        }
+    }
+
+    private fun computeLocalConfidence(
+        bill: JSONObject,
+        type: Int,
+        candidates: List<String>,
+        assetNames: Set<String>
+    ): Double {
+        var score = 0.0
+        val amount = bill.optDouble("amount", 0.0)
+        if (!amount.isNaN() && amount > 0.0) score += 0.25
+        if (type in 0..2) score += 0.2
+        val category = bill.optString("category_name", "").trim()
+        if (category.isNotBlank() && candidates.contains(category)) score += 0.2
+        val assetName = bill.optString("asset_name", "").trim()
+        val toAssetName = bill.optString("to_asset_name", "").trim()
+        if ((assetName.isNotBlank() && assetNames.contains(assetName)) || (toAssetName.isNotBlank() && assetNames.contains(toAssetName))) {
+            score += 0.2
+        }
+        val time = bill.optString("time", "").trim()
+        if (time.matches(Regex("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"))) score += 0.1
+        if (amount > 0.0) score += 0.05
+        return score.coerceIn(0.0, 1.0)
+    }
+
+    private data class StreamedResponse(
+        val content: String,
+        val reasoning: String
+    )
+
+    private suspend fun requestChatContentStreamedWithReasoning(
+        ctx: Context,
+        apiKey: String,
+        requestJson: com.google.gson.JsonObject,
+        logReasoning: Boolean = false,
+        reasoningLogTag: String = "AIService",
+        onContentDelta: ((String) -> Unit)? = null,
+        onProgressChars: ((Int) -> Unit)? = null
+    ): StreamedResponse {
+        val streamReq = requestJson.deepCopy().apply { addProperty("stream", true) }
+        val contentBuilder = StringBuilder()
+        val reasoningBuilder = StringBuilder()
+        var lastProgressLen = 0
+        val body = getApi(ctx).chatStreamRaw("Bearer $apiKey", streamReq)
+        body.use { responseBody ->
+            val source = responseBody.source()
+            while (!source.exhausted()) {
+                val line = source.readUtf8Line() ?: break
+                if (!line.startsWith("data:")) continue
+                val payload = line.removePrefix("data:").trim()
+                if (payload == "[DONE]") break
+                runCatching {
+                    val root = JSONObject(payload)
+                    val deltaObj = root.optJSONArray("choices")
+                        ?.optJSONObject(0)
+                        ?.optJSONObject("delta")
+                    val contentDelta = deltaObj?.optString("content").orEmpty()
+                    val reasoningDelta = extractReasoningDelta(deltaObj)
+                    if (reasoningDelta.isNotEmpty()) {
+                        reasoningBuilder.append(reasoningDelta)
+                        if (logReasoning) {
+                            Logger.d(ctx, reasoningLogTag, "reasoning delta: $reasoningDelta")
+                        }
+                    }
+                    if (contentDelta.isNotEmpty()) {
+                        contentBuilder.append(contentDelta)
+                        onContentDelta?.invoke(contentDelta)
+                        val currentLen = contentBuilder.length
+                        if (onProgressChars != null && currentLen - lastProgressLen >= 120) {
+                            lastProgressLen = currentLen
+                            onProgressChars.invoke(currentLen)
+                        }
+                    }
+                }
+            }
+        }
+        if (logReasoning && reasoningBuilder.isNotBlank()) {
+            Logger.d(ctx, reasoningLogTag, "reasoning full: ${reasoningBuilder.toString()}")
+        }
+        return StreamedResponse(
+            content = contentBuilder.toString(),
+            reasoning = reasoningBuilder.toString()
+        )
+    }
+
+    private fun extractReasoningDelta(deltaObj: JSONObject?): String {
+        if (deltaObj == null) return ""
+        val candidates = listOf(
+            deltaObj.optString("reasoning_content", ""),
+            deltaObj.optString("reasoning", ""),
+            deltaObj.optString("thinking", "")
+        )
+        return candidates.firstOrNull { it.isNotBlank() && !it.equals("null", ignoreCase = true) }.orEmpty()
+    }
+
+    private suspend fun requestAccountingContentStreamed(
+        ctx: Context,
+        apiKey: String,
+        requestJson: com.google.gson.JsonObject,
+        onProgress: ((String) -> Unit)?,
+        emitTextDelta: Boolean = false,
+        logReasoning: Boolean = false,
+        reasoningLogTag: String = "AIService"
+    ): String {
+        return try {
+            val streamed = requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = logReasoning,
+                reasoningLogTag = reasoningLogTag,
+                onContentDelta = if (emitTextDelta) { delta -> onProgress?.invoke("AI_STREAM_TEXT::$delta") } else null,
+                onProgressChars = if (emitTextDelta) null else { currentLen -> onProgress?.invoke("智能分析中...（已接收 $currentLen 字）") }
+            )
+            streamed.content
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Logger.d(ctx, "AIService", "Accounting stream failed, fallback raw: ${detailedHttpError(e)}")
+            val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
+            response.choices.first().message.content
+        }
+    }
 
     private fun buildRawRequest(request: ChatRequest): com.google.gson.JsonObject {
         val gson = com.google.gson.GsonBuilder()
