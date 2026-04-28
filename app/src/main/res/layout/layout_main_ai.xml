@@ -189,10 +189,19 @@
                     android:textSize="@dimen/text_size_13"
                     android:layout_marginBottom="2dp" />
 
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_enable_thinking_category_refine"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="二段分类启用思考"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_13"
+                    android:layout_marginBottom="2dp" />
+
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="路由模型与多账单二次分类固定关闭思考，避免不必要耗时。单/多账单默认关闭，图片识别默认开启。"
+                    android:text="路由模型与多账单二次分类固定关闭思考，避免不必要耗时。单/多账单默认关闭，图片识别默认开启，二段分类默认关闭。"
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11"
                     android:layout_marginBottom="12dp" />

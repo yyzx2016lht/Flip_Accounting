@@ -154,7 +154,12 @@ class ChatBillCorrectionService(
         return TransferSettlementHint(amount = amount, currency = currency)
     }
 
-    suspend fun processBillResult(result: JSONObject, userText: String): List<Bill> {
+    suspend fun processBillResult(
+        result: JSONObject,
+        userText: String,
+        bookName: String,
+        conversationId: String
+    ): List<Bill> {
         val rawBills = mutableListOf<JSONObject>()
         when {
             result.has("bills") -> {
@@ -175,9 +180,8 @@ class ChatBillCorrectionService(
         val savedBills = mutableListOf<Bill>()
         val savedBillIds = mutableListOf<Long>()
         val activeBookName = BookAccountManager.normalizeBookName(
-            getCurrentBookName().ifBlank { BookAccountManager.getSelectedBook(context) }
+            bookName.ifBlank { BookAccountManager.getSelectedBook(context) }
         )
-        setCurrentBookName(activeBookName)
         val singleTransferSettlementHint = if (rawBills.size == 1) {
             extractSingleTransferSettlementHint(userText)
         } else {
@@ -272,9 +276,13 @@ class ChatBillCorrectionService(
                     billIds = billIdsJson,
                     modelName = Prefs.getAiChatModel(context),
                     bookName = activeBookName,
-                    conversationId = getCurrentConversationId()
+                    conversationId = conversationId
                 )
             )
+        }
+
+        if (getCurrentBookName() != activeBookName || getCurrentConversationId() != conversationId) {
+            return savedBills
         }
 
         displayMessages.add(

@@ -63,7 +63,8 @@ class ChatSessionController(
     private val showCustomConfirmDialog: (String, String, String, Boolean, () -> Unit) -> Unit,
     private val onPickBgImage: () -> Unit,
     private val onShowReplyStyleDialog: () -> Unit,
-    private val onConversationSubtitleChanged: () -> Unit
+    private val onConversationSubtitleChanged: () -> Unit,
+    private val cancelCurrentRequest: () -> Unit
 ) {
     private var drawerSearchJob: Job? = null
 
@@ -121,6 +122,7 @@ class ChatSessionController(
     }
 
     fun startNewConversation() {
+        cancelCurrentRequest()
         setCurrentConversationId(newConversationId())
         displayMessages.clear()
         adapterProvider().notifyDataSetChanged()
@@ -236,6 +238,7 @@ class ChatSessionController(
             "清空",
             true
         ) {
+            cancelCurrentRequest()
             lifecycleScope.launch {
                 val voiceFiles = displayMessages
                     .mapNotNull { it.voice?.audioPath?.takeIf { path -> path.isNotBlank() } }

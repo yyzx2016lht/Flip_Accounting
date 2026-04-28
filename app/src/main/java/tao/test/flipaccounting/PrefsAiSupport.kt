@@ -36,6 +36,7 @@ object PrefsAiSupport {
     private const val KEY_AI_THINKING_MULTI_BILL = "ai_thinking_multi_bill"
     private const val KEY_AI_THINKING_MODIFY_BILL = "ai_thinking_modify_bill"
     private const val KEY_AI_THINKING_VISION = "ai_thinking_vision"
+    private const val KEY_AI_THINKING_CATEGORY_REFINE = "ai_thinking_category_refine"
     private const val KEY_AI_RULES = "ai_rules_v1"
     private const val KEY_OCR_DEBUG_RECORDS = "ocr_debug_records_v1"
     private const val OCR_DEBUG_MAX_RECORDS = 20
@@ -148,6 +149,11 @@ object PrefsAiSupport {
         prefs(ctx).getBoolean(KEY_AI_THINKING_VISION, true)
     fun setAiThinkingVisionEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_THINKING_VISION, enabled).apply()
+
+    fun isAiThinkingCategoryRefineEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_THINKING_CATEGORY_REFINE, false)
+    fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_THINKING_CATEGORY_REFINE, enabled).apply()
 
     fun getAiModelsCache(ctx: Context): List<String> =
         (prefs(ctx).getStringSet(KEY_AI_MODELS_CACHE, null) ?: emptySet()).toList()

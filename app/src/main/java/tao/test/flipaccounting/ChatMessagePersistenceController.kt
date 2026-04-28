@@ -119,32 +119,36 @@ class ChatMessagePersistenceController(
         return item
     }
 
-    fun appendAiTextMessage(text: String, isLoading: Boolean): Int {
-        val idx = if (isUiAlive()) {
-            val item = ChatDisplayItem(
-                msgType = ChatActivity.MSG_TYPE_AI_TEXT,
-                content = text,
-                timestamp = System.currentTimeMillis(),
-                isLoading = isLoading
-            )
+    fun appendAiTextMessage(
+        text: String,
+        isLoading: Boolean,
+        bookName: String? = null,
+        conversationId: String? = null
+    ): String {
+        val item = ChatDisplayItem(
+            msgType = ChatActivity.MSG_TYPE_AI_TEXT,
+            content = text,
+            timestamp = System.currentTimeMillis(),
+            isLoading = isLoading
+        )
+        if (isUiAlive()) {
             displayMessages.add(item)
             val insertedIndex = displayMessages.lastIndex
             adapterProvider().notifyItemInserted(insertedIndex)
             scrollToBottom()
-            insertedIndex
-        } else {
-            -1
         }
 
         if (!isLoading && text.isNotBlank()) {
+            val targetBookName = bookName ?: getCurrentBookName()
+            val targetConversationId = conversationId ?: getCurrentConversationId()
             aiWorkScope.launch(Dispatchers.IO) {
                 db.chatMessageDao().insert(
                     ChatMessage(
                         msgType = ChatActivity.MSG_TYPE_AI_TEXT,
                         content = text,
                         modelName = Prefs.getAiChatModel(context),
-                        bookName = getCurrentBookName(),
-                        conversationId = getCurrentConversationId()
+                        bookName = targetBookName,
+                        conversationId = targetConversationId
                     )
                 )
                 withContext(Dispatchers.Main) {
@@ -159,62 +163,48 @@ class ChatMessagePersistenceController(
                 }
             }
         }
-        return idx
+        return item.uiKey
     }
 
-    suspend fun persistAiTextMessage(text: String) {
+    suspend fun persistAiTextMessage(text: String, bookName: String, conversationId: String) {
         withContext(Dispatchers.IO) {
             db.chatMessageDao().insert(
                 ChatMessage(
                     msgType = ChatActivity.MSG_TYPE_AI_TEXT,
                     content = text,
                     modelName = Prefs.getAiChatModel(context),
-                    bookName = getCurrentBookName(),
-                    conversationId = getCurrentConversationId()
+                    bookName = bookName,
+                    conversationId = conversationId
                 )
             )
         }
     }
 
-    fun removeLoadingMessage(idx: Int) {
+    fun removeLoadingMessage(uiKey: String) {
         if (!isUiAlive()) return
-        if (idx in displayMessages.indices && displayMessages[idx].isLoading) {
+        val idx = displayMessages.indexOfFirst { it.uiKey == uiKey && it.isLoading }
+        if (idx >= 0) {
             displayMessages.removeAt(idx)
             adapterProvider().notifyItemRemoved(idx)
             scrollToBottom()
         }
     }
 
-    fun updateLoadingMessage(idx: Int, text: String) {
+    fun updateLoadingMessage(uiKey: String, text: String) {
         if (!isUiAlive()) return
-        if (idx !in displayMessages.indices) return
+        val idx = displayMessages.indexOfFirst { it.uiKey == uiKey && it.isLoading }
+        if (idx < 0) return
         val current = displayMessages[idx]
-        if (!current.isLoading) return
         displayMessages[idx] = current.copy(content = text)
         adapterProvider().notifyItemChanged(idx)
         ensureLastMessageVisible()
     }
 
-    fun finalizeLoadingMessage(idx: Int, text: String) {
-        if (!isUiAlive()) {
-            if (text.isNotBlank()) {
-                aiWorkScope.launch(Dispatchers.IO) {
-                    db.chatMessageDao().insert(
-                        ChatMessage(
-                            msgType = ChatActivity.MSG_TYPE_AI_TEXT,
-                            content = text,
-                            modelName = Prefs.getAiChatModel(context),
-                            bookName = getCurrentBookName(),
-                            conversationId = getCurrentConversationId()
-                        )
-                    )
-                }
-            }
-            return
-        }
-        if (idx !in displayMessages.indices) return
+    fun finalizeLoadingMessage(uiKey: String, text: String, bookName: String, conversationId: String) {
+        if (!isUiAlive()) return
+        val idx = displayMessages.indexOfFirst { it.uiKey == uiKey && it.isLoading }
+        if (idx < 0) return
         val current = displayMessages[idx]
-        if (!current.isLoading) return
         displayMessages[idx] = current.copy(content = text, isLoading = false)
         adapterProvider().notifyItemChanged(idx)
         scrollToBottom()
@@ -225,11 +215,40 @@ class ChatMessagePersistenceController(
                         msgType = ChatActivity.MSG_TYPE_AI_TEXT,
                         content = text,
                         modelName = Prefs.getAiChatModel(context),
-                        bookName = getCurrentBookName(),
-                        conversationId = getCurrentConversationId()
+                        bookName = bookName,
+                        conversationId = conversationId
                     )
                 )
             }
         }
+    }
+
+    @Deprecated("Use uiKey-based appendAiTextMessage overload.")
+    fun appendAiTextMessageLegacy(text: String, isLoading: Boolean): Int {
+        val uiKey = appendAiTextMessage(text, isLoading)
+        return displayMessages.indexOfFirst { it.uiKey == uiKey }
+    }
+
+    @Deprecated("Use explicit book/conversation persistence.")
+    suspend fun persistAiTextMessage(text: String) {
+        persistAiTextMessage(text, getCurrentBookName(), getCurrentConversationId())
+    }
+
+    @Deprecated("Use uiKey-based removeLoadingMessage.")
+    fun removeLoadingMessage(idx: Int) {
+        val uiKey = displayMessages.getOrNull(idx)?.uiKey ?: return
+        removeLoadingMessage(uiKey)
+    }
+
+    @Deprecated("Use uiKey-based updateLoadingMessage.")
+    fun updateLoadingMessage(idx: Int, text: String) {
+        val uiKey = displayMessages.getOrNull(idx)?.uiKey ?: return
+        updateLoadingMessage(uiKey, text)
+    }
+
+    @Deprecated("Use uiKey-based finalizeLoadingMessage with explicit context.")
+    fun finalizeLoadingMessage(idx: Int, text: String) {
+        val uiKey = displayMessages.getOrNull(idx)?.uiKey ?: return
+        finalizeLoadingMessage(uiKey, text, getCurrentBookName(), getCurrentConversationId())
     }
 }

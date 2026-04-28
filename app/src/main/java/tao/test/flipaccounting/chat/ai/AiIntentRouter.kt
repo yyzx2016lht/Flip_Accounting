@@ -3,11 +3,12 @@ package tao.test.flipaccounting.chat.ai
 import java.util.Locale
 
 object AiIntentRouter {
-    private val queryWords = listOf("搜索", "查询", "查一下", "统计", "多少", "多少钱", "花了多少", "支出", "消费", "合计", "总共")
+    private val queryWords = listOf("搜索", "查询", "查一下", "统计", "多少", "多少钱", "花了多少", "支出", "消费", "合计", "总共", "上一笔", "前一笔", "刚刚那笔", "刚才那笔", "最近一笔")
     private val bookkeepingWords = listOf("记一笔", "记账", "花了", "收入", "报销", "转账", "还款", "买了", "付了", "收了")
     private val generalChatWords = listOf("你好", "谢谢", "你是谁", "聊天", "讲个", "怎么用", "帮助")
     private val highRiskWriteWords = listOf("删除", "删掉", "清空", "覆盖", "批量修改", "全部改", "全改", "撤销所有", "重置")
-    private val modifyWords = listOf("改成", "换成", "上一笔", "刚刚那笔", "刚才那笔", "前一笔", "修改为", "修改成", "其实是")
+    private val modifyWords = listOf("改成", "改为", "改下", "修改为", "修改成", "修改一下", "换成", "其实是")
+    private val modifyShapeRegex = Regex("""把.+(改成|改为|修改成|换成)|(.+)(其实是)(.+)""")
     private val accountWords = listOf(
         "微信", "支付宝", "银行卡", "现金", "信用卡", "花呗", "京东", "美团",
         "visa卡", "visa", "mastercard", "master card", "万事达", "银联"
@@ -26,12 +27,14 @@ object AiIntentRouter {
         val slots = extractSlots(normalized)
         val bookkeepingMode = detectBookkeepingMode(normalized)
 
-        if (modifyWords.any { normalized.contains(it) }) {
+        val hasExplicitModify = modifyWords.any { normalized.contains(it) } || modifyShapeRegex.containsMatchIn(normalized)
+        if (hasExplicitModify) {
             return AiRouteResult(AiIntentType.MODIFY_BILL, 0.85, slots)
         }
 
         val isQuestionLike = queryWords.any { normalized.contains(it) }
-        val hasQueryShape = isQuestionLike && (slots.timeRange != null || slots.account != null || slots.category != null)
+        val hasRelativeQueryTarget = listOf("上一笔", "前一笔", "刚刚那笔", "刚才那笔", "最近一笔").any { normalized.contains(it) }
+        val hasQueryShape = isQuestionLike && (slots.timeRange != null || slots.account != null || slots.category != null || hasRelativeQueryTarget)
         if (hasQueryShape) {
             val confidence = listOf(
                 0.45,
@@ -52,7 +55,7 @@ object AiIntentRouter {
             return AiRouteResult(AiIntentType.GENERAL_CHAT, 0.72, slots)
         }
 
-        return AiRouteResult(AiIntentType.BOOKKEEPING, 0.52, slots, bookkeepingMode)
+        return AiRouteResult(AiIntentType.UNKNOWN, 0.45, slots, bookkeepingMode)
     }
 
     fun isHighRiskWrite(text: String): Boolean {

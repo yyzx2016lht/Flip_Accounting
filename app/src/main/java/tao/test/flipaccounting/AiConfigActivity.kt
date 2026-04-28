@@ -87,6 +87,7 @@ class AiConfigActivity : AppCompatActivity() {
         val switchEnableThinkingMulti = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_multi)
         val switchEnableThinkingModify = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_modify)
         val switchEnableThinkingVision = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_vision)
+        val switchEnableThinkingCategoryRefine = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_category_refine)
         val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
 
         val providerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providers)
@@ -111,6 +112,10 @@ class AiConfigActivity : AppCompatActivity() {
         switchEnableThinkingVision.isChecked = Prefs.isAiThinkingVisionEnabled(this)
         switchEnableThinkingVision.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setAiThinkingVisionEnabled(this, isChecked)
+        }
+        switchEnableThinkingCategoryRefine.isChecked = Prefs.isAiThinkingCategoryRefineEnabled(this)
+        switchEnableThinkingCategoryRefine.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setAiThinkingCategoryRefineEnabled(this, isChecked)
         }
 
         switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)

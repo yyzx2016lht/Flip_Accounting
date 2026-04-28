@@ -337,6 +337,9 @@ object AIService {
                 reasoningLogTag = if (isMultiMode) ACCOUNTING_AUDIO_MULTI_LOG_TAG else ACCOUNTING_AUDIO_SINGLE_LOG_TAG,
                 onProgressChars = { currentLen -> onProgress?.invoke("智能分析中...（已接收 $currentLen 字）") }
             )
+            if (!streamed.completed) {
+                throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("语音账单流式回复未完整结束")
+            }
             val content = streamed.content
             Logger.d(ctx, "AIService", "AI Audio Response: $content")
             val result = parseAnalyzeResult(content, isMultiMode)
@@ -401,6 +404,9 @@ object AIService {
                 logReasoning = enableThinkingForVision(ctx),
                 reasoningLogTag = RECEIPT_VISION_LOG_TAG
             )
+            if (!streamed.completed) {
+                throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("图片识别流式回复未完整结束")
+            }
             val content = streamed.content
             Logger.d(ctx, "AIService", "Receipt multimodal response: $content")
             content
@@ -477,6 +483,9 @@ object AIService {
                 logReasoning = enableThinkingForVision(ctx),
                 reasoningLogTag = SCREEN_ACCOUNTING_LOG_TAG
             )
+            if (!streamed.completed) {
+                throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("截图记账流式回复未完整结束")
+            }
             val content = streamed.content
             Logger.d(ctx, "AIService", "Screen accounting multimodal response: $content")
             val result = parseAnalyzeResult(content, isMultiMode)
@@ -555,6 +564,9 @@ object AIService {
                     reasoningLogTag = RECEIPT_OCR_LOG_TAG
                 )
             }
+            if (!streamed.completed) {
+                throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("OCR 结构化流式回复未完整结束")
+            }
             val content = streamed.content
             Logger.d(ctx, "AIService", "Receipt OCR structured response: $content")
             AIReceiptHelper.buildReceiptSummaryFromStructured(content, ocrText)
@@ -597,6 +609,9 @@ object AIService {
             logReasoning = enableThinkingForVision(ctx),
             reasoningLogTag = RECEIPT_OCR_REFINE_LOG_TAG
         )
+        if (!streamed.completed) {
+            return localSummary
+        }
         val content = streamed.content.trim()
         return AIReceiptHelper.sanitizeReceiptSummaryText(content, originalOcrText)
             ?: content.ifBlank { localSummary }
@@ -658,6 +673,9 @@ object AIService {
             logReasoning = true,
             reasoningLogTag = SIMPLE_CHAT_LOG_TAG
         )
+        if (!streamed.completed) {
+            throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("简单聊天流式回复未完整结束")
+        }
         return streamed.content
     }
 
@@ -690,6 +708,7 @@ object AIService {
             logReasoning = false,
             reasoningLogTag = ROUTER_LOG_TAG
         )
+        if (!streamed.completed) return null
         val content = streamed.content
         return parseRouterResult(content, userInput)
     }
@@ -727,10 +746,15 @@ object AIService {
         }.getOrElse {
             Logger.d(ctx, MODIFY_BILL_LOG_TAG, "stream failed, fallback raw: ${detailedHttpError(it as? Exception ?: Exception(it.message))}")
             val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
-            StreamedResponse(
+            StreamResult(
                 content = response.choices.firstOrNull()?.message?.content?.trim().orEmpty(),
-                reasoning = ""
+                reasoning = "",
+                completed = true,
+                sawDone = true
             )
+        }
+        if (!streamResult.completed) {
+            throw IllegalStateException("流式修改回复未完整结束")
         }
         return streamResult.content
     }
@@ -814,7 +838,7 @@ object AIService {
             logReasoning = false,
             reasoningLogTag = ACCOUNTING_ASSISTANT_LOG_TAG
         )
-        return streamed.content.trim()
+        return if (streamed.completed) streamed.content.trim() else ""
     }
 
     suspend fun generateGeneralChatReply(
@@ -822,7 +846,7 @@ object AIService {
         userInput: String,
         chatHistoryContext: String = "",
         onDelta: ((String) -> Unit)? = null
-    ): String {
+    ): StreamResult {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
@@ -849,7 +873,7 @@ object AIService {
             reasoningLogTag = GENERAL_CHAT_LOG_TAG,
             onContentDelta = onDelta
         )
-        return streamed.content.trim()
+        return streamed.copy(content = streamed.content.trim())
     }
 
     suspend fun streamAccountingAssistantReply(
@@ -888,7 +912,7 @@ object AIService {
         )
 
         return try {
-            requestChatContentStreamedWithReasoning(
+            val streamed = requestChatContentStreamedWithReasoning(
                 ctx = ctx,
                 apiKey = apiKey,
                 requestJson = requestJson,
@@ -896,7 +920,7 @@ object AIService {
                 reasoningLogTag = ACCOUNTING_ASSISTANT_LOG_TAG,
                 onContentDelta = onDelta
             )
-            true
+            streamed.completed
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             false
@@ -1296,7 +1320,7 @@ object AIService {
             temperature = 0.1,
             systemPrompt = systemPrompt,
             userText = userPrompt,
-            enableThinking = true
+            enableThinking = Prefs.isAiThinkingCategoryRefineEnabled(ctx)
         )
 
         val streamed = requestChatContentStreamedWithReasoning(
@@ -1306,6 +1330,7 @@ object AIService {
             logReasoning = true,
             reasoningLogTag = CATEGORY_REFINE_LOG_TAG
         )
+        if (!streamed.completed) return null
         val content = streamed.content
         val parsed = runCatching { parseAnalyzeResult(content, isMultiMode = false) }
             .getOrElse {
@@ -1425,9 +1450,13 @@ object AIService {
         return score.coerceIn(0.0, 1.0)
     }
 
-    private data class StreamedResponse(
+    data class StreamResult(
         val content: String,
-        val reasoning: String
+        val reasoning: String,
+        val completed: Boolean,
+        val sawDone: Boolean,
+        val parseError: Exception? = null,
+        val transportError: Exception? = null
     )
 
     private suspend fun requestChatContentStreamedWithReasoning(
@@ -1438,50 +1467,68 @@ object AIService {
         reasoningLogTag: String = "AIService",
         onContentDelta: ((String) -> Unit)? = null,
         onProgressChars: ((Int) -> Unit)? = null
-    ): StreamedResponse {
+    ): StreamResult {
         val streamReq = requestJson.deepCopy().apply { addProperty("stream", true) }
         val contentBuilder = StringBuilder()
         val reasoningBuilder = StringBuilder()
         var lastProgressLen = 0
-        val body = getApi(ctx).chatStreamRaw("Bearer $apiKey", streamReq)
-        body.use { responseBody ->
-            val source = responseBody.source()
-            while (!source.exhausted()) {
-                val line = source.readUtf8Line() ?: break
-                if (!line.startsWith("data:")) continue
-                val payload = line.removePrefix("data:").trim()
-                if (payload == "[DONE]") break
-                runCatching {
-                    val root = JSONObject(payload)
-                    val deltaObj = root.optJSONArray("choices")
-                        ?.optJSONObject(0)
-                        ?.optJSONObject("delta")
-                    val contentDelta = deltaObj?.optString("content").orEmpty()
-                    val reasoningDelta = extractReasoningDelta(deltaObj)
-                    if (reasoningDelta.isNotEmpty()) {
-                        reasoningBuilder.append(reasoningDelta)
-                        if (logReasoning) {
-                            Logger.d(ctx, reasoningLogTag, "reasoning delta: $reasoningDelta")
-                        }
+        var sawDone = false
+        var parseError: Exception? = null
+        var transportError: Exception? = null
+        try {
+            val body = getApi(ctx).chatStreamRaw("Bearer $apiKey", streamReq)
+            body.use { responseBody ->
+                val source = responseBody.source()
+                while (!source.exhausted()) {
+                    val line = source.readUtf8Line() ?: break
+                    if (!line.startsWith("data:")) continue
+                    val payload = line.removePrefix("data:").trim()
+                    if (payload == "[DONE]") {
+                        sawDone = true
+                        break
                     }
-                    if (contentDelta.isNotEmpty()) {
-                        contentBuilder.append(contentDelta)
-                        onContentDelta?.invoke(contentDelta)
-                        val currentLen = contentBuilder.length
-                        if (onProgressChars != null && currentLen - lastProgressLen >= 120) {
-                            lastProgressLen = currentLen
-                            onProgressChars.invoke(currentLen)
+                    try {
+                        val root = JSONObject(payload)
+                        val deltaObj = root.optJSONArray("choices")
+                            ?.optJSONObject(0)
+                            ?.optJSONObject("delta")
+                        val contentDelta = deltaObj?.optString("content").orEmpty()
+                        val reasoningDelta = extractReasoningDelta(deltaObj)
+                        if (reasoningDelta.isNotEmpty()) {
+                            reasoningBuilder.append(reasoningDelta)
+                            if (logReasoning) {
+                                Logger.d(ctx, reasoningLogTag, "reasoning delta: $reasoningDelta")
+                            }
                         }
+                        if (contentDelta.isNotEmpty()) {
+                            contentBuilder.append(contentDelta)
+                            onContentDelta?.invoke(contentDelta)
+                            val currentLen = contentBuilder.length
+                            if (onProgressChars != null && currentLen - lastProgressLen >= 120) {
+                                lastProgressLen = currentLen
+                                onProgressChars.invoke(currentLen)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        parseError = e
+                        break
                     }
                 }
             }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            transportError = e
         }
         if (logReasoning && reasoningBuilder.isNotBlank()) {
             Logger.d(ctx, reasoningLogTag, "reasoning full: ${reasoningBuilder.toString()}")
         }
-        return StreamedResponse(
+        return StreamResult(
             content = contentBuilder.toString(),
-            reasoning = reasoningBuilder.toString()
+            reasoning = reasoningBuilder.toString(),
+            completed = sawDone && parseError == null && transportError == null,
+            sawDone = sawDone,
+            parseError = parseError,
+            transportError = transportError
         )
     }
 
@@ -1514,6 +1561,10 @@ object AIService {
                 onContentDelta = if (emitTextDelta) { delta -> onProgress?.invoke("AI_STREAM_TEXT::$delta") } else null,
                 onProgressChars = if (emitTextDelta) null else { currentLen -> onProgress?.invoke("智能分析中...（已接收 $currentLen 字）") }
             )
+            if (!streamed.completed) {
+                val reason = streamed.parseError ?: streamed.transportError ?: IllegalStateException("SSE stream ended before [DONE]")
+                throw reason
+            }
             streamed.content
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e

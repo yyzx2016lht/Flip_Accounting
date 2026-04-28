@@ -150,7 +150,8 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var layoutChatInputRow: View
 
     private val db by lazy { AppDatabase.getDatabase(this) }
-    private val aiWorkScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val aiScopeJob = SupervisorJob()
+    private val aiWorkScope = CoroutineScope(aiScopeJob + Dispatchers.Main.immediate)
     private val messagePipeline by lazy {
         ChatMessagePipeline(
             context = this,
@@ -160,7 +161,9 @@ class ChatActivity : AppCompatActivity() {
             updateInputActionUi = ::updateInputActionUi,
             appendUserMessage = { text, type -> appendUserMessage(text, type) },
             consumePendingHabitSuggestionReply = ::consumePendingHabitSuggestionReply,
-            appendAiTextMessage = ::appendAiTextMessage,
+            appendAiTextMessage = { text, loading, bookName, conversationId ->
+                appendAiTextMessage(text, loading, bookName, conversationId)
+            },
             removeLoadingMessage = ::removeLoadingMessage,
             updateLoadingMessage = ::updateLoadingMessage,
             finalizeLoadingMessage = ::finalizeLoadingMessage,
@@ -255,6 +258,7 @@ class ChatActivity : AppCompatActivity() {
     private val sessionAdapter by lazy {
         SessionListAdapter(
             onClick = { row ->
+                messagePipeline.cancelCurrentRequest(showInterruptedMessage = false)
                 currentBookName = row.bookName
                 currentConversationId = row.conversationId
                 drawerSessions.closeDrawer(GravityCompat.END)
@@ -267,6 +271,7 @@ class ChatActivity : AppCompatActivity() {
     private val searchResultAdapter by lazy {
         DrawerSearchResultAdapter(
             onClick = { msg ->
+                messagePipeline.cancelCurrentRequest(showInterruptedMessage = false)
                 pendingScrollToMessageId = msg.id
                 currentBookName = msg.bookName.ifBlank { currentBookName }
                 currentConversationId = msg.conversationId.ifBlank { currentConversationId }
@@ -313,7 +318,8 @@ class ChatActivity : AppCompatActivity() {
             },
             onPickBgImage = { mediaController.pickBgImage() },
             onShowReplyStyleDialog = { panelController.showReplyStyleDialog() },
-            onConversationSubtitleChanged = ::updateConversationSubtitle
+            onConversationSubtitleChanged = ::updateConversationSubtitle,
+            cancelCurrentRequest = { messagePipeline.cancelCurrentRequest(showInterruptedMessage = false) }
         )
     }
     private val mediaController: ChatMediaController by lazy {
@@ -328,8 +334,8 @@ class ChatActivity : AppCompatActivity() {
             showPageCenterDialog = { dialog, widthRatio -> uiHelperController.showPageCenterDialog(dialog, widthRatio) },
             updateConversationSubtitle = ::updateConversationSubtitle,
             appendUserMessage = ::appendUserMessage,
-            callAiAccounting = { text -> callAiAccounting(text, appendUserBubble = false) },
-            appendAiTextMessage = ::appendAiTextMessage,
+            callAiAccounting = { text, appendUserBubble -> callAiAccounting(text, appendUserBubble = appendUserBubble) },
+            appendAiTextMessage = { text, loading -> appendAiTextMessage(text, loading) },
             reqPickImage = REQ_PICK_IMAGE,
             reqPickBg = REQ_PICK_BG,
             reqCropBg = REQ_CROP_BG,
@@ -992,7 +998,7 @@ class ChatActivity : AppCompatActivity() {
         appendUserBubble: Boolean = true,
         bookkeepingMode: tao.test.flipaccounting.chat.ai.AiBookkeepingMode = tao.test.flipaccounting.chat.ai.AiBookkeepingMode.UNSPECIFIED,
         forceTextReply: Boolean = false,
-        loadingIdxOverride: Int? = null,
+        loadingIdxOverride: String? = null,
         loadingBootstrapText: String = ""
     ) {
         messagePipeline.callAiAccounting(
@@ -1069,8 +1075,13 @@ class ChatActivity : AppCompatActivity() {
         return billCorrectionService.buildBillSummary(bills)
     }
 
-    private suspend fun processBillResult(result: JSONObject, userText: String): List<Bill> {
-        return billCorrectionService.processBillResult(result, userText)
+    private suspend fun processBillResult(
+        result: JSONObject,
+        userText: String,
+        bookName: String,
+        conversationId: String
+    ): List<Bill> {
+        return billCorrectionService.processBillResult(result, userText, bookName, conversationId)
     }
 
     private suspend fun chooseModifyTargetBill(userText: String, candidates: List<Bill>): Bill? {
@@ -1473,24 +1484,29 @@ class ChatActivity : AppCompatActivity() {
         return messagePersistenceController.appendUserVoiceMessage(audioFile, durationSec, transcript)
     }
 
-    private fun appendAiTextMessage(text: String, isLoading: Boolean): Int {
-        return messagePersistenceController.appendAiTextMessage(text, isLoading)
+    private fun appendAiTextMessage(
+        text: String,
+        isLoading: Boolean,
+        bookName: String? = null,
+        conversationId: String? = null
+    ): String {
+        return messagePersistenceController.appendAiTextMessage(text, isLoading, bookName, conversationId)
     }
 
-    private suspend fun persistAiTextMessage(text: String) {
-        messagePersistenceController.persistAiTextMessage(text)
+    private suspend fun persistAiTextMessage(text: String, bookName: String, conversationId: String) {
+        messagePersistenceController.persistAiTextMessage(text, bookName, conversationId)
     }
 
-    private fun removeLoadingMessage(idx: Int) {
-        messagePersistenceController.removeLoadingMessage(idx)
+    private fun removeLoadingMessage(uiKey: String) {
+        messagePersistenceController.removeLoadingMessage(uiKey)
     }
 
-    private fun updateLoadingMessage(idx: Int, text: String) {
-        messagePersistenceController.updateLoadingMessage(idx, text)
+    private fun updateLoadingMessage(uiKey: String, text: String) {
+        messagePersistenceController.updateLoadingMessage(uiKey, text)
     }
 
-    private fun finalizeLoadingMessage(idx: Int, text: String) {
-        messagePersistenceController.finalizeLoadingMessage(idx, text)
+    private fun finalizeLoadingMessage(uiKey: String, text: String, bookName: String, conversationId: String) {
+        messagePersistenceController.finalizeLoadingMessage(uiKey, text, bookName, conversationId)
     }
 
     private fun scrollToBottom(force: Boolean = false) {
@@ -1507,6 +1523,8 @@ class ChatActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        messagePipeline.cancelCurrentRequest(showInterruptedMessage = false)
+        aiScopeJob.cancel()
         pendingBillSelection?.continuation?.takeIf { it.isActive }?.resume(null)
         pendingBillSelection = null
         pendingBillConfirmation?.continuation?.takeIf { it.isActive }?.resume(false)
@@ -1534,6 +1552,7 @@ class ChatActivity : AppCompatActivity() {
 
 data class ChatDisplayItem(
     val dbId: Long = 0,
+    val uiKey: String = UUID.randomUUID().toString(),
     val msgType: Int,
     val content: String = "",
     val imageUri: String = "",

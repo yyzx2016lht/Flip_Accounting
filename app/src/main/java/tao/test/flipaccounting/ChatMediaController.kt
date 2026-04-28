@@ -38,7 +38,7 @@ class ChatMediaController(
     private val showPageCenterDialog: (AlertDialog, Float) -> Unit,
     private val updateConversationSubtitle: () -> Unit,
     private val appendUserMessage: (String, Int, String) -> Unit,
-    private val callAiAccounting: (String) -> Unit,
+    private val callAiAccounting: (String, Boolean) -> Unit,
     private val appendAiTextMessage: (String, Boolean) -> Unit,
     private val reqPickImage: Int,
     private val reqPickBg: Int,
@@ -423,7 +423,7 @@ class ChatMediaController(
                 } else {
                     "[MULTIMODAL_IMAGE]$base64|$mime"
                 }
-                callAiAccounting(text)
+                callAiAccounting(text, false)
             } catch (e: Exception) {
                 appendAiTextMessage("图片处理失败: ${e.message}", false)
             }

@@ -136,6 +136,10 @@ object Prefs {
         PrefsAiSupport.isAiThinkingVisionEnabled(ctx)
     fun setAiThinkingVisionEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiThinkingVisionEnabled(ctx, enabled)
+    fun isAiThinkingCategoryRefineEnabled(ctx: Context): Boolean =
+        PrefsAiSupport.isAiThinkingCategoryRefineEnabled(ctx)
+    fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiThinkingCategoryRefineEnabled(ctx, enabled)
 
     fun getAiModelsCache(ctx: Context): List<String> = PrefsAiSupport.getAiModelsCache(ctx)
     fun setAiModelsCache(ctx: Context, models: List<String>) =

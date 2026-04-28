@@ -15,6 +15,14 @@ object AiTimeRangeParser {
                 val start = today.withDayOfMonth(1)
                 start to start.plusMonths(1)
             }
+            normalized.contains("上周") || normalized.contains("上星期") -> {
+                val start = today.minusWeeks(1).minusDays((today.dayOfWeek.value - 1).toLong())
+                start to start.plusWeeks(1)
+            }
+            normalized.contains("本周") || normalized.contains("这周") || normalized.contains("这个星期") -> {
+                val start = today.minusDays((today.dayOfWeek.value - 1).toLong())
+                start to start.plusWeeks(1)
+            }
             normalized.contains("今年") || normalized.contains("本年") -> {
                 val start = today.withDayOfYear(1)
                 start to start.plusYears(1)
@@ -44,6 +52,11 @@ object AiTimeRangeParser {
         text.contains("本月") -> "本月"
         text.contains("这个月") -> "这个月"
         text.contains("当月") -> "当月"
+        text.contains("上周") -> "上周"
+        text.contains("上星期") -> "上星期"
+        text.contains("本周") -> "本周"
+        text.contains("这周") -> "这周"
+        text.contains("这个星期") -> "这个星期"
         text.contains("今年") -> "今年"
         text.contains("本年") -> "本年"
         text.contains("昨天") -> "昨天"
