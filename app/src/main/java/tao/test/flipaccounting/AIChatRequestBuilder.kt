@@ -87,6 +87,7 @@ private fun buildChatRequest(
     return JsonObject().apply {
         addProperty("model", model)
         addProperty("temperature", temperature)
+        addProperty("enable_thinking", false)
         if (stream) addProperty("stream", true)
         add("messages", messages)
         if (jsonObjectResponse) {

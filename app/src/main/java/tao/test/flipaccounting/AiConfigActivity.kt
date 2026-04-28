@@ -68,6 +68,7 @@ class AiConfigActivity : AppCompatActivity() {
 
         val btnSingle = findViewById<Chip>(R.id.btn_single_prompt)
         val btnMulti = findViewById<Chip>(R.id.btn_multi_prompt)
+        val btnCategoryRefine = findViewById<Chip>(R.id.btn_category_refine_prompt)
         val btnRule = findViewById<Chip>(R.id.btn_rule_prompt)
         val btnReceipt = findViewById<Chip>(R.id.btn_receipt_prompt)
         val btnReceiptVision = findViewById<Chip>(R.id.btn_receipt_vision_prompt)
@@ -99,6 +100,7 @@ class AiConfigActivity : AppCompatActivity() {
         val modeModels = mutableMapOf(
             "single" to Prefs.getAiSingleModel(this),
             "multi" to Prefs.getAiMultiModel(this),
+            "category_refine" to Prefs.getAiCategoryRefineModel(this),
             "router" to Prefs.getAiRouterModel(this),
             "rule" to Prefs.getAiRuleModel(this),
             "receipt" to Prefs.getAiReceiptModel(this),
@@ -218,6 +220,7 @@ class AiConfigActivity : AppCompatActivity() {
         fun updateUI() {
             btnSingle.isChecked = currentMode == "single"
             btnMulti.isChecked = currentMode == "multi"
+            btnCategoryRefine.isChecked = currentMode == "category_refine"
             btnRule.isChecked = currentMode == "rule"
             btnReceipt.isChecked = currentMode == "receipt"
             btnReceiptVision.isChecked = currentMode == "receipt_vision"
@@ -240,6 +243,7 @@ class AiConfigActivity : AppCompatActivity() {
 
         btnSingle.setOnClickListener { switchMode("single") }
         btnMulti.setOnClickListener { switchMode("multi") }
+        btnCategoryRefine.setOnClickListener { switchMode("category_refine") }
         btnRule.setOnClickListener { switchMode("rule") }
         btnReceipt.setOnClickListener { switchMode("receipt") }
         btnReceiptVision.setOnClickListener { switchMode("receipt_vision") }
@@ -340,6 +344,7 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiModel(this, modeModels["single"] ?: "")
             Prefs.setAiSingleModel(this, modeModels["single"] ?: "")
             Prefs.setAiMultiModel(this, modeModels["multi"] ?: "")
+            Prefs.setAiCategoryRefineModel(this, modeModels["category_refine"] ?: "")
             Prefs.setAiRouterModel(this, modeModels["router"] ?: "")
             Prefs.setAiRuleModel(this, modeModels["rule"] ?: "")
             Prefs.setAiReceiptModel(this, modeModels["receipt"] ?: "")

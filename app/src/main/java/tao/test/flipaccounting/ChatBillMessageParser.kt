@@ -84,11 +84,36 @@ object ChatBillMessageParser {
             buildSet {
                 for (i in 0 until arr.length()) {
                     val id = arr.optLong(i, 0L)
+                    if (id != 0L) add(id)
+                }
+            }
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    fun parseEditedBillIdsFromContent(content: String): Set<Long> {
+        if (content.isBlank()) return emptySet()
+        return try {
+            val root = JSONObject(content)
+            val arr = root.optJSONArray("editedBillIds") ?: return emptySet()
+            buildSet {
+                for (i in 0 until arr.length()) {
+                    val id = arr.optLong(i, 0L)
                     if (id > 0L) add(id)
                 }
             }
         } catch (_: Exception) {
             emptySet()
+        }
+    }
+
+    fun parseSnapshotOnlyFromContent(content: String): Boolean {
+        if (content.isBlank()) return false
+        return try {
+            JSONObject(content).optBoolean("snapshotOnly", false)
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -111,7 +136,9 @@ object ChatBillMessageParser {
     fun buildBillMessageContent(
         bills: List<Bill>,
         formatTime: (Long) -> String,
-        deprecatedBillIds: Set<Long> = emptySet()
+        deprecatedBillIds: Set<Long> = emptySet(),
+        editedBillIds: Set<Long> = emptySet(),
+        snapshotOnly: Boolean = false
     ): String {
         val arr = JSONArray()
         bills.forEach { bill ->
@@ -137,6 +164,8 @@ object ChatBillMessageParser {
         return JSONObject().apply {
             put("bills", arr)
             put("deprecatedBillIds", JSONArray(deprecatedBillIds.toList()))
+            put("editedBillIds", JSONArray(editedBillIds.toList()))
+            put("snapshotOnly", snapshotOnly)
         }.toString()
     }
 }

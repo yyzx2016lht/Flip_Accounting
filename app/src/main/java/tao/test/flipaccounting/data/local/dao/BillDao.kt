@@ -357,6 +357,17 @@ interface BillDao {
 
     @Query("""
         SELECT * FROM bills
+        WHERE bookName = :bookName
+        ORDER BY time DESC, id DESC
+        LIMIT :limit
+    """)
+    suspend fun getRecentBillsByBookName(
+        bookName: String,
+        limit: Int
+    ): List<Bill>
+
+    @Query("""
+        SELECT * FROM bills
         WHERE type = :expenseType
           AND subType != :refundSubtype
         ORDER BY time DESC

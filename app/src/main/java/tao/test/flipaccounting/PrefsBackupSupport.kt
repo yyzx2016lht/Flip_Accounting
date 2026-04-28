@@ -46,6 +46,7 @@ object PrefsBackupSupport {
     private const val KEY_AI_PROMPT = "ai_system_prompt"
     private const val KEY_AI_SINGLE_MODEL = "ai_single_model_id"
     private const val KEY_AI_MULTI_MODEL = "ai_multi_model_id"
+    private const val KEY_AI_CATEGORY_REFINE_MODEL = "ai_category_refine_model_id"
     private const val KEY_AI_RULE_MODEL = "ai_rule_model_id"
     private const val KEY_AI_RECEIPT_MODEL = "ai_receipt_model_id"
     private const val KEY_AI_RECEIPT_VISION_MODEL = "ai_receipt_vision_model_id"
@@ -190,6 +191,7 @@ object PrefsBackupSupport {
         if (root.has("ai_system_prompt_v1")) edit.putString(KEY_AI_PROMPT, root.getString("ai_system_prompt_v1"))
         if (root.has("ai_single_model_v1")) edit.putString(KEY_AI_SINGLE_MODEL, root.getString("ai_single_model_v1"))
         if (root.has("ai_multi_model_v1")) edit.putString(KEY_AI_MULTI_MODEL, root.getString("ai_multi_model_v1"))
+        if (root.has("ai_category_refine_model_v1")) edit.putString(KEY_AI_CATEGORY_REFINE_MODEL, root.getString("ai_category_refine_model_v1"))
         if (root.has("ai_rule_model_v1")) edit.putString(KEY_AI_RULE_MODEL, root.getString("ai_rule_model_v1"))
         if (root.has("ai_receipt_model_v1")) edit.putString(KEY_AI_RECEIPT_MODEL, root.getString("ai_receipt_model_v1"))
         if (root.has("ai_receipt_vision_model_v1")) edit.putString(KEY_AI_RECEIPT_VISION_MODEL, root.getString("ai_receipt_vision_model_v1"))
@@ -366,6 +368,7 @@ object PrefsBackupSupport {
             put("ai_model_id_v1", Prefs.getAiModel(ctx))
             put("ai_single_model_v1", Prefs.getAiSingleModel(ctx))
             put("ai_multi_model_v1", Prefs.getAiMultiModel(ctx))
+            put("ai_category_refine_model_v1", Prefs.getAiCategoryRefineModel(ctx))
             put("ai_rule_model_v1", Prefs.getAiRuleModel(ctx))
             put("ai_receipt_model_v1", Prefs.getAiReceiptModel(ctx))
             put("ai_receipt_vision_model_v1", Prefs.getAiReceiptVisionModel(ctx))
@@ -434,7 +437,7 @@ object PrefsBackupSupport {
             "settings_display_multibill" to filterSettingsModule(full, "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "multi_bill_fast_mode_v1", "save_ocr_debug_v1"),
             "settings_general" to filterSettingsModule(full, "flip_enabled_v1", "flip_always_v1", "flip_disable_landscape_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "asset_feature_enabled_v1", "app_white_list_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1", "cloud_webdav_url_v1", "cloud_webdav_user_v1", "cloud_webdav_pass_v1", "cloud_webdav_dir_v1", "cloud_device_name_v1"),
             "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "multi_bill_fast_mode_v1", "save_ocr_debug_v1", "amount_grouping_v1", "bill_show_category_icon_v1", "bill_show_full_category_v1", "bill_remark_priority_v1"),
-            "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_model_id_v1", "ai_single_model_v1", "ai_multi_model_v1", "ai_rule_model_v1", "ai_receipt_model_v1", "ai_receipt_vision_model_v1", "ai_screen_model_v1", "ai_receipt_ocr_refine_model_v1", "ai_speech_model_v1", "screen_vision_supported_models_v1", "ai_models_cache_v1", "asr_mode_v1", "asr_download_source_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1"),
+            "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_model_id_v1", "ai_single_model_v1", "ai_multi_model_v1", "ai_category_refine_model_v1", "ai_rule_model_v1", "ai_receipt_model_v1", "ai_receipt_vision_model_v1", "ai_screen_model_v1", "ai_receipt_ocr_refine_model_v1", "ai_speech_model_v1", "screen_vision_supported_models_v1", "ai_models_cache_v1", "asr_mode_v1", "asr_download_source_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1"),
             "settings_ai_prompts" to filterSettingsModule(full, "ai_system_prompt_v1", "multi_bill_prompt_v1", "rule_prompt_v1", "receipt_bill_prompt_v1", "receipt_vision_prompt_v1", "screen_accounting_prompt_v1", "receipt_ocr_refine_prompt_v1"),
             "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
             "settings_books" to filterSettingsModule(full, "book_accounts_v1", "selected_book_v1", "default_book_v1", "book_colors_v1", "book_banners_v1"),

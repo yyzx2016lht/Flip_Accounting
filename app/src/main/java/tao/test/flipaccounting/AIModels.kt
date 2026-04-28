@@ -12,6 +12,7 @@ data class ChatRequest(
     val model: String,
     val messages: List<MessageUnion>,
     val temperature: Double = 0.3,
+    val enable_thinking: Boolean = false,
     val response_format: ResponseFormat? = ResponseFormat("json_object")
 )
 

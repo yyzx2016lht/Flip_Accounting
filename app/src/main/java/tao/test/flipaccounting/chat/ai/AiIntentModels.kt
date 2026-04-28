@@ -2,6 +2,7 @@ package tao.test.flipaccounting.chat.ai
 
 enum class AiIntentType {
     BOOKKEEPING,
+    MODIFY_BILL,
     QUERY,
     GENERAL_CHAT,
     UNKNOWN

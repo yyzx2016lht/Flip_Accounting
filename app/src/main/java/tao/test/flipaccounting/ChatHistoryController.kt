@@ -31,6 +31,8 @@ class ChatHistoryController(
     private val isDeprecatedBillMessage: (String) -> Boolean,
     private val parseBillsFromMessageContent: (String) -> List<tao.test.flipaccounting.data.local.entity.Bill>,
     private val parseDeprecatedBillIdsFromContent: (String) -> Set<Long>,
+    private val parseEditedBillIdsFromContent: (String) -> Set<Long>,
+    private val parseSnapshotOnlyFromContent: (String) -> Boolean,
     private val mergeChatBillSnapshots: (
         List<tao.test.flipaccounting.data.local.entity.Bill>,
         List<tao.test.flipaccounting.data.local.entity.Bill>
@@ -139,6 +141,8 @@ class ChatHistoryController(
                         val bills = withContext(Dispatchers.IO) { billIds.mapNotNull { dbBillDao.getBillById(it) } }
                         val billSnapshots = parseBillsFromMessageContent(msg.content)
                         val deprecatedBillIds = parseDeprecatedBillIdsFromContent(msg.content)
+                        val editedBillIds = parseEditedBillIdsFromContent(msg.content)
+                        val snapshotOnly = parseSnapshotOnlyFromContent(msg.content)
                         val displayBills = if (bills.isNotEmpty()) {
                             mergeChatBillSnapshots(bills, billSnapshots)
                         } else {
@@ -154,11 +158,12 @@ class ChatHistoryController(
                                     content = msg.content,
                                     bills = displayBills.toMutableList(),
                                     timestamp = msg.timestamp,
-                                    isDeprecated = deprecated || bills.isEmpty(),
-                                    deprecatedBillIds = deprecatedBillIds.toMutableSet()
+                                    isDeprecated = deprecated || (bills.isEmpty() && !snapshotOnly),
+                                    deprecatedBillIds = deprecatedBillIds.toMutableSet(),
+                                    editedBillIds = editedBillIds.toMutableSet()
                                 )
                             )
-                            if (!deprecated && bills.isEmpty() && msg.id > 0L) {
+                            if (!deprecated && bills.isEmpty() && !snapshotOnly && msg.id > 0L) {
                                 withContext(Dispatchers.IO) {
                                     db.chatMessageDao().getById(msg.id)?.let { oldMsg ->
                                         db.chatMessageDao().update(

@@ -65,7 +65,8 @@ class ChatAdapter(
     private val getInlineAmountEditingBillId: () -> Long?,
     private val setInlineAmountEditingBillId: (Long?) -> Unit,
     private val onMaybeShowRuleDialogForChatBillCategoryEdit: (ChatDisplayItem, Bill, Bill) -> Unit,
-    private val showCustomConfirmDialog: (String, String, String, Boolean, () -> Unit) -> Unit
+    private val showCustomConfirmDialog: (String, String, String, Boolean, () -> Unit) -> Unit,
+    private val onInteractiveBillAction: (ChatDisplayItem, Bill, Int) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     override fun getItemCount(): Int = displayMessages.size
@@ -378,15 +379,22 @@ class ChatAdapter(
         private val tvTime: TextView = v.findViewById(R.id.tv_ai_bill_time)
         private val container: LinearLayout = v.findViewById(R.id.container_bills)
         private val ivAvatar: ImageView = v.findViewById(R.id.iv_ai_avatar_bill)
+        private val tvHint: TextView = v.findViewById(R.id.tv_ai_bill_hint)
 
         fun bind(item: ChatDisplayItem) {
             tvTime.text = formatChatMessageTime(item.timestamp)
             tvTime.visibility = if (shouldShowTimestamp(adapterPosition, item.timestamp)) View.VISIBLE else View.GONE
             loadAiAvatar(ivAvatar)
+            tvHint.text = item.billHint
+            tvHint.visibility = if (item.billHint.isBlank()) View.GONE else View.VISIBLE
             container.removeAllViews()
 
             item.bills.forEachIndexed { index, bill ->
-                val deprecated = item.isDeprecated || item.deprecatedBillIds.contains(bill.id)
+                val isPreviewBeforeBill =
+                    item.billInteractionMode == ChatActivity.BILL_INTERACTION_CONFIRM_MODIFICATION &&
+                        item.bills.size >= 2 &&
+                        index == 0
+                val deprecated = item.isDeprecated || item.deprecatedBillIds.contains(bill.id) || isPreviewBeforeBill
                 val card = LayoutInflater.from(itemView.context)
                     .inflate(R.layout.item_chat_bill_card, container, false)
                 val tvCat = card.findViewById<TextView>(R.id.tv_chat_bill_category)
@@ -398,6 +406,8 @@ class ChatAdapter(
                 val iconContainer = card.findViewById<View>(R.id.layout_chat_bill_icon_container)
                 val btnEdit = card.findViewById<TextView>(R.id.btn_chat_bill_edit_category)
                 val btnDelete = card.findViewById<TextView>(R.id.btn_chat_bill_delete)
+                val tvEditedTag = card.findViewById<TextView>(R.id.tv_chat_bill_edited_tag)
+                val isEdited = item.editedBillIds.contains(bill.id)
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER
                 val showCategoryIcon = Prefs.isShowBillCategoryIcon(context)
                 val showFullCategory = Prefs.isShowBillFullCategory(context)
@@ -457,8 +467,16 @@ class ChatAdapter(
                     btnEdit.visibility = View.GONE
                     btnDelete.visibility = View.GONE
                     etAmount.isEnabled = false
+                } else if (isEdited) {
+                    // 已编辑状态：显示标签，保留正常卡片信息，但隐藏操作入口
+                    tvEditedTag.visibility = View.VISIBLE
+                    card.alpha = 1f
+                    btnEdit.visibility = View.GONE
+                    btnDelete.visibility = View.GONE
+                    etAmount.isEnabled = true
                 } else {
                     card.alpha = 1f
+                    tvEditedTag.visibility = View.GONE
                     btnEdit.visibility = if (isTransfer) View.GONE else View.VISIBLE
                     btnDelete.visibility = View.VISIBLE
                     etAmount.isEnabled = true
@@ -514,6 +532,47 @@ class ChatAdapter(
                                 .into(ivIcon)
                         }
                     }
+                }
+
+                if (item.billInteractionMode != ChatActivity.BILL_INTERACTION_NONE) {
+                    if (deprecated) {
+                        btnEdit.visibility = View.GONE
+                        btnDelete.visibility = View.GONE
+                    } else {
+                        val allowActionOnThisCard =
+                            item.billInteractionMode != ChatActivity.BILL_INTERACTION_CONFIRM_MODIFICATION ||
+                                index == item.bills.lastIndex
+                        if (!allowActionOnThisCard) {
+                            btnEdit.visibility = View.GONE
+                            btnDelete.visibility = View.GONE
+                        } else {
+                            btnEdit.visibility = View.VISIBLE
+                            btnDelete.visibility = View.VISIBLE
+                            when (item.billInteractionMode) {
+                                ChatActivity.BILL_INTERACTION_SELECT_TARGET -> {
+                                    btnEdit.text = "选这笔"
+                                    btnDelete.text = "取消"
+                                }
+                                ChatActivity.BILL_INTERACTION_CONFIRM_MODIFICATION -> {
+                                    btnEdit.text = "确认修改"
+                                    btnDelete.text = "取消"
+                                }
+                            }
+                            btnEdit.setOnClickListener {
+                                onInteractiveBillAction(item, bill, ChatActivity.BILL_INTERACTIVE_ACTION_PRIMARY)
+                            }
+                            btnDelete.setOnClickListener {
+                                onInteractiveBillAction(item, bill, ChatActivity.BILL_INTERACTIVE_ACTION_SECONDARY)
+                            }
+                        }
+                    }
+                    etAmount.visibility = View.GONE
+                    tvAmount.visibility = View.VISIBLE
+                    tvAmount.setOnClickListener(null)
+                    etAmount.setOnEditorActionListener(null)
+                    etAmount.setOnFocusChangeListener(null)
+                    container.addView(card)
+                    return@forEachIndexed
                 }
 
                 btnEdit.setOnClickListener {

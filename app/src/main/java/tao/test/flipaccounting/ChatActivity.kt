@@ -49,6 +49,8 @@ import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -78,6 +80,15 @@ import kotlin.math.roundToInt
 
 class ChatActivity : AppCompatActivity() {
     private enum class RuleSaveOutcome { SAVED, OVERWRITTEN, CANCELED }
+    private data class PendingBillSelection(
+        val token: String,
+        val continuation: CancellableContinuation<Bill?>
+    )
+
+    private data class PendingBillConfirmation(
+        val token: String,
+        val continuation: CancellableContinuation<Boolean>
+    )
 
     companion object {
         const val MSG_TYPE_USER_TEXT = 0
@@ -85,6 +96,11 @@ class ChatActivity : AppCompatActivity() {
         const val MSG_TYPE_USER_VOICE = 2
         const val MSG_TYPE_AI_TEXT = 3
         const val MSG_TYPE_AI_BILL = 4
+        const val BILL_INTERACTION_NONE = 0
+        const val BILL_INTERACTION_SELECT_TARGET = 1
+        const val BILL_INTERACTION_CONFIRM_MODIFICATION = 2
+        const val BILL_INTERACTIVE_ACTION_PRIMARY = 1
+        const val BILL_INTERACTIVE_ACTION_SECONDARY = 2
 
         const val EXTRA_SOURCE_BOOK = "extra_source_book"
         const val EXTRA_CONVERSATION_ID = "extra_conversation_id"
@@ -150,9 +166,14 @@ class ChatActivity : AppCompatActivity() {
             finalizeLoadingMessage = ::finalizeLoadingMessage,
             buildAnalysisInput = ::buildAnalysisInput,
             processBillResult = ::processBillResult,
+            processBillModifyResult = { json, text, oldBill -> billCorrectionService.processBillModifyResult(json, text, oldBill) },
             buildBillSummary = ::buildBillSummary,
             transcribeVoiceToTextWithFallback = ::transcribeVoiceToTextWithFallback,
-            persistAiTextMessage = ::persistAiTextMessage
+            chooseModifyTargetBill = ::chooseModifyTargetBill,
+            persistAiTextMessage = ::persistAiTextMessage,
+            db = db,
+            getCurrentBookName = { currentBookName },
+            getCurrentConversationId = { currentConversationId }
         )
     }
     private val billCorrectionService by lazy {
@@ -168,7 +189,8 @@ class ChatActivity : AppCompatActivity() {
             setCurrentBookName = { currentBookName = it },
             getCurrentConversationId = { currentConversationId },
             parseTimeToMillis = ::parseTimeToMillis,
-            buildBillMessageContent = ::buildBillMessageContent
+            buildBillMessageContent = ::buildBillMessageContent,
+            confirmBillModifyPreview = ::confirmBillModifyPreviewInChat
         )
     }
     private val voiceController: ChatVoiceController by lazy {
@@ -225,7 +247,8 @@ class ChatActivity : AppCompatActivity() {
             onMaybeShowRuleDialogForChatBillCategoryEdit = ::maybeShowRuleDialogForChatBillCategoryEdit,
             showCustomConfirmDialog = { title, message, confirmText, isDanger, onConfirm ->
                 uiHelperController.showCustomConfirmDialog(title, message, confirmText, isDanger, onConfirm)
-            }
+            },
+            onInteractiveBillAction = ::onInteractiveBillAction
         )
     }
     private val sessionAdapter by lazy {
@@ -396,6 +419,8 @@ class ChatActivity : AppCompatActivity() {
             isDeprecatedBillMessage = ::isDeprecatedBillMessage,
             parseBillsFromMessageContent = ::parseBillsFromMessageContent,
             parseDeprecatedBillIdsFromContent = ::parseDeprecatedBillIdsFromContent,
+            parseEditedBillIdsFromContent = ::parseEditedBillIdsFromContent,
+            parseSnapshotOnlyFromContent = ::parseSnapshotOnlyFromContent,
             mergeChatBillSnapshots = ::mergeChatBillSnapshots,
             markBillIdsAsDeprecated = ::markBillIdsAsDeprecated,
             updateConversationSubtitle = ::updateConversationSubtitle,
@@ -482,6 +507,8 @@ class ChatActivity : AppCompatActivity() {
     private val pendingTranscriptRevealAnimations = mutableSetOf<String>()
     private val visibleTranscriptPaths = mutableSetOf<String>()
     private val transcribingPaths = mutableSetOf<String>()
+    private var pendingBillSelection: PendingBillSelection? = null
+    private var pendingBillConfirmation: PendingBillConfirmation? = null
     private var inlineAmountEditingBillId: Long? = null
 
     private val sampleRate = 16000
@@ -1041,6 +1068,237 @@ class ChatActivity : AppCompatActivity() {
         return billCorrectionService.processBillResult(result, userText)
     }
 
+    private suspend fun chooseModifyTargetBill(userText: String, candidates: List<Bill>): Bill? {
+        if (candidates.isEmpty()) return null
+        val displayCandidates = candidates.take(3)
+        val token = "bill_select_${UUID.randomUUID()}"
+        return withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { cont ->
+                if (isFinishing || isDestroyed) {
+                    cont.resume(null)
+                    return@suspendCancellableCoroutine
+                }
+                pendingBillSelection?.continuation?.takeIf { it.isActive }?.resume(null)
+                pendingBillSelection = PendingBillSelection(token = token, continuation = cont)
+                appendAiTextMessage(
+                    "我找到了 ${displayCandidates.size} 笔可能匹配的账单，请在下方点“选这笔”确认要修改哪一笔。",
+                    isLoading = false
+                )
+                appendInteractiveBillCard(
+                    bills = displayCandidates,
+                    hint = "指令：${userText.take(36)}",
+                    interactionMode = BILL_INTERACTION_SELECT_TARGET,
+                    interactionToken = token
+                )
+                cont.invokeOnCancellation {
+                    if (pendingBillSelection?.token == token) {
+                        pendingBillSelection = null
+                    }
+                    runOnUiThread { removeInteractiveBillCard(token, deletePersisted = true) }
+                }
+            }
+        }
+    }
+
+    private suspend fun confirmBillModifyPreviewInChat(
+        oldBill: Bill,
+        newBill: Bill,
+        changes: List<String>
+    ): Boolean {
+        val token = "bill_confirm_${UUID.randomUUID()}"
+        val previewBeforeId = if (oldBill.id > 0L) -oldBill.id else -System.currentTimeMillis()
+        val beforePreviewBill = oldBill.copy(id = previewBeforeId)
+        return withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { cont ->
+                if (isFinishing || isDestroyed) {
+                    cont.resume(false)
+                    return@suspendCancellableCoroutine
+                }
+                pendingBillConfirmation?.continuation?.takeIf { it.isActive }?.resume(false)
+                pendingBillConfirmation = PendingBillConfirmation(token = token, continuation = cont)
+                appendInteractiveBillCard(
+                    bills = listOf(beforePreviewBill, newBill),
+                    hint = if (changes.isNotEmpty()) {
+                        "改前（上） / 改后（下）\n${changes.take(2).joinToString("；")}"
+                    } else {
+                        "改前（上） / 改后（下）"
+                    },
+                    interactionMode = BILL_INTERACTION_CONFIRM_MODIFICATION,
+                    interactionToken = token
+                )
+                cont.invokeOnCancellation {
+                    if (pendingBillConfirmation?.token == token) {
+                        pendingBillConfirmation = null
+                    }
+                    runOnUiThread { removeInteractiveBillCard(token, deletePersisted = true) }
+                }
+            }
+        }
+    }
+
+    private fun formatBillBrief(bill: Bill): String {
+        val typeLabel = when (bill.type) {
+            Bill.TYPE_INCOME -> "收入"
+            Bill.TYPE_TRANSFER -> if (bill.subType == Bill.SUBTYPE_REPAYMENT) "还款" else "转账"
+            else -> "支出"
+        }
+        val amountText = String.format(Locale.getDefault(), "%.2f", bill.amount)
+        val category = bill.categoryName.ifBlank { "未分类" }
+        val main = bill.remark.ifBlank { category }
+        return "$typeLabel $amountText ${bill.currency} · $main"
+    }
+
+    private fun onInteractiveBillAction(item: ChatDisplayItem, bill: Bill, action: Int) {
+        when (item.billInteractionMode) {
+            BILL_INTERACTION_SELECT_TARGET -> {
+                val pending = pendingBillSelection
+                if (pending == null || pending.token != item.billInteractionToken) return
+                removeInteractiveBillCard(item.billInteractionToken, deletePersisted = true)
+                pendingBillSelection = null
+                when (action) {
+                    BILL_INTERACTIVE_ACTION_PRIMARY -> {
+                        if (pending.continuation.isActive) pending.continuation.resume(bill)
+                    }
+                    BILL_INTERACTIVE_ACTION_SECONDARY -> {
+                        appendAiTextMessage("已取消修改。", isLoading = false)
+                        if (pending.continuation.isActive) pending.continuation.resume(null)
+                    }
+                }
+            }
+            BILL_INTERACTION_CONFIRM_MODIFICATION -> {
+                val pending = pendingBillConfirmation
+                if (pending == null || pending.token != item.billInteractionToken) return
+                pendingBillConfirmation = null
+                when (action) {
+                    BILL_INTERACTIVE_ACTION_PRIMARY -> {
+                        finalizeConfirmedPreviewCard(item.billInteractionToken)
+                        if (pending.continuation.isActive) pending.continuation.resume(true)
+                    }
+                    BILL_INTERACTIVE_ACTION_SECONDARY -> {
+                        removeInteractiveBillCard(item.billInteractionToken, deletePersisted = true)
+                        appendAiTextMessage("已取消修改。", isLoading = false)
+                        if (pending.continuation.isActive) pending.continuation.resume(false)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun appendInteractiveBillCard(
+        bills: List<Bill>,
+        hint: String,
+        interactionMode: Int,
+        interactionToken: String,
+        deprecatedBillIds: Set<Long> = emptySet()
+    ) {
+        if (bills.isEmpty()) return
+        val snapshotContent = buildBillMessageContent(
+            bills = bills,
+            deprecatedBillIds = deprecatedBillIds,
+            snapshotOnly = true
+        )
+        val rowTimestamp = System.currentTimeMillis()
+        displayMessages.add(
+            ChatDisplayItem(
+                msgType = MSG_TYPE_AI_BILL,
+                content = snapshotContent,
+                bills = bills.toMutableList(),
+                timestamp = rowTimestamp,
+                isLoading = false,
+                deprecatedBillIds = deprecatedBillIds.toMutableSet(),
+                billHint = hint,
+                billInteractionMode = interactionMode,
+                billInteractionToken = interactionToken
+            )
+        )
+        adapter.notifyItemInserted(displayMessages.lastIndex)
+        scrollToBottom(force = true)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val billIdsJson = JSONArray().toString()
+            val msgId = db.chatMessageDao().insert(
+                ChatMessage(
+                    msgType = MSG_TYPE_AI_BILL,
+                    content = snapshotContent,
+                    billIds = billIdsJson,
+                    modelName = Prefs.getAiChatModel(this@ChatActivity),
+                    bookName = currentBookName,
+                    conversationId = currentConversationId,
+                    timestamp = rowTimestamp
+                )
+            )
+            withContext(Dispatchers.Main) {
+                val idx = displayMessages.indexOfLast {
+                    it.msgType == MSG_TYPE_AI_BILL &&
+                        it.billInteractionToken == interactionToken &&
+                        it.timestamp == rowTimestamp &&
+                        it.dbId == 0L
+                }
+                if (idx >= 0) {
+                    displayMessages[idx] = displayMessages[idx].copy(dbId = msgId)
+                    adapter.notifyItemChanged(idx)
+                }
+            }
+        }
+    }
+
+    private fun finalizeConfirmedPreviewCard(token: String) {
+        if (token.isBlank()) return
+        val idx = displayMessages.indexOfFirst { item ->
+            item.msgType == MSG_TYPE_AI_BILL &&
+                item.billInteractionToken == token &&
+                item.billInteractionMode == BILL_INTERACTION_CONFIRM_MODIFICATION
+        }
+        if (idx < 0) return
+        val current = displayMessages[idx]
+        if (current.bills.isEmpty()) return
+        val beforePreviewId = current.bills.first().id
+        val finalizedDeprecatedIds = current.deprecatedBillIds.toMutableSet().apply {
+            clear()
+            if (beforePreviewId != 0L) add(beforePreviewId)
+        }
+        val updatedContent = buildBillMessageContent(
+            bills = current.bills,
+            deprecatedBillIds = finalizedDeprecatedIds,
+            editedBillIds = current.editedBillIds,
+            snapshotOnly = true
+        )
+        displayMessages[idx] = current.copy(
+            content = updatedContent,
+            deprecatedBillIds = finalizedDeprecatedIds,
+            billHint = "",
+            billInteractionMode = BILL_INTERACTION_NONE,
+            billInteractionToken = ""
+        )
+        adapter.notifyItemChanged(idx)
+        val msgId = displayMessages[idx].dbId
+        if (msgId > 0L) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                db.chatMessageDao().getById(msgId)?.let { oldMsg ->
+                    db.chatMessageDao().update(oldMsg.copy(content = updatedContent))
+                }
+            }
+        }
+    }
+
+    private fun removeInteractiveBillCard(token: String, deletePersisted: Boolean = true) {
+        if (token.isBlank()) return
+        val idx = displayMessages.indexOfFirst { item ->
+            item.msgType == MSG_TYPE_AI_BILL && item.billInteractionToken == token
+        }
+        if (idx < 0) return
+        val removedDbId = displayMessages[idx].dbId
+        displayMessages.removeAt(idx)
+        adapter.notifyItemRemoved(idx)
+        if (idx <= displayMessages.lastIndex) {
+            adapter.notifyItemRangeChanged(idx, displayMessages.size - idx)
+        }
+        if (deletePersisted && removedDbId > 0L) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                db.chatMessageDao().deleteByIds(listOf(removedDbId))
+            }
+        }
+    }
+
     private fun parseTimeToMillis(timeStr: String): Long {
         if (timeStr.isBlank()) return System.currentTimeMillis()
         return try {
@@ -1175,18 +1433,30 @@ class ChatActivity : AppCompatActivity() {
         return ChatBillMessageParser.parseDeprecatedBillIdsFromContent(content)
     }
 
+    private fun parseEditedBillIdsFromContent(content: String): Set<Long> {
+        return ChatBillMessageParser.parseEditedBillIdsFromContent(content)
+    }
+
+    private fun parseSnapshotOnlyFromContent(content: String): Boolean {
+        return ChatBillMessageParser.parseSnapshotOnlyFromContent(content)
+    }
+
     private fun mergeChatBillSnapshots(liveBills: List<Bill>, snapshots: List<Bill>): List<Bill> {
         return ChatBillMessageParser.mergeChatBillSnapshots(liveBills, snapshots)
     }
 
     private fun buildBillMessageContent(
         bills: List<Bill>,
-        deprecatedBillIds: Set<Long> = emptySet()
+        deprecatedBillIds: Set<Long> = emptySet(),
+        editedBillIds: Set<Long> = emptySet(),
+        snapshotOnly: Boolean = false
     ): String {
         return ChatBillMessageParser.buildBillMessageContent(
             bills = bills,
             formatTime = { ms -> uiHelperController.formatTime(ms) },
-            deprecatedBillIds = deprecatedBillIds
+            deprecatedBillIds = deprecatedBillIds,
+            editedBillIds = editedBillIds,
+            snapshotOnly = snapshotOnly
         )
     }
 
@@ -1232,6 +1502,10 @@ class ChatActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        pendingBillSelection?.continuation?.takeIf { it.isActive }?.resume(null)
+        pendingBillSelection = null
+        pendingBillConfirmation?.continuation?.takeIf { it.isActive }?.resume(false)
+        pendingBillConfirmation = null
         super.onDestroy()
         clearPendingLongPress()
         stopVoicePlayback()
@@ -1263,7 +1537,11 @@ data class ChatDisplayItem(
     val timestamp: Long = System.currentTimeMillis(),
     val isLoading: Boolean = false,
     val isDeprecated: Boolean = false,
-    val deprecatedBillIds: MutableSet<Long> = mutableSetOf()
+    val deprecatedBillIds: MutableSet<Long> = mutableSetOf(),
+    val editedBillIds: MutableSet<Long> = mutableSetOf(),
+    val billHint: String = "",
+    val billInteractionMode: Int = ChatActivity.BILL_INTERACTION_NONE,
+    val billInteractionToken: String = ""
 )
 
 data class VoicePayload(

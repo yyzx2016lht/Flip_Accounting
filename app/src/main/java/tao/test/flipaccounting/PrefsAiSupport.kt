@@ -10,6 +10,7 @@ object PrefsAiSupport {
     private const val KEY_AI_MODEL = "ai_model_id"
     private const val KEY_AI_SINGLE_MODEL = "ai_single_model_id"
     private const val KEY_AI_MULTI_MODEL = "ai_multi_model_id"
+    private const val KEY_AI_CATEGORY_REFINE_MODEL = "ai_category_refine_model_id"
     private const val KEY_AI_ROUTER_MODEL = "ai_router_model_id"
     private const val KEY_AI_RULE_MODEL = "ai_rule_model_id"
     private const val KEY_AI_MODELS_CACHE = "ai_models_cache"
@@ -53,6 +54,11 @@ object PrefsAiSupport {
         prefs(ctx).getString(KEY_AI_MULTI_MODEL, "") ?: getAiModel(ctx)
     fun setAiMultiModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_MULTI_MODEL, value).apply()
+
+    fun getAiCategoryRefineModel(ctx: Context): String =
+        (prefs(ctx).getString(KEY_AI_CATEGORY_REFINE_MODEL, "") ?: "").trim()
+    fun setAiCategoryRefineModel(ctx: Context, value: String) =
+        prefs(ctx).edit().putString(KEY_AI_CATEGORY_REFINE_MODEL, value).apply()
 
     fun getAiRouterModel(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_ROUTER_MODEL, "") ?: ""

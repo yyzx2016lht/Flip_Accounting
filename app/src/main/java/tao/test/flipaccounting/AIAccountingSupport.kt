@@ -228,12 +228,18 @@ internal fun summarizeLocalRuleSensitiveFields(json: JSONObject): String {
 }
 
 internal fun findBestMatch(input: String, candidates: List<String>): String? {
-    if (input.isEmpty()) return null
-    if (candidates.contains(input)) return input
-    val normalizedInput = input.replace(" ", "")
-    candidates.find { it.substringAfterLast("/::/").replace(" ", "") == normalizedInput }?.let { return it }
-    candidates.find { it.replace(" ", "") == normalizedInput }?.let { return it }
-    candidates.find { !it.contains("/::/") && normalizedInput.startsWith(it.replace(" ", "") + "/::/") }?.let { return it }
+    if (input.isBlank()) return null
+    val rawInput = input.trim()
+    if (candidates.contains(rawInput)) return rawInput
+
+    val normalizedInput = normalizeCategoryPath(rawInput)
+    candidates.firstOrNull { normalizeCategoryPath(it) == normalizedInput }?.let { return it }
+
+    val leafToken = categoryLeafToken(normalizedInput)
+    candidates.firstOrNull { categoryLeafToken(it) == leafToken }?.let { return it }
+
+    val compactInput = categoryCompactToken(normalizedInput)
+    candidates.firstOrNull { categoryCompactToken(it) == compactInput }?.let { return it }
     return null
 }
 
@@ -336,3 +342,27 @@ private fun enforceNoAssetMode(root: JSONObject) {
         normalizeBill(root)
     }
 }
+
+private val CATEGORY_SEPARATOR_REGEX = Regex("\\s*(/::/|::|/|>|-|->|=>|→|·)\\s*")
+
+internal fun normalizeCategoryPath(input: String): String {
+    if (input.isBlank()) return ""
+    return input
+        .trim()
+        .replace('／', '/')
+        .replace('＞', '>')
+        .replace('—', '-')
+        .replace('–', '-')
+        .replace(CATEGORY_SEPARATOR_REGEX, "/::/")
+        .replace(Regex("(/::/)+"), "/::/")
+        .trim { it == '/' || it == ':' || it.isWhitespace() }
+}
+
+internal fun categoryLeafToken(value: String): String =
+    categoryToken(normalizeCategoryPath(value).substringAfterLast("/::/"))
+
+internal fun categoryCompactToken(value: String): String =
+    categoryToken(normalizeCategoryPath(value)).replace("/::/", "")
+
+internal fun categoryToken(value: String): String =
+    value.lowercase(Locale.ROOT).replace(" ", "")

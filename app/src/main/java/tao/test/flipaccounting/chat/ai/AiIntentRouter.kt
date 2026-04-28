@@ -7,6 +7,7 @@ object AiIntentRouter {
     private val bookkeepingWords = listOf("记一笔", "记账", "花了", "收入", "报销", "转账", "还款", "买了", "付了", "收了")
     private val generalChatWords = listOf("你好", "谢谢", "你是谁", "聊天", "讲个", "怎么用", "帮助")
     private val highRiskWriteWords = listOf("删除", "删掉", "清空", "覆盖", "批量修改", "全部改", "全改", "撤销所有", "重置")
+    private val modifyWords = listOf("改成", "换成", "上一笔", "刚刚那笔", "刚才那笔", "前一笔", "修改为", "修改成", "其实是")
     private val accountWords = listOf(
         "微信", "支付宝", "银行卡", "现金", "信用卡", "花呗", "京东", "美团",
         "visa卡", "visa", "mastercard", "master card", "万事达", "银联"
@@ -24,6 +25,11 @@ object AiIntentRouter {
 
         val slots = extractSlots(normalized)
         val bookkeepingMode = detectBookkeepingMode(normalized)
+
+        if (modifyWords.any { normalized.contains(it) }) {
+            return AiRouteResult(AiIntentType.MODIFY_BILL, 0.85, slots)
+        }
+
         val isQuestionLike = queryWords.any { normalized.contains(it) }
         val hasQueryShape = isQuestionLike && (slots.timeRange != null || slots.account != null || slots.category != null)
         if (hasQueryShape) {

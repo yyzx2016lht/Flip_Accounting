@@ -88,6 +88,10 @@ object Prefs {
     fun getAiMultiModel(ctx: Context): String = PrefsAiSupport.getAiMultiModel(ctx)
     fun setAiMultiModel(ctx: Context, value: String) = PrefsAiSupport.setAiMultiModel(ctx, value)
 
+    fun getAiCategoryRefineModel(ctx: Context): String = PrefsAiSupport.getAiCategoryRefineModel(ctx)
+    fun setAiCategoryRefineModel(ctx: Context, value: String) =
+        PrefsAiSupport.setAiCategoryRefineModel(ctx, value)
+
     fun getAiRouterModel(ctx: Context): String = PrefsAiSupport.getAiRouterModel(ctx)
     fun setAiRouterModel(ctx: Context, value: String) = PrefsAiSupport.setAiRouterModel(ctx, value)
 

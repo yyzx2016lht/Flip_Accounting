@@ -33,11 +33,17 @@ internal fun buildAccountingAssistantUserPrompt(
     userInput: String,
     billSummary: String,
     extractorReplyHint: String,
-    styleInstruction: String
+    styleInstruction: String,
+    chatHistoryContext: String = ""
 ): String {
     val scene = if (billSummary.isBlank()) "NO_BILL" else "BILL_SAVED"
     return buildString {
         appendLine("场景：$scene")
+        if (chatHistoryContext.isNotBlank()) {
+            appendLine("【相关历史对话记录】")
+            appendLine(chatHistoryContext)
+            appendLine("【用户最新输入】")
+        }
         appendLine("用户原话：$userInput")
         if (billSummary.isNotBlank()) appendLine("账单摘要：$billSummary")
         if (extractorReplyHint.isNotBlank()) appendLine("上游识别备注：$extractorReplyHint")

@@ -24,6 +24,9 @@ interface ChatMessageDao {
     @Query("SELECT * FROM chat_messages WHERE bookName = :bookName AND conversationId = :conversationId ORDER BY timestamp ASC")
     suspend fun getAllByBookAndConversation(bookName: String, conversationId: String): List<ChatMessage>
 
+    @Query("SELECT * FROM (SELECT * FROM chat_messages WHERE bookName = :bookName AND conversationId = :conversationId ORDER BY timestamp DESC LIMIT :limit) ORDER BY timestamp ASC")
+    suspend fun getRecentMessages(bookName: String, conversationId: String, limit: Int): List<ChatMessage>
+
     @Query("SELECT conversationId FROM chat_messages WHERE bookName = :bookName ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestConversationIdByBook(bookName: String): String?
 
@@ -59,4 +62,7 @@ interface ChatMessageDao {
 
     @Query("SELECT * FROM chat_messages WHERE id = :id")
     suspend fun getById(id: Long): ChatMessage?
+
+    @Query("SELECT * FROM chat_messages WHERE bookName = :bookName AND conversationId = :conversationId AND msgType = :msgType ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestMessageByType(bookName: String, conversationId: String, msgType: Int): ChatMessage?
 }

@@ -42,7 +42,8 @@ object AIService {
     const val MULTI_BILL_PROMPT                  = AIPrompts.MULTI_BILL_PROMPT_DEFAULT
     const val SINGLE_BILL_PROMPT_DEFAULT         = AIPrompts.SINGLE_BILL_PROMPT_DEFAULT
     const val MULTI_BILL_PROMPT_DEFAULT          = AIPrompts.MULTI_BILL_PROMPT_DEFAULT
-    const val RULE_EXTRACT_PROMPT_DEFAULT        = AIPrompts.RULE_EXTRACT_PROMPT_DEFAULT
+    const val MODIFY_BILL_PROMPT_DEFAULT          = AIPrompts.MODIFY_BILL_PROMPT_DEFAULT
+    val RULE_EXTRACT_PROMPT_DEFAULT              get() = tao.test.flipaccounting.logic.RuleDialogHelper.DEFAULT_RULE_PROMPT
     const val RECEIPT_BILL_PROMPT                = AIPrompts.RECEIPT_BILL_PROMPT
     const val RECEIPT_BILL_PROMPT_CN             = AIPrompts.RECEIPT_BILL_PROMPT_CN
     const val RECEIPT_BILL_PROMPT_FOREIGN        = AIPrompts.RECEIPT_BILL_PROMPT_FOREIGN
@@ -227,8 +228,7 @@ object AIService {
                         root = root,
                         expenseCats = promptContext.expenseCats,
                         incomeCats = promptContext.incomeCats,
-                        currentTimeStr = promptContext.currentTimeStr,
-                        assetInfoList = promptContext.assetInfoList,
+
                         allPromptRules = promptRules,
                         onProgress = onProgress
                     )
@@ -303,8 +303,7 @@ object AIService {
                         root = root,
                         expenseCats = promptContext.expenseCats,
                         incomeCats = promptContext.incomeCats,
-                        currentTimeStr = promptContext.currentTimeStr,
-                        assetInfoList = promptContext.assetInfoList,
+
                         allPromptRules = promptRules,
                         onProgress = onProgress
                     )
@@ -461,17 +460,13 @@ object AIService {
             fun buildRequestJson(forceJsonResponse: Boolean): com.google.gson.JsonObject {
                 val localHintBlock = if (knownPatternSummary.isNullOrBlank()) ""
                     else "参考候选商品（来自本地OCR结构提取，仅供校验）：\n$knownPatternSummary\n\n"
-                return com.google.gson.JsonObject().apply {
-                    addProperty("model", model)
-                    addProperty("temperature", 0.1)
-                    add("messages", com.google.gson.JsonArray().apply {
-                        add(com.google.gson.JsonObject().apply { addProperty("role", "system"); addProperty("content", systemPrompt) })
-                        add(com.google.gson.JsonObject().apply {
-                            addProperty("role", "user")
-                            addProperty("content", "请执行「小票结构化提取」并严格只返回一个 JSON 对象。\nJSON 结构：\n{\n  \"currency\": \"PLN\",\n  \"items\": [\n    {\"name\":\"商品名\",\"price\":5.89,\"currency\":\"PLN\"}\n  ]\n}\n\n约束：\n1. 只保留同时具备「商品名 + 实付金额」的商品行。\n2. 不要输出总计行、税率行、NIP、日期时间、店铺编号、Discount 等非商品行。\n3. OCR 重复行只保留一条，不能重复计数。\n4. 价格必须来自 OCR 原文，禁止臆造。\n5. 若存在\"数量 x 单价 金额\"结构，优先使用该结构确定数量和最终实付金额。\n6. 如果遇到 Opust/Discount，应使用折后金额（净额）作为该商品金额。\n\n${localHintBlock}以下是 OCR 文本：\n$cleanedOcrText")
-                        })
-                    })
-                }
+                return buildTextChatRequest(
+                    model = model,
+                    temperature = 0.1,
+                    systemPrompt = systemPrompt,
+                    userText = "请执行「小票结构化提取」并严格只返回一个 JSON 对象。\nJSON 结构：\n{\n  \"currency\": \"PLN\",\n  \"items\": [\n    {\"name\":\"商品名\",\"price\":5.89,\"currency\":\"PLN\"}\n  ]\n}\n\n约束：\n1. 只保留同时具备「商品名 + 实付金额」的商品行。\n2. 不要输出总计行、税率行、NIP、日期时间、店铺编号、Discount 等非商品行。\n3. OCR 重复行只保留一条，不能重复计数。\n4. 价格必须来自 OCR 原文，禁止臆造。\n5. 若存在\"数量 x 单价 金额\"结构，优先使用该结构确定数量和最终实付金额。\n6. 如果遇到 Opust/Discount，应使用折后金额（净额）作为该商品金额。\n\n${localHintBlock}以下是 OCR 文本：\n$cleanedOcrText",
+                    jsonObjectResponse = forceJsonResponse
+                )
             }
 
             val response = try {
@@ -574,16 +569,23 @@ object AIService {
         return response.choices.first().message.content
     }
 
-    suspend fun routeIntentWithModel(ctx: Context, userInput: String): AiRouteResult? {
+    suspend fun routeIntentWithModel(
+        ctx: Context,
+        userInput: String,
+        chatHistoryContext: String = ""
+    ): AiRouteResult? {
         val apiKey = Prefs.getAiKey(ctx)
         val model = Prefs.getAiRouterModel(ctx).ifBlank { return null }
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
         val safeUserInput = shortenForModel(userInput, 1200, preserveTail = false)
+        val contextBlock = if (chatHistoryContext.isNotBlank())
+            "\n\n【近期对话记录（仅供参考，帮助你判断用户意图）】\n${shortenForModel(chatHistoryContext, 600)}\n\n【用户当前输入】"
+        else ""
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.0,
-            systemPrompt = INTENT_ROUTER_PROMPT_DEFAULT.trim(),
+            systemPrompt = INTENT_ROUTER_PROMPT_DEFAULT.trim() + contextBlock,
             userText = safeUserInput,
             jsonObjectResponse = true
         )
@@ -591,6 +593,25 @@ object AIService {
         val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
         val content = response.choices.firstOrNull()?.message?.content.orEmpty()
         return parseRouterResult(content, userInput)
+    }
+
+    suspend fun generateAccountingModifyReply(
+        ctx: Context,
+        userInput: String,
+        oldBillJson: String
+    ): String {
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        val model = Prefs.getAiSingleModel(ctx)
+        val safeInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
+        val requestJson = buildTextChatRequest(
+            model = model,
+            temperature = 0.0,
+            systemPrompt = AIPrompts.MODIFY_BILL_PROMPT_DEFAULT.trim(),
+            userText = "上一批次账单列表（JSON数组）：\n$oldBillJson\n\n用户修改指令：$safeInput"
+        )
+        val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
+        return response.choices.firstOrNull()?.message?.content?.trim().orEmpty()
     }
 
     private fun parseRouterResult(content: String, userInput: String): AiRouteResult? {
@@ -628,7 +649,8 @@ object AIService {
         ctx: Context,
         userInput: String,
         billSummary: String = "",
-        extractorReplyHint: String = ""
+        extractorReplyHint: String = "",
+        chatHistoryContext: String = ""
     ): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
@@ -642,7 +664,8 @@ object AIService {
             userInput = safeUserInput,
             billSummary = safeBillSummary,
             extractorReplyHint = safeReplyHint,
-            styleInstruction = styleInstruction
+            styleInstruction = styleInstruction,
+            chatHistoryContext = chatHistoryContext
         )
 
         val requestJson = buildTextChatRequest(
@@ -655,18 +678,19 @@ object AIService {
         return response.choices.firstOrNull()?.message?.content?.trim().orEmpty()
     }
 
-    suspend fun generateGeneralChatReply(ctx: Context, userInput: String): String {
+    suspend fun generateGeneralChatReply(ctx: Context, userInput: String, chatHistoryContext: String = ""): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
         val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiSingleModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val styleInstruction = buildAssistantStyleInstruction(ctx, DEFAULT_CUSTOM_REPLY_STYLE_GUIDE)
+        val contextBlock = if (chatHistoryContext.isNotBlank()) "【相关历史对话记录】\n$chatHistoryContext\n\n【用户最新输入】\n" else ""
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.7,
             systemPrompt = "你是 FlipAccounting 的 AI 对话助手。用户在记账应用里和你聊天；如果不是记账或查询任务，请自然、简洁地回复，不要输出 JSON 或内部标签。",
-            userText = "$styleInstruction\n用户：$safeUserInput"
+            userText = "$styleInstruction\n${contextBlock}用户：$safeUserInput"
         )
         val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
         return response.choices.firstOrNull()?.message?.content?.trim().orEmpty()
@@ -677,6 +701,7 @@ object AIService {
         userInput: String,
         billSummary: String = "",
         extractorReplyHint: String = "",
+        chatHistoryContext: String = "",
         onDelta: (String) -> Unit
     ): Boolean {
         val apiKey = Prefs.getAiKey(ctx)
@@ -691,7 +716,8 @@ object AIService {
             userInput = safeUserInput,
             billSummary = safeBillSummary,
             extractorReplyHint = safeReplyHint,
-            styleInstruction = styleInstruction
+            styleInstruction = styleInstruction,
+            chatHistoryContext = chatHistoryContext
         )
 
         val requestJson = buildTextChatRequest(
@@ -801,7 +827,12 @@ object AIService {
     private fun parseAnalyzeResult(finalContent: String, isMultiMode: Boolean): JSONObject? {
         val cleaned = cleanJsonString(finalContent)
         val json = try {
-            JSONObject(cleaned)
+            if (cleaned.startsWith("[")) {
+                val array = org.json.JSONArray(cleaned)
+                JSONObject().apply { put("bills", array) }
+            } else {
+                JSONObject(cleaned)
+            }
         } catch (e: Exception) {
             throw IllegalArgumentException("AI响应非JSON: ${cleaned.take(50)}...")
         }
@@ -948,8 +979,6 @@ object AIService {
         root: JSONObject,
         expenseCats: List<String>,
         incomeCats: List<String>,
-        currentTimeStr: String,
-        assetInfoList: List<Map<String, String>>,
         allPromptRules: List<DbAiRule>,
         onProgress: ((String) -> Unit)? = null
     ) {
@@ -1047,8 +1076,6 @@ object AIService {
                         remark = remark,
                         type = bill.optInt("type", 0),
                         candidates = candidates,
-                        currentTimeStr = currentTimeStr,
-                        assetInfoList = assetInfoList,
                         matchedRules = matchedRules
                     )
                 }.getOrNull()
@@ -1074,8 +1101,6 @@ object AIService {
         remark: String,
         type: Int,
         candidates: List<String>,
-        currentTimeStr: String,
-        assetInfoList: List<Map<String, String>>,
         matchedRules: List<DbAiRule>
     ): String? {
         val apiKey = Prefs.getAiKey(ctx)
@@ -1089,8 +1114,6 @@ object AIService {
         )
         val correctionBlock = if (matchedRules.isNotEmpty()) buildPromptCorrectionBlock(matchedRules) else ""
         val systemPrompt = AIPrompts.buildCategoryRefineSystemPrompt(
-            currentTimeStr = currentTimeStr,
-            assetInfoJson = Gson().toJson(assetInfoList),
             type = type,
             candidatesJson = Gson().toJson(candidates),
             hierarchyHint = buildCategoryHierarchyHint(candidates),

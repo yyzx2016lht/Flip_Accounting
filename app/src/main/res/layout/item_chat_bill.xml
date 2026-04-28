@@ -58,6 +58,21 @@
             android:layout_marginBottom="6dp"
             android:visibility="gone" />
 
+        <TextView
+            android:id="@+id/tv_ai_bill_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_chat_bill_hint_bubble"
+            android:lineSpacingExtra="3dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="8dp"
+            android:textColor="#223248"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            />
+
         <!-- 账单卡片容器 -->
         <LinearLayout
             android:id="@+id/container_bills"
