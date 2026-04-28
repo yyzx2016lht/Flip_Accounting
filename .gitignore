@@ -1,19 +1,34 @@
+# ===== Android / IDE =====
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+/.idea/
 .DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
-local.properties
 
-# 签名密钥（勿上传）
+# ===== 签名密钥 =====
 release-keystore.jks
 key.properties
+
+# ===== 数据库（重点！！！）=====
+*.db
+*.sqlite
+*.sqlite3
+*-wal
+*-shm
+
+# ===== 本地调试数据库 =====
+tmp_device_db/
+tmp_device_db_live/
+tmp_device_db_live2/
+tmp_device_flipaccounting_database*
+
+# ===== 日志 / 调试 =====
+*.log
+build_errors.txt
+
+# ===== 环境变量 =====
+.env
