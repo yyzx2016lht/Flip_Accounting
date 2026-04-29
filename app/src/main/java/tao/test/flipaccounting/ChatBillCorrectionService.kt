@@ -1,6 +1,7 @@
 package tao.test.flipaccounting
 
 import androidx.recyclerview.widget.RecyclerView
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -21,7 +22,7 @@ class ChatBillCorrectionService(
     private val db: AppDatabase,
     private val displayMessages: MutableList<ChatDisplayItem>,
     private val adapterProvider: () -> RecyclerView.Adapter<*>,
-    private val appendAiTextMessage: (String, Boolean) -> Unit,
+    private val appendAiTextMessage: (String, Boolean, String?, String?) -> Unit,
     private val scrollToBottom: () -> Unit,
     private val refreshSessionRows: suspend () -> Unit,
     private val getCurrentBookName: () -> String,
@@ -111,6 +112,42 @@ class ChatBillCorrectionService(
         }
     }
 
+    private data class BillValidationResult(
+        val bills: List<Bill> = emptyList(),
+        val errors: List<String> = emptyList()
+    )
+
+    private fun userTextHasImplicitNow(userText: String): Boolean {
+        val normalized = userText.replace("\\s+".toRegex(), "")
+        return listOf("今天", "刚刚", "刚才", "现在", "此刻", "今晚", "今早", "早上", "中午", "下午", "晚上").any {
+            normalized.contains(it)
+        }
+    }
+
+    private fun parseExplicitTimeOrNull(rawTime: String, userText: String): Long? {
+        val trimmed = rawTime.trim()
+        if (trimmed.isBlank()) {
+            return if (userTextHasImplicitNow(userText)) System.currentTimeMillis() else null
+        }
+        val patterns = listOf("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd")
+        for (pattern in patterns) {
+            val parsed = runCatching {
+                SimpleDateFormat(pattern, Locale.getDefault()).parse(trimmed)?.time
+            }.getOrNull()
+            if (parsed != null) return parsed
+        }
+        return null
+    }
+
+    private fun requireSupportedType(raw: Any?): Int? {
+        val value = when (raw) {
+            is Number -> raw.toInt()
+            is String -> raw.trim().toIntOrNull()
+            else -> null
+        } ?: return null
+        return value.takeIf { it in 0..3 }
+    }
+
     private fun normalizeCurrencyCode(raw: String?): String? {
         val cleaned = raw?.trim()?.uppercase(Locale.ROOT).orEmpty()
         if (cleaned.isBlank()) return null
@@ -168,17 +205,15 @@ class ChatBillCorrectionService(
             }
             result.has("amount") -> rawBills.add(result)
             else -> {
-                appendAiTextMessage("AI 返回了无法识别的格式。", false)
+                appendAiTextMessage("AI 返回了无法识别的格式。", false, bookName, conversationId)
                 return emptyList()
             }
         }
         if (rawBills.isEmpty()) {
-            appendAiTextMessage("未解析到账单信息。", false)
+            appendAiTextMessage("未解析到账单信息。", false, bookName, conversationId)
             return emptyList()
         }
 
-        val savedBills = mutableListOf<Bill>()
-        val savedBillIds = mutableListOf<Long>()
         val activeBookName = BookAccountManager.normalizeBookName(
             bookName.ifBlank { BookAccountManager.getSelectedBook(context) }
         )
@@ -188,18 +223,36 @@ class ChatBillCorrectionService(
             null
         }
 
-        withContext(Dispatchers.IO) {
+        val validation = withContext(Dispatchers.IO) {
+            val billsToSave = mutableListOf<Bill>()
+            val errors = mutableListOf<String>()
             for (billJson in rawBills) {
-                val timeLong = parseTimeToMillis(billJson.optString("time", ""))
-                val rawType = billJson.optInt("type", 0)
-                val type = when (rawType) { 0, 1, 2, 3 -> rawType; else -> 0 }
+                val rowNo = billsToSave.size + errors.size + 1
+                val amount = parsePositiveDouble(billJson.opt("amount"))
+                if (amount == null) {
+                    errors += "第 ${rowNo} 笔缺少有效金额，金额必须大于 0。"
+                    continue
+                }
+                val type = requireSupportedType(billJson.opt("type"))
+                if (type == null) {
+                    errors += "第 ${rowNo} 笔缺少明确类型，无法安全落账。"
+                    continue
+                }
+                val timeLong = parseExplicitTimeOrNull(billJson.optString("time", ""), userText)
+                if (timeLong == null) {
+                    errors += "第 ${rowNo} 笔缺少可确认时间，请补充时间后再记账。"
+                    continue
+                }
                 val finalType = if (type == 3) 2 else type
                 val subType = if (type == 3) Bill.SUBTYPE_REPAYMENT else Bill.SUBTYPE_NORMAL
 
-                val categoryName = billJson.optString("category_name", "其它").replace("/::/", " > ")
+                val categoryName = billJson.optString("category_name", "").replace("/::/", " > ").trim()
+                if (finalType != Bill.TYPE_TRANSFER && categoryName.isBlank()) {
+                    errors += "第 ${rowNo} 笔缺少分类，请补充分类后再记账。"
+                    continue
+                }
                 val assetName = billJson.optString("asset_name", "")
                 val toAssetName = billJson.optString("to_asset_name", "")
-                val amount = billJson.optDouble("amount", 0.0)
                 val remark = billJson.optString("remarks", billJson.optString("remark", ""))
                 val currency = billJson.optString("currency", "CNY").ifBlank { "CNY" }
                 val fee = billJson.optDouble("fee", 0.0).coerceAtLeast(0.0)
@@ -255,30 +308,40 @@ class ChatBillCorrectionService(
                     remark = remark,
                     bookName = activeBookName
                 )
-                val savedBill = BillMutationService.insertBillAndApplyImpact(db, bill)
-                savedBillIds.add(savedBill.id)
-                savedBills.add(savedBill)
+                billsToSave.add(bill)
             }
+            BillValidationResult(billsToSave, errors)
         }
 
-        val billIdsJson = JSONArray(savedBillIds.map { it.toString() }).toString()
-        val billsJsonArr = buildBillMessageContent(
-            savedBills,
-            emptySet(),
-            emptySet(),
-            false
-        )
-        val msgId = withContext(Dispatchers.IO) {
-            db.chatMessageDao().insert(
-                ChatMessage(
-                    msgType = ChatActivity.MSG_TYPE_AI_BILL,
-                    content = billsJsonArr,
-                    billIds = billIdsJson,
-                    modelName = Prefs.getAiChatModel(context),
-                    bookName = activeBookName,
-                    conversationId = conversationId
-                )
+        if (validation.errors.isNotEmpty() || validation.bills.size != rawBills.size) {
+            appendAiTextMessage(
+                "这次识别结果还不够完整，我没有保存账单：\n${validation.errors.joinToString("\n")}",
+                false,
+                activeBookName,
+                conversationId
             )
+            return emptyList()
+        }
+
+        val (savedBills, msgId, billsJsonArr) = withContext(Dispatchers.IO) {
+            db.withTransaction {
+                val saved = validation.bills.map { bill ->
+                    BillMutationService.insertBillWithinActiveTransaction(db, bill)
+                }
+                val billIdsJson = JSONArray(saved.map { it.id.toString() }).toString()
+                val content = buildBillMessageContent(saved, emptySet(), emptySet(), false)
+                val messageId = db.chatMessageDao().insert(
+                    ChatMessage(
+                        msgType = ChatActivity.MSG_TYPE_AI_BILL,
+                        content = content,
+                        billIds = billIdsJson,
+                        modelName = Prefs.getAiChatModel(context),
+                        bookName = activeBookName,
+                        conversationId = conversationId
+                    )
+                )
+                Triple(saved, messageId, content)
+            }
         }
 
         if (getCurrentBookName() != activeBookName || getCurrentConversationId() != conversationId) {
@@ -303,16 +366,34 @@ class ChatBillCorrectionService(
 
     suspend fun processBillModifyResult(result: JSONObject, userText: String, oldBill: Bill) {
         val rawTime = result.optString("time", "").trim()
-        val timeLong = if (rawTime.isBlank()) oldBill.time else parseTimeToMillis(rawTime)
-        val rawType = result.optInt("type", oldBill.type)
-        val type = when (rawType) { 0, 1, 2, 3 -> rawType; else -> oldBill.type }
+        val timeLong = if (rawTime.isBlank()) oldBill.time else {
+            parseExplicitTimeOrNull(rawTime, userText) ?: run {
+                appendAiTextMessage("修改失败：AI 返回了无法确认的时间，我没有保存修改。", false, oldBill.bookName, getCurrentConversationId())
+                return
+            }
+        }
+        val type = if (result.has("type")) {
+            requireSupportedType(result.opt("type")) ?: run {
+                appendAiTextMessage("修改失败：AI 返回了不支持的账单类型，我没有保存修改。", false, oldBill.bookName, getCurrentConversationId())
+                return
+            }
+        } else {
+            oldBill.type
+        }
         val finalType = if (type == 3) 2 else type
         val subType = if (type == 3) Bill.SUBTYPE_REPAYMENT else Bill.SUBTYPE_NORMAL
 
-        val categoryName = result.optString("category_name", oldBill.categoryName).replace("/::/", " > ")
-        val assetName = result.optString("asset_name", oldBill.accountName)
-        val toAssetName = result.optString("to_asset_name", oldBill.toAccountName)
-        val amount = result.optDouble("amount", oldBill.amount).takeIf { it > 0.0 } ?: oldBill.amount
+        val categoryName = result.optString("category_name", oldBill.categoryName).replace("/::/", " > ").trim().ifBlank { oldBill.categoryName }
+        val assetName = result.optString("asset_name", oldBill.accountName).ifBlank { oldBill.accountName }
+        val toAssetName = result.optString("to_asset_name", oldBill.toAccountName).ifBlank { oldBill.toAccountName }
+        val amount = if (result.has("amount")) {
+            parsePositiveDouble(result.opt("amount")) ?: run {
+                appendAiTextMessage("修改失败：AI 返回了无效金额，我没有保存修改。", false, oldBill.bookName, getCurrentConversationId())
+                return
+            }
+        } else {
+            oldBill.amount
+        }
         val remark = result.optString("remarks", result.optString("remark", oldBill.remark))
         val currency = result.optString("currency", oldBill.currency).ifBlank { oldBill.currency }
         val fee = result.optDouble("fee", oldBill.fee).coerceAtLeast(0.0)
@@ -343,7 +424,7 @@ class ChatBillCorrectionService(
 
         val changes = buildChangePreviewLines(oldBill, newBill)
         if (changes.isEmpty()) {
-            appendAiTextMessage("这次没有检测到实际变化，我先不修改。", false)
+            appendAiTextMessage("这次没有检测到实际变化，我先不修改。", false, oldBill.bookName, getCurrentConversationId())
             return
         }
         val existingRenderedItemIndex = displayMessages.indexOfFirst { item ->
@@ -364,11 +445,11 @@ class ChatBillCorrectionService(
         val persistedBill = withContext(Dispatchers.IO) {
             db.billDao().getBillById(savedBill.id)
         } ?: run {
-            appendAiTextMessage("修改失败：账单保存后未找到记录。", false)
+            appendAiTextMessage("修改失败：账单保存后未找到记录。", false, oldBill.bookName, getCurrentConversationId())
             return
         }
         if (buildChangePreviewLines(oldBill, persistedBill).isEmpty()) {
-            appendAiTextMessage("修改失败：数据库内容未发生变化。", false)
+            appendAiTextMessage("修改失败：数据库内容未发生变化。", false, oldBill.bookName, getCurrentConversationId())
             return
         }
 
@@ -438,7 +519,7 @@ class ChatBillCorrectionService(
             }
         }
 
-        appendAiTextMessage("已确认修改，已保存。", false)
+        appendAiTextMessage("已确认修改，已保存。", false, oldBill.bookName, getCurrentConversationId())
         scrollToBottom()
         refreshSessionRows()
     }

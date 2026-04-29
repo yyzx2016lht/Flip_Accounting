@@ -32,17 +32,31 @@ class ChatMessagePersistenceController(
     private val refreshSessionRows: suspend () -> Unit
 ) {
     private fun isUiAlive(): Boolean = !(context.isDestroyed || context.isFinishing)
+    private fun previewForLog(text: String, maxLen: Int = 36): String {
+        val normalized = text.replace(Regex("\\s+"), " ").trim()
+        if (normalized.isEmpty()) return "<empty>"
+        return if (normalized.length <= maxLen) normalized else normalized.take(maxLen) + "…"
+    }
 
     fun appendUserMessage(text: String, type: Int, imageUri: String = "") {
+        val bookSnapshot = getCurrentBookName()
+        val conversationSnapshot = getCurrentConversationId()
+        val timestampSnapshot = System.currentTimeMillis()
         val item = ChatDisplayItem(
             msgType = type,
             content = text,
             imageUri = imageUri,
-            timestamp = System.currentTimeMillis()
+            timestamp = timestampSnapshot
         )
+        val uiKey = item.uiKey
         displayMessages.add(item)
         adapterProvider().notifyItemInserted(displayMessages.lastIndex)
         scrollToBottom()
+        Logger.d(
+            context,
+            "ChatRecord",
+            "user message queued: type=$type, len=${text.length}, preview=${previewForLog(text)}"
+        )
 
         lifecycleScope.launch(Dispatchers.IO) {
             val id = db.chatMessageDao().insert(
@@ -50,14 +64,16 @@ class ChatMessagePersistenceController(
                     msgType = type,
                     content = text,
                     imageUri = imageUri,
-                    timestamp = item.timestamp,
-                    bookName = getCurrentBookName(),
-                    conversationId = getCurrentConversationId()
+                    timestamp = timestampSnapshot,
+                    bookName = bookSnapshot,
+                    conversationId = conversationSnapshot
                 )
             )
             withContext(Dispatchers.Main) {
-                val idx = displayMessages.indexOfLast { it.timestamp == item.timestamp && it.msgType == type }
-                if (idx >= 0) displayMessages[idx] = displayMessages[idx].copy(dbId = id)
+                if (getCurrentBookName() == bookSnapshot && getCurrentConversationId() == conversationSnapshot) {
+                    val idx = displayMessages.indexOfFirst { it.uiKey == uiKey }
+                    if (idx >= 0) displayMessages[idx] = displayMessages[idx].copy(dbId = id)
+                }
                 lifecycleScope.launch {
                     refreshSessionRows()
                     if (drawerSessionsProvider().isDrawerOpen(androidx.core.view.GravityCompat.END) &&
@@ -72,35 +88,46 @@ class ChatMessagePersistenceController(
     }
 
     fun appendUserVoiceMessage(audioFile: File, durationSec: Int, transcript: String): ChatDisplayItem {
+        val bookSnapshot = getCurrentBookName()
+        val conversationSnapshot = getCurrentConversationId()
+        val timestampSnapshot = System.currentTimeMillis()
         val payload = buildVoicePayload(audioFile.absolutePath, durationSec, transcript)
         val item = ChatDisplayItem(
             msgType = ChatActivity.MSG_TYPE_USER_VOICE,
             content = payload,
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestampSnapshot,
             voice = VoicePayload(
                 audioPath = audioFile.absolutePath,
                 durationSec = durationSec,
                 transcript = transcript
             )
         )
+        val uiKey = item.uiKey
         pendingVoiceBubbleAnimations += audioFile.absolutePath
         displayMessages.add(item)
         adapterProvider().notifyItemInserted(displayMessages.lastIndex)
         scrollToBottom()
+        Logger.d(
+            context,
+            "ChatRecord",
+            "user voice queued: durationSec=$durationSec, transcriptLen=${transcript.length}, preview=${previewForLog(transcript)}"
+        )
 
         lifecycleScope.launch(Dispatchers.IO) {
             val id = db.chatMessageDao().insert(
                 ChatMessage(
                     msgType = ChatActivity.MSG_TYPE_USER_VOICE,
                     content = payload,
-                    timestamp = item.timestamp,
-                    bookName = getCurrentBookName(),
-                    conversationId = getCurrentConversationId()
+                    timestamp = timestampSnapshot,
+                    bookName = bookSnapshot,
+                    conversationId = conversationSnapshot
                 )
             )
             withContext(Dispatchers.Main) {
-                val idx = displayMessages.indexOfLast {
-                    it.timestamp == item.timestamp && it.msgType == ChatActivity.MSG_TYPE_USER_VOICE
+                val idx = if (getCurrentBookName() == bookSnapshot && getCurrentConversationId() == conversationSnapshot) {
+                    displayMessages.indexOfFirst { it.uiKey == uiKey }
+                } else {
+                    -1
                 }
                 if (idx >= 0) {
                     displayMessages[idx] = displayMessages[idx].copy(dbId = id)
@@ -125,12 +152,16 @@ class ChatMessagePersistenceController(
         bookName: String? = null,
         conversationId: String? = null
     ): String {
+        val targetBookName = bookName ?: getCurrentBookName()
+        val targetConversationId = conversationId ?: getCurrentConversationId()
+        val timestampSnapshot = System.currentTimeMillis()
         val item = ChatDisplayItem(
             msgType = ChatActivity.MSG_TYPE_AI_TEXT,
             content = text,
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestampSnapshot,
             isLoading = isLoading
         )
+        val uiKey = item.uiKey
         if (isUiAlive()) {
             displayMessages.add(item)
             val insertedIndex = displayMessages.lastIndex
@@ -139,20 +170,31 @@ class ChatMessagePersistenceController(
         }
 
         if (!isLoading && text.isNotBlank()) {
-            val targetBookName = bookName ?: getCurrentBookName()
-            val targetConversationId = conversationId ?: getCurrentConversationId()
+            Logger.d(
+                context,
+                "ChatRecord",
+                "ai message queued: len=${text.length}, preview=${previewForLog(text)}"
+            )
             aiWorkScope.launch(Dispatchers.IO) {
-                db.chatMessageDao().insert(
+                val id = db.chatMessageDao().insert(
                     ChatMessage(
                         msgType = ChatActivity.MSG_TYPE_AI_TEXT,
                         content = text,
                         modelName = Prefs.getAiChatModel(context),
                         bookName = targetBookName,
-                        conversationId = targetConversationId
+                        conversationId = targetConversationId,
+                        timestamp = timestampSnapshot
                     )
                 )
                 withContext(Dispatchers.Main) {
                     if (!isUiAlive()) return@withContext
+                    if (getCurrentBookName() == targetBookName && getCurrentConversationId() == targetConversationId) {
+                        val idx = displayMessages.indexOfFirst { it.uiKey == uiKey }
+                        if (idx >= 0) {
+                            displayMessages[idx] = displayMessages[idx].copy(dbId = id)
+                            adapterProvider().notifyItemChanged(idx)
+                        }
+                    }
                     refreshSessionRows()
                     if (drawerSessionsProvider().isDrawerOpen(androidx.core.view.GravityCompat.END) &&
                         etSessionSearchProvider().text?.toString().orEmpty().isBlank()
@@ -174,7 +216,8 @@ class ChatMessagePersistenceController(
                     content = text,
                     modelName = Prefs.getAiChatModel(context),
                     bookName = bookName,
-                    conversationId = conversationId
+                    conversationId = conversationId,
+                    timestamp = System.currentTimeMillis()
                 )
             )
         }
@@ -210,15 +253,27 @@ class ChatMessagePersistenceController(
         scrollToBottom()
         if (text.isNotBlank()) {
             aiWorkScope.launch(Dispatchers.IO) {
-                db.chatMessageDao().insert(
+                val id = db.chatMessageDao().insert(
                     ChatMessage(
                         msgType = ChatActivity.MSG_TYPE_AI_TEXT,
                         content = text,
                         modelName = Prefs.getAiChatModel(context),
                         bookName = bookName,
-                        conversationId = conversationId
+                        conversationId = conversationId,
+                        timestamp = current.timestamp
                     )
                 )
+                withContext(Dispatchers.Main) {
+                    if (!isUiAlive()) return@withContext
+                    if (getCurrentBookName() == bookName && getCurrentConversationId() == conversationId) {
+                        val currentIdx = displayMessages.indexOfFirst { it.uiKey == uiKey }
+                        if (currentIdx >= 0) {
+                            displayMessages[currentIdx] = displayMessages[currentIdx].copy(dbId = id)
+                            adapterProvider().notifyItemChanged(currentIdx)
+                        }
+                    }
+                    refreshSessionRows()
+                }
             }
         }
     }

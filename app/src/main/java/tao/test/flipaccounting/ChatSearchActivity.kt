@@ -122,14 +122,28 @@ class ChatSearchActivity : AppCompatActivity() {
                 tvTime.text = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(msg.timestamp))
                 tvContent.text = when (msg.msgType) {
                     ChatActivity.MSG_TYPE_USER_IMAGE -> "[图片]"
-                    ChatActivity.MSG_TYPE_USER_VOICE -> "[语音]"
+                    ChatActivity.MSG_TYPE_USER_VOICE -> {
+                        val transcript = runCatching { org.json.JSONObject(msg.content.removePrefix("__voice_v2__:")).optString("transcript") }
+                            .getOrDefault("")
+                            .replace(Regex("\\s+"), " ")
+                            .trim()
+                        if (transcript.isNotBlank()) "语音：${transcript.take(80)}" else "[语音]"
+                    }
                     ChatActivity.MSG_TYPE_AI_BILL -> "[账单记录]"
-                    else -> msg.content.trim().ifBlank { "(空内容)" }.take(100)
+                    else -> sanitizeSearchPreview(msg.content)
                 }
 
                 itemView.setOnClickListener { navigateToChat(msg) }
             }
         }
+    }
+
+    private fun sanitizeSearchPreview(raw: String): String {
+        val text = raw.trim().ifBlank { "(空内容)" }
+        if (text.contains("base64", ignoreCase = true)) return "[内容已隐藏]"
+        if (text.startsWith("data:image", ignoreCase = true)) return "[内容已隐藏]"
+        if (text.contains("/storage/", ignoreCase = true) || text.contains("\\") || text.contains(":/")) return "[内容已隐藏]"
+        return text.take(100)
     }
 
     private fun navigateToChat(msg: ChatMessage) {

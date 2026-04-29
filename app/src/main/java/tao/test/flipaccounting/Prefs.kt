@@ -61,6 +61,16 @@ object Prefs {
     fun isLoggingEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isLoggingEnabled(ctx)
     fun setLoggingEnabled(ctx: Context, enabled: Boolean) =
         PrefsGeneralSupport.setLoggingEnabled(ctx, enabled)
+    fun enablePrivacyDebugLoggingForMinutes(ctx: Context, minutes: Int = 30) =
+        PrefsGeneralSupport.enablePrivacyDebugLoggingForMinutes(ctx, minutes)
+    fun disablePrivacyDebugLogging(ctx: Context) =
+        PrefsGeneralSupport.disablePrivacyDebugLogging(ctx)
+    fun isPrivacyDebugLoggingEnabled(ctx: Context): Boolean =
+        PrefsGeneralSupport.isPrivacyDebugLoggingEnabled(ctx)
+    fun isDeveloperFullLoggingEnabled(ctx: Context): Boolean =
+        PrefsGeneralSupport.isDeveloperFullLoggingEnabled(ctx)
+    fun setDeveloperFullLoggingEnabled(ctx: Context, enabled: Boolean) =
+        PrefsGeneralSupport.setDeveloperFullLoggingEnabled(ctx, enabled)
 
     fun getAppUsageMode(ctx: Context): Int = PrefsGeneralSupport.getAppUsageMode(ctx)
     fun setAppUsageMode(ctx: Context, mode: Int) = PrefsGeneralSupport.setAppUsageMode(ctx, mode)
@@ -97,6 +107,11 @@ object Prefs {
 
     fun getAiRouterModel(ctx: Context): String = PrefsAiSupport.getAiRouterModel(ctx)
     fun setAiRouterModel(ctx: Context, value: String) = PrefsAiSupport.setAiRouterModel(ctx, value)
+    fun isAiLlmRouterEnabled(ctx: Context): Boolean = PrefsAiSupport.isAiLlmRouterEnabled(ctx)
+    fun setAiLlmRouterEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiLlmRouterEnabled(ctx, enabled)
+    fun getAiQueryModel(ctx: Context): String = PrefsAiSupport.getAiQueryModel(ctx)
+    fun setAiQueryModel(ctx: Context, value: String) = PrefsAiSupport.setAiQueryModel(ctx, value)
 
     fun getAiRuleModel(ctx: Context): String = PrefsAiSupport.getAiRuleModel(ctx)
     fun setAiRuleModel(ctx: Context, value: String) = PrefsAiSupport.setAiRuleModel(ctx, value)
@@ -140,6 +155,18 @@ object Prefs {
         PrefsAiSupport.isAiThinkingCategoryRefineEnabled(ctx)
     fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiThinkingCategoryRefineEnabled(ctx, enabled)
+    fun isAiQueryEnabled(ctx: Context): Boolean = PrefsAiSupport.isAiQueryEnabled(ctx)
+    fun setAiQueryEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiQueryEnabled(ctx, enabled)
+    fun getSimpleRouterStats(ctx: Context): PrefsAiSupport.SimpleRouterStats =
+        PrefsAiSupport.getSimpleRouterStats(ctx)
+    fun resetSimpleRouterStats(ctx: Context) = PrefsAiSupport.resetSimpleRouterStats(ctx)
+    fun recordSimpleRouterBookkeeping(ctx: Context): PrefsAiSupport.SimpleRouterStats =
+        PrefsAiSupport.recordSimpleRouterBookkeeping(ctx)
+    fun recordSimpleRouterChat(ctx: Context): PrefsAiSupport.SimpleRouterStats =
+        PrefsAiSupport.recordSimpleRouterChat(ctx)
+    fun recordSimpleRouterBlockedWrite(ctx: Context): PrefsAiSupport.SimpleRouterStats =
+        PrefsAiSupport.recordSimpleRouterBlockedWrite(ctx)
 
     fun getAiModelsCache(ctx: Context): List<String> = PrefsAiSupport.getAiModelsCache(ctx)
     fun setAiModelsCache(ctx: Context, models: List<String>) =

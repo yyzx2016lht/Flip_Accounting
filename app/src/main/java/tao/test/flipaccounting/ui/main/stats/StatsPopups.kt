@@ -236,8 +236,7 @@ class BillListBottomSheet(
     private val bills: List<Bill>
 ) : BottomSheetDialogFragment() {
     companion object {
-        private const val SHEET_SCREEN_RATIO = 0.58f
-        private const val MIN_SHEET_HEIGHT_DP = 360
+        private const val DEFAULT_VISIBLE_BILL_COUNT = 5
     }
 
     private val dfDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -340,37 +339,41 @@ class BillListBottomSheet(
 
     private fun computeSheetChromeHeight(): Int {
         val recyclerTop = rvBills.top.takeIf { it > 0 } ?: 0
-        return recyclerTop + rootView.paddingBottom
+        return recyclerTop
     }
 
     private fun computeTargetSheetHeight(): Int {
         val chromeHeight = computeSheetChromeHeight()
-        val listHeight = computeListHeight(5) // 刚好显示 5 条
+        val listHeight = computeListHeight(DEFAULT_VISIBLE_BILL_COUNT) // 刚好显示 5 条
         val targetHeight = chromeHeight + listHeight
-        
+
         val screenHeight = resources.displayMetrics.heightPixels
-        val minHeight = (MIN_SHEET_HEIGHT_DP * resources.displayMetrics.density).toInt()
-        
-        return targetHeight.coerceAtLeast(minHeight).coerceAtMost((screenHeight * 0.9f).toInt())
+
+        return targetHeight.coerceAtMost((screenHeight * 0.9f).toInt())
     }
 
     private fun computeListHeight(itemCount: Int): Int {
         if (itemCount <= 0) return 0
         val visibleCount = itemCount.coerceAtMost(displayBills.size)
-        val itemHeight = measureBillItemHeight()
-        val verticalPadding = rvBills.paddingTop + rvBills.paddingBottom
-        return itemHeight * visibleCount + verticalPadding
+        if (visibleCount <= 0) return rvBills.paddingTop
+
+        // 逐条测量前 N 条真实高度（而非用单条高度乘法），
+        // 避免字体缩放/文案长度差异导致第 6 条露出一截。
+        val measuredContentHeight = (0 until visibleCount).sumOf { position ->
+            measureBillItemHeight(position)
+        }
+        return measuredContentHeight + rvBills.paddingTop
     }
 
-    private fun measureBillItemHeight(): Int {
+    private fun measureBillItemHeight(position: Int): Int {
         val widthSpec = View.MeasureSpec.makeMeasureSpec(
             rvBills.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels,
             View.MeasureSpec.EXACTLY
         )
         val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         val holder = adapter.createViewHolder(rvBills, 0)
-        if (displayBills.isNotEmpty()) {
-            adapter.bindViewHolder(holder, 0)
+        if (displayBills.isNotEmpty() && position in displayBills.indices) {
+            adapter.bindViewHolder(holder, position)
         }
         holder.itemView.measure(widthSpec, heightSpec)
         return holder.itemView.measuredHeight

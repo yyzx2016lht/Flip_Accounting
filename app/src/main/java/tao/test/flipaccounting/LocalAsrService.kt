@@ -137,19 +137,13 @@ object LocalAsrService {
 
     private fun dumpModelDirTree(ctx: Context, modelDir: File) {
         if (!modelDir.exists()) {
-            Logger.d(ctx, "LocalAsrService", "modelDir does not exist: ${modelDir.absolutePath}")
+            Logger.d(ctx, "LocalAsrService", "modelDir does not exist")
             return
         }
-        Logger.d(ctx, "LocalAsrService", "=== modelDir tree start ===")
-        for (f in modelDir.walkTopDown().maxDepth(6)) {
-            val relative = f.absolutePath.removePrefix(modelDir.absolutePath)
-            val depth = relative.count { it == '/' || it == '\\' }
-            val indent = "  ".repeat(depth)
-            val tag = if (f.isDirectory) "[DIR]" else "[FILE]"
-            val size = if (f.isFile) " (${f.length()}B)" else ""
-            Logger.d(ctx, "LocalAsrService", "$indent$tag ${f.name}$size")
-        }
-        Logger.d(ctx, "LocalAsrService", "=== modelDir tree end ===")
+        val entries = modelDir.walkTopDown().maxDepth(6).toList()
+        val dirCount = entries.count { it.isDirectory }
+        val fileCount = entries.count { it.isFile }
+        Logger.d(ctx, "LocalAsrService", "modelDir summary: dirs=$dirCount, files=$fileCount")
     }
 
     private fun sanitizeEntryName(rawName: String): String {
@@ -179,7 +173,7 @@ object LocalAsrService {
                         val entryName = sanitizeEntryName(entry.name)
                         val destPath = resolveDestPath(targetDir, entryName)
                         if (destPath == null) {
-                            Logger.d(ctx, "LocalAsrService", "Skip suspicious tar entry: ${entry.name}")
+                            Logger.d(ctx, "LocalAsrService", "Skip suspicious tar entry")
                             entry = tarIn.nextTarEntry
                             continue
                         }
@@ -296,7 +290,12 @@ object LocalAsrService {
                     }
                 }
             } catch (e: Throwable) {
-                e.printStackTrace()
+                Logger.dPriv(
+                    ctx,
+                    "LocalAsrService",
+                    "installLocalModelWithUI failed: errType=${e.javaClass.simpleName}",
+                    "installLocalModelWithUI detail=${e.message.orEmpty()}"
+                )
                 importArchive.delete()
                 targetDir.deleteRecursively()
                 lastInitError = "导入失败: ${e.message ?: e.javaClass.simpleName}"
@@ -359,7 +358,12 @@ object LocalAsrService {
 
                 if (text.isNotBlank()) text else null
             } catch (e: Throwable) {
-                e.printStackTrace()
+                Logger.dPriv(
+                    ctx,
+                    "LocalAsrService",
+                    "speechToText failed: errType=${e.javaClass.simpleName}",
+                    "speechToText detail=${e.message.orEmpty()}"
+                )
                 lastInitError = "识别失败: ${e.message ?: e.javaClass.simpleName}"
                 null
             }
@@ -384,7 +388,7 @@ object LocalAsrService {
         val files = resolveModelFiles(modelDir)
         if (files == null) {
             lastInitError = "未找到离线模型文件"
-            Logger.d(ctx, "LocalAsrService", "Model folder not found under: ${modelDir.absolutePath}")
+            Logger.d(ctx, "LocalAsrService", "Model folder not found")
             dumpModelDirTree(ctx, modelDir)
 
             if (allowAutoDownload && !isDownloading) {
@@ -427,7 +431,7 @@ object LocalAsrService {
 
             isInitializing = true
             val t0 = System.currentTimeMillis()
-            Logger.d(ctx, "LocalAsrService", "initModel: start loading model from ${files.dir.absolutePath}")
+            Logger.d(ctx, "LocalAsrService", "initModel: start loading model")
             Logger.d(ctx, "LocalAsrService", "initModel: onnx=${files.onnx.name}(${files.onnx.length()}B) tokens=${files.tokens.name}(${files.tokens.length()}B)")
             try {
                 val modelConfig = OfflineModelConfig(
@@ -446,11 +450,10 @@ object LocalAsrService {
 
                 val elapsed = System.currentTimeMillis() - t0
                 lastInitError = null
-                Logger.d(ctx, "LocalAsrService", "initModel success: elapsed=${elapsed}ms path=${files.dir.absolutePath}")
+                Logger.d(ctx, "LocalAsrService", "initModel success: elapsed=${elapsed}ms")
                 true
             } catch (e: Throwable) {
                 val elapsed = System.currentTimeMillis() - t0
-                e.printStackTrace()
                 lastInitError = formatInitError(e)
                 val cause = e.cause?.toString() ?: "no cause"
                 Logger.d(
@@ -522,7 +525,6 @@ object LocalAsrService {
             streamSamples.clear()
             if (text.isNotBlank()) text else null
         } catch (e: Throwable) {
-            e.printStackTrace()
             lastInitError = "娴佸紡璇嗗埆澶辫触: ${e.message ?: e.javaClass.simpleName}"
             null
         }
@@ -652,7 +654,12 @@ object LocalAsrService {
                 Prefs.setAsrDownloadSource(ctx, sourceUsed.toPrefValue())
                 withContext(Dispatchers.Main) { onComplete() }
             } catch (e: Throwable) {
-                e.printStackTrace()
+                Logger.dPriv(
+                    ctx,
+                    "LocalAsrService",
+                    "downloadModelWithProgress failed: errType=${e.javaClass.simpleName}",
+                    "downloadModelWithProgress detail=${e.message.orEmpty()}"
+                )
                 lastInitError = e.message ?: e.javaClass.simpleName
                 targetDir.deleteRecursively()
                 tarFile.delete()

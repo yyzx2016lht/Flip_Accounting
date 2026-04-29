@@ -5,6 +5,18 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object PrefsAiSupport {
+    data class SimpleRouterStats(
+        val total: Int,
+        val bookkeeping: Int,
+        val generalChat: Int,
+        val blockedWrite: Int
+    ) {
+        val bookkeepingRate: Double
+            get() = if (total <= 0) 0.0 else bookkeeping.toDouble() / total.toDouble()
+        val generalChatRate: Double
+            get() = if (total <= 0) 0.0 else generalChat.toDouble() / total.toDouble()
+    }
+
     private const val PREFS_NAME = "flip_prefs"
     private const val KEY_AI_KEY = "ai_api_key"
     private const val KEY_AI_MODEL = "ai_model_id"
@@ -13,6 +25,8 @@ object PrefsAiSupport {
     private const val KEY_AI_MODIFY_MODEL = "ai_modify_model_id"
     private const val KEY_AI_CATEGORY_REFINE_MODEL = "ai_category_refine_model_id"
     private const val KEY_AI_ROUTER_MODEL = "ai_router_model_id"
+    private const val KEY_AI_LLM_ROUTER_ENABLED = "ai_llm_router_enabled"
+    private const val KEY_AI_QUERY_MODEL = "ai_query_model_id"
     private const val KEY_AI_RULE_MODEL = "ai_rule_model_id"
     private const val KEY_AI_MODELS_CACHE = "ai_models_cache"
     private const val KEY_AI_PROVIDER = "ai_provider"
@@ -37,6 +51,11 @@ object PrefsAiSupport {
     private const val KEY_AI_THINKING_MODIFY_BILL = "ai_thinking_modify_bill"
     private const val KEY_AI_THINKING_VISION = "ai_thinking_vision"
     private const val KEY_AI_THINKING_CATEGORY_REFINE = "ai_thinking_category_refine"
+    private const val KEY_AI_QUERY_ENABLED = "ai_query_enabled"
+    private const val KEY_SIMPLE_ROUTER_TOTAL = "simple_router_total"
+    private const val KEY_SIMPLE_ROUTER_BOOKKEEPING = "simple_router_bookkeeping"
+    private const val KEY_SIMPLE_ROUTER_CHAT = "simple_router_chat"
+    private const val KEY_SIMPLE_ROUTER_BLOCKED_WRITE = "simple_router_blocked_write"
     private const val KEY_AI_RULES = "ai_rules_v1"
     private const val KEY_OCR_DEBUG_RECORDS = "ocr_debug_records_v1"
     private const val OCR_DEBUG_MAX_RECORDS = 20
@@ -76,6 +95,15 @@ object PrefsAiSupport {
         prefs(ctx).getString(KEY_AI_ROUTER_MODEL, "") ?: ""
     fun setAiRouterModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_ROUTER_MODEL, value).apply()
+    fun isAiLlmRouterEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_LLM_ROUTER_ENABLED, false)
+    fun setAiLlmRouterEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_LLM_ROUTER_ENABLED, enabled).apply()
+
+    fun getAiQueryModel(ctx: Context): String =
+        (prefs(ctx).getString(KEY_AI_QUERY_MODEL, "") ?: "").ifBlank { getAiRouterModel(ctx) }
+    fun setAiQueryModel(ctx: Context, value: String) =
+        prefs(ctx).edit().putString(KEY_AI_QUERY_MODEL, value).apply()
 
     fun getAiRuleModel(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_RULE_MODEL, "") ?: getAiModel(ctx)
@@ -154,6 +182,64 @@ object PrefsAiSupport {
         prefs(ctx).getBoolean(KEY_AI_THINKING_CATEGORY_REFINE, false)
     fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_THINKING_CATEGORY_REFINE, enabled).apply()
+
+    fun isAiQueryEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_QUERY_ENABLED, true)
+    fun setAiQueryEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_QUERY_ENABLED, enabled).apply()
+
+    fun getSimpleRouterStats(ctx: Context): SimpleRouterStats {
+        val sp = prefs(ctx)
+        return SimpleRouterStats(
+            total = sp.getInt(KEY_SIMPLE_ROUTER_TOTAL, 0),
+            bookkeeping = sp.getInt(KEY_SIMPLE_ROUTER_BOOKKEEPING, 0),
+            generalChat = sp.getInt(KEY_SIMPLE_ROUTER_CHAT, 0),
+            blockedWrite = sp.getInt(KEY_SIMPLE_ROUTER_BLOCKED_WRITE, 0)
+        )
+    }
+
+    fun resetSimpleRouterStats(ctx: Context) {
+        prefs(ctx).edit()
+            .putInt(KEY_SIMPLE_ROUTER_TOTAL, 0)
+            .putInt(KEY_SIMPLE_ROUTER_BOOKKEEPING, 0)
+            .putInt(KEY_SIMPLE_ROUTER_CHAT, 0)
+            .putInt(KEY_SIMPLE_ROUTER_BLOCKED_WRITE, 0)
+            .apply()
+    }
+
+    fun recordSimpleRouterBookkeeping(ctx: Context): SimpleRouterStats =
+        recordSimpleRouter(ctx, bookkeepingDelta = 1)
+
+    fun recordSimpleRouterChat(ctx: Context): SimpleRouterStats =
+        recordSimpleRouter(ctx, chatDelta = 1)
+
+    fun recordSimpleRouterBlockedWrite(ctx: Context): SimpleRouterStats =
+        recordSimpleRouter(ctx, blockedDelta = 1)
+
+    private fun recordSimpleRouter(
+        ctx: Context,
+        bookkeepingDelta: Int = 0,
+        chatDelta: Int = 0,
+        blockedDelta: Int = 0
+    ): SimpleRouterStats {
+        val sp = prefs(ctx)
+        val nextTotal = sp.getInt(KEY_SIMPLE_ROUTER_TOTAL, 0) + 1
+        val nextBookkeeping = sp.getInt(KEY_SIMPLE_ROUTER_BOOKKEEPING, 0) + bookkeepingDelta
+        val nextChat = sp.getInt(KEY_SIMPLE_ROUTER_CHAT, 0) + chatDelta
+        val nextBlocked = sp.getInt(KEY_SIMPLE_ROUTER_BLOCKED_WRITE, 0) + blockedDelta
+        sp.edit()
+            .putInt(KEY_SIMPLE_ROUTER_TOTAL, nextTotal)
+            .putInt(KEY_SIMPLE_ROUTER_BOOKKEEPING, nextBookkeeping)
+            .putInt(KEY_SIMPLE_ROUTER_CHAT, nextChat)
+            .putInt(KEY_SIMPLE_ROUTER_BLOCKED_WRITE, nextBlocked)
+            .apply()
+        return SimpleRouterStats(
+            total = nextTotal,
+            bookkeeping = nextBookkeeping,
+            generalChat = nextChat,
+            blockedWrite = nextBlocked
+        )
+    }
 
     fun getAiModelsCache(ctx: Context): List<String> =
         (prefs(ctx).getStringSet(KEY_AI_MODELS_CACHE, null) ?: emptySet()).toList()

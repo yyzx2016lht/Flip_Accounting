@@ -27,6 +27,13 @@ import kotlinx.coroutines.withContext
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 
 class AiConfigActivity : AppCompatActivity() {
+    private enum class ThinkingBinding {
+        SINGLE,
+        MULTI,
+        VISION,
+        CATEGORY_REFINE,
+        FIXED_OFF
+    }
 
     private val providers = listOf(
         "硅基流动",
@@ -77,17 +84,16 @@ class AiConfigActivity : AppCompatActivity() {
         val btnOcrRefine = findViewById<Chip>(R.id.btn_ocr_refine_prompt)
         val btnSpeech = findViewById<Chip>(R.id.btn_speech_prompt)
         val btnRouter = findViewById<Chip>(R.id.btn_router_prompt)
+        val btnQuery = findViewById<Chip>(R.id.btn_query_prompt)
         val promptModeGrid = findViewById<GridLayout>(R.id.chip_group_prompt_modes)
 
         val btnTest = findViewById<MaterialButton>(R.id.btn_test_conn)
         val btnSave = findViewById<View>(R.id.btn_save_config)
         val tvToggleExpand = findViewById<TextView>(R.id.tv_toggle_expand)
         val tvEditPrompt = findViewById<TextView>(R.id.tv_edit_prompt)
-        val switchEnableThinkingSingle = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_single)
-        val switchEnableThinkingMulti = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_multi)
-        val switchEnableThinkingModify = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_modify)
-        val switchEnableThinkingVision = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_vision)
-        val switchEnableThinkingCategoryRefine = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_category_refine)
+        val switchEnableThinkingCurrent = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_current)
+        val tvThinkingScopeHint = findViewById<TextView>(R.id.tv_thinking_scope_hint)
+        val switchEnableQuery = findViewById<SwitchMaterial>(R.id.switch_enable_query)
         val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
 
         val providerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providers)
@@ -97,25 +103,9 @@ class AiConfigActivity : AppCompatActivity() {
         etUrl.setText(Prefs.getAiUrl(this))
         etKey.setText(Prefs.getAiKey(this))
 
-        switchEnableThinkingSingle.isChecked = Prefs.isAiThinkingSingleBillEnabled(this)
-        switchEnableThinkingSingle.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiThinkingSingleBillEnabled(this, isChecked)
-        }
-        switchEnableThinkingMulti.isChecked = Prefs.isAiThinkingMultiBillEnabled(this)
-        switchEnableThinkingMulti.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiThinkingMultiBillEnabled(this, isChecked)
-        }
-        switchEnableThinkingModify.isChecked = Prefs.isAiThinkingModifyBillEnabled(this)
-        switchEnableThinkingModify.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiThinkingModifyBillEnabled(this, isChecked)
-        }
-        switchEnableThinkingVision.isChecked = Prefs.isAiThinkingVisionEnabled(this)
-        switchEnableThinkingVision.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiThinkingVisionEnabled(this, isChecked)
-        }
-        switchEnableThinkingCategoryRefine.isChecked = Prefs.isAiThinkingCategoryRefineEnabled(this)
-        switchEnableThinkingCategoryRefine.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiThinkingCategoryRefineEnabled(this, isChecked)
+        switchEnableQuery.isChecked = Prefs.isAiQueryEnabled(this)
+        switchEnableQuery.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setAiQueryEnabled(this, isChecked)
         }
 
         switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)
@@ -124,12 +114,14 @@ class AiConfigActivity : AppCompatActivity() {
         }
 
         var currentMode = "single"
+        var updatingThinkingUi = false
         val modeModels = mutableMapOf(
             "single" to Prefs.getAiSingleModel(this),
             "multi" to Prefs.getAiMultiModel(this),
             "modify" to Prefs.getAiModifyModel(this),
             "category_refine" to Prefs.getAiCategoryRefineModel(this),
             "router" to Prefs.getAiRouterModel(this),
+            "query" to Prefs.getAiQueryModel(this),
             "rule" to Prefs.getAiRuleModel(this),
             "receipt" to Prefs.getAiReceiptModel(this),
             "receipt_vision" to Prefs.getAiReceiptVisionModel(this),
@@ -173,6 +165,76 @@ class AiConfigActivity : AppCompatActivity() {
 
         fun updateModelDisplay() {
             tvSelectedModel.text = modeModels[currentMode] ?: ""
+        }
+
+        fun thinkingBindingForMode(mode: String): ThinkingBinding = when (mode) {
+            "single" -> ThinkingBinding.SINGLE
+            "multi" -> ThinkingBinding.MULTI
+            "category_refine" -> ThinkingBinding.CATEGORY_REFINE
+            "receipt", "receipt_vision", "screen_accounting", "ocr_refine" -> ThinkingBinding.VISION
+            else -> ThinkingBinding.FIXED_OFF
+        }
+
+        fun isThinkingEnabled(binding: ThinkingBinding): Boolean = when (binding) {
+            ThinkingBinding.SINGLE -> Prefs.isAiThinkingSingleBillEnabled(this)
+            ThinkingBinding.MULTI -> Prefs.isAiThinkingMultiBillEnabled(this)
+            ThinkingBinding.VISION -> Prefs.isAiThinkingVisionEnabled(this)
+            ThinkingBinding.CATEGORY_REFINE -> Prefs.isAiThinkingCategoryRefineEnabled(this)
+            ThinkingBinding.FIXED_OFF -> false
+        }
+
+        fun setThinkingEnabled(binding: ThinkingBinding, enabled: Boolean) {
+            when (binding) {
+                ThinkingBinding.SINGLE -> Prefs.setAiThinkingSingleBillEnabled(this, enabled)
+                ThinkingBinding.MULTI -> Prefs.setAiThinkingMultiBillEnabled(this, enabled)
+                ThinkingBinding.VISION -> Prefs.setAiThinkingVisionEnabled(this, enabled)
+                ThinkingBinding.CATEGORY_REFINE -> Prefs.setAiThinkingCategoryRefineEnabled(this, enabled)
+                ThinkingBinding.FIXED_OFF -> Unit
+            }
+        }
+
+        fun updateThinkingUi() {
+            val binding = thinkingBindingForMode(currentMode)
+            val modeTitle = when (currentMode) {
+                "single" -> "单笔记账"
+                "multi" -> "多账单"
+                "modify" -> "修改账单"
+                "category_refine" -> "二段分类"
+                "rule" -> "规则生成"
+                "receipt" -> "小票记账"
+                "receipt_vision" -> "视觉重试"
+                "screen_accounting" -> "屏幕识别"
+                "ocr_refine" -> "识别整理"
+                "speech" -> "语音识别"
+                "router" -> "意图路由"
+                "query" -> "Query规划"
+                else -> "当前模式"
+            }
+            updatingThinkingUi = true
+            when (binding) {
+                ThinkingBinding.FIXED_OFF -> {
+                    switchEnableThinkingCurrent.isEnabled = false
+                    switchEnableThinkingCurrent.isChecked = false
+                    switchEnableThinkingCurrent.text = "$modeTitle：思考固定关闭"
+                    tvThinkingScopeHint.text = "该模式当前固定关闭思考，避免额外耗时。"
+                }
+
+                else -> {
+                    switchEnableThinkingCurrent.isEnabled = true
+                    switchEnableThinkingCurrent.isChecked = isThinkingEnabled(binding)
+                    switchEnableThinkingCurrent.text = "$modeTitle：启用思考"
+                    tvThinkingScopeHint.text = "该开关跟随上方业务模式切换，并单独保存。"
+                }
+            }
+            updatingThinkingUi = false
+        }
+
+        switchEnableThinkingCurrent.setOnCheckedChangeListener { _, isChecked ->
+            if (updatingThinkingUi) return@setOnCheckedChangeListener
+            val binding = thinkingBindingForMode(currentMode)
+            if (binding != ThinkingBinding.FIXED_OFF) {
+                setThinkingEnabled(binding, isChecked)
+            }
         }
 
         fun showModelSearchDialog() {
@@ -257,8 +319,10 @@ class AiConfigActivity : AppCompatActivity() {
             btnOcrRefine.isChecked = currentMode == "ocr_refine"
             btnSpeech.isChecked = currentMode == "speech"
             btnRouter.isChecked = currentMode == "router"
+            btnQuery.isChecked = currentMode == "query"
 
             tvSelectedModel.text = modeModels[currentMode] ?: ""
+            updateThinkingUi()
         }
 
         fun switchMode(newMode: String) {
@@ -281,6 +345,7 @@ class AiConfigActivity : AppCompatActivity() {
         btnOcrRefine.setOnClickListener { switchMode("ocr_refine") }
         btnSpeech.setOnClickListener { switchMode("speech") }
         btnRouter.setOnClickListener { switchMode("router") }
+        btnQuery.setOnClickListener { switchMode("query") }
 
         spinnerProviders.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -377,16 +442,18 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiModifyModel(this, modeModels["modify"] ?: "")
             Prefs.setAiCategoryRefineModel(this, modeModels["category_refine"] ?: "")
             Prefs.setAiRouterModel(this, modeModels["router"] ?: "")
+            Prefs.setAiQueryModel(this, modeModels["query"] ?: "")
             Prefs.setAiRuleModel(this, modeModels["rule"] ?: "")
             Prefs.setAiReceiptModel(this, modeModels["receipt"] ?: "")
             Prefs.setAiReceiptVisionModel(this, modeModels["receipt_vision"] ?: "")
             Prefs.setAiScreenModel(this, if (canShowScreenAccounting) (modeModels["screen_accounting"] ?: "") else "")
             Prefs.setAiReceiptOcrRefineModel(this, modeModels["ocr_refine"] ?: "")
             Prefs.setAiSpeechModel(this, modeModels["speech"] ?: "")
-            Prefs.setAiThinkingSingleBillEnabled(this, switchEnableThinkingSingle.isChecked)
-            Prefs.setAiThinkingMultiBillEnabled(this, switchEnableThinkingMulti.isChecked)
-            Prefs.setAiThinkingModifyBillEnabled(this, switchEnableThinkingModify.isChecked)
-            Prefs.setAiThinkingVisionEnabled(this, switchEnableThinkingVision.isChecked)
+            val currentThinkingBinding = thinkingBindingForMode(currentMode)
+            if (currentThinkingBinding != ThinkingBinding.FIXED_OFF) {
+                setThinkingEnabled(currentThinkingBinding, switchEnableThinkingCurrent.isChecked)
+            }
+            Prefs.setAiQueryEnabled(this, switchEnableQuery.isChecked)
             Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
 
             Utils.toast(this, "所有 AI 配置已保存")

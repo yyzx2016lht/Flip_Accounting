@@ -3,16 +3,14 @@ package tao.test.flipaccounting.chat.ai
 import java.util.Locale
 
 object AiIntentRouter {
-    private val queryWords = listOf("搜索", "查询", "查一下", "统计", "多少", "多少钱", "花了多少", "支出", "消费", "合计", "总共", "上一笔", "前一笔", "刚刚那笔", "刚才那笔", "最近一笔")
+    private val queryWords = listOf("搜索", "查询", "查一下", "统计", "多少", "多少钱", "花了多少", "支出", "消费", "合计", "总共", "上一笔", "前一笔", "刚刚那笔", "刚才那笔", "最近一笔", "本月", "上周", "今天", "昨日", "昨天")
     private val bookkeepingWords = listOf("记一笔", "记账", "花了", "收入", "报销", "转账", "还款", "买了", "付了", "收了")
     private val generalChatWords = listOf("你好", "谢谢", "你是谁", "聊天", "讲个", "怎么用", "帮助")
     private val highRiskWriteWords = listOf("删除", "删掉", "清空", "覆盖", "批量修改", "全部改", "全改", "撤销所有", "重置")
+    private val deleteWords = listOf("删除", "删掉", "清空")
+    private val sessionWords = listOf("会话", "聊天记录", "历史记录", "对话历史")
     private val modifyWords = listOf("改成", "改为", "改下", "修改为", "修改成", "修改一下", "换成", "其实是")
     private val modifyShapeRegex = Regex("""把.+(改成|改为|修改成|换成)|(.+)(其实是)(.+)""")
-    private val accountWords = listOf(
-        "微信", "支付宝", "银行卡", "现金", "信用卡", "花呗", "京东", "美团",
-        "visa卡", "visa", "mastercard", "master card", "万事达", "银联"
-    )
     private val amountRegex = Regex("""(?<!\d)(\d+(?:\.\d+)?)(?:元|块|块钱|rmb|cny)?""", RegexOption.IGNORE_CASE)
 
     fun route(text: String): AiRouteResult {
@@ -20,16 +18,30 @@ object AiIntentRouter {
         if (normalized.isBlank()) {
             return AiRouteResult(AiIntentType.UNKNOWN, 0.0)
         }
-        if (highRiskWriteWords.any { normalized.contains(it) }) {
-            return AiRouteResult(AiIntentType.UNKNOWN, 0.92, extractSlots(normalized))
-        }
-
         val slots = extractSlots(normalized)
         val bookkeepingMode = detectBookkeepingMode(normalized)
+        val hasSessionTarget = sessionWords.any { normalized.contains(it) }
+        if (deleteWords.any { normalized.contains(it) }) {
+            return AiRouteResult(
+                if (hasSessionTarget) AiIntentType.SESSION_UPDATE else AiIntentType.BOOKKEEPING_DELETE,
+                0.92,
+                slots
+            )
+        }
+        if (highRiskWriteWords.any { normalized.contains(it) }) {
+            return AiRouteResult(AiIntentType.UNKNOWN, 0.92, slots)
+        }
+
+        if (hasSessionTarget && queryWords.any { normalized.contains(it) }) {
+            return AiRouteResult(AiIntentType.SESSION_QUERY, 0.78, slots)
+        }
+        if (hasSessionTarget && modifyWords.any { normalized.contains(it) }) {
+            return AiRouteResult(AiIntentType.SESSION_UPDATE, 0.78, slots)
+        }
 
         val hasExplicitModify = modifyWords.any { normalized.contains(it) } || modifyShapeRegex.containsMatchIn(normalized)
         if (hasExplicitModify) {
-            return AiRouteResult(AiIntentType.MODIFY_BILL, 0.85, slots)
+            return AiRouteResult(AiIntentType.BOOKKEEPING_UPDATE, 0.85, slots)
         }
 
         val isQuestionLike = queryWords.any { normalized.contains(it) }
@@ -42,13 +54,13 @@ object AiIntentRouter {
                 if (slots.account != null) 0.15 else 0.0,
                 if (slots.category != null) 0.15 else 0.0
             ).sum().coerceAtMost(0.98)
-            return AiRouteResult(AiIntentType.QUERY, confidence, slots)
+            return AiRouteResult(AiIntentType.BOOKKEEPING_QUERY, confidence, slots)
         }
 
         val hasAmount = slots.amount != null
         val hasBookkeepingVerb = bookkeepingWords.any { normalized.contains(it) }
         if (hasAmount && hasBookkeepingVerb) {
-            return AiRouteResult(AiIntentType.BOOKKEEPING, 0.9, slots, bookkeepingMode)
+            return AiRouteResult(AiIntentType.BOOKKEEPING_CREATE, 0.9, slots, bookkeepingMode)
         }
 
         if (generalChatWords.any { normalized.contains(it) }) {
@@ -64,14 +76,13 @@ object AiIntentRouter {
 
     private fun extractSlots(text: String): AiIntentSlots {
         val timeRange = AiTimeRangeParser.parse(text)
-        val account = accountWords.firstOrNull { text.contains(it) }
-        val category = extractCategory(text)
+        val account = extractAccountHint(text)
         val amount = amountRegex.find(text)?.groupValues?.getOrNull(1)?.toDoubleOrNull()
         val keyword = extractKeyword(text)
         return AiIntentSlots(
             timeRange = timeRange,
             account = account,
-            category = category,
+            category = null,
             amount = amount,
             keyword = keyword
         )
@@ -130,25 +141,21 @@ object AiIntentRouter {
         return AiBookkeepingMode.MULTI
     }
 
-    private fun extractCategory(text: String): String? {
-        val normalized = text.replace("\\s+".toRegex(), "")
-        return when {
-            listOf("吃的", "吃饭", "吃了", "餐饮", "三餐", "餐食", "饭", "早餐", "午餐", "晚餐", "外卖", "奶茶", "咖啡", "餐厅").any { normalized.contains(it) } -> "餐饮"
-            listOf("交通", "打车", "公交", "地铁", "高铁", "机票", "停车").any { normalized.contains(it) } -> "交通"
-            listOf("购物", "买东西", "淘宝", "京东", "拼多多").any { normalized.contains(it) } -> "购物"
-            listOf("住房", "房租", "水电", "物业").any { normalized.contains(it) } -> "住房"
-            listOf("娱乐", "电影", "游戏", "会员").any { normalized.contains(it) } -> "娱乐"
-            listOf("医疗", "医院", "药", "看病").any { normalized.contains(it) } -> "医疗"
-            else -> null
-        }
+    private fun extractAccountHint(text: String): String? {
+        val normalized = text.lowercase(Locale.getDefault()).replace("\\s+".toRegex(), "")
+        val explicit = listOf("支付宝", "微信", "现金")
+            .firstOrNull { normalized.contains(it) }
+        if (explicit != null) return explicit
+        val cardHint = Regex("([a-zA-Z]{2,12}|[\\u4e00-\\u9fa5]{1,8})卡").find(text)?.groupValues?.getOrNull(1)
+        return cardHint?.trim()?.takeIf { it.isNotBlank() }?.let { "${it}卡" }
     }
 
     private fun extractKeyword(text: String): String? {
         val normalized = text.trim()
-        return when {
-            normalized.contains("吃的") -> "吃的"
-            normalized.contains("餐饮") -> "餐饮"
-            else -> null
+        Regex("[“\"]([^”\"]{1,16})[”\"]").find(normalized)?.groupValues?.getOrNull(1)?.trim()?.let { quoted ->
+            if (quoted.isNotBlank()) return quoted
         }
+        val probe = Regex("(买|查|看)([^，。？?]{1,12})(吗|么|呢)?").find(normalized)?.groupValues?.getOrNull(2).orEmpty()
+        return probe.trim().ifBlank { null }
     }
 }

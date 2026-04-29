@@ -147,6 +147,9 @@ fun Route.billRoutes() {
             val json =
                 com.google.gson.Gson().fromJson(requestBody, com.google.gson.JsonObject::class.java)
             val id = json?.get("id")?.asLong ?: 0
+            if (id <= 0) {
+                return@post call.respond(ResultModel.error(400, "Invalid bill id: $id"))
+            }
             ServerLog.d("删除账单：$id")
             Db.get().billInfoDao().deleteId(id)
             Db.get().billInfoDao().deleteGroup(id)

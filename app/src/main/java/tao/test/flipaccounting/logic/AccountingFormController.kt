@@ -19,6 +19,7 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.room.withTransaction
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import kotlinx.coroutines.*
@@ -1383,27 +1384,40 @@ class AccountingFormController(
             }
 
             if (editingBillId == null) {
-                rBill = BillMutationService.upsertBillAndApplyImpact(
-                    db = db,
-                    bill = rBill,
-                    applyAssetImpact = false
-                )
+                if (latestRefundSource != null) {
+                    // 退款路径：insert + 更新原账单 + 余额影响在同一事务内
+                    require(money <= latestRefundSource.amount + 1e-9) {
+                        "退款金额超过可退余额"
+                    }
+                    rBill = db.withTransaction {
+                        val savedBill = BillMutationService.insertBillWithinActiveTransaction(
+                            db = db,
+                            bill = rBill,
+                            applyAssetImpact = true
+                        )
+                        val sourceBaseOriginal = if (latestRefundSource.originalAmount > 0.0)
+                            kotlin.math.max(latestRefundSource.originalAmount, latestRefundSource.amount)
+                        else latestRefundSource.amount
+                        val newActualExpense = (latestRefundSource.amount - money).coerceIn(0.0, sourceBaseOriginal)
+                        db.billDao().updateBill(latestRefundSource.copy(
+                            amount = newActualExpense,
+                            originalAmount = sourceBaseOriginal
+                        ))
+                        savedBill
+                    }
+                } else {
+                    rBill = BillMutationService.upsertBillAndApplyImpact(
+                        db = db,
+                        bill = rBill,
+                        applyAssetImpact = false
+                    )
+                }
             }
 
-            // 更新退款来源支出账单的金额
-            if (latestRefundSource != null) {
-                val sourceBaseOriginal = if (latestRefundSource.originalAmount > 0.0)
-                    kotlin.math.max(latestRefundSource.originalAmount, latestRefundSource.amount)
-                else latestRefundSource.amount
-                val newActualExpense = (latestRefundSource.amount - money).coerceIn(0.0, sourceBaseOriginal)
-                db.billDao().updateBill(latestRefundSource.copy(
-                    amount = newActualExpense,
-                    originalAmount = sourceBaseOriginal
-                ))
+            // Apply new balances（退款路径已在 withTransaction 内完成，此处仅处理非退款路径和编辑路径）
+            if (latestRefundSource == null) {
+                BillAssetImpactService.applyBillBalanceImpact(db, rBill)
             }
-
-            // Apply new balances
-            BillAssetImpactService.applyBillBalanceImpact(db, rBill)
 
             withContext(Dispatchers.Main) {
                 Utils.toast(ctx, "记账成功")

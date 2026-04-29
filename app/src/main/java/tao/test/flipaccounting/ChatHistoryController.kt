@@ -48,7 +48,16 @@ class ChatHistoryController(
                 db.chatMessageDao().getAllByBookAndConversation(getCurrentBookName(), getCurrentConversationId())
             }
             val dbBillDao = db.billDao()
-            val orphanIds = mutableListOf<Long>()
+            val billMapById = withContext(Dispatchers.IO) {
+                val allIds = dbMessages
+                    .asSequence()
+                    .filter { it.msgType == ChatActivity.MSG_TYPE_AI_BILL }
+                    .flatMap { parseBillIds(it.billIds).asSequence() }
+                    .filter { it > 0L }
+                    .distinct()
+                    .toList()
+                if (allIds.isEmpty()) emptyMap() else dbBillDao.getBillsByIds(allIds).associateBy { it.id }
+            }
             displayMessages.clear()
             var hasRenderableUserAnchor = false
 
@@ -119,7 +128,6 @@ class ChatHistoryController(
                             continue
                         }
                         if (!hasRenderableUserAnchor) {
-                            orphanIds.add(msg.id)
                             continue
                         }
                         displayMessages.add(
@@ -133,12 +141,11 @@ class ChatHistoryController(
                     }
                     ChatActivity.MSG_TYPE_AI_BILL -> {
                         if (!hasRenderableUserAnchor) {
-                            orphanIds.add(msg.id)
                             continue
                         }
                         val billIds = parseBillIds(msg.billIds)
                         val deprecated = isDeprecatedBillMessage(msg.billIds)
-                        val bills = withContext(Dispatchers.IO) { billIds.mapNotNull { dbBillDao.getBillById(it) } }
+                        val bills = billIds.mapNotNull { billMapById[it] }
                         val billSnapshots = parseBillsFromMessageContent(msg.content)
                         val deprecatedBillIds = parseDeprecatedBillIdsFromContent(msg.content)
                         val editedBillIds = parseEditedBillIdsFromContent(msg.content)
@@ -149,7 +156,14 @@ class ChatHistoryController(
                             billSnapshots
                         }
                         if (displayBills.isEmpty()) {
-                            orphanIds.add(msg.id)
+                            displayMessages.add(
+                                ChatDisplayItem(
+                                    dbId = msg.id,
+                                    msgType = ChatActivity.MSG_TYPE_AI_TEXT,
+                                    content = "这条账单消息暂时无法渲染，原始记录已保留。",
+                                    timestamp = msg.timestamp
+                                )
+                            )
                         } else {
                             displayMessages.add(
                                 ChatDisplayItem(
@@ -163,22 +177,9 @@ class ChatHistoryController(
                                     editedBillIds = editedBillIds.toMutableSet()
                                 )
                             )
-                            if (!deprecated && bills.isEmpty() && !snapshotOnly && msg.id > 0L) {
-                                withContext(Dispatchers.IO) {
-                                    db.chatMessageDao().getById(msg.id)?.let { oldMsg ->
-                                        db.chatMessageDao().update(
-                                            oldMsg.copy(billIds = markBillIdsAsDeprecated(oldMsg.billIds))
-                                        )
-                                    }
-                                }
-                            }
                         }
                     }
                 }
-            }
-
-            if (orphanIds.isNotEmpty()) {
-                withContext(Dispatchers.IO) { db.chatMessageDao().deleteByIds(orphanIds) }
             }
 
             adapterProvider().notifyDataSetChanged()

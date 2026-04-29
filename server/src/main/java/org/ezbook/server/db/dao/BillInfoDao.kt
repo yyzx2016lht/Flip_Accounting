@@ -36,7 +36,7 @@ interface BillInfoDao {
     @Insert
     suspend fun insert(billInfo: BillInfoModel): Long
 
-    @Query("SELECT * FROM BillInfoModel WHERE money = :money AND time >= :startTime AND time <= :endTime AND groupId = -1 AND type=:type ORDER BY time ASC")
+    @Query("SELECT * FROM BillInfoModel WHERE money = :money AND time >= :startTime AND time < :endTime AND groupId = -1 AND type=:type ORDER BY time ASC")
     suspend fun query(
         money: Double,
         startTime: Long,
@@ -44,7 +44,7 @@ interface BillInfoDao {
         type: BillType
     ): List<BillInfoModel>
 
-    @Query("SELECT * FROM BillInfoModel WHERE money = :money AND time >= :startTime AND time <= :endTime AND groupId = -1 ORDER BY time ASC")
+    @Query("SELECT * FROM BillInfoModel WHERE money = :money AND time >= :startTime AND time < :endTime AND groupId = -1 ORDER BY time ASC")
     suspend fun queryNoType(
         money: Double,
         startTime: Long,
@@ -118,7 +118,7 @@ interface BillInfoDao {
         SELECT SUM(money + fee) FROM BillInfoModel
         WHERE groupId = -1 
           AND type IN ('Income','IncomeLending','IncomeRepayment','IncomeReimbursement','IncomeRefund')
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
         """
     )
     suspend fun sumIncomeWithFee(startTime: Long, endTime: Long): Double?
@@ -131,7 +131,7 @@ interface BillInfoDao {
         SELECT SUM(money + fee) FROM BillInfoModel
         WHERE groupId = -1 
           AND type IN ('Expend','ExpendReimbursement','ExpendLending','ExpendRepayment')
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
         """
     )
     suspend fun sumExpenseWithFee(startTime: Long, endTime: Long): Double?
@@ -147,7 +147,7 @@ interface BillInfoDao {
             SUM(CASE WHEN type IN ('Income','IncomeLending','IncomeRepayment','IncomeReimbursement','IncomeRefund') THEN (money + fee) ELSE 0 END) as income,
             SUM(CASE WHEN type IN ('Expend','ExpendReimbursement','ExpendLending','ExpendRepayment') THEN (money + fee) ELSE 0 END) as expense
         FROM BillInfoModel
-        WHERE groupId = -1 AND time >= :startTime AND time <= :endTime
+        WHERE groupId = -1 AND time >= :startTime AND time < :endTime
         GROUP BY day
         ORDER BY day ASC
         """
@@ -170,7 +170,7 @@ interface BillInfoDao {
     @Query("SELECT COUNT(*) FROM BillInfoModel WHERE groupId = -1 AND time >= :startTime")
     suspend fun getRecentBillsCount(startTime: Long): Int
 
-    @Query("SELECT * FROM BillInfoModel WHERE groupId = -1 AND time >= :startTime AND time <= :endTime ORDER BY time DESC")
+    @Query("SELECT * FROM BillInfoModel WHERE groupId = -1 AND time >= :startTime AND time < :endTime ORDER BY time DESC")
     suspend fun getBillsByTimeRange(startTime: Long, endTime: Long): List<BillInfoModel>
 
     // AI摘要相关查询
@@ -180,7 +180,7 @@ interface BillInfoDao {
         """
         SELECT cateName, SUM(money) as amount, COUNT(*) as count 
         FROM BillInfoModel 
-        WHERE type = 'Expend' AND time >= :startTime AND time <= :endTime AND groupId = -1 
+        WHERE type = 'Expend' AND time >= :startTime AND time < :endTime AND groupId = -1 
         GROUP BY cateName 
         ORDER BY amount DESC
     """
@@ -195,7 +195,7 @@ interface BillInfoDao {
         """
         SELECT shopName, SUM(money) as amount, COUNT(*) as count 
         FROM BillInfoModel 
-        WHERE type = 'Expend' AND time >= :startTime AND time <= :endTime AND groupId = -1 
+        WHERE type = 'Expend' AND time >= :startTime AND time < :endTime AND groupId = -1 
         GROUP BY shopName 
         ORDER BY amount DESC
     """
@@ -213,7 +213,7 @@ interface BillInfoDao {
         FROM BillInfoModel
         WHERE type = 'Expend'
           AND money <= :maxAmount
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
         GROUP BY cateName
         ORDER BY amount DESC
@@ -230,7 +230,7 @@ interface BillInfoDao {
         """
         SELECT time, type, money, cateName, shopName, shopItem 
         FROM BillInfoModel 
-        WHERE money >= :threshold AND time >= :startTime AND time <= :endTime AND groupId = -1 
+        WHERE money >= :threshold AND time >= :startTime AND time < :endTime AND groupId = -1 
         ORDER BY money DESC 
         LIMIT :limit
     """
@@ -247,7 +247,7 @@ interface BillInfoDao {
         """
         SELECT time, type, money, cateName, shopName, shopItem 
         FROM BillInfoModel 
-        WHERE time >= :startTime AND time <= :endTime AND groupId = -1 
+        WHERE time >= :startTime AND time < :endTime AND groupId = -1 
         ORDER BY time DESC 
         LIMIT :limit
     """
@@ -255,13 +255,13 @@ interface BillInfoDao {
     suspend fun getBillSamples(startTime: Long, endTime: Long, limit: Int): List<BillSummaryModel>
 
     /** 获取指定时间范围内各类型账单数量 */
-    @Query("SELECT COUNT(*) FROM BillInfoModel WHERE type = 'Income' AND time >= :startTime AND time <= :endTime AND groupId = -1")
+    @Query("SELECT COUNT(*) FROM BillInfoModel WHERE type = 'Income' AND time >= :startTime AND time < :endTime AND groupId = -1")
     suspend fun getIncomeCount(startTime: Long, endTime: Long): Int
 
-    @Query("SELECT COUNT(*) FROM BillInfoModel WHERE type = 'Expend' AND time >= :startTime AND time <= :endTime AND groupId = -1")
+    @Query("SELECT COUNT(*) FROM BillInfoModel WHERE type = 'Expend' AND time >= :startTime AND time < :endTime AND groupId = -1")
     suspend fun getExpenseCount(startTime: Long, endTime: Long): Int
 
-    @Query("SELECT COUNT(*) FROM BillInfoModel WHERE type = 'Transfer' AND time >= :startTime AND time <= :endTime AND groupId = -1")
+    @Query("SELECT COUNT(*) FROM BillInfoModel WHERE type = 'Transfer' AND time >= :startTime AND time < :endTime AND groupId = -1")
     suspend fun getTransferCount(startTime: Long, endTime: Long): Int
 
     /**
@@ -276,7 +276,7 @@ interface BillInfoDao {
             COUNT(*) as count
         FROM BillInfoModel
         WHERE type = 'Expend'
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
         GROUP BY bucket
         ORDER BY bucket ASC
@@ -299,7 +299,7 @@ interface BillInfoDao {
             COUNT(*) as count
         FROM BillInfoModel
         WHERE type = 'Expend'
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
         GROUP BY bucket
         ORDER BY bucket ASC
@@ -323,7 +323,7 @@ interface BillInfoDao {
             SUM(money) as amount
         FROM BillInfoModel
         WHERE type = 'Expend'
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
         GROUP BY bucketDay, bucketHour
         ORDER BY bucketDay ASC, bucketHour ASC
@@ -352,7 +352,7 @@ interface BillInfoDao {
             COUNT(*) as count
         FROM BillInfoModel
         WHERE type = 'Expend'
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
         GROUP BY bucket
         """
@@ -373,7 +373,7 @@ interface BillInfoDao {
         FROM BillInfoModel
         WHERE type = 'Expend'
           AND money < :maxAmount
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
         """
     )
@@ -394,7 +394,7 @@ interface BillInfoDao {
         FROM BillInfoModel
         WHERE type = 'Expend'
           AND money >= :minAmount
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
         """
     )
@@ -413,7 +413,7 @@ interface BillInfoDao {
             SUM(money) as amount
         FROM BillInfoModel
         WHERE type = 'Expend'
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
           AND groupId = -1
           AND strftime('%w', datetime(time/1000, 'unixepoch', 'localtime')) IN ('0','6')
         """
@@ -430,7 +430,7 @@ interface BillInfoDao {
         """
         SELECT COUNT(*) FROM BillInfoModel
         WHERE groupId = -1
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
         """
     )
     suspend fun getBillsCountByTimeRange(
@@ -447,7 +447,7 @@ interface BillInfoDao {
         SELECT SUM(money) FROM BillInfoModel
         WHERE groupId = -1 
           AND type IN (:types)
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
         """
     )
     suspend fun sumAmountByTypes(
@@ -464,7 +464,7 @@ interface BillInfoDao {
             SUM(CASE WHEN type = 'Income' THEN money ELSE 0 END) as income,
             SUM(CASE WHEN type = 'Expend' THEN money ELSE 0 END) as expense
         FROM BillInfoModel
-        WHERE groupId = -1 AND time >= :startTime AND time <= :endTime
+        WHERE groupId = -1 AND time >= :startTime AND time < :endTime
         GROUP BY day
         ORDER BY day ASC
         """
@@ -482,7 +482,7 @@ interface BillInfoDao {
             SUM(CASE WHEN type = 'Income' THEN money ELSE 0 END) as income,
             SUM(CASE WHEN type = 'Expend' THEN money ELSE 0 END) as expense
         FROM BillInfoModel
-        WHERE groupId = -1 AND time >= :startTime AND time <= :endTime
+        WHERE groupId = -1 AND time >= :startTime AND time < :endTime
         GROUP BY day
         ORDER BY day ASC
         """
@@ -502,7 +502,7 @@ interface BillInfoDao {
         FROM BillInfoModel
         WHERE groupId = -1
           AND type = 'Expend'
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
         GROUP BY cateName
         ORDER BY amount DESC
         """
@@ -522,7 +522,7 @@ interface BillInfoDao {
         FROM BillInfoModel
         WHERE groupId = -1
           AND type = 'Income'
-          AND time >= :startTime AND time <= :endTime
+          AND time >= :startTime AND time < :endTime
         GROUP BY cateName
         ORDER BY amount DESC
         """
@@ -539,7 +539,7 @@ interface BillInfoDao {
         """
         SELECT cateName, SUM(money) as amount, COUNT(*) as count
         FROM BillInfoModel
-        WHERE type = 'Income' AND time >= :startTime AND time <= :endTime AND groupId = -1
+        WHERE type = 'Income' AND time >= :startTime AND time < :endTime AND groupId = -1
         GROUP BY cateName
         ORDER BY amount DESC
         """

@@ -26,6 +26,8 @@ object PrefsGeneralSupport {
     private const val KEY_ASR_MODE = "asr_engine_mode"
     private const val KEY_ASR_DOWNLOAD_SOURCE = "asr_download_source_v1"
     private const val KEY_ASSET_FEATURE_ENABLED = "asset_feature_enabled_v1"
+    private const val KEY_PRIVACY_DEBUG_UNTIL_MS = "privacy_debug_until_ms_v1"
+    private const val KEY_DEVELOPER_FULL_LOGGING = "developer_full_logging_v1"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -87,6 +89,33 @@ object PrefsGeneralSupport {
         prefs(ctx).getBoolean(KEY_ASSET_FEATURE_ENABLED, true)
     fun setAssetFeatureEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_ASSET_FEATURE_ENABLED, enabled).apply()
+
+    fun enablePrivacyDebugLoggingForMinutes(ctx: Context, minutes: Int) {
+        val durationMs = minutes.coerceIn(1, 240) * 60_000L
+        val untilMs = System.currentTimeMillis() + durationMs
+        prefs(ctx).edit().putLong(KEY_PRIVACY_DEBUG_UNTIL_MS, untilMs).apply()
+    }
+
+    fun disablePrivacyDebugLogging(ctx: Context) {
+        prefs(ctx).edit().remove(KEY_PRIVACY_DEBUG_UNTIL_MS).apply()
+    }
+
+    fun isPrivacyDebugLoggingEnabled(ctx: Context): Boolean {
+        if (isDeveloperFullLoggingEnabled(ctx)) return true
+        val untilMs = prefs(ctx).getLong(KEY_PRIVACY_DEBUG_UNTIL_MS, 0L)
+        if (untilMs <= 0L) return false
+        val enabled = System.currentTimeMillis() < untilMs
+        if (!enabled) {
+            disablePrivacyDebugLogging(ctx)
+        }
+        return enabled
+    }
+
+    fun isDeveloperFullLoggingEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_DEVELOPER_FULL_LOGGING, false)
+
+    fun setDeveloperFullLoggingEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_DEVELOPER_FULL_LOGGING, enabled).apply()
 
     fun getAppWhiteList(ctx: Context): Set<String> =
         prefs(ctx).getStringSet(KEY_WHITE_LIST, emptySet()) ?: emptySet()

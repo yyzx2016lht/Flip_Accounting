@@ -34,6 +34,7 @@ const val OCR_MODE_LOCAL      = 0   // 本地 ML Kit OCR + 文本 AI
 const val OCR_MODE_MULTIMODAL = 1   // 直接多模态 AI（发送图片）
 
 object AIService {
+    private const val MAX_AUDIO_INLINE_BYTES = 8L * 1024L * 1024L
     private const val LOCAL_RULE_APPLIED_FLAG = "_local_rule_applied"
     private const val LOCAL_RULE_CORRECTED_FLAG = "_local_rule_corrected"
     private const val MODIFY_BILL_LOG_TAG = "ModifyBill"
@@ -161,7 +162,12 @@ object AIService {
             }
             parsed
         } catch (e: Exception) {
-            Logger.d(ctx, "AIService", "Cloud ASR failed with model=$modelName, err=${detailedHttpError(e)}")
+            Logger.dPriv(
+                ctx,
+                "AIService",
+                "Cloud ASR failed. model=$modelName, errType=${e.javaClass.simpleName}",
+                "Cloud ASR failure detail=${detailedHttpError(e)}"
+            )
             null
         }
     }
@@ -177,7 +183,7 @@ object AIService {
         onProgress: ((String) -> Unit)? = null
     ): JSONObject? {
         val safeUserInput = shortenForModel(userInput, MAX_ACCOUNTING_INPUT_CHARS)
-        Logger.d(ctx, "AIService", "Analyzing: $safeUserInput")
+        Logger.d(ctx, "AIService", "Accounting analyze request: inputLen=${safeUserInput.length}, multiOverride=$isMultiModeOverride")
         val apiKey = Prefs.getAiKey(ctx)
         val isMultiMode = isMultiModeOverride ?: Prefs.isMultiBillEnabled(ctx)
         val enableThinking = enableThinkingForAccounting(ctx, isMultiMode)
@@ -228,7 +234,7 @@ object AIService {
                 logReasoning = enableThinking,
                 reasoningLogTag = if (isMultiMode) ACCOUNTING_MULTI_LOG_TAG else ACCOUNTING_SINGLE_LOG_TAG
             )
-            Logger.d(ctx, "AIService", "AI Response: $content")
+            Logger.d(ctx, "AIService", "Accounting response received: len=${content.length}")
 
             // 直接解析，不再对原始 JSON 字符串做规则覆盖
             val result = parseAnalyzeResult(content, isMultiMode)
@@ -243,9 +249,8 @@ object AIService {
                 // ── 第1步：小票强制支出 ──
                 enforceExpenseForReceiptSummaries(root, safeUserInput)
                 if (!isMultiMode && localPrefill != null) {
-                    val before = summarizeLocalRuleSensitiveFields(root)
-                    val applyResult = applyLocalPrefillToResult(root, localPrefill)
-                    if (applyResult.applied) {
+                        val applyResult = applyLocalPrefillToResult(root, localPrefill)
+                        if (applyResult.applied) {
                         root.put(LOCAL_RULE_APPLIED_FLAG, true)
                         if (applyResult.corrected) {
                             root.put(LOCAL_RULE_CORRECTED_FLAG, true)
@@ -253,7 +258,7 @@ object AIService {
                         Logger.d(
                             ctx,
                             "AIService",
-                            "Local rule override applied; corrected=${applyResult.corrected}; correctedFields=${applyResult.correctedFields.joinToString(",")}; changed=${applyResult.changedFields.joinToString(",")}; before=$before; after=${summarizeLocalRuleSensitiveFields(root)}"
+                            "Local rule override applied; corrected=${applyResult.corrected}; correctedFieldCount=${applyResult.correctedFields.size}; changedFieldCount=${applyResult.changedFields.size}"
                         )
                     }
                 }
@@ -286,7 +291,12 @@ object AIService {
             result
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "AI Request Failed: ${detailedHttpError(e)}")
+            Logger.dPriv(
+                ctx,
+                "AIService",
+                "Accounting request failed: errType=${e.javaClass.simpleName}",
+                "Accounting request failure detail=${detailedHttpError(e)}"
+            )
             throw e
         }
     }
@@ -298,6 +308,7 @@ object AIService {
         onProgress: ((String) -> Unit)? = null
     ): JSONObject? {
         require(audioFile.exists() && audioFile.length() > 44L) { "语音文件无效" }
+        require(audioFile.length() <= MAX_AUDIO_INLINE_BYTES) { "语音文件过大，请缩短后再试" }
 
         val apiKey = Prefs.getAiKey(ctx)
         val isMultiMode = isMultiModeOverride ?: Prefs.isMultiBillEnabled(ctx)
@@ -341,7 +352,7 @@ object AIService {
                 throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("语音账单流式回复未完整结束")
             }
             val content = streamed.content
-            Logger.d(ctx, "AIService", "AI Audio Response: $content")
+            Logger.d(ctx, "AIService", "AI audio response received, len=${content.length}")
             val result = parseAnalyzeResult(content, isMultiMode)
 
             result?.let { root ->
@@ -373,7 +384,12 @@ object AIService {
             result
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "AI Audio Request Failed: ${detailedHttpError(e)}")
+            Logger.dPriv(
+                ctx,
+                "AIService",
+                "Accounting audio request failed: errType=${e.javaClass.simpleName}",
+                "Accounting audio request failure detail=${detailedHttpError(e)}"
+            )
             throw e
         }
     }
@@ -408,11 +424,16 @@ object AIService {
                 throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("图片识别流式回复未完整结束")
             }
             val content = streamed.content
-            Logger.d(ctx, "AIService", "Receipt multimodal response: $content")
+            Logger.d(ctx, "AIService", "Receipt multimodal response received: contentLen=${content.length}")
             content
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "analyzeReceiptByImage failed: ${detailedHttpError(e)}")
+            Logger.dPriv(
+                ctx,
+                "AIService",
+                "analyzeReceiptByImage failed: errType=${e.javaClass.simpleName}",
+                "Receipt image failure detail=${detailedHttpError(e)}"
+            )
             throw e
         }
     }
@@ -435,7 +456,7 @@ object AIService {
             Logger.d(ctx, "AIService", "Vision input support probe succeeded. model=$model")
             response.choices.firstOrNull()?.message?.content != null
         }.getOrElse {
-            Logger.d(ctx, "AIService", "Vision input support probe failed. model=$model, err=${detailedHttpError(it as? Exception ?: Exception(it.message))}")
+            Logger.d(ctx, "AIService", "Vision input support probe failed. model=$model, errType=${it.javaClass.simpleName}")
             false
         }
     }
@@ -502,7 +523,12 @@ object AIService {
             result
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "analyzeScreenAccountingByImage failed: ${detailedHttpError(e)}")
+            Logger.dPriv(
+                ctx,
+                "AIService",
+                "analyzeScreenAccountingByImage failed: errType=${e.javaClass.simpleName}",
+                "Screen accounting image failure detail=${detailedHttpError(e)}"
+            )
             throw e
         }
     }
@@ -527,7 +553,7 @@ object AIService {
                 return refined
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Logger.d(ctx, "AIService", "OCR pattern->LLM refine failed, continue: ${detailedHttpError(e)}")
+                Logger.d(ctx, "AIService", "OCR pattern->LLM refine failed, continue. errType=${e.javaClass.simpleName}")
             }
         }
 
@@ -555,7 +581,7 @@ object AIService {
                 )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Logger.d(ctx, "AIService", "Receipt OCR json_object mode failed, retry: ${detailedHttpError(e)}")
+                Logger.d(ctx, "AIService", "Receipt OCR json_object mode failed, retry. errType=${e.javaClass.simpleName}")
                 requestChatContentStreamedWithReasoning(
                     ctx = ctx,
                     apiKey = apiKey,
@@ -568,16 +594,26 @@ object AIService {
                 throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("OCR 结构化流式回复未完整结束")
             }
             val content = streamed.content
-            Logger.d(ctx, "AIService", "Receipt OCR structured response: $content")
+            Logger.d(ctx, "AIService", "Receipt OCR structured response received: contentLen=${content.length}")
             AIReceiptHelper.buildReceiptSummaryFromStructured(content, ocrText)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             val fallback = knownPatternSummary ?: AIReceiptHelper.buildReceiptSummaryHeuristicFallback(ocrText)
             if (!fallback.isNullOrBlank()) {
-                Logger.d(ctx, "AIService", "analyzeReceiptByOcrText failed, using fallback: ${detailedHttpError(e)}")
+                Logger.dPriv(
+                    ctx,
+                    "AIService",
+                    "analyzeReceiptByOcrText failed, using fallback: errType=${e.javaClass.simpleName}",
+                    "Receipt OCR fallback detail=${detailedHttpError(e)}"
+                )
                 fallback
             } else {
-                Logger.d(ctx, "AIService", "analyzeReceiptByOcrText failed: ${detailedHttpError(e)}")
+            Logger.dPriv(
+                ctx,
+                "AIService",
+                "analyzeReceiptByOcrText failed: errType=${e.javaClass.simpleName}",
+                "Receipt OCR failure detail=${detailedHttpError(e)}"
+            )
                 throw e
             }
         }
@@ -692,10 +728,11 @@ object AIService {
         val contextBlock = if (chatHistoryContext.isNotBlank())
             "\n\n【近期对话记录（仅供参考，帮助你判断用户意图）】\n${shortenForModel(chatHistoryContext, 600)}\n\n【用户当前输入】"
         else ""
+        val routerPrompt = AIPrompts.buildIntentRouterPrompt(Prefs.isAiQueryEnabled(ctx))
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.0,
-            systemPrompt = INTENT_ROUTER_PROMPT_DEFAULT.trim() + contextBlock,
+            systemPrompt = routerPrompt.trim() + contextBlock,
             userText = safeUserInput,
             jsonObjectResponse = true,
             enableThinking = false
@@ -711,6 +748,48 @@ object AIService {
         if (!streamed.completed) return null
         val content = streamed.content
         return parseRouterResult(content, userInput)
+    }
+
+    suspend fun planQueryActionWithModel(
+        ctx: Context,
+        userInput: String,
+        plannerContextJson: String
+    ): String? {
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isEmpty()) return null
+        val model = Prefs.getAiQueryModel(ctx)
+            .ifBlank { Prefs.getAiRouterModel(ctx) }
+            .ifBlank { Prefs.getAiChatModel(ctx) }
+            .ifBlank { Prefs.getAiSingleModel(ctx) }
+            .trim()
+        if (model.isEmpty()) return null
+
+        val safeInput = shortenForModel(userInput, 1000, preserveTail = false)
+        val safeContext = shortenForModel(plannerContextJson, 5500, preserveTail = false)
+        val systemPrompt = buildString {
+            append(AIPrompts.QUERY_PLANNER_PROMPT_DEFAULT.trim())
+            append("\n\n【Planner Context】\n")
+            append(safeContext)
+        }
+        val requestJson = buildTextChatRequest(
+            model = model,
+            temperature = 0.0,
+            systemPrompt = systemPrompt,
+            userText = safeInput,
+            jsonObjectResponse = true,
+            enableThinking = false
+        )
+        val streamed = runCatching {
+            requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = false,
+                reasoningLogTag = "QueryPlanner"
+            )
+        }.getOrNull() ?: return null
+        if (!streamed.completed) return null
+        return streamed.content
     }
 
     suspend fun generateAccountingModifyReply(
@@ -744,7 +823,7 @@ object AIService {
                 reasoningLogTag = MODIFY_BILL_LOG_TAG
             )
         }.getOrElse {
-            Logger.d(ctx, MODIFY_BILL_LOG_TAG, "stream failed, fallback raw: ${detailedHttpError(it as? Exception ?: Exception(it.message))}")
+            Logger.d(ctx, MODIFY_BILL_LOG_TAG, "stream failed, fallback raw request, err=${(it as? Exception ?: Exception(it.message)).javaClass.simpleName}")
             val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
             StreamResult(
                 content = response.choices.firstOrNull()?.message?.content?.trim().orEmpty(),
@@ -798,12 +877,22 @@ object AIService {
         return AiRouteResult(type, confidence, slots, bookkeepingMode)
     }
 
+    private fun withReplyDiversityNonce(baseSystemPrompt: String, requestNonce: String): String {
+        if (requestNonce.isBlank()) return baseSystemPrompt
+        return buildString {
+            appendLine(baseSystemPrompt)
+            appendLine()
+            appendLine("【回复去重标识】$requestNonce（仅用于生成多样性，禁止在回复中提及）")
+        }.trim()
+    }
+
     suspend fun generateAccountingAssistantReply(
         ctx: Context,
         userInput: String,
         billSummary: String = "",
         extractorReplyHint: String = "",
-        chatHistoryContext: String = ""
+        chatHistoryContext: String = "",
+        requestNonce: String = ""
     ): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
@@ -812,11 +901,12 @@ object AIService {
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val safeBillSummary = shortenForModel(billSummary, MAX_ASSISTANT_SUMMARY_CHARS)
         val safeReplyHint = shortenForModel(extractorReplyHint, MAX_ASSISTANT_INPUT_CHARS, preserveTail = false)
-        val systemPrompt = buildAssistantSystemPrompt(
+        val baseSystemPrompt = buildAssistantSystemPrompt(
             ctx = ctx,
             defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE,
             chatHistoryContext = chatHistoryContext
         )
+        val systemPrompt = withReplyDiversityNonce(baseSystemPrompt, requestNonce)
         val userPrompt = buildAccountingAssistantUserPrompt(
             userInput = safeUserInput,
             billSummary = safeBillSummary,
@@ -845,6 +935,8 @@ object AIService {
         ctx: Context,
         userInput: String,
         chatHistoryContext: String = "",
+        requestNonce: String = "",
+        replyGuideHint: String = "",
         onDelta: ((String) -> Unit)? = null
     ): StreamResult {
         val apiKey = Prefs.getAiKey(ctx)
@@ -852,16 +944,26 @@ object AIService {
 
         val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiSingleModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
-        val systemPrompt = buildAssistantSystemPrompt(
+        val baseSystemPrompt = buildAssistantSystemPrompt(
             ctx = ctx,
             defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE,
             chatHistoryContext = chatHistoryContext
         )
+        val systemPrompt = withReplyDiversityNonce(baseSystemPrompt, requestNonce)
+        val safeReplyGuideHint = shortenForModel(replyGuideHint, 400, preserveTail = false)
+        val userPrompt = buildString {
+            append("用户：")
+            append(safeUserInput)
+            if (safeReplyGuideHint.isNotBlank()) {
+                append("\n\n补充参考（仅供你组织回复语气，不要逐字复述）：")
+                append(safeReplyGuideHint)
+            }
+        }
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.7,
             systemPrompt = systemPrompt,
-            userText = "用户：$safeUserInput",
+            userText = userPrompt,
             stream = true,
             enableThinking = false
         )
@@ -882,6 +984,7 @@ object AIService {
         billSummary: String = "",
         extractorReplyHint: String = "",
         chatHistoryContext: String = "",
+        requestNonce: String = "",
         onDelta: (String) -> Unit
     ): Boolean {
         val apiKey = Prefs.getAiKey(ctx)
@@ -891,11 +994,12 @@ object AIService {
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val safeBillSummary = shortenForModel(billSummary, MAX_ASSISTANT_SUMMARY_CHARS)
         val safeReplyHint = shortenForModel(extractorReplyHint, MAX_ASSISTANT_INPUT_CHARS, preserveTail = false)
-        val systemPrompt = buildAssistantSystemPrompt(
+        val baseSystemPrompt = buildAssistantSystemPrompt(
             ctx = ctx,
             defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE,
             chatHistoryContext = chatHistoryContext
         )
+        val systemPrompt = withReplyDiversityNonce(baseSystemPrompt, requestNonce)
         val userPrompt = buildAccountingAssistantUserPrompt(
             userInput = safeUserInput,
             billSummary = safeBillSummary,
@@ -991,9 +1095,9 @@ object AIService {
             } else if (root.has("amount")) {
                 applyRulesToBill(root)
             }
-            android.util.Log.d("AIService", "Local rule override applied: $root")
+            android.util.Log.d("AIService", "Local rule override applied")
         } catch (e: Exception) {
-            android.util.Log.d("AIService", "applyLocalRuleOverrideOnResult error: ${e.message}")
+            android.util.Log.d("AIService", "applyLocalRuleOverrideOnResult error: ${e.javaClass.simpleName}")
         }
     }
 
@@ -1205,7 +1309,7 @@ object AIService {
                 Logger.d(
                     ctx,
                     "AIService",
-                    "Multi refine precheck idx=${i + 1}/${bills.length()}, remark=${remark.take(24)}, resolvedBy=local_rule, category=$localCategory"
+                    "Multi refine precheck idx=${i + 1}/${bills.length()}, remarkLen=${remark.length}, resolvedBy=local_rule, categoryLen=${localCategory.length}"
                 )
             } else {
                 if (finalConfidence >= CONFIDENCE_HIGH_THRESHOLD && originalCategory.isNotBlank()) {
@@ -1277,7 +1381,7 @@ object AIService {
                 Logger.d(
                     ctx,
                     "AIService",
-                    "Multi refine llm idx=${billIndex + 1}/${bills.length()}, remark=${remark.take(24)}, final=${(refined ?: "").ifBlank { "<empty>" }}"
+                    "Multi refine llm idx=${billIndex + 1}/${bills.length()}, remarkLen=${remark.length}, hasFinal=${!refined.isNullOrBlank()}"
                 )
                 progressLines[billIndex] = "${billIndex + 1}. ${remark.take(18)} -> ${bill.optString("category_name", "").ifBlank { "待定分类" }}"
                 onProgress?.invoke(
@@ -1304,7 +1408,7 @@ object AIService {
         Logger.d(
             ctx,
             "AIService",
-            "Category refine request: model=$model, type=${if (type == 1) "income" else "expense"}, remark=${remark.take(32)}, candidateCount=${candidates.size}, matchedRuleCount=${matchedRules.size}"
+            "Category refine request: model=$model, type=${if (type == 1) "income" else "expense"}, remarkLen=${remark.length}, candidateCount=${candidates.size}, matchedRuleCount=${matchedRules.size}"
         )
         val correctionBlock = if (matchedRules.isNotEmpty()) buildPromptCorrectionBlock(matchedRules) else ""
         val systemPrompt = AIPrompts.buildCategoryRefineSystemPrompt(
@@ -1337,7 +1441,7 @@ object AIService {
                 Logger.d(
                     ctx,
                     "AIService",
-                    "Category refine parse failed: remark=${remark.take(32)}, response=${content.take(160)}, err=${it.message}"
+                    "Category refine parse failed: remarkLen=${remark.length}, responseLen=${content.length}, err=${it.javaClass.simpleName}"
                 )
                 return null
             } ?: return null
@@ -1349,7 +1453,7 @@ object AIService {
         Logger.d(
             ctx,
             "AIService",
-            "Category refine mapped: remark=${remark.take(32)}, raw=${rawCate.ifBlank { "<empty>" }}, normalized=${normalized.ifBlank { "<empty>" }}, strict=${strictMatch ?: "<none>"}, semantic=${semanticMatch ?: "<none>"}, final=${finalMatch ?: "<empty>"}"
+            "Category refine mapped: remarkLen=${remark.length}, rawLen=${rawCate.length}, normalizedLen=${normalized.length}, hasFinal=${!finalMatch.isNullOrBlank()}"
         )
         return finalMatch
     }
@@ -1497,7 +1601,7 @@ object AIService {
                         if (reasoningDelta.isNotEmpty()) {
                             reasoningBuilder.append(reasoningDelta)
                             if (logReasoning) {
-                                Logger.d(ctx, reasoningLogTag, "reasoning delta: $reasoningDelta")
+                                Logger.d(ctx, reasoningLogTag, "reasoning delta received: len=${reasoningDelta.length}")
                             }
                         }
                         if (contentDelta.isNotEmpty()) {
@@ -1520,7 +1624,7 @@ object AIService {
             transportError = e
         }
         if (logReasoning && reasoningBuilder.isNotBlank()) {
-            Logger.d(ctx, reasoningLogTag, "reasoning full: ${reasoningBuilder.toString()}")
+            Logger.d(ctx, reasoningLogTag, "reasoning full received: len=${reasoningBuilder.length}")
         }
         return StreamResult(
             content = contentBuilder.toString(),
@@ -1568,7 +1672,7 @@ object AIService {
             streamed.content
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "Accounting stream failed, fallback raw: ${detailedHttpError(e)}")
+            Logger.d(ctx, "AIService", "Accounting stream failed, fallback raw request, err=${e.javaClass.simpleName}")
             val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
             response.choices.first().message.content
         }

@@ -21,6 +21,7 @@ import kotlinx.coroutines.FlowPreview
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.data.local.dao.BillDao
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.ui.main.stats.StatsExternalQueryFilter
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -335,6 +336,28 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
 
     fun setBookFilter(bookName: String?) {
         _uiState.update { it.copy(selectedBookName = bookName?.takeIf { name -> name.isNotBlank() }) }
+        loadData()
+    }
+
+    fun applyExternalQueryFilter(filter: StatsExternalQueryFilter) {
+        _uiState.update { state ->
+            val forcedRange = if (filter.startMillis != null && filter.endMillis != null) {
+                Triple(
+                    minOf(filter.startMillis, filter.endMillis),
+                    maxOf(filter.startMillis, filter.endMillis),
+                    filter.label
+                )
+            } else {
+                null
+            }
+            state.copy(
+                forcedStartTime = forcedRange?.first,
+                forcedEndTime = forcedRange?.second,
+                forcedLabel = forcedRange?.third,
+                selectedBookName = filter.bookName?.takeIf { it.isNotBlank() } ?: state.selectedBookName,
+                selectedCurrency = filter.currency?.takeIf { it.isNotBlank() }
+            )
+        }
         loadData()
     }
 

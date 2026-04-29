@@ -56,6 +56,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.ui.common.StatusBarStyle
 import tao.test.flipaccounting.data.local.entity.ChatMessage
 import tao.test.flipaccounting.data.local.entity.AiRule
 import tao.test.flipaccounting.data.repository.CategoryRepository
@@ -79,6 +80,8 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class ChatActivity : AppCompatActivity() {
+    private val maxVoiceRecordBytes = 8L * 1024L * 1024L
+    private val maxVoiceRecordDurationSec = 180
     private enum class RuleSaveOutcome { SAVED, OVERWRITTEN, CANCELED }
     private data class PendingBillSelection(
         val token: String,
@@ -185,7 +188,9 @@ class ChatActivity : AppCompatActivity() {
             db = db,
             displayMessages = displayMessages,
             adapterProvider = { adapter },
-            appendAiTextMessage = { text, loading -> appendAiTextMessage(text, loading) },
+            appendAiTextMessage = { text, loading, bookName, conversationId ->
+                appendAiTextMessage(text, loading, bookName, conversationId)
+            },
             scrollToBottom = ::scrollToBottom,
             refreshSessionRows = ::refreshSessionRows,
             getCurrentBookName = { currentBookName },
@@ -529,6 +534,8 @@ class ChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
+        StatusBarStyle.applyByColor(window, Color.parseColor("#F7F7F7"))
+
         currentBookName = resolveEntryBookName(intent)
         pendingScrollToMessageId = intent?.getLongExtra(EXTRA_SCROLL_TO_MSG_ID, -1L) ?: -1L
 
@@ -818,6 +825,11 @@ class ChatActivity : AppCompatActivity() {
     private fun onVoiceRecorded(tempFile: File, durationSec: Int) {
         lifecycleScope.launch {
             val copiedFile = withContext(Dispatchers.IO) { copyVoiceFileToStorage(tempFile) }
+            if (durationSec > maxVoiceRecordDurationSec || copiedFile.length() > maxVoiceRecordBytes) {
+                runCatching { copiedFile.delete() }
+                appendAiTextMessage("语音超出限制（最长 3 分钟、8MB），请缩短后重试。", isLoading = false)
+                return@launch
+            }
             val added = appendUserVoiceMessage(copiedFile, durationSec, "")
             val loadingIdx = appendAiTextMessage("正在听写语音...", isLoading = true)
             val transcript = withContext(Dispatchers.IO) {
@@ -943,21 +955,30 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun findDependentAssistantMessageIds(ids: List<Long>): List<Long> {
+    private suspend fun findDependentAssistantMessageIds(ids: List<Long>): List<Long> {
         if (ids.isEmpty()) return emptyList()
-        val targetIds = ids.toSet()
         val result = mutableListOf<Long>()
-        displayMessages.forEachIndexed { index, item ->
-            if (!targetIds.contains(item.dbId) || !isUserMessageType(item.msgType)) return@forEachIndexed
-            var cursor = index + 1
-            while (cursor in displayMessages.indices) {
-                val next = displayMessages[cursor]
-                if (isUserMessageType(next.msgType)) break
-                if ((next.msgType == MSG_TYPE_AI_BILL || next.msgType == MSG_TYPE_AI_TEXT) && next.dbId > 0L) {
-                    result += next.dbId
-                }
-                cursor++
-            }
+        val userTypes = listOf(MSG_TYPE_USER_TEXT, MSG_TYPE_USER_IMAGE, MSG_TYPE_USER_VOICE)
+        val assistantTypes = listOf(MSG_TYPE_AI_TEXT, MSG_TYPE_AI_BILL)
+        for (id in ids.distinct()) {
+            val start = db.chatMessageDao().getById(id) ?: continue
+            if (!isUserMessageType(start.msgType)) continue
+            val nextUser = db.chatMessageDao().findNextUserMessage(
+                bookName = start.bookName,
+                conversationId = start.conversationId,
+                timestamp = start.timestamp,
+                id = start.id,
+                userTypes = userTypes
+            )
+            result += db.chatMessageDao().findAssistantMessageIdsBetween(
+                bookName = start.bookName,
+                conversationId = start.conversationId,
+                startTimestamp = start.timestamp,
+                startId = start.id,
+                endTimestamp = nextUser?.timestamp ?: -1L,
+                endId = nextUser?.id ?: -1L,
+                assistantTypes = assistantTypes
+            )
         }
         return result.distinct()
     }
@@ -1187,7 +1208,6 @@ class ChatActivity : AppCompatActivity() {
                 pendingBillConfirmation = null
                 when (action) {
                     BILL_INTERACTIVE_ACTION_PRIMARY -> {
-                        finalizeConfirmedPreviewCard(item.billInteractionToken)
                         if (pending.continuation.isActive) pending.continuation.resume(true)
                     }
                     BILL_INTERACTIVE_ACTION_SECONDARY -> {
@@ -1229,32 +1249,6 @@ class ChatActivity : AppCompatActivity() {
         )
         adapter.notifyItemInserted(displayMessages.lastIndex)
         scrollToBottom(force = true)
-        lifecycleScope.launch(Dispatchers.IO) {
-            val billIdsJson = JSONArray().toString()
-            val msgId = db.chatMessageDao().insert(
-                ChatMessage(
-                    msgType = MSG_TYPE_AI_BILL,
-                    content = snapshotContent,
-                    billIds = billIdsJson,
-                    modelName = Prefs.getAiChatModel(this@ChatActivity),
-                    bookName = currentBookName,
-                    conversationId = currentConversationId,
-                    timestamp = rowTimestamp
-                )
-            )
-            withContext(Dispatchers.Main) {
-                val idx = displayMessages.indexOfLast {
-                    it.msgType == MSG_TYPE_AI_BILL &&
-                        it.billInteractionToken == interactionToken &&
-                        it.timestamp == rowTimestamp &&
-                        it.dbId == 0L
-                }
-                if (idx >= 0) {
-                    displayMessages[idx] = displayMessages[idx].copy(dbId = msgId)
-                    adapter.notifyItemChanged(idx)
-                }
-            }
-        }
     }
 
     private fun finalizeConfirmedPreviewCard(token: String) {

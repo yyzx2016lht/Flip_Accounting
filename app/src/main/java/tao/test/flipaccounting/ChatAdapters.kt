@@ -1075,7 +1075,7 @@ class DrawerSearchResultAdapter(
                 ChatActivity.MSG_TYPE_USER_IMAGE -> "[图片]"
                 ChatActivity.MSG_TYPE_USER_VOICE -> {
                     val transcript = parseVoicePayload(msg.content).transcript
-                    if (transcript.isNotBlank()) "[语音] $transcript" else "[语音]"
+                    if (transcript.isNotBlank()) "语音：${transcript.replace(Regex("\\s+"), " ").trim().take(80)}" else "[语音]"
                 }
 
                 ChatActivity.MSG_TYPE_AI_BILL -> {
@@ -1087,6 +1087,9 @@ class DrawerSearchResultAdapter(
                 }
 
                 else -> msg.content.trim().ifBlank { "(空内容)" }.take(100)
+            }
+            if (tvContent.text.contains("/") || tvContent.text.contains("\\") || tvContent.text.contains("base64", true)) {
+                tvContent.text = "[内容已隐藏]"
             }
             itemView.setOnClickListener { onClick(msg) }
         }

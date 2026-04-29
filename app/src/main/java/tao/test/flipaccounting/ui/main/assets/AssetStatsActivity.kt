@@ -70,6 +70,12 @@ import kotlin.math.sin
 
 class AssetStatsActivity : AppCompatActivity() {
     companion object {
+        const val EXTRA_ASSET_ID = "ASSET_ID"
+        const val EXTRA_FILTER_START_TIME = "EXTRA_FILTER_START_TIME"
+        const val EXTRA_FILTER_END_TIME = "EXTRA_FILTER_END_TIME"
+        const val EXTRA_FILTER_LABEL = "EXTRA_FILTER_LABEL"
+        const val EXTRA_BILL_TYPE = "EXTRA_BILL_TYPE"
+
         private const val TAG_BAR = "AssetStatsBar"
         private const val INITIAL_BILL_LIST_SIZE = 50
         private const val BILL_LIST_STEP_SIZE = 200
@@ -88,6 +94,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private enum class PeriodMode { YEAR, MONTH }
     private enum class ChartMode { EXPENSE, INCOME }
     private enum class DateChipType { YEAR, MONTH }
+    private enum class FilterBillType { EXPENSE, INCOME, TRANSFER, REPAYMENT, REFUND, ANY }
 
     private data class DateChipItem(
         val type: DateChipType,
@@ -145,6 +152,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private var forcedStartTime: Long? = null
     private var forcedEndTime: Long? = null
     private var forcedLabel: String? = null
+    private var forcedBillType: FilterBillType = FilterBillType.ANY
     private var currentBarLabels: List<String> = emptyList()
     private var currentBarValues: List<Float> = emptyList()
     private var selectedBarIndex: Int? = null
@@ -219,11 +227,12 @@ class AssetStatsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_asset_stats)
 
-        assetId = intent.getLongExtra("ASSET_ID", -1L)
+        assetId = intent.getLongExtra(EXTRA_ASSET_ID, -1L)
         if (assetId <= 0L) {
             finish()
             return
         }
+        applyExternalIntentFilter(intent)
 
         initViews()
         initListeners()
@@ -1020,14 +1029,14 @@ class AssetStatsActivity : AppCompatActivity() {
     }
 
     private fun currentFilterCacheKey(): String {
-        return "${periodMode.name}_${selectedYear}_${selectedMonth}_${forcedLabel.orEmpty()}_${forcedStartTime ?: -1L}_${forcedEndTime ?: -1L}_${allAssetBills.size}_${allAssetBills.firstOrNull()?.id ?: -1L}"
+        return "${periodMode.name}_${selectedYear}_${selectedMonth}_${forcedLabel.orEmpty()}_${forcedStartTime ?: -1L}_${forcedEndTime ?: -1L}_${forcedBillType.name}_${allAssetBills.size}_${allAssetBills.firstOrNull()?.id ?: -1L}"
     }
 
     private fun filteredBills(key: String = currentFilterCacheKey()): List<Bill> {
         filteredBillsCache[key]?.let { return it }
         val cal = Calendar.getInstance()
         val result = allAssetBills.filter { bill ->
-            if (forcedLabel == "全部") {
+            val timeMatched = if (forcedLabel == "全部") {
                 true
             } else if (forcedStartTime != null && forcedEndTime != null) {
                 bill.time in forcedStartTime!!..forcedEndTime!!
@@ -1040,6 +1049,15 @@ class AssetStatsActivity : AppCompatActivity() {
                     year == selectedYear && (cal.get(Calendar.MONTH) + 1) == selectedMonth
                 }
             }
+            val typeMatched = when (forcedBillType) {
+                FilterBillType.EXPENSE -> bill.type == Bill.TYPE_EXPENSE && bill.subType != Bill.SUBTYPE_REFUND
+                FilterBillType.INCOME -> bill.type == Bill.TYPE_INCOME
+                FilterBillType.TRANSFER -> bill.type == Bill.TYPE_TRANSFER && bill.subType != Bill.SUBTYPE_REPAYMENT
+                FilterBillType.REPAYMENT -> bill.type == Bill.TYPE_TRANSFER && bill.subType == Bill.SUBTYPE_REPAYMENT
+                FilterBillType.REFUND -> bill.subType == Bill.SUBTYPE_REFUND
+                FilterBillType.ANY -> true
+            }
+            timeMatched && typeMatched
         }
         filteredBillsCache[key] = result
         return result
@@ -1058,12 +1076,45 @@ class AssetStatsActivity : AppCompatActivity() {
     }
 
     private fun buildFilterLabel(): String {
-        val label = forcedLabel ?: return ""
-        if (label == "全部") return "全部时间"
-        if (label == "自定义" && forcedStartTime != null && forcedEndTime != null) {
-            return "${dfDateLabel.format(Date(forcedStartTime!!))}至${dfDateLabel.format(Date(forcedEndTime!!))}"
+        val parts = mutableListOf<String>()
+        val label = forcedLabel
+        if (!label.isNullOrBlank()) {
+            val timePart = when {
+                label == "全部" -> "全部时间"
+                label == "自定义" && forcedStartTime != null && forcedEndTime != null ->
+                    "${dfDateLabel.format(Date(forcedStartTime!!))}至${dfDateLabel.format(Date(forcedEndTime!!))}"
+                else -> label
+            }
+            parts += timePart
         }
-        return label
+        val typePart = when (forcedBillType) {
+            FilterBillType.EXPENSE -> "支出"
+            FilterBillType.INCOME -> "收入"
+            FilterBillType.TRANSFER -> "转账"
+            FilterBillType.REPAYMENT -> "还款"
+            FilterBillType.REFUND -> "退款"
+            FilterBillType.ANY -> ""
+        }
+        if (typePart.isNotBlank()) parts += typePart
+        return parts.joinToString("｜")
+    }
+
+    private fun applyExternalIntentFilter(intent: android.content.Intent?) {
+        if (intent == null) return
+        val start = intent.getLongExtra(EXTRA_FILTER_START_TIME, Long.MIN_VALUE)
+        val end = intent.getLongExtra(EXTRA_FILTER_END_TIME, Long.MIN_VALUE)
+        if (start != Long.MIN_VALUE && end != Long.MIN_VALUE) {
+            forcedStartTime = minOf(start, end)
+            forcedEndTime = maxOf(start, end)
+            if (forcedLabel.isNullOrBlank()) {
+                forcedLabel = "自定义"
+            }
+        }
+        intent.getStringExtra(EXTRA_FILTER_LABEL)?.trim()?.takeIf { it.isNotBlank() }?.let {
+            forcedLabel = it
+        }
+        val billTypeRaw = intent.getStringExtra(EXTRA_BILL_TYPE).orEmpty().trim().uppercase(Locale.ROOT)
+        forcedBillType = runCatching { FilterBillType.valueOf(billTypeRaw) }.getOrDefault(FilterBillType.ANY)
     }
 
     private fun renderBillSectionsProgressively(filterKey: String, bills: List<Bill>) {

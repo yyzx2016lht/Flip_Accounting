@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import com.google.android.material.switchmaterial.SwitchMaterial
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
@@ -19,6 +20,7 @@ class LogViewerActivity : AppCompatActivity() {
     private lateinit var tvContent: TextView
     private lateinit var tabRuntime: TextView
     private lateinit var tabCrash: TextView
+    private lateinit var switchDevFullLogging: SwitchMaterial
 
     /** true = 显示崩溃日志，false = 显示运行日志 */
     private var showingCrash = false
@@ -32,6 +34,7 @@ class LogViewerActivity : AppCompatActivity() {
         tvContent  = findViewById(R.id.tv_log_content)
         tabRuntime = findViewById(R.id.tab_runtime_log)
         tabCrash   = findViewById(R.id.tab_crash_log)
+        switchDevFullLogging = findViewById(R.id.switch_dev_full_logging)
         tvContent.setTextIsSelectable(true)
 
         val btnShare = findViewById<View>(R.id.btn_header_action)
@@ -63,6 +66,16 @@ class LogViewerActivity : AppCompatActivity() {
             if (showingCrash) Logger.getCrashFile(this).delete()
             else Logger.clearLogs(this)
             loadCurrentLog()
+        }
+
+        switchDevFullLogging.isChecked = Prefs.isDeveloperFullLoggingEnabled(this)
+        switchDevFullLogging.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setDeveloperFullLoggingEnabled(this, isChecked)
+            if (isChecked) {
+                Utils.toast(this, "已开启完整日志记录（开发者模式）")
+            } else {
+                Utils.toast(this, "已关闭完整日志记录")
+            }
         }
     }
 

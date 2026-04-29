@@ -48,6 +48,7 @@ import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.BookAccountManager
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
+import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.ui.dialog.ElegantDatePickerSheet
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
@@ -172,11 +173,13 @@ class StatsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         syncHostSelectionIfNeeded("onViewCreated")
+        applyPendingExternalQueryFilter("onViewCreated")
     }
 
     override fun onResume() {
         super.onResume()
         syncHostSelectionIfNeeded("onResume")
+        applyPendingExternalQueryFilter("onResume")
         playEnterAnimationIfNeeded()
         startJankMonitor("onResume")
     }
@@ -195,10 +198,17 @@ class StatsFragment : Fragment() {
         if (!hidden) {
             // Fragment 从隐藏变为可见（即切换到统计 Tab）
             syncHostSelectionIfNeeded("onHiddenChanged:show")
+            applyPendingExternalQueryFilter("onHiddenChanged:show")
             startJankMonitor("onHiddenChanged:show")
         } else {
             stopJankMonitor("onHiddenChanged:hidden")
         }
+    }
+
+    private fun applyPendingExternalQueryFilter(reason: String) {
+        val filter = StatsExternalQueryBridge.consume() ?: return
+        Log.d(TAG, "applyPendingExternalQueryFilter: reason=$reason, label=${filter.label.orEmpty()}")
+        viewModel.applyExternalQueryFilter(filter)
     }
 
     /**
@@ -374,6 +384,28 @@ class StatsFragment : Fragment() {
         root.findViewById<View>(R.id.btn_overview_expand_area).setOnClickListener {
             isOverviewExpanded = !isOverviewExpanded
             updateOverviewExpandState()
+        }
+
+        rowTransfer.setOnClickListener {
+            showOverviewBillList(
+                title = "转账账单",
+                bills = viewModel.getTransferBills(),
+                emptyMessage = "暂无转账账单"
+            )
+        }
+        rowRepayment.setOnClickListener {
+            showOverviewBillList(
+                title = "还款账单",
+                bills = viewModel.getRepaymentBills(),
+                emptyMessage = "暂无还款账单"
+            )
+        }
+        rowRefund.setOnClickListener {
+            showOverviewBillList(
+                title = "退款账单",
+                bills = viewModel.getRefundBills(),
+                emptyMessage = "暂无退款账单"
+            )
         }
     }
 
@@ -1392,6 +1424,14 @@ class StatsFragment : Fragment() {
             }
         }
         return popup
+    }
+
+    private fun showOverviewBillList(title: String, bills: List<Bill>, emptyMessage: String) {
+        if (bills.isEmpty()) {
+            Toast.makeText(requireContext(), emptyMessage, Toast.LENGTH_SHORT).show()
+            return
+        }
+        BillListBottomSheet(title, bills).show(childFragmentManager, "overview_bills")
     }
 
     private fun showSubCategoryDetails(categoryName: String) {

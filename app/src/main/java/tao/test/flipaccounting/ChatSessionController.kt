@@ -66,6 +66,7 @@ class ChatSessionController(
     private val onConversationSubtitleChanged: () -> Unit,
     private val cancelCurrentRequest: () -> Unit
 ) {
+    private val sessionScanLimit = 4000
     private var drawerSearchJob: Job? = null
 
     fun setupSessionDrawer() {
@@ -256,7 +257,8 @@ class ChatSessionController(
 
     suspend fun refreshSessionRows() {
         val msgs = withContext(Dispatchers.IO) {
-            db.chatMessageDao().getAllByBook(getCurrentBookName())
+            // 防止极端大历史在会话面板刷新时一次性全量加载导致内存峰值过高。
+            db.chatMessageDao().getAllByBookLimited(getCurrentBookName(), sessionScanLimit)
         }
         val grouped = msgs
             .groupBy { (it.bookName.ifBlank { BookAccountManager.getDefaultBook(context) }) to it.conversationId }
@@ -376,7 +378,7 @@ class ChatSessionController(
         val latestBill = latestBillMsg?.let { parseBillsFromMessageContent(it.content).lastOrNull() }
         val remark = latestBill?.remark?.trim().orEmpty()
         if (remark.isNotBlank()) return "最后一笔账单：（$remark）"
-        val fallbackText = latestMsg?.content?.trim().orEmpty()
+        val fallbackText = sanitizePreviewText(latestMsg?.content.orEmpty())
         return if (fallbackText.isNotBlank()) {
             "最近消息：${fallbackText.take(18)}"
         } else {
@@ -392,7 +394,7 @@ class ChatSessionController(
             .orEmpty()
             .trim()
         if (latestUserText.isNotBlank()) {
-            val clean = latestUserText
+            val clean = sanitizePreviewText(latestUserText)
                 .replace(Regex("\\s+"), " ")
                 .replace("。", "")
                 .replace("，", " ")
@@ -404,7 +406,7 @@ class ChatSessionController(
         val latestVoiceText = messages
             .asReversed()
             .firstOrNull { it.msgType == ChatActivity.MSG_TYPE_USER_VOICE }
-            ?.let { parseVoicePayload(it.content).transcript.trim() }
+            ?.let { sanitizePreviewText(parseVoicePayload(it.content).transcript.trim()) }
             .orEmpty()
         if (latestVoiceText.isNotBlank()) {
             return latestVoiceText.take(16)
@@ -428,6 +430,16 @@ class ChatSessionController(
         if (t == "新的会话") return true
         if (Regex("^记账会话\\s*\\d+$").matches(t)) return true
         return Regex("^AI对话\\d+$").matches(t)
+    }
+
+    private fun sanitizePreviewText(raw: String): String {
+        if (raw.isBlank()) return ""
+        val compact = raw.replace(Regex("\\s+"), " ").trim()
+        if (compact.contains("base64", ignoreCase = true)) return ""
+        if (compact.startsWith("data:image", ignoreCase = true)) return ""
+        if (compact.startsWith("/") || compact.contains(":/")) return ""
+        if (compact.contains("\\") || compact.contains("/storage/", ignoreCase = true)) return ""
+        return compact
     }
 
     private fun showDeleteSessionBillsConfirmDialog(row: ChatSessionRow, bills: List<Bill>) {

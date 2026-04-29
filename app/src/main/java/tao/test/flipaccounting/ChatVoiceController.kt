@@ -36,7 +36,7 @@ class ChatVoiceController(
         isDanger: Boolean,
         onConfirm: () -> Unit
     ) -> Unit,
-    private val findDependentAssistantMessageIds: (List<Long>) -> List<Long>,
+    private val findDependentAssistantMessageIds: suspend (List<Long>) -> List<Long>,
     private val refreshSessionRows: suspend () -> Unit
 ) {
     val selectedVoiceMessageIds: MutableSet<Long> = mutableSetOf()
@@ -240,7 +240,7 @@ class ChatVoiceController(
                     val extraAssistantMessageIds = if (persistedIds.isEmpty()) {
                         emptyList()
                     } else {
-                        findDependentAssistantMessageIds(persistedIds)
+                        withContext(Dispatchers.IO) { findDependentAssistantMessageIds(persistedIds) }
                     }
                     val allIds = (persistedIds + extraAssistantMessageIds).distinct()
                     val files = displayMessages

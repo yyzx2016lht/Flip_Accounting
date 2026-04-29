@@ -128,6 +128,9 @@ interface BillDao {
     @Query("SELECT * FROM bills WHERE id = :id LIMIT 1")
     suspend fun getBillById(id: Long): Bill?
 
+    @Query("SELECT * FROM bills WHERE id IN (:ids)")
+    suspend fun getBillsByIds(ids: List<Long>): List<Bill>
+
     @Query("SELECT * FROM bills WHERE relatedBillId = :sourceBillId AND subType = :refundSubtype ORDER BY time DESC")
     suspend fun getRefundBillsBySourceId(sourceBillId: Long, refundSubtype: Int = Bill.SUBTYPE_REFUND): List<Bill>
 
@@ -363,6 +366,26 @@ interface BillDao {
     """)
     suspend fun getRecentBillsByBookName(
         bookName: String,
+        limit: Int
+    ): List<Bill>
+
+    @Query("""
+        SELECT * FROM bills
+        WHERE bookName IN (:bookNames)
+        ORDER BY time DESC, id DESC
+        LIMIT :limit
+    """)
+    suspend fun getRecentBillsByBookNames(
+        bookNames: List<String>,
+        limit: Int
+    ): List<Bill>
+
+    @Query("""
+        SELECT * FROM bills
+        ORDER BY time DESC, id DESC
+        LIMIT :limit
+    """)
+    suspend fun getRecentBills(
         limit: Int
     ): List<Bill>
 

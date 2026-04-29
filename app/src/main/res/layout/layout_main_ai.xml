@@ -154,46 +154,10 @@
                 android:layout_marginBottom="24dp">
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_enable_thinking_single"
+                    android:id="@+id/switch_enable_query"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="单账单启用思考"
-                    android:textColor="#333333"
-                    android:textSize="@dimen/text_size_13"
-                    android:layout_marginBottom="2dp" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_enable_thinking_multi"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="多账单启用思考"
-                    android:textColor="#333333"
-                    android:textSize="@dimen/text_size_13"
-                    android:layout_marginBottom="2dp" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_enable_thinking_modify"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="修改账单启用思考"
-                    android:textColor="#333333"
-                    android:textSize="@dimen/text_size_13"
-                    android:layout_marginBottom="2dp" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_enable_thinking_vision"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="图片识别启用思考"
-                    android:textColor="#333333"
-                    android:textSize="@dimen/text_size_13"
-                    android:layout_marginBottom="2dp" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_enable_thinking_category_refine"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="二段分类启用思考"
+                    android:text="启用 Query 查询功能"
                     android:textColor="#333333"
                     android:textSize="@dimen/text_size_13"
                     android:layout_marginBottom="2dp" />
@@ -201,7 +165,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="路由模型与多账单二次分类固定关闭思考，避免不必要耗时。单/多账单默认关闭，图片识别默认开启，二段分类默认关闭。"
+                    android:text="路由模型与 Query 规划模型固定关闭思考。其余思考开关按当前选择的业务模型单独配置。"
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11"
                     android:layout_marginBottom="12dp" />
@@ -396,6 +360,21 @@
                         android:textSize="@dimen/text_size_13"
                         app:checkedIconVisible="false"
                         app:chipMinHeight="36dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/btn_query_prompt"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="fill_horizontal"
+                        android:gravity="center"
+                        android:textAlignment="center"
+                        android:checkable="true"
+                        android:text="Query规划"
+                        android:textSize="@dimen/text_size_13"
+                        app:checkedIconVisible="false"
+                        app:chipMinHeight="36dp" />
                 </GridLayout>
 
                 <LinearLayout
@@ -553,6 +532,24 @@
                     android:textColor="#666666"
                     android:textSize="@dimen/text_size_12"
                     android:layout_marginBottom="6dp"/>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_enable_thinking_current"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="当前模式启用思考"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_13"
+                    android:layout_marginBottom="2dp" />
+
+                <TextView
+                    android:id="@+id/tv_thinking_scope_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="该开关跟随上方业务模式切换。"
+                    android:textColor="#999999"
+                    android:textSize="@dimen/text_size_11"
+                    android:layout_marginBottom="10dp" />
 
                 <!-- 模型选择器：点击弹出带搜索的选择弹窗 -->
                 <LinearLayout

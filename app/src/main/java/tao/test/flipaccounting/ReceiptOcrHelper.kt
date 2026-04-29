@@ -68,7 +68,7 @@ object ReceiptOcrHelper {
         if (ocrText.isBlank()) {
             throw IllegalArgumentException("未能从图片中识别到任何文字，请确保图片清晰且光线充足")
         }
-        Logger.d(ctx, "ReceiptOcrHelper", "OCR-only text (${ocrText.length} chars):\n$ocrText")
+        Logger.d(ctx, "ReceiptOcrHelper", "OCR-only done: textLen=${ocrText.length}")
         return ocrText
     }
 
@@ -90,7 +90,7 @@ object ReceiptOcrHelper {
             throw IllegalArgumentException("未能从图片中识别到任何文字，请确保图片清晰")
         }
 
-        Logger.d(ctx, "ReceiptOcrHelper", "OCR text (${ocrText.length} chars):\n$ocrText")
+        Logger.d(ctx, "ReceiptOcrHelper", "OCR done: textLen=${ocrText.length}")
         if (Prefs.isSaveOcrDebugEnabled(ctx)) {
             Prefs.addOcrDebugRecord(ctx, ocrText, source = "local_ocr_before_ai")
         }

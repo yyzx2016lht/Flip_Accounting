@@ -36,6 +36,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val dividerMultiBillDetailTop = findViewById<View>(R.id.divider_multi_bill_detail_top)
         val layoutMultiBillFastMode = findViewById<View>(R.id.layout_multi_bill_fast_mode)
         val switchShowMultiBill = findViewById<CompoundButton>(R.id.switch_show_multi_bill)
+        val switchAiLlmRouter = findViewById<CompoundButton>(R.id.switch_ai_llm_router)
         val isFlipOverlayEnabled = Prefs.isFlipEnabled(this)
 
         // AI 总开关由设置中心控制，这里只展示具体能力配置。
@@ -81,6 +82,12 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         switchShowMultiBill.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setMultiBillEnabled(this, isChecked)
             updateMultiBillUiVisibility()
+        }
+        switchAiLlmRouter.apply {
+            isChecked = Prefs.isAiLlmRouterEnabled(this@AiFeatureSettingsActivity)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setAiLlmRouterEnabled(this@AiFeatureSettingsActivity, isChecked)
+            }
         }
 
         findViewById<CompoundButton>(R.id.switch_local_rule_override)?.apply {
@@ -268,6 +275,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 R.id.switch_ai_chat_mode,
                 R.id.switch_show_ai_chat_entry,
                 R.id.switch_show_multi_bill,
+                R.id.switch_ai_llm_router,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,
                 R.id.switch_show_ai_image,

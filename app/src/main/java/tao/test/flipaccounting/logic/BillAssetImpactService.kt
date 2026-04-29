@@ -20,7 +20,7 @@ object BillAssetImpactService {
             bill.type == Bill.TYPE_EXPENSE -> {
                 val asset = resolveSourceAsset(db, bill) ?: return
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
-                val sourceDelta = convertAmountBetweenCurrencies(baseOriginalAmount(bill), bill.currency, asset.currency)
+                val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
                 db.assetDao().updateBalance(asset.id, asset.balance - sourceDelta)
             }
             bill.type == Bill.TYPE_INCOME -> {

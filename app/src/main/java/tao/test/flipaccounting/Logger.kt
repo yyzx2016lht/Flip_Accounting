@@ -50,9 +50,32 @@ object Logger {
                 }
                 file.appendText(logLine)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("Logger", "writeLog failed: ${e.javaClass.simpleName}")
             }
         }
+    }
+
+    fun dPriv(ctx: Context, tag: String, safeMessage: String, debugDetail: String) {
+        d(ctx, tag, safeMessage)
+        if (!Prefs.isPrivacyDebugLoggingEnabled(ctx)) return
+        if (Prefs.isDeveloperFullLoggingEnabled(ctx)) {
+            d(ctx, tag, "[privacy-debug-full] ${debugDetail.take(2000)}")
+            return
+        }
+        if (!isDebuggable(ctx)) return
+        val masked = maskSensitiveDebugDetail(debugDetail)
+        d(ctx, tag, "[privacy-debug] $masked")
+    }
+
+    private fun maskSensitiveDebugDetail(raw: String): String {
+        if (raw.isBlank()) return raw
+        var text = raw
+        text = text.replace(Regex("(?i)data:[^\\s]+;base64,[A-Za-z0-9+/=]+"), "data:<redacted-base64>")
+        text = text.replace(Regex("[A-Za-z0-9+/=]{80,}"), "<redacted-base64>")
+        text = text.replace(Regex("([A-Za-z]:\\\\[^\\s]+)|(/[^\\s]+)+"), "<redacted-path>")
+        text = text.replace(Regex("(?i)(remark|remarks|merchant|shop|store)\\s*[=:]\\s*[^,;\\n]+"), "$1=<redacted>")
+        text = text.replace(Regex("(?i)(amount|fee|price|total)\\s*[=:]\\s*-?\\d+(?:\\.\\d+)?"), "$1=<redacted>")
+        return text.take(800)
     }
 
     fun getLogFile(ctx: Context): File {

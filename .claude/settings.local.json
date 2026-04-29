@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(find /mnt/e/FlipAccounting-AI/app/src -name *.xml -type f)",
-      "Bash(find /mnt/e/FlipAccounting-AI/app/src -name *.kt -type f)"
+      "Bash(find /mnt/e/FlipAccounting-AI/app/src -name *.kt -type f)",
+      "Read(//usr/lib/**)",
+      "Bash(echo $JAVA_HOME)",
+      "Bash(grep -E '\\\\.\\(kt|java|xml\\)$')",
+      "Bash(grep -E '\\\\.kt$')",
+      "Bash(git diff:*)"
     ]
   }
 }

@@ -42,6 +42,22 @@ object BillMutationService {
         }
     }
 
+    suspend fun insertBillWithinActiveTransaction(
+        db: AppDatabase,
+        bill: Bill,
+        applyAssetImpact: Boolean = true
+    ): Bill {
+        val normalizedInput = normalizeBillCategoryName(bill)
+        if (applyAssetImpact) {
+            validateRequiredRatesForBill(db, normalizedInput)
+        }
+        val savedBill = normalizedInput.copy(id = db.billDao().insertBill(normalizedInput))
+        if (applyAssetImpact) {
+            BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+        }
+        return savedBill
+    }
+
     suspend fun upsertBillAndApplyImpact(
         db: AppDatabase,
         bill: Bill,

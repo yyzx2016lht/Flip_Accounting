@@ -1,11 +1,22 @@
 package tao.test.flipaccounting.chat.ai
 
 enum class AiIntentType {
-    BOOKKEEPING,
-    MODIFY_BILL,
-    QUERY,
     GENERAL_CHAT,
-    UNKNOWN
+    BOOKKEEPING_CREATE,
+    BOOKKEEPING_QUERY,
+    BOOKKEEPING_UPDATE,
+    BOOKKEEPING_DELETE,
+    SESSION_QUERY,
+    SESSION_UPDATE,
+    MEDIA_ANALYZE,
+    UNKNOWN,
+
+    @Deprecated("Use BOOKKEEPING_CREATE")
+    BOOKKEEPING,
+    @Deprecated("Use BOOKKEEPING_UPDATE")
+    MODIFY_BILL,
+    @Deprecated("Use BOOKKEEPING_QUERY")
+    QUERY
 }
 
 enum class AiBookkeepingMode {
@@ -35,7 +46,7 @@ data class AiRouteResult(
     val bookkeepingMode: AiBookkeepingMode = AiBookkeepingMode.UNSPECIFIED
 ) {
     fun missingQuerySlots(): List<String> {
-        if (intentType != AiIntentType.QUERY) return emptyList()
+        if (intentType != AiIntentType.QUERY && intentType != AiIntentType.BOOKKEEPING_QUERY) return emptyList()
         val missing = mutableListOf<String>()
         if (slots.timeRange == null) missing += "时间范围"
         return missing

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
@@ -50,6 +51,8 @@ class ChatMediaController(
     private val msgTypeUserImage: Int
 ) {
     private var pendingEditAiAvatarView: ImageView? = null
+    private val maxAiImageBytes = 4L * 1024L * 1024L
+    private val maxOcrCharsForRouting = 1200
 
     fun showEditAiProfileDialog() {
         val view = android.view.LayoutInflater.from(context).inflate(R.layout.dialog_edit_ai_profile, null)
@@ -398,6 +401,13 @@ class ChatMediaController(
                 val (storedUri, base64, mime) = withContext(Dispatchers.IO) {
                     val sourceMime = context.contentResolver.getType(uri) ?: "image/jpeg"
                     val stableUri = copyPickedImageToStorage(uri, sourceMime)
+                    val stableFile = File(stableUri.path ?: "")
+                    if (stableFile.length() > maxAiImageBytes) {
+                        compressImageInPlace(stableFile)
+                    }
+                    if (stableFile.length() > maxAiImageBytes) {
+                        throw IOException("图片过大，请裁剪或压缩后再试")
+                    }
                     val stream = context.contentResolver.openInputStream(stableUri)
                         ?: return@withContext Triple(Uri.EMPTY, "", sourceMime)
                     val bytes = stream.readBytes()
@@ -420,14 +430,31 @@ class ChatMediaController(
                         }
                     }
                     if (ocr.isBlank()) "[MULTIMODAL_IMAGE]$base64|$mime" else "[图片OCR文本]: $ocr"
+                        .take(maxOcrCharsForRouting + "[图片OCR文本]: ".length)
                 } else {
                     "[MULTIMODAL_IMAGE]$base64|$mime"
                 }
                 callAiAccounting(text, false)
             } catch (e: Exception) {
-                appendAiTextMessage("图片处理失败: ${e.message}", false)
+                appendAiTextMessage("图片处理失败，请稍后重试或换一张更清晰的图片。", false)
             }
         }
+    }
+
+    private fun compressImageInPlace(file: File) {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return
+        var sample = 1
+        while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) {
+            sample *= 2
+        }
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return
+        FileOutputStream(file, false).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)
+        }
+        bitmap.recycle()
     }
 
     private fun copyPickedImageToStorage(sourceUri: Uri, sourceMime: String): Uri {
