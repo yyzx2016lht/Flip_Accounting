@@ -1,0 +1,22 @@
+{
+  "apiKey": "sk-ijvdlznigfozykjyoncmoflzgklwtsneeyjaoyrvorolibsr",
+  "apiUrl": "https://api.siliconflow.cn",
+  "provider": "硅基流动",
+  "modelId": "Qwen/Qwen3-14B",
+  "singleModelId": "Qwen/Qwen3-14B",
+  "multiModelId": "Qwen/Qwen3-14B",
+  "modifyModelId": "Qwen/Qwen3-14B",
+  "categoryRefineModelId": "Qwen/Qwen3-14B",
+  "routerModelId": "Qwen/Qwen3-8B",
+  "queryModelId": "Qwen/Qwen3-14B",
+  "ruleModelId": "Qwen/Qwen3-8B",
+  "receiptModelId": "Qwen/Qwen3-14B",
+  "receiptVisionModelId": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+  "ocrRefineModelId": "Qwen/Qwen3-8B",
+  "speechModelId": "FunAudioLLM/SenseVoiceSmall",
+  "chatModelId": "Qwen/Qwen3-14B",
+  "llmRouterEnabled": false,
+  "queryEnabled": true,
+  "thinkingEnabled": false,
+  "ocrRefineEnabled": true
+}

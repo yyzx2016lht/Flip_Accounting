@@ -21,13 +21,13 @@ object BillAssetImpactService {
                 val asset = resolveSourceAsset(db, bill) ?: return
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
-                db.assetDao().updateBalance(asset.id, asset.balance - sourceDelta)
+                db.assetDao().addBalanceDelta(asset.id, -sourceDelta)
             }
             bill.type == Bill.TYPE_INCOME -> {
                 val asset = resolveSourceAsset(db, bill) ?: return
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
-                db.assetDao().updateBalance(asset.id, asset.balance + sourceDelta)
+                db.assetDao().addBalanceDelta(asset.id, sourceDelta)
             }
             bill.type == Bill.TYPE_TRANSFER -> {
                 val sourceAsset = resolveSourceAsset(db, bill)
@@ -36,11 +36,11 @@ object BillAssetImpactService {
 
                 if (sourceAsset != null) {
                     val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, sourceAsset.currency)
-                    db.assetDao().updateBalance(sourceAsset.id, sourceAsset.balance - sourceDelta)
+                    db.assetDao().addBalanceDelta(sourceAsset.id, -sourceDelta)
                 }
 
                 if (targetAsset != null) {
-                    db.assetDao().updateBalance(targetAsset.id, targetAsset.balance + targetDeltaInCurrency(bill, targetAsset.currency))
+                    db.assetDao().addBalanceDelta(targetAsset.id, targetDeltaInCurrency(bill, targetAsset.currency))
                 }
             }
         }
@@ -48,17 +48,28 @@ object BillAssetImpactService {
 
     suspend fun revertBillBalanceImpact(db: AppDatabase, bill: Bill) {
         when {
+            bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT ||
+            bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> {
+                val asset = resolveSourceAsset(db, bill) ?: return
+                ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
+                val delta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
+                if (bill.type == Bill.TYPE_INCOME) {
+                    db.assetDao().addBalanceDelta(asset.id, -delta)
+                } else {
+                    db.assetDao().addBalanceDelta(asset.id, delta)
+                }
+            }
             bill.type == Bill.TYPE_EXPENSE -> {
                 val asset = resolveSourceAsset(db, bill) ?: return
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(baseOriginalAmount(bill), bill.currency, asset.currency)
-                db.assetDao().updateBalance(asset.id, asset.balance + sourceDelta)
+                db.assetDao().addBalanceDelta(asset.id, sourceDelta)
             }
             bill.type == Bill.TYPE_INCOME -> {
                 val asset = resolveSourceAsset(db, bill) ?: return
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
-                db.assetDao().updateBalance(asset.id, asset.balance - sourceDelta)
+                db.assetDao().addBalanceDelta(asset.id, -sourceDelta)
             }
             bill.type == Bill.TYPE_TRANSFER -> {
                 val sourceAsset = resolveSourceAsset(db, bill)
@@ -67,11 +78,11 @@ object BillAssetImpactService {
 
                 if (sourceAsset != null) {
                     val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, sourceAsset.currency)
-                    db.assetDao().updateBalance(sourceAsset.id, sourceAsset.balance + sourceDelta)
+                    db.assetDao().addBalanceDelta(sourceAsset.id, sourceDelta)
                 }
 
                 if (targetAsset != null) {
-                    db.assetDao().updateBalance(targetAsset.id, targetAsset.balance - targetDeltaInCurrency(bill, targetAsset.currency))
+                    db.assetDao().addBalanceDelta(targetAsset.id, -targetDeltaInCurrency(bill, targetAsset.currency))
                 }
             }
         }
