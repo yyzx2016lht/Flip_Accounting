@@ -10,6 +10,7 @@ import android.hardware.SensorManager
 import android.os.*
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
+import tao.test.flipaccounting.tap.TapDetector
 
 class OverlayService : Service() {
 
@@ -18,8 +19,12 @@ class OverlayService : Service() {
         const val NOTIF_ID = 2001
         const val ACTION_SHOW_OVERLAY = "tao.test.flipaccounting.SHOW_OVERLAY"
         const val ACTION_HIDE_OVERLAY = "tao.test.flipaccounting.HIDE_OVERLAY"
+        const val ACTION_SHOW_AI_INPUT = "tao.test.flipaccounting.SHOW_AI_INPUT"
         const val ACTION_START_FLIP = "ACTION_START_FLIP"
         const val ACTION_STOP_FLIP = "ACTION_STOP_FLIP"
+        const val ACTION_START_DOUBLE_TAP = "ACTION_START_DOUBLE_TAP"
+        const val ACTION_STOP_DOUBLE_TAP = "ACTION_STOP_DOUBLE_TAP"
+        const val ACTION_RESTART_DOUBLE_TAP = "ACTION_RESTART_DOUBLE_TAP"
 
         // 服务被杀后，通过 AlarmManager setExact 快速重拉，无需精准穿透 Doze
         // （翻转只在亮屏时有意义，Doze 期间屏幕必然是关的，服务死了也无所谓）
@@ -28,11 +33,13 @@ class OverlayService : Service() {
 
     private lateinit var overlayManager: OverlayManager
     private var flipDetector: FlipDetector? = null
+    private var tapDetector: TapDetector? = null
 
     // 防止乱序 intent 问题：记录最后一次合法的 START 时间戳
     private var lastStartFlipAtMs: Long = 0L
 
     private var isFlipEnabled = false
+    private var isDoubleTapEnabled = false
     private val keepAliveManager = KeepAliveManager()
 
     // ════════════════════════════════════════════════════════
@@ -54,14 +61,14 @@ class OverlayService : Service() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
-                        // 息屏：完全停止传感器，释放资源（翻转只在亮屏时有意义）
-                        Logger.d(this@OverlayService, "OverlayService", "Screen OFF: stopping detector to save power")
+                        Logger.d(this@OverlayService, "OverlayService", "Screen OFF: stopping detectors to save power")
                         restartDetectorJob?.cancel()
                         if (isFlipEnabled) stopFlipDetection()
+                        if (isDoubleTapEnabled) stopTapDetection()
                     }
                     Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
-                        Logger.d(this@OverlayService, "OverlayService", "Screen ON: restarting detector (${intent.action})")
-                        if (!isFlipEnabled) return
+                        Logger.d(this@OverlayService, "OverlayService", "Screen ON: restarting detectors (${intent.action})")
+                        if (!isFlipEnabled && !isDoubleTapEnabled) return
                         acquireWakeLockBriefly(5_000L)
                         restartDetector("screen-on")
                     }
@@ -220,10 +227,12 @@ class OverlayService : Service() {
         fun restartDetector(reason: String) {
             restartDetectorJob?.cancel()
             restartDetectorJob = serviceScope.launch(Dispatchers.Main) {
-                Logger.d(this@OverlayService, "OverlayService", "Restarting detector: reason=$reason")
+                Logger.d(this@OverlayService, "OverlayService", "Restarting detectors: reason=$reason")
                 stopFlipDetection()
+                stopTapDetection()
                 delay(300L)
                 if (isFlipEnabled) startFlipDetection()
+                if (isDoubleTapEnabled) startTapDetection()
             }
         }
 
@@ -243,9 +252,11 @@ class OverlayService : Service() {
             startForegroundCompat()
 
             isFlipEnabled = Prefs.isFlipEnabled(this)
+            isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
             keepAliveManager.attach()
 
             if (isFlipEnabled) startFlipDetection()
+            if (isDoubleTapEnabled) startTapDetection()
 
             keepAliveManager.syncWatchdogState()
             Logger.d(this, "OverlayService", "Service onCreate completed.")
@@ -289,7 +300,9 @@ class OverlayService : Service() {
             null -> {
                 // START_STICKY 重建，从 Prefs 恢复状态
                 isFlipEnabled = Prefs.isFlipEnabled(this)
+                isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
                 if (isFlipEnabled) startFlipDetection()
+                if (isDoubleTapEnabled) startTapDetection()
             }
             ACTION_START_FLIP -> {
                 lastStartFlipAtMs = System.currentTimeMillis()
@@ -306,7 +319,22 @@ class OverlayService : Service() {
                     stopSelfIfIdle("flip-disabled")
                 }
             }
+            ACTION_START_DOUBLE_TAP -> {
+                isDoubleTapEnabled = true
+                startTapDetection()
+            }
+            ACTION_STOP_DOUBLE_TAP -> {
+                isDoubleTapEnabled = false
+                stopTapDetection()
+                stopSelfIfIdle("double-tap-disabled")
+            }
+            ACTION_RESTART_DOUBLE_TAP -> {
+                stopTapDetection()
+                isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
+                if (isDoubleTapEnabled) startTapDetection()
+            }
             ACTION_SHOW_OVERLAY -> overlayManager.showOverlay()
+            ACTION_SHOW_AI_INPUT -> overlayManager.showAiInputPanel()
             ACTION_HIDE_OVERLAY -> {
                 overlayManager.removeOverlay()
                 stopSelfIfIdle("overlay-hidden")
@@ -322,9 +350,10 @@ class OverlayService : Service() {
         Logger.d(this, "OverlayService", "Service onDestroy")
         keepAliveManager.detach()
         stopFlipDetection()
+        stopTapDetection()
         overlayManager.removeOverlay()
         // START_STICKY 会自动重建，setExact 作为额外保险（部分 ROM 不遵循 START_STICKY）
-        if (Prefs.isFlipEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
+        if (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
         super.onDestroy()
     }
 
@@ -391,6 +420,52 @@ class OverlayService : Service() {
         keepAliveManager.onDetectorStopped()
     }
 
+    private fun startTapDetection() {
+        if (tapDetector != null) return
+        val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        tapDetector = TapDetector(this, sensorManager) { tapCount ->
+            handleTapAction(tapCount)
+        }
+        if (tapDetector?.start() != true) {
+            tapDetector = null
+            Logger.d(this, "OverlayService", "TapDetector start failed")
+        } else {
+            Logger.d(this, "OverlayService", "TapDetector started")
+        }
+    }
+
+    private fun handleTapAction(tapCount: Int) {
+        if (Prefs.isFlipDisableLandscape(this)) {
+            val orientation = resources.configuration.orientation
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                Logger.d(this, "OverlayService", "Tap trigger ignored in landscape")
+                return
+            }
+        }
+
+        val actionId = when (tapCount) {
+            2 -> Prefs.getTapActionDouble(this)
+            3 -> Prefs.getTapActionTriple(this)
+            else -> ""
+        }
+        if (actionId.isEmpty()) {
+            Logger.d(this, "OverlayService", "Tap $tapCount detected but no action configured")
+            return
+        }
+        val action = tao.test.flipaccounting.tap.TapActionRegistry.findById(actionId)
+        if (action != null) {
+            Logger.d(this, "OverlayService", "Tap $tapCount detected, executing: ${action.displayName}")
+            keepAliveManager.acquireWakeLockBriefly(3_000L)
+            triggerVibration()
+            action.execute(this)
+        }
+    }
+
+    private fun stopTapDetection() {
+        tapDetector?.stop()
+        tapDetector = null
+    }
+
     // ════════════════════════════════════════════════════════
     //  重拉保险：服务死亡时用 setExact 快速重建
     // ════════════════════════════════════════════════════════
@@ -441,7 +516,7 @@ class OverlayService : Service() {
     }
 
     private fun stopSelfIfIdle(reason: String) {
-        if (isFlipEnabled || overlayManager.isShowing()) return
+        if (isFlipEnabled || isDoubleTapEnabled || overlayManager.isShowing()) return
         Logger.d(this, "OverlayService", "Service idle ($reason), stopping")
         cancelRestart()
         try {

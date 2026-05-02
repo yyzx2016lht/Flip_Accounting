@@ -6,6 +6,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.util.Locale
+import java.util.concurrent.Executors
+import tao.test.flipaccounting.Logger
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.dao.AiRuleDao
 import tao.test.flipaccounting.data.local.dao.AssetDao
 import tao.test.flipaccounting.data.local.dao.BillDao
@@ -32,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+        private val ROOM_LOG_EXECUTOR = Executors.newSingleThreadExecutor()
 
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -120,11 +125,26 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+                val appCtx = context.applicationContext
                 val instance = Room.databaseBuilder(
-                    context.applicationContext,
+                    appCtx,
                     AppDatabase::class.java,
                     "flipaccounting_database"
                 )
+                    .setQueryCallback({ sql, args ->
+                        if (!Prefs.isDeveloperFullLoggingEnabled(appCtx)) return@setQueryCallback
+                        val normalized = sql.trim().uppercase(Locale.US)
+                        val isWrite = normalized.startsWith("INSERT") ||
+                            normalized.startsWith("UPDATE") ||
+                            normalized.startsWith("DELETE") ||
+                            normalized.startsWith("REPLACE")
+                        if (!isWrite) return@setQueryCallback
+                        Logger.d(
+                            appCtx,
+                            "DB_SQL",
+                            "sql=${sql.replace("\n", " ").take(600)}; args=${args.joinToString(prefix = "[", postfix = "]").take(400)}"
+                        )
+                    }, ROOM_LOG_EXECUTOR)
                     .addMigrations(
                         MIGRATION_5_6,
                         MIGRATION_6_7,

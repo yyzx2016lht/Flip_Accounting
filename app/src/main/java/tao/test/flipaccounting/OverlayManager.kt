@@ -64,6 +64,19 @@ class OverlayManager(private val ctx: Context) {
         handleAiResult(result)
     }
 
+    fun showAiInputPanel() {
+        val isMulti = if (overlayView != null) floatingMultiBillMode else Prefs.isMultiBillEnabled(ctx)
+        val tapVoiceHandler = VoiceInputHandler(ctx, aiAssistant, { floatingMultiBillMode }, handleAiResult)
+        aiAssistant.voiceInputBtnSetup = { btn ->
+            tapVoiceHandler.setupVoiceButton(btn)
+        }
+        aiAssistant.showInputPanel(
+            isMultiMode = isMulti,
+            hideStreamText = true,
+            onResult = handleAiResult
+        )
+    }
+
     private val handleAiResult: (JSONObject) -> Unit = { resultJson ->
         val isMulti = if (overlayView != null) floatingMultiBillMode else Prefs.isMultiBillEnabled(ctx)
         if (isMulti && resultJson.has("bills")) {
@@ -187,7 +200,13 @@ class OverlayManager(private val ctx: Context) {
         )
 
         if (prefill != null) {
-            formController?.fillDataToUi(prefill, showToast = false)
+            val forceMulti = prefill.has("bills")
+            if (forceMulti) {
+                floatingMultiBillMode = true
+                view.findViewById<RadioButton>(R.id.rb_multi)?.isChecked = true
+                view.findViewById<RadioButton>(R.id.rb_single)?.isChecked = false
+            }
+            formController?.fillDataToUi(prefill, showToast = false, forceMultiMode = forceMulti)
         }
 
         voiceHandler = VoiceInputHandler(ctx, aiAssistant, { floatingMultiBillMode }, handleAiResult)

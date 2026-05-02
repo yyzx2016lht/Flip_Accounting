@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 import android.os.PowerManager
 import kotlinx.coroutines.Dispatchers
 import tao.test.flipaccounting.R
-import tao.test.flipaccounting.ui.FlipSensitivityActivity
+import tao.test.flipaccounting.ui.SensitivityActivity
 import android.util.Log
 import android.view.ViewTreeObserver
 import com.google.android.material.appbar.AppBarLayout
@@ -86,6 +86,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         rootRef?.findViewById<View>(R.id.tv_screen_accounting_hint)?.visibility = View.GONE
         rootRef?.findViewById<CompoundButton>(R.id.switch_screen_accounting)?.isChecked =
             Prefs.isShowScreenAccounting(requireContext())
+        rootRef?.findViewById<CompoundButton>(R.id.switch_double_tap)?.isChecked =
+            Prefs.isDoubleTapEnabled(requireContext())
         rootRef?.let { refreshUserAvatarCard(it) }
         rootRef?.let { refreshHomeTrendCardSwitch(it) }
         // ── 诊断：记录 onResume 时刻的 appbar 状态 ──
@@ -322,12 +324,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
             requireActivity().startActivity(Intent(requireContext(), CurrencyManagerActivity::class.java))
         }
-        view.findViewById<View>(R.id.btn_flip_sensitivity).setOnClickListener {
+        view.findViewById<View>(R.id.btn_sensitivity).setOnClickListener {
             rootRef?.let {
                 dumpAppbarState("BeforeStartActivity:flip_sensitivity", it)
                 sampleAppbarFrames("BeforeStartActivityFrames:flip_sensitivity", it, 6)
             }
-            requireActivity().startActivity(Intent(requireContext(), FlipSensitivityActivity::class.java))
+            requireActivity().startActivity(Intent(requireContext(), SensitivityActivity::class.java))
         }
         view.findViewById<View>(R.id.btn_backup_restore).setOnClickListener {
             rootRef?.let {
@@ -365,11 +367,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         // --- 翻转手势与白名单 ---
         val switchFlip = view.findViewById<CompoundButton>(R.id.switch_flip_trigger)
+        val switchDoubleTap = view.findViewById<CompoundButton>(R.id.switch_double_tap)
         val switchShowMultiCur = view.findViewById<CompoundButton>(R.id.switch_show_multi_cur)
         val btnManageCurrencies = view.findViewById<View>(R.id.btn_manage_currencies)
-        val btnFlipSensitivity = view.findViewById<View>(R.id.btn_flip_sensitivity)
+        val btnSensitivity = view.findViewById<View>(R.id.btn_sensitivity)
         val dividerAfterCurrencies = view.findViewById<View>(R.id.divider_after_currencies)
-        val dividerAfterFlipSensitivity = view.findViewById<View>(R.id.divider_after_flip_sensitivity)
+        val dividerAfterSensitivity = view.findViewById<View>(R.id.divider_after_sensitivity)
         val switchShowBookEntry = view.findViewById<CompoundButton>(R.id.switch_show_book_entry)
         val switchFlipDisableLandscape = view.findViewById<CompoundButton>(R.id.switch_flip_disable_landscape)
         val layoutFlipDisableLandscape = view.findViewById<View>(R.id.layout_flip_disable_landscape)
@@ -392,14 +395,15 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             btnManageWhitelist.visibility = if (layoutWhitelist.visibility == View.VISIBLE && switchWhitelistMode.isChecked) View.VISIBLE else View.GONE
         }
         fun updateDataEntriesUi(flipEnabled: Boolean, multiCurrencyEnabled: Boolean) {
-            layoutFlipDisableLandscape.visibility = if (flipEnabled) View.VISIBLE else View.GONE
-            layoutVibrateFeedback.visibility = if (flipEnabled) View.VISIBLE else View.GONE
-            btnFlipSensitivity.visibility = if (flipEnabled) View.VISIBLE else View.GONE
+            val tapEnabled = switchDoubleTap.isChecked
+            layoutFlipDisableLandscape.visibility = if (flipEnabled || tapEnabled) View.VISIBLE else View.GONE
+            layoutVibrateFeedback.visibility = if (flipEnabled || tapEnabled) View.VISIBLE else View.GONE
+            btnSensitivity.visibility = if (flipEnabled || tapEnabled) View.VISIBLE else View.GONE
             btnManageCurrencies.visibility = if (multiCurrencyEnabled) View.VISIBLE else View.GONE
             dividerAfterCurrencies.visibility =
-                if (multiCurrencyEnabled && flipEnabled) View.VISIBLE else View.GONE
-            dividerAfterFlipSensitivity.visibility =
-                if (multiCurrencyEnabled || flipEnabled) View.VISIBLE else View.GONE
+                if (multiCurrencyEnabled && (flipEnabled || tapEnabled)) View.VISIBLE else View.GONE
+            dividerAfterSensitivity.visibility =
+                if (multiCurrencyEnabled || flipEnabled || tapEnabled) View.VISIBLE else View.GONE
         }
         switchShowMultiCur.isChecked = Prefs.isShowMultiCurrency(requireContext())
         switchScreenAccounting.apply {
@@ -447,6 +451,35 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     // 仅在用户主动开启翻转手势时，提示后台常驻相关设置
                     checkBatteryOptimization()
                     Utils.toast(context, "翻转手势已启用")
+                }
+            }
+        }
+        switchDoubleTap.apply {
+            isChecked = Prefs.isDoubleTapEnabled(requireContext())
+            updateDataEntriesUi(switchFlip.isChecked, switchShowMultiCur.isChecked)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setDoubleTapEnabled(requireContext(), isChecked)
+                updateDoubleTapService(isChecked)
+                // 更新灵敏度按钮可见性
+                updateDataEntriesUi(switchFlip.isChecked, switchShowMultiCur.isChecked)
+                if (isChecked) {
+                    if (!Settings.canDrawOverlays(requireContext())) {
+                        Utils.toast(context, "请先开启悬浮窗权限，否则敲击背板无法唤起")
+                        promptOverlayPermissionDialog()
+                    }
+                    checkBatteryOptimization()
+                    // 首次开启时自动推荐模型
+                    if (Prefs.getTapModel(requireContext()).isEmpty()) {
+                        val recommended = tao.test.flipaccounting.tap.TapModel.recommend(requireContext())
+                        Prefs.setTapModel(requireContext(), recommended.path)
+                    }
+                    if (!Prefs.hasSeenDoubleTapGuide(requireContext())) {
+                        showDoubleTapGuideDialog()
+                    } else {
+                        Utils.toast(context, "敲击背板已启用")
+                    }
+                } else {
+                    Utils.toast(context, "敲击背板已关闭")
                 }
             }
         }
@@ -585,6 +618,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         try {
             val toggleIds = intArrayOf(
                 R.id.switch_flip_trigger,
+                R.id.switch_double_tap,
                 R.id.switch_show_book_entry,
                 R.id.switch_flip_disable_landscape,
                 R.id.switch_shizuku_mode,
@@ -664,6 +698,26 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 requireActivity().startActivity(intent)
             }
             .setNegativeButton("稍后", null)
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = requireContext(),
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun showDoubleTapGuideDialog() {
+        if (!isAdded) return
+        Prefs.setDoubleTapGuideSeen(requireContext())
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("双击背板记账已开启")
+            .setMessage("用指尖快速敲击手机背面两次，即可唤起记账界面。\n\n" +
+                    "提示：\n" +
+                    "• 请用指尖敲击，力度适中\n" +
+                    "• 如果检测不灵敏，可尝试调整敲击位置\n" +
+                    "• 手机壳过厚可能影响检测效果")
+            .setPositiveButton("知道了", null)
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -830,6 +884,17 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private fun updateFlipService(isEnabled: Boolean) {
         val intent = Intent(requireContext(), OverlayService::class.java).apply {
             action = if (isEnabled) OverlayService.ACTION_START_FLIP else OverlayService.ACTION_STOP_FLIP
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            requireContext().startForegroundService(intent)
+        } else {
+            requireContext().startService(intent)
+        }
+    }
+
+    private fun updateDoubleTapService(isEnabled: Boolean) {
+        val intent = Intent(requireContext(), OverlayService::class.java).apply {
+            action = if (isEnabled) OverlayService.ACTION_START_DOUBLE_TAP else OverlayService.ACTION_STOP_DOUBLE_TAP
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             requireContext().startForegroundService(intent)

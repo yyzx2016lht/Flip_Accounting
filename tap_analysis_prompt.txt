@@ -1,0 +1,52 @@
+# 任务：分析TapTap应用的双击背板检测核心逻辑
+
+## 背景
+我正在开发一个Android记账应用(FlipAccounting)，想集成TapTap的双击背板检测功能。
+
+TapTap是一个开源项目(GitHub: KieronQuinn/TapTap)，用于检测手机背板双击/三击手势。
+
+## 关键发现
+1. **源码中没有模型文件**：TapTap-master源码的assets目录下没有.tflite模型文件
+2. **但APK中有模型**：解包TapTap-v1.6.2.apk后，在assets/columbus/目录下发现了多个.tflite模型文件
+3. **原版TapTap工作正常**：安装debug版后，双击检测效果很好
+
+## 需要分析的内容
+
+### 1. 模型文件来源
+- 检查TapTap的build.gradle或相关配置，看模型文件是如何被包含的
+- 可能是通过Gradle task在编译时从某个地方复制/下载的
+- 检查是否有.gitignore或.gitattributes排除了模型文件
+
+### 2. 核心检测逻辑
+重点关注以下文件：
+- `columbus/src/main/java/com/google/android/columbus/sensors/TapRT.kt` - 手势识别核心
+- `columbus/src/main/java/com/google/android/columbus/sensors/GestureSensorImpl.kt` - 传感器实现
+- `app/src/main/java/com/kieronquinn/app/taptap/components/columbus/sensors/TapTapGestureSensorImpl.kt` - TapTap扩展
+- `app/src/main/java/com/kieronquinn/app/taptap/components/columbus/sensors/TapTapTfClassifier.kt` - TFLite分类器
+
+### 3. 传感器配置
+- 采样率设置（微秒单位）
+- 传感器类型（加速度计、陀螺仪）
+- 数据处理流程
+
+### 4. 关键参数
+- `samplingIntervalNs` 的值
+- 峰值检测器参数
+- 低通/高通滤波器参数
+- 时间窗口参数
+
+## 我当前的问题
+我已经将TapTap的核心代码移植到我的项目中，但双击检测不工作：
+- `zAccSize` 只有7，不增长
+- `majorPeakId` 是负数（-17~-20）
+- 模型推理的条件永远不满足
+
+## 请帮我
+1. 找出TapTap源码中模型文件是如何被包含的
+2. 分析为什么我的移植版本不工作
+3. 提供完整的、可工作的双击检测实现方案
+
+## 相关文件路径
+- TapTap源码：E:\FlipAccounting-AI\TapTap-master\
+- TapTap APK解包：E:\FlipAccounting-AI\TapTap-v1.6.2\
+- 我的项目：E:\FlipAccounting-AI\app\src\main\java\tao\test\flipaccounting\tap\

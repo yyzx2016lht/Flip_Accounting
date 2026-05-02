@@ -447,7 +447,7 @@
 
                     <!-- 翻转灵敏度调节 -->
                     <LinearLayout
-                        android:id="@+id/btn_flip_sensitivity"
+                        android:id="@+id/btn_sensitivity"
                         android:layout_width="match_parent"
                         android:layout_height="60dp"
                         android:background="?attr/selectableItemBackground"
@@ -478,7 +478,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="翻转灵敏度调节"
+                                android:text="灵敏度调节"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -500,7 +500,7 @@
                     </LinearLayout>
 
                     <View
-                        android:id="@+id/divider_after_flip_sensitivity"
+                        android:id="@+id/divider_after_sensitivity"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="68dp"
@@ -784,6 +784,56 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_orange">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_sensitivity"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="敲击背板"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="敲击手机背面快速触发记账"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_double_tap"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <LinearLayout
                         android:id="@+id/layout_flip_disable_landscape"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -813,7 +863,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="启用后，横屏时将忽略翻转手势触发。"
+                                android:text="启用后，横屏时将忽略手势触发（翻转/敲击）。"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_10" />
                         </LinearLayout>
@@ -855,7 +905,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="识别完成时通过轻震动提示"
+                                android:text="识别完成时通过轻震动提示（翻转/敲击）"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_10" />
                         </LinearLayout>

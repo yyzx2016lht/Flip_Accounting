@@ -83,3 +83,8 @@
 -keep class rikka.shizuku.ShizukuRemoteProcess { *; }
 -keep class tao.test.flipaccounting.ShizukuHelper { *; }
 -keep class tao.test.flipaccounting.ShizukuShell { *; }
+
+# TensorFlow Lite
+-keep class org.tensorflow.lite.** { *; }
+-keepclassmembers class org.tensorflow.lite.** { *; }
+-keep class tao.test.flipaccounting.tap.** { *; }

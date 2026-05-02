@@ -1,10 +1,18 @@
 package tao.test.flipaccounting.logic
 
 import androidx.room.withTransaction
+import tao.test.flipaccounting.FlipApplication
+import tao.test.flipaccounting.Logger
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 
 object BillDeleteHelper {
+    private fun logFull(tag: String, message: String) {
+        val ctx = runCatching { FlipApplication.app() }.getOrNull() ?: return
+        if (!Prefs.isDeveloperFullLoggingEnabled(ctx)) return
+        Logger.d(ctx, tag, message)
+    }
 
     suspend fun deleteBillAndRevertBalance(db: AppDatabase, bill: Bill) {
         deleteBillAndRevertBalanceInternal(
@@ -86,13 +94,19 @@ object BillDeleteHelper {
                             billDao.updateBill(original.copy(amount = restored, originalAmount = baseOriginal))
                         }
                     }
-                    BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    val impacted = BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    if (impacted == 0) {
+                        logFull("BILL_GUARD", "（警告）delete_refund 删除账单时资产未变化，billId=${latestBill.id}, asset=${latestBill.accountName}, toAsset=${latestBill.toAccountName}")
+                    }
                     billDao.delete(latestBill)
                 }
 
                 latestBill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT ||
                 latestBill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> {
-                    BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    val impacted = BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    if (impacted == 0) {
+                        logFull("BILL_GUARD", "（警告）delete_adjust 删除账单时资产未变化，billId=${latestBill.id}, asset=${latestBill.accountName}, toAsset=${latestBill.toAccountName}")
+                    }
                     billDao.delete(latestBill)
                 }
 
@@ -104,21 +118,33 @@ object BillDeleteHelper {
                     }
                     if (refundsToDelete.isNotEmpty()) {
                         refundsToDelete.forEach { refund ->
-                            BillAssetImpactService.revertBillBalanceImpact(db, refund)
+                            val impacted = BillAssetImpactService.revertBillBalanceImpact(db, refund)
+                            if (impacted == 0) {
+                                logFull("BILL_GUARD", "（警告）delete_refund_linked 删除关联退款时资产未变化，billId=${refund.id}, asset=${refund.accountName}, toAsset=${refund.toAccountName}")
+                            }
                         }
                         billDao.delete(refundsToDelete)
                     }
-                    BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    val impacted = BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    if (impacted == 0) {
+                        logFull("BILL_GUARD", "（警告）delete_expense 删除账单时资产未变化，billId=${latestBill.id}, asset=${latestBill.accountName}, toAsset=${latestBill.toAccountName}")
+                    }
                     billDao.delete(latestBill)
                 }
 
                 latestBill.type == Bill.TYPE_INCOME -> {
-                    BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    val impacted = BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    if (impacted == 0) {
+                        logFull("BILL_GUARD", "（警告）delete_income 删除账单时资产未变化，billId=${latestBill.id}, asset=${latestBill.accountName}, toAsset=${latestBill.toAccountName}")
+                    }
                     billDao.delete(latestBill)
                 }
 
                 latestBill.type == Bill.TYPE_TRANSFER -> {
-                    BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    val impacted = BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
+                    if (impacted == 0) {
+                        logFull("BILL_GUARD", "（警告）delete_transfer 删除账单时资产未变化，billId=${latestBill.id}, asset=${latestBill.accountName}, toAsset=${latestBill.toAccountName}")
+                    }
                     billDao.delete(latestBill)
                 }
 

@@ -1,5 +1,8 @@
 package tao.test.flipaccounting.logic
 
+import tao.test.flipaccounting.FlipApplication
+import tao.test.flipaccounting.Logger
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.Bill
@@ -14,20 +17,43 @@ object BillAssetImpactService {
         }
     }
 
-    suspend fun applyBillBalanceImpact(db: AppDatabase, bill: Bill) {
+    private fun logFull(tag: String, message: String) {
+        val ctx = runCatching { FlipApplication.app() }.getOrNull() ?: return
+        if (!Prefs.isDeveloperFullLoggingEnabled(ctx)) return
+        Logger.d(ctx, tag, message)
+    }
+
+    private fun logAssetDelta(asset: Asset, delta: Double, action: String, billId: Long) {
+        val before = asset.balance
+        val after = before + delta
+        logFull("ASSET_IMPACT", "AUDIT_ASSET|action=$action|billId=$billId|assetId=${asset.id}|asset=${asset.name}|delta=$delta|before=$before|after=$after")
+    }
+
+    suspend fun applyBillBalanceImpact(db: AppDatabase, bill: Bill): Int {
+        var impactedAssets = 0
         when {
-            bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT || bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> return
+            bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT || bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> return 0
             bill.type == Bill.TYPE_EXPENSE -> {
-                val asset = resolveSourceAsset(db, bill) ?: return
+                val asset = resolveSourceAsset(db, bill) ?: run {
+                    logFull("BILL_GUARD", "（警告）apply_expense 未找到资产，billId=${bill.id}, asset=${bill.accountName}")
+                    return 0
+                }
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
+                logAssetDelta(asset, -sourceDelta, "apply_expense", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, -sourceDelta)
+                impactedAssets += 1
             }
             bill.type == Bill.TYPE_INCOME -> {
-                val asset = resolveSourceAsset(db, bill) ?: return
+                val asset = resolveSourceAsset(db, bill) ?: run {
+                    logFull("BILL_GUARD", "（警告）apply_income 未找到资产，billId=${bill.id}, asset=${bill.accountName}")
+                    return 0
+                }
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
+                logAssetDelta(asset, sourceDelta, "apply_income", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, sourceDelta)
+                impactedAssets += 1
             }
             bill.type == Bill.TYPE_TRANSFER -> {
                 val sourceAsset = resolveSourceAsset(db, bill)
@@ -36,40 +62,69 @@ object BillAssetImpactService {
 
                 if (sourceAsset != null) {
                     val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, sourceAsset.currency)
+                    logAssetDelta(sourceAsset, -sourceDelta, "apply_transfer_source", bill.id)
                     db.assetDao().addBalanceDelta(sourceAsset.id, -sourceDelta)
+                    impactedAssets += 1
                 }
 
                 if (targetAsset != null) {
-                    db.assetDao().addBalanceDelta(targetAsset.id, targetDeltaInCurrency(bill, targetAsset.currency))
+                    val targetDelta = targetDeltaInCurrency(bill, targetAsset.currency)
+                    logAssetDelta(targetAsset, targetDelta, "apply_transfer_target", bill.id)
+                    db.assetDao().addBalanceDelta(targetAsset.id, targetDelta)
+                    impactedAssets += 1
+                }
+                if (sourceAsset == null && targetAsset == null) {
+                    logFull(
+                        "BILL_GUARD",
+                        "（警告）apply_transfer 未找到任一资产，billId=${bill.id}, from=${bill.accountName}, to=${bill.toAccountName}"
+                    )
                 }
             }
         }
+        return impactedAssets
     }
 
-    suspend fun revertBillBalanceImpact(db: AppDatabase, bill: Bill) {
+    suspend fun revertBillBalanceImpact(db: AppDatabase, bill: Bill): Int {
+        var impactedAssets = 0
         when {
             bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT ||
             bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> {
-                val asset = resolveSourceAsset(db, bill) ?: return
+                val asset = resolveSourceAsset(db, bill) ?: run {
+                    logFull("BILL_GUARD", "（警告）revert_adjust 未找到资产，billId=${bill.id}, asset=${bill.accountName}")
+                    return 0
+                }
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val delta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
                 if (bill.type == Bill.TYPE_INCOME) {
+                    logAssetDelta(asset, -delta, "revert_adjust_income", bill.id)
                     db.assetDao().addBalanceDelta(asset.id, -delta)
                 } else {
+                    logAssetDelta(asset, delta, "revert_adjust_other", bill.id)
                     db.assetDao().addBalanceDelta(asset.id, delta)
                 }
+                impactedAssets += 1
             }
             bill.type == Bill.TYPE_EXPENSE -> {
-                val asset = resolveSourceAsset(db, bill) ?: return
+                val asset = resolveSourceAsset(db, bill) ?: run {
+                    logFull("BILL_GUARD", "（警告）revert_expense 未找到资产，billId=${bill.id}, asset=${bill.accountName}")
+                    return 0
+                }
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(baseOriginalAmount(bill), bill.currency, asset.currency)
+                logAssetDelta(asset, sourceDelta, "revert_expense", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, sourceDelta)
+                impactedAssets += 1
             }
             bill.type == Bill.TYPE_INCOME -> {
-                val asset = resolveSourceAsset(db, bill) ?: return
+                val asset = resolveSourceAsset(db, bill) ?: run {
+                    logFull("BILL_GUARD", "（警告）revert_income 未找到资产，billId=${bill.id}, asset=${bill.accountName}")
+                    return 0
+                }
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
+                logAssetDelta(asset, -sourceDelta, "revert_income", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, -sourceDelta)
+                impactedAssets += 1
             }
             bill.type == Bill.TYPE_TRANSFER -> {
                 val sourceAsset = resolveSourceAsset(db, bill)
@@ -78,14 +133,26 @@ object BillAssetImpactService {
 
                 if (sourceAsset != null) {
                     val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, sourceAsset.currency)
+                    logAssetDelta(sourceAsset, sourceDelta, "revert_transfer_source", bill.id)
                     db.assetDao().addBalanceDelta(sourceAsset.id, sourceDelta)
+                    impactedAssets += 1
                 }
 
                 if (targetAsset != null) {
-                    db.assetDao().addBalanceDelta(targetAsset.id, -targetDeltaInCurrency(bill, targetAsset.currency))
+                    val targetDelta = -targetDeltaInCurrency(bill, targetAsset.currency)
+                    logAssetDelta(targetAsset, targetDelta, "revert_transfer_target", bill.id)
+                    db.assetDao().addBalanceDelta(targetAsset.id, targetDelta)
+                    impactedAssets += 1
+                }
+                if (sourceAsset == null && targetAsset == null) {
+                    logFull(
+                        "BILL_GUARD",
+                        "（警告）revert_transfer 未找到任一资产，billId=${bill.id}, from=${bill.accountName}, to=${bill.toAccountName}"
+                    )
                 }
             }
         }
+        return impactedAssets
     }
 
     fun convertAmountBetweenCurrencies(amount: Double, fromCurrency: String, toCurrency: String): Double {

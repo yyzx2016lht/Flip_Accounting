@@ -351,7 +351,28 @@ object Prefs {
     fun getFlipDuration(ctx: Context): Long = PrefsGeneralSupport.getFlipDuration(ctx)
     fun setFlipDuration(ctx: Context, duration: Long) =
         PrefsGeneralSupport.setFlipDuration(ctx, duration)
-    
+
+    // --- Double tap detection ---
+    fun isDoubleTapEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isDoubleTapEnabled(ctx)
+    fun setDoubleTapEnabled(ctx: Context, enabled: Boolean) =
+        PrefsGeneralSupport.setDoubleTapEnabled(ctx, enabled)
+    fun hasSeenDoubleTapGuide(ctx: Context): Boolean = PrefsGeneralSupport.hasSeenDoubleTapGuide(ctx)
+    fun setDoubleTapGuideSeen(ctx: Context) = PrefsGeneralSupport.setDoubleTapGuideSeen(ctx)
+
+    // --- Tap back settings ---
+    fun getTapModel(ctx: Context): String = PrefsGeneralSupport.getTapModel(ctx)
+    fun setTapModel(ctx: Context, model: String) = PrefsGeneralSupport.setTapModel(ctx, model)
+    fun getTapSensitivityLevel(ctx: Context): Int = PrefsGeneralSupport.getTapSensitivityLevel(ctx)
+    fun setTapSensitivityLevel(ctx: Context, level: Int) = PrefsGeneralSupport.setTapSensitivityLevel(ctx, level)
+    fun isTapNnapiLowPower(ctx: Context): Boolean = PrefsGeneralSupport.isTapNnapiLowPower(ctx)
+    fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapNnapiLowPower(ctx, enabled)
+    fun isTapTripleEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isTapTripleEnabled(ctx)
+    fun setTapTripleEnabled(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapTripleEnabled(ctx, enabled)
+    fun getTapActionDouble(ctx: Context): String = PrefsGeneralSupport.getTapActionDouble(ctx)
+    fun setTapActionDouble(ctx: Context, actionId: String) = PrefsGeneralSupport.setTapActionDouble(ctx, actionId)
+    fun getTapActionTriple(ctx: Context): String = PrefsGeneralSupport.getTapActionTriple(ctx)
+    fun setTapActionTriple(ctx: Context, actionId: String) = PrefsGeneralSupport.setTapActionTriple(ctx, actionId)
+
     // --- Custom sensitivity ---
     fun isUseCustomSensitivity(ctx: Context): Boolean =
         PrefsGeneralSupport.isUseCustomSensitivity(ctx)

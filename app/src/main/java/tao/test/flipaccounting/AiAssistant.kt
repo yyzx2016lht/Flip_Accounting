@@ -33,6 +33,7 @@ class AiAssistant(private val ctx: Context) {
     private var tvRecordedTextPreview: TextView? = null
     private var analyzeJob: Job? = null
     private var lastReceiptImageUri: Uri? = null
+    private var currentHideStreamText: Boolean = false
 
     // 外部可注入语音按钮绑定逻辑
     var voiceInputBtnSetup: ((View) -> Unit)? = null
@@ -53,10 +54,12 @@ class AiAssistant(private val ctx: Context) {
         defaultText: String? = null,
         mode: Int = MODE_INPUT,
         isMultiMode: Boolean? = null,
+        hideStreamText: Boolean = false,
         onResult: (JSONObject) -> Unit
     ) {
         if (!ensureOverlayPermission()) return
         val finalMode = mode
+        currentHideStreamText = hideStreamText
 
         // 已有对话框则直接复用
         if (currentDialog?.isShowing == true) {
@@ -164,12 +167,18 @@ class AiAssistant(private val ctx: Context) {
 
     private fun startAnalysis(text: String, isMultiMode: Boolean?, onResult: (JSONObject) -> Unit) {
         analyzeJob?.cancel()
+        val hideStream = currentHideStreamText
         analyzeJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val result = AIService.analyzeAccounting(ctx, text, isMultiMode) { status ->
                     Handler(Looper.getMainLooper()).post {
                         if (currentDialog?.isShowing == true) {
-                            updatePanelState(MODE_LOADING, status)
+                            val displayText = if (hideStream && status.startsWith("AI_STREAM_TEXT::")) {
+                                "识别中..."
+                            } else {
+                                status
+                            }
+                            updatePanelState(MODE_LOADING, displayText)
                         }
                     }
                 }

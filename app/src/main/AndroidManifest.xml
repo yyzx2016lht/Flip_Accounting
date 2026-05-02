@@ -131,6 +131,7 @@
     <activity android:name=".ui.ExchangeRateActivity" android:label="汇率管理" />
         <activity android:name=".BillDisplaySettingsActivity" android:label="账单显示效果" />
         <activity android:name=".ui.FlipSensitivityActivity" android:label="灵敏度调节" />
+        <activity android:name=".ui.SensitivityActivity" android:label="灵敏度调节" />
     <activity android:name=".ui.activity.EditBillActivity" android:label="编辑账单" android:theme="@style/Theme.FlipAccounting.Transparent" />
     <activity android:name=".ui.main.home.CalendarActivity" android:label="日历账单" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
     <activity android:name=".ui.main.home.BillSearchActivity" android:label="搜索账单" android:windowSoftInputMode="stateVisible|adjustResize" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>

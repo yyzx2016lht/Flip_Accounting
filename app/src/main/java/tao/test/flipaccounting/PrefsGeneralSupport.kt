@@ -28,6 +28,14 @@ object PrefsGeneralSupport {
     private const val KEY_ASSET_FEATURE_ENABLED = "asset_feature_enabled_v1"
     private const val KEY_PRIVACY_DEBUG_UNTIL_MS = "privacy_debug_until_ms_v1"
     private const val KEY_DEVELOPER_FULL_LOGGING = "developer_full_logging_v1"
+    private const val KEY_DOUBLE_TAP_ENABLED = "double_tap_enabled"
+    private const val KEY_DOUBLE_TAP_GUIDE_SEEN = "double_tap_guide_seen"
+    private const val KEY_TAP_MODEL = "tap_model"
+    private const val KEY_TAP_SENSITIVITY_LEVEL = "tap_sensitivity_level"
+    private const val KEY_TAP_NNAPI_LOW_POWER = "tap_nnapi_low_power"
+    private const val KEY_TAP_TRIPLE_ENABLED = "tap_triple_enabled"
+    private const val KEY_TAP_ACTION_DOUBLE = "tap_action_double"
+    private const val KEY_TAP_ACTION_TRIPLE = "tap_action_triple"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -154,6 +162,47 @@ object PrefsGeneralSupport {
         prefs(ctx).getLong(KEY_CUSTOM_MAX_DURATION, 550L)
     fun setCustomMaxDuration(ctx: Context, duration: Long) =
         prefs(ctx).edit().putLong(KEY_CUSTOM_MAX_DURATION, duration).apply()
+
+    fun isDoubleTapEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_DOUBLE_TAP_ENABLED, false)
+    fun setDoubleTapEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_DOUBLE_TAP_ENABLED, enabled).apply()
+
+    fun hasSeenDoubleTapGuide(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_DOUBLE_TAP_GUIDE_SEEN, false)
+    fun setDoubleTapGuideSeen(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_DOUBLE_TAP_GUIDE_SEEN, true).apply()
+
+    // --- Tap back settings ---
+    fun getTapModel(ctx: Context): String =
+        prefs(ctx).getString(KEY_TAP_MODEL, "") ?: ""
+    fun setTapModel(ctx: Context, model: String) =
+        prefs(ctx).edit().putString(KEY_TAP_MODEL, model).apply()
+
+    fun getTapSensitivityLevel(ctx: Context): Int =
+        prefs(ctx).getInt(KEY_TAP_SENSITIVITY_LEVEL, 5)
+    fun setTapSensitivityLevel(ctx: Context, level: Int) =
+        prefs(ctx).edit().putInt(KEY_TAP_SENSITIVITY_LEVEL, level).apply()
+
+    fun isTapNnapiLowPower(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_TAP_NNAPI_LOW_POWER, false)
+    fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_TAP_NNAPI_LOW_POWER, enabled).apply()
+
+    fun isTapTripleEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_TAP_TRIPLE_ENABLED, false)
+    fun setTapTripleEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_TAP_TRIPLE_ENABLED, enabled).apply()
+
+    fun getTapActionDouble(ctx: Context): String =
+        prefs(ctx).getString(KEY_TAP_ACTION_DOUBLE, "") ?: ""
+    fun setTapActionDouble(ctx: Context, actionId: String) =
+        prefs(ctx).edit().putString(KEY_TAP_ACTION_DOUBLE, actionId).apply()
+
+    fun getTapActionTriple(ctx: Context): String =
+        prefs(ctx).getString(KEY_TAP_ACTION_TRIPLE, "") ?: ""
+    fun setTapActionTriple(ctx: Context, actionId: String) =
+        prefs(ctx).edit().putString(KEY_TAP_ACTION_TRIPLE, actionId).apply()
 
     fun serializeWhiteList(set: Set<String>): String = JSONArray(set).toString()
 

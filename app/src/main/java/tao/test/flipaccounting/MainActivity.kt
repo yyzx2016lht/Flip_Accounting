@@ -376,15 +376,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-    // 若已开启翻转入口，则在启动时拉起悬浮服务
-        if (Prefs.isFlipEnabled(this)) {
-            val intent = Intent(this, OverlayService::class.java).apply {
-                action = OverlayService.ACTION_START_FLIP
-            }
+    // 若已开启翻转或敲击，则在启动时拉起悬浮服务
+        val serviceIntent = Intent(this, OverlayService::class.java)
+        val needsService = Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)
+        if (needsService) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
+                startForegroundService(serviceIntent)
             } else {
-                startService(intent)
+                startService(serviceIntent)
             }
         }
     }

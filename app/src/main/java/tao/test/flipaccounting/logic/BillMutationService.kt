@@ -1,6 +1,9 @@
 package tao.test.flipaccounting.logic
 
 import androidx.room.withTransaction
+import tao.test.flipaccounting.FlipApplication
+import tao.test.flipaccounting.Logger
+import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 
@@ -24,11 +27,25 @@ object BillMutationService {
         return bill.copy(categoryName = CategoryNameNormalizer.normalizeForStorage(bill.categoryName))
     }
 
+    private fun logFull(tag: String, message: String) {
+        val ctx = runCatching { FlipApplication.app() }.getOrNull() ?: return
+        if (!Prefs.isDeveloperFullLoggingEnabled(ctx)) return
+        Logger.d(ctx, tag, message)
+    }
+
+    private fun auditBill(op: String, bill: Bill) {
+        logFull(
+            "BILL_MUTATION",
+            "AUDIT_BILL|op=$op|billId=${bill.id}|type=${bill.type}|subType=${bill.subType}|amount=${bill.amount}|asset=${bill.accountName}|toAsset=${bill.toAccountName}|currency=${bill.currency}|timeMs=${bill.time}"
+        )
+    }
+
     suspend fun insertBillAndApplyImpact(
         db: AppDatabase,
         bill: Bill,
         applyAssetImpact: Boolean = true
     ): Bill {
+        logFull("BILL_MUTATION", "insert:start type=${bill.type}, amount=${bill.amount}, account=${bill.accountName}, to=${bill.toAccountName}, assetImpact=$applyAssetImpact")
         return db.withTransaction {
             val normalizedInput = normalizeBillCategoryName(bill)
             if (applyAssetImpact) {
@@ -36,8 +53,13 @@ object BillMutationService {
             }
             val savedBill = normalizedInput.copy(id = db.billDao().insertBill(normalizedInput))
             if (applyAssetImpact) {
-                BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+                val impacted = BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+                if (impacted == 0 && savedBill.type in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) {
+                    logFull("BILL_GUARD", "（警告）insert 已写账单但资产未变化，billId=${savedBill.id}, type=${savedBill.type}, asset=${savedBill.accountName}, toAsset=${savedBill.toAccountName}")
+                }
             }
+            logFull("BILL_MUTATION", "insert:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, accountId=${savedBill.accountId}, toAccountId=${savedBill.toAccountId}")
+            auditBill("insert", savedBill)
             savedBill
         }
     }
@@ -47,14 +69,20 @@ object BillMutationService {
         bill: Bill,
         applyAssetImpact: Boolean = true
     ): Bill {
+        logFull("BILL_MUTATION", "insertTx:start type=${bill.type}, amount=${bill.amount}, account=${bill.accountName}, to=${bill.toAccountName}, assetImpact=$applyAssetImpact")
         val normalizedInput = normalizeBillCategoryName(bill)
         if (applyAssetImpact) {
             validateRequiredRatesForBill(db, normalizedInput)
         }
         val savedBill = normalizedInput.copy(id = db.billDao().insertBill(normalizedInput))
         if (applyAssetImpact) {
-            BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+            val impacted = BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+            if (impacted == 0 && savedBill.type in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) {
+                logFull("BILL_GUARD", "（警告）insertTx 已写账单但资产未变化，billId=${savedBill.id}, type=${savedBill.type}, asset=${savedBill.accountName}, toAsset=${savedBill.toAccountName}")
+            }
         }
+        logFull("BILL_MUTATION", "insertTx:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}")
+        auditBill("insert_tx", savedBill)
         return savedBill
     }
 
@@ -72,6 +100,7 @@ object BillMutationService {
         newBill: Bill,
         applyAssetImpact: Boolean = true
     ): Bill {
+        logFull("BILL_MUTATION", "replace:start oldId=${oldBill.id}, oldType=${oldBill.type}, oldAmount=${oldBill.amount}, newType=${newBill.type}, newAmount=${newBill.amount}, assetImpact=$applyAssetImpact")
         return db.withTransaction {
             val normalizedBill = when {
                 oldBill.subType == Bill.SUBTYPE_REFUND -> {
@@ -121,7 +150,10 @@ object BillMutationService {
                 validateRequiredRatesForBill(db, normalizedBillForStorage)
             }
 
-            BillAssetImpactService.revertBillBalanceImpact(db, oldBill)
+            val oldImpacted = BillAssetImpactService.revertBillBalanceImpact(db, oldBill)
+            if (applyAssetImpact && oldImpacted == 0 && oldBill.type in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) {
+                logFull("BILL_GUARD", "（警告）replace 回滚旧账单时资产未变化，oldBillId=${oldBill.id}, type=${oldBill.type}, asset=${oldBill.accountName}, toAsset=${oldBill.toAccountName}")
+            }
 
             // 编辑路径：使用 updateBill 而非 insertBill，避免外键级联删除/重建
             val savedBill = if (normalizedBillForStorage.id > 0L) {
@@ -131,8 +163,13 @@ object BillMutationService {
                 normalizedBillForStorage.copy(id = db.billDao().insertBill(normalizedBillForStorage))
             }
             if (applyAssetImpact) {
-                BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+                val newImpacted = BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+                if (newImpacted == 0 && savedBill.type in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) {
+                    logFull("BILL_GUARD", "（警告）replace 写入新账单后资产未变化，billId=${savedBill.id}, type=${savedBill.type}, asset=${savedBill.accountName}, toAsset=${savedBill.toAccountName}")
+                }
             }
+            logFull("BILL_MUTATION", "replace:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, category=${savedBill.categoryName}")
+            auditBill("replace", savedBill)
             savedBill
         }
     }
@@ -143,6 +180,7 @@ object BillMutationService {
         refundBill: Bill,
         previousRefundBill: Bill? = null
     ): Bill {
+        logFull("BILL_MUTATION", "refund:start sourceId=${originalBill.id}, refundId=${refundBill.id}, refundAmount=${refundBill.amount}")
         return db.withTransaction {
             val latestOriginal = db.billDao().getBillById(originalBill.id)
                 ?: error("Original bill not found")
@@ -191,7 +229,12 @@ object BillMutationService {
 
             // 编辑已有退款账单时用 updateBill，新建时才用 insertBill
             validateRequiredRatesForBill(db, normalizedRefundForStorage)
-            existingRefund?.let { BillAssetImpactService.revertBillBalanceImpact(db, it) }
+            existingRefund?.let {
+                val impacted = BillAssetImpactService.revertBillBalanceImpact(db, it)
+                if (impacted == 0 && it.type in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) {
+                    logFull("BILL_GUARD", "（警告）refund 编辑回滚旧退款时资产未变化，billId=${it.id}, type=${it.type}, asset=${it.accountName}, toAsset=${it.toAccountName}")
+                }
+            }
 
             val savedRefundBill = if (normalizedRefundForStorage.id > 0L) {
                 db.billDao().updateBill(normalizedRefundForStorage)
@@ -199,7 +242,12 @@ object BillMutationService {
             } else {
                 normalizedRefundForStorage.copy(id = db.billDao().insertBill(normalizedRefundForStorage))
             }
-            BillAssetImpactService.applyBillBalanceImpact(db, savedRefundBill)
+            val impacted = BillAssetImpactService.applyBillBalanceImpact(db, savedRefundBill)
+            if (impacted == 0 && savedRefundBill.type in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) {
+                logFull("BILL_GUARD", "（警告）refund 写入后资产未变化，billId=${savedRefundBill.id}, type=${savedRefundBill.type}, asset=${savedRefundBill.accountName}, toAsset=${savedRefundBill.toAccountName}")
+            }
+            logFull("BILL_MUTATION", "refund:done refundId=${savedRefundBill.id}, sourceId=${latestOriginal.id}, refundAmount=${savedRefundBill.amount}, sourceCurrentAmount=${newActualExpense}")
+            auditBill("refund", savedRefundBill)
             savedRefundBill
         }
     }
