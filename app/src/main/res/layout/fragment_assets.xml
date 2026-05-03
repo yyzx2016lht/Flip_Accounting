@@ -3,12 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F7F8FA">
+    android:background="@color/asset_page_bg">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@color/surface_card"
         android:clipChildren="false"
         android:clipToPadding="false"
         app:elevation="0dp">
@@ -20,17 +20,17 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:orientation="vertical"
-            android:paddingHorizontal="16dp">
+            android:paddingHorizontal="@dimen/card_padding">
 
             <View
                 android:id="@+id/view_assets_status_spacer"
                 android:layout_width="match_parent"
-                android:layout_height="56dp" />
+                android:layout_height="@dimen/toolbar_height" />
 
             <FrameLayout
                 android:id="@+id/layout_assets_title_row"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="48dp"
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:paddingHorizontal="8dp">
@@ -41,7 +41,7 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="资产总览"
-                    android:textColor="#1A2744"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_18"
                     android:textStyle="bold" />
             </FrameLayout>
@@ -61,27 +61,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="10dp">
-
-            <TextView
-                android:id="@+id/tv_rate_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="0dp"
-                android:text="汇率状态：未初始化"
-                android:textColor="#9E9E9E"
-                android:textSize="@dimen/text_size_11"
-                android:visibility="gone" />
+            android:paddingHorizontal="@dimen/card_padding"
+            android:paddingTop="@dimen/space_8">
 
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="16dp"
+                android:layout_marginTop="@dimen/space_8"
+                android:layout_marginBottom="@dimen/space_16"
+                app:cardBackgroundColor="@color/surface_card"
+                app:cardCornerRadius="@dimen/asset_overview_card_radius"
                 app:cardElevation="0dp"
                 app:cardUseCompatPadding="false">
 
@@ -89,10 +78,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingStart="16dp"
-                    android:paddingTop="16dp"
-                    android:paddingEnd="16dp"
-                    android:paddingBottom="14dp">
+                    android:paddingStart="@dimen/asset_overview_card_padding_h"
+                    android:paddingTop="@dimen/asset_overview_card_padding_top"
+                    android:paddingEnd="@dimen/asset_overview_card_padding_h"
+                    android:paddingBottom="@dimen/asset_overview_card_padding_bottom">
 
                     <TextView
                         android:id="@+id/tv_net_asset_title"
@@ -100,31 +89,34 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
                         android:text="净资产"
-                        android:textColor="#8A94A6"
-                        android:textSize="@dimen/text_size_13" />
+                        android:textColor="@color/asset_overview_label"
+                        android:textSize="@dimen/asset_overview_label_size" />
 
                     <TextView
                         android:id="@+id/tv_net_asset"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="@dimen/space_8"
+                        android:ellipsize="end"
+                        android:gravity="center"
+                        android:maxLines="1"
                         android:text="¥0.00"
-                        android:textColor="#1A2744"
-                        android:textSize="@dimen/text_size_28"
+                        android:textColor="@color/asset_overview_amount"
+                        android:textSize="@dimen/asset_overview_amount_size"
                         android:textStyle="bold" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:layout_marginTop="12dp"
-                        android:background="#EEF1F5" />
+                        android:layout_marginTop="@dimen/space_12"
+                        android:background="@color/asset_divider" />
 
                     <LinearLayout
                         android:id="@+id/layout_assets_summary_row"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="@dimen/space_12"
                         android:orientation="horizontal">
 
                         <LinearLayout
@@ -133,39 +125,42 @@
                             android:layout_weight="1"
                             android:gravity="center_horizontal"
                             android:orientation="vertical"
-                            android:paddingTop="4dp"
-                            android:paddingBottom="4dp">
+                            android:paddingTop="@dimen/space_4"
+                            android:paddingBottom="@dimen/space_4">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="总资产"
-                                android:textColor="#8E98A6"
-                                android:textSize="@dimen/text_size_12" />
+                                android:textColor="@color/asset_summary_label"
+                                android:textSize="@dimen/asset_summary_label_size" />
 
                             <TextView
                                 android:id="@+id/tv_total_asset"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
+                                android:layout_marginTop="@dimen/space_4"
+                                android:ellipsize="end"
+                                android:gravity="center"
+                                android:maxLines="1"
                                 android:text="¥0.00"
-                                android:textColor="#2B2F36"
-                                android:textSize="@dimen/text_size_14"
+                                android:textColor="@color/asset_summary_amount"
+                                android:textSize="@dimen/asset_summary_amount_size"
                                 android:textStyle="bold" />
                         </LinearLayout>
 
                         <Space
-                            android:layout_width="10dp"
+                            android:layout_width="@dimen/space_12"
                             android:layout_height="1dp" />
 
                         <View
                             android:layout_width="1dp"
                             android:layout_height="24dp"
                             android:layout_gravity="center_vertical"
-                            android:background="#EEF1F5" />
+                            android:background="@color/asset_divider" />
 
                         <Space
-                            android:layout_width="10dp"
+                            android:layout_width="@dimen/space_12"
                             android:layout_height="1dp" />
 
                         <LinearLayout
@@ -174,35 +169,88 @@
                             android:layout_weight="1"
                             android:gravity="center_horizontal"
                             android:orientation="vertical"
-                            android:paddingTop="4dp"
-                            android:paddingBottom="4dp">
+                            android:paddingTop="@dimen/space_4"
+                            android:paddingBottom="@dimen/space_4">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="总负债"
-                                android:textColor="#8E98A6"
-                                android:textSize="@dimen/text_size_12" />
+                                android:textColor="@color/asset_summary_label"
+                                android:textSize="@dimen/asset_summary_label_size" />
 
                             <TextView
                                 android:id="@+id/tv_total_debt"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
+                                android:layout_marginTop="@dimen/space_4"
+                                android:ellipsize="end"
+                                android:gravity="center"
+                                android:maxLines="1"
                                 android:text="暂无"
-                                android:textColor="#2B2F36"
-                                android:textSize="@dimen/text_size_14"
+                                android:textColor="@color/asset_summary_amount"
+                                android:textSize="@dimen/asset_summary_amount_size"
                                 android:textStyle="bold" />
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Empty state -->
+            <LinearLayout
+                android:id="@+id/layout_empty_state"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingTop="64dp"
+                android:paddingBottom="64dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="@dimen/asset_empty_icon_size"
+                    android:layout_height="@dimen/asset_empty_icon_size"
+                    android:background="@drawable/bg_asset_empty_icon"
+                    android:padding="@dimen/space_16"
+                    android:src="@android:drawable/ic_menu_myplaces"
+                    app:tint="@color/asset_empty_icon_tint" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_16"
+                    android:text="暂无资产"
+                    android:textColor="@color/text_primary"
+                    android:textSize="@dimen/text_size_16"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_4"
+                    android:text="点击右下角按钮添加你的第一个资产"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="@dimen/text_size_13" />
+            </LinearLayout>
+
             <LinearLayout
                 android:id="@+id/container_category_cards"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/tv_rate_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="@dimen/space_16"
+                android:layout_marginBottom="@dimen/space_8"
+                android:background="@drawable/bg_asset_rate_chip"
+                android:text="汇率状态：未初始化"
+                android:textColor="@color/asset_rate_status_text"
+                android:textSize="@dimen/text_size_11"
+                android:visibility="gone" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
@@ -211,10 +259,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="24dp"
-        android:layout_marginBottom="80dp"
+        android:layout_marginEnd="@dimen/asset_fab_margin_end"
+        android:layout_marginBottom="@dimen/asset_fab_margin_bottom"
         android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="#2196F3"
+        app:backgroundTint="@color/asset_fab_tint"
         app:borderWidth="0dp"
         app:elevation="4dp"
         app:tint="@android:color/white" />

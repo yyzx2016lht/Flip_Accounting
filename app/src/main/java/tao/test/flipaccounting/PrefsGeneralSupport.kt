@@ -22,12 +22,14 @@ object PrefsGeneralSupport {
     private const val KEY_SHIZUKU_PERSISTENCE = "advanced_shizuku_persistence"
     private const val KEY_SHIZUKU_MODE = "advanced_shizuku_mode"
     private const val KEY_VIBRATE_FEEDBACK = "vibrate_feedback"
+    private const val KEY_SAVE_VIBRATE = "save_vibrate_feedback"
     private const val KEY_APP_USAGE_MODE = "app_usage_mode"
     private const val KEY_ASR_MODE = "asr_engine_mode"
     private const val KEY_ASR_DOWNLOAD_SOURCE = "asr_download_source_v1"
     private const val KEY_ASSET_FEATURE_ENABLED = "asset_feature_enabled_v1"
     private const val KEY_PRIVACY_DEBUG_UNTIL_MS = "privacy_debug_until_ms_v1"
     private const val KEY_DEVELOPER_FULL_LOGGING = "developer_full_logging_v1"
+    private const val KEY_QUICK_GESTURE_ENABLED = "quick_gesture_enabled"
     private const val KEY_DOUBLE_TAP_ENABLED = "double_tap_enabled"
     private const val KEY_DOUBLE_TAP_GUIDE_SEEN = "double_tap_guide_seen"
     private const val KEY_TAP_MODEL = "tap_model"
@@ -47,6 +49,11 @@ object PrefsGeneralSupport {
         prefs(ctx).getBoolean(KEY_VIBRATE_FEEDBACK, true)
     fun setVibrateFeedbackEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_VIBRATE_FEEDBACK, enabled).apply()
+
+    fun isSaveVibrateEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_SAVE_VIBRATE, true)
+    fun setSaveVibrateEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_SAVE_VIBRATE, enabled).apply()
 
     fun isFlipAlways(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_FLIP_ALWAYS, true)
     fun setFlipAlways(ctx: Context, enabled: Boolean) =
@@ -162,6 +169,19 @@ object PrefsGeneralSupport {
         prefs(ctx).getLong(KEY_CUSTOM_MAX_DURATION, 550L)
     fun setCustomMaxDuration(ctx: Context, duration: Long) =
         prefs(ctx).edit().putLong(KEY_CUSTOM_MAX_DURATION, duration).apply()
+
+    fun isQuickGestureEnabled(ctx: Context): Boolean {
+        val p = prefs(ctx)
+        if (p.contains(KEY_QUICK_GESTURE_ENABLED)) {
+            return p.getBoolean(KEY_QUICK_GESTURE_ENABLED, false)
+        }
+        // 迁移：如果之前 flip 或 tap 任一开启，自动同步主开关
+        val migrated = isFlipEnabled(ctx) || isDoubleTapEnabled(ctx)
+        setQuickGestureEnabled(ctx, migrated)
+        return migrated
+    }
+    fun setQuickGestureEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_QUICK_GESTURE_ENABLED, enabled).apply()
 
     fun isDoubleTapEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_DOUBLE_TAP_ENABLED, false)

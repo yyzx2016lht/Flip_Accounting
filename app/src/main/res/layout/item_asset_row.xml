@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="52dp"
+    android:layout_height="@dimen/asset_row_height"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="16dp"
+    android:paddingHorizontal="@dimen/card_padding"
     android:background="?android:attr/selectableItemBackground">
 
     <ImageView
         android:id="@+id/iv_asset_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="@dimen/asset_row_icon_size"
+        android:layout_height="@dimen/asset_row_icon_size"
         android:src="@android:drawable/ic_menu_gallery"/>
 
     <LinearLayout
@@ -18,24 +18,28 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:layout_marginStart="16dp">
+        android:layout_marginStart="@dimen/space_12">
 
         <TextView
             android:id="@+id/tv_asset_name"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="招商银行"
-            android:textColor="#333333"
-            android:textSize="@dimen/text_size_16"/>
+            android:textColor="@color/asset_row_name"
+            android:textSize="@dimen/asset_row_name_size"/>
 
         <TextView
             android:id="@+id/tv_asset_remark"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="不计入总资产"
-            android:textColor="#999999"
-            android:textSize="@dimen/text_size_11"
             android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="不计入总资产"
+            android:textColor="@color/asset_row_remark"
+            android:textSize="@dimen/asset_row_remark_size"
             android:visibility="gone"/>
     </LinearLayout>
 
@@ -43,8 +47,12 @@
         android:id="@+id/tv_asset_balance"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_8"
+        android:ellipsize="end"
+        android:gravity="end"
+        android:maxLines="1"
         android:text="¥0.00"
-        android:textColor="#333333"
-        android:textSize="@dimen/text_size_16"/>
+        android:textColor="@color/asset_row_balance"
+        android:textSize="@dimen/asset_row_balance_size"/>
 
 </LinearLayout>

@@ -49,19 +49,19 @@
                     android:id="@+id/tv_chat_bill_category"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="#25344C"
-                    android:textSize="16sp"
+                    android:textColor="@color/chat_bill_category_text"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tv_chat_bill_detail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="#7A8598"
+                    android:textColor="@color/chat_bill_detail_text"
                     android:textSize="12sp"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:layout_marginTop="3dp" />
+                    android:layout_marginTop="2dp" />
             </LinearLayout>
 
             <FrameLayout
@@ -77,7 +77,7 @@
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="5dp"
                     android:gravity="center"
-                    android:textSize="17sp"
+                    android:textSize="16sp"
                     android:letterSpacing="0.01"
                     android:textStyle="bold"
                     android:textColor="#D32F2F" />
@@ -90,7 +90,7 @@
                     android:background="@drawable/bg_chat_bill_amount_tag"
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="5dp"
-                    android:textSize="17sp"
+                    android:textSize="16sp"
                     android:letterSpacing="0.01"
                     android:textStyle="bold"
                     android:textColor="#D32F2F"
@@ -113,7 +113,7 @@
                 android:id="@+id/tv_chat_bill_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#8C97AA"
+                android:textColor="@color/chat_bill_time_text"
                 android:textSize="11sp" />
 
             <TextView
@@ -145,7 +145,7 @@
             android:text="修改分类"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:textColor="#1F5FC8"
+            android:textColor="@color/chat_bill_action_primary_text"
             android:background="@drawable/bg_chat_bill_action_primary"
             android:paddingHorizontal="12dp"
             android:layout_marginEnd="8dp"
@@ -161,7 +161,7 @@
             android:text="删除"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:textColor="#C13E4A"
+            android:textColor="@color/chat_bill_action_danger_text"
             android:background="@drawable/bg_chat_bill_action_danger"
             android:paddingHorizontal="12dp"
             android:clickable="true"

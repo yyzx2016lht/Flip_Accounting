@@ -174,7 +174,7 @@ class AiAssistant(private val ctx: Context) {
                     Handler(Looper.getMainLooper()).post {
                         if (currentDialog?.isShowing == true) {
                             val displayText = if (hideStream && status.startsWith("AI_STREAM_TEXT::")) {
-                                "识别中..."
+                                "正在分析账单..."
                             } else {
                                 status
                             }

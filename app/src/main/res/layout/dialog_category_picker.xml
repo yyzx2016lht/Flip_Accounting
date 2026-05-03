@@ -35,7 +35,7 @@
     <ScrollView
         android:id="@+id/scroll_categories"
         android:layout_width="match_parent"
-        android:layout_height="292dp"
+        android:layout_height="@dimen/overlay_picker_grid_visible_height"
         android:scrollbars="none">
 
         <LinearLayout
@@ -48,7 +48,7 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_sort_categories"
         android:layout_width="match_parent"
-        android:layout_height="292dp"
+        android:layout_height="@dimen/overlay_picker_grid_visible_height"
         android:clipToPadding="false"
         android:paddingBottom="8dp"
         android:visibility="gone" />

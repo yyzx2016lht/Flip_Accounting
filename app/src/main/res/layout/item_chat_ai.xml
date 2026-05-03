@@ -5,8 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="6dp">
+    android:paddingStart="12dp"
+    android:paddingEnd="48dp"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
 
     <TextView
         android:id="@+id/tv_ai_time"
@@ -19,7 +21,7 @@
         android:paddingVertical="3dp"
         android:textSize="11sp"
         android:textStyle="bold"
-        android:textColor="#6F8099"
+        android:textColor="@color/chat_time_chip_text"
         android:layout_marginBottom="6dp" />
 
     <LinearLayout
@@ -61,7 +63,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="11sp"
-            android:textColor="#AAAAAA"
+            android:textColor="@color/chat_time_chip_text"
             android:layout_marginBottom="2dp"
             android:visibility="gone" />
 
@@ -75,8 +77,8 @@
             android:paddingHorizontal="14dp"
             android:paddingVertical="10dp"
             android:textSize="15sp"
-            android:textColor="#2A364A"
-            android:lineSpacingExtra="2dp"
+            android:textColor="@color/chat_ai_bubble_text"
+            android:lineSpacingExtra="3dp"
             android:singleLine="false"
             android:scrollHorizontally="false"
             android:hyphenationFrequency="full"
@@ -103,7 +105,7 @@
                 <ProgressBar
                     android:layout_width="16dp"
                     android:layout_height="16dp"
-                    android:indeterminateTint="#999999"
+                    android:indeterminateTint="@color/chat_loading_progress"
                     android:layout_marginEnd="8dp"/>
                 <TextView
                     android:id="@+id/tv_ai_loading_text"
@@ -111,7 +113,7 @@
                     android:layout_height="wrap_content"
                     android:text="正在思考..."
                     android:textSize="13sp"
-                    android:textColor="#999999" />
+                    android:textColor="@color/chat_loading_text" />
             </LinearLayout>
 
             <ImageView
@@ -125,8 +127,7 @@
                 android:background="@drawable/bg_chat_interrupt_btn"
                 android:contentDescription="中断生成"
                 android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackgroundBorderless" />
+                android:focusable="true" />
         </LinearLayout>
 
     </LinearLayout>

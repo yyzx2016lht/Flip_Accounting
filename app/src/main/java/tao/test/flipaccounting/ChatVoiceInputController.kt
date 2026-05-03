@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import com.google.android.material.button.MaterialButton
+import tao.test.flipaccounting.ui.common.UiMotion
 
 class ChatVoiceInputController(
     private val context: ChatActivity,
@@ -125,7 +126,12 @@ class ChatVoiceInputController(
             overlay.translationY = 12f
             overlay.visibility = View.VISIBLE
         }
-        overlay.animate().alpha(1f).translationY(0f).setDuration(140).start()
+        overlay.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(UiMotion.FAST)
+            .setInterpolator(UiMotion.STANDARD_EASING)
+            .start()
     }
 
     fun hideVoiceRecordOverlay() {
@@ -133,9 +139,15 @@ class ChatVoiceInputController(
         stopOverlayTicker()
         if (overlay.visibility != View.VISIBLE) return
         overlay.animate().cancel()
-        overlay.animate().alpha(0f).translationY(12f).setDuration(120).withEndAction {
-            overlay.visibility = View.GONE
-        }.start()
+        overlay.animate()
+            .alpha(0f)
+            .translationY(12f)
+            .setDuration(UiMotion.FAST)
+            .setInterpolator(UiMotion.EXIT_EASING)
+            .withEndAction {
+                overlay.visibility = View.GONE
+            }
+            .start()
     }
 
     fun handleVoiceButtonTouch(event: MotionEvent): Boolean {

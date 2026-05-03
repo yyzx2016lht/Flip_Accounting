@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA">
+    android:background="@color/page_background">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar_stats"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@color/surface_card"
         app:elevation="0dp">
 
         <LinearLayout
@@ -33,7 +33,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="8dp"
                     android:src="@drawable/ic_chevron_left"
-                    app:tint="#111827" />
+                    app:tint="@color/text_primary" />
 
                 <LinearLayout
                     android:id="@+id/layout_asset_switch"
@@ -51,7 +51,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="资产统计"
-                        android:textColor="#111827"
+                        android:textColor="@color/text_primary"
                         android:textSize="@dimen/text_size_15"
                         android:textStyle="bold" />
 
@@ -61,7 +61,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="2026年"
-                        android:textColor="#6B7280"
+                        android:textColor="@color/text_secondary"
                         android:textSize="@dimen/text_size_12" />
                 </LinearLayout>
 
@@ -74,7 +74,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="7dp"
                     android:src="@drawable/ic_shaixuan"
-                    app:tint="#111827" />
+                    app:tint="@color/text_primary" />
             </RelativeLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -106,10 +106,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/surface_card"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
-                app:strokeColor="#E6EBF2"
+                app:strokeColor="@color/asset_divider"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -133,7 +133,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="总支出"
-                                android:textColor="#9CA3AF"
+                                android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
                             <TextView
@@ -142,7 +142,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="0.00"
-                                android:textColor="#111827"
+                                android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"
                                 android:textStyle="bold" />
                         </LinearLayout>
@@ -157,7 +157,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="总收入"
-                                android:textColor="#9CA3AF"
+                                android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
                             <TextView
@@ -166,7 +166,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="0.00"
-                                android:textColor="#111827"
+                                android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"
                                 android:textStyle="bold" />
                         </LinearLayout>
@@ -181,7 +181,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="结余"
-                                android:textColor="#9CA3AF"
+                                android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
                             <TextView
@@ -190,7 +190,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="0.00"
-                                android:textColor="#111827"
+                                android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"
                                 android:textStyle="bold" />
                         </LinearLayout>
@@ -212,7 +212,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="转账/还款"
-                                android:textColor="#9CA3AF"
+                                android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
                             <TextView
@@ -221,7 +221,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="0.00"
-                                android:textColor="#111827"
+                                android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"
                                 android:textStyle="bold" />
                         </LinearLayout>
@@ -236,7 +236,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="退款"
-                                android:textColor="#9CA3AF"
+                                android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
                             <TextView
@@ -245,7 +245,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="0.00"
-                                android:textColor="#111827"
+                                android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"
                                 android:textStyle="bold" />
                         </LinearLayout>
@@ -260,7 +260,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="总笔数"
-                                android:textColor="#9CA3AF"
+                                android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
                             <TextView
@@ -269,7 +269,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="0"
-                                android:textColor="#111827"
+                                android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"
                                 android:textStyle="bold" />
                         </LinearLayout>
@@ -299,7 +299,7 @@
                             android:background="@drawable/bg_stats_toggle_selected"
                             android:gravity="center"
                             android:text="支出"
-                            android:textColor="#111827"
+                            android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
 
@@ -309,7 +309,7 @@
                             android:layout_height="30dp"
                             android:gravity="center"
                             android:text="收入"
-                            android:textColor="#8B93A1"
+                            android:textColor="@color/text_tertiary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -326,7 +326,7 @@
                         android:layout_marginTop="2dp"
                         android:gravity="center"
                         android:text="可手指旋转饼图查看，小于2%不会显示"
-                        android:textColor="#A0A8B4"
+                        android:textColor="@color/text_tertiary"
                         android:textSize="@dimen/text_size_12" />
 
                     <LinearLayout
@@ -347,7 +347,7 @@
                             android:background="@drawable/bg_stats_toggle_selected"
                             android:gravity="center"
                             android:text="支出"
-                            android:textColor="#111827"
+                            android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
 
@@ -357,7 +357,7 @@
                             android:layout_height="30dp"
                             android:gravity="center"
                             android:text="收入"
-                            android:textColor="#8B93A1"
+                            android:textColor="@color/text_tertiary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -381,7 +381,7 @@
         android:layout_width="match_parent"
         android:layout_height="72dp"
         android:layout_gravity="bottom"
-        android:background="#FFFFFF"
+        android:background="@color/surface_card"
         android:elevation="16dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -396,7 +396,7 @@
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
             android:text="退出多选"
-            android:textColor="#666666"
+            android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_size_16" />
 
         <TextView
@@ -408,7 +408,7 @@
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
             android:text="全选"
-            android:textColor="#333333"
+            android:textColor="@color/text_primary"
             android:textSize="@dimen/text_size_16" />
 
         <TextView
@@ -420,7 +420,7 @@
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
             android:text="移动"
-            android:textColor="#4080FF"
+            android:textColor="@color/brand_primary"
             android:textSize="@dimen/text_size_16" />
 
         <TextView
@@ -432,7 +432,7 @@
             android:background="@drawable/shape_button_outline_red"
             android:gravity="center"
             android:text="删除"
-            android:textColor="#FF5252"
+            android:textColor="@color/danger_color"
             android:textSize="@dimen/text_size_16" />
     </LinearLayout>
 

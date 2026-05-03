@@ -77,17 +77,17 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     override fun onResume() {
         super.onResume()
         applyProfileStatusBarStyle()
-        rootRef?.let { refreshOverlayReminder(it, Prefs.isFlipEnabled(requireContext())) }
+        rootRef?.let { refreshOverlayReminder(it, Prefs.isQuickGestureEnabled(requireContext())) }
         rootRef?.findViewById<View>(R.id.layout_screen_accounting_container)?.visibility =
             if (
-                Prefs.isFlipEnabled(requireContext()) &&
+                Prefs.isQuickGestureEnabled(requireContext()) &&
                 Prefs.isShizukuModeEnabled(requireContext())
             ) View.VISIBLE else View.GONE
         rootRef?.findViewById<View>(R.id.tv_screen_accounting_hint)?.visibility = View.GONE
         rootRef?.findViewById<CompoundButton>(R.id.switch_screen_accounting)?.isChecked =
             Prefs.isShowScreenAccounting(requireContext())
-        rootRef?.findViewById<CompoundButton>(R.id.switch_double_tap)?.isChecked =
-            Prefs.isDoubleTapEnabled(requireContext())
+        rootRef?.findViewById<CompoundButton>(R.id.switch_quick_gesture)?.isChecked =
+            Prefs.isQuickGestureEnabled(requireContext())
         rootRef?.let { refreshUserAvatarCard(it) }
         rootRef?.let { refreshHomeTrendCardSwitch(it) }
         // ── 诊断：记录 onResume 时刻的 appbar 状态 ──
@@ -365,18 +365,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             requireActivity().startActivity(Intent(requireContext(), StorageCleanupActivity::class.java))
         }
 
-        // --- 翻转手势与白名单 ---
-        val switchFlip = view.findViewById<CompoundButton>(R.id.switch_flip_trigger)
-        val switchDoubleTap = view.findViewById<CompoundButton>(R.id.switch_double_tap)
+        // --- 快捷手势与白名单 ---
+        val switchQuickGesture = view.findViewById<CompoundButton>(R.id.switch_quick_gesture)
         val switchShowMultiCur = view.findViewById<CompoundButton>(R.id.switch_show_multi_cur)
         val btnManageCurrencies = view.findViewById<View>(R.id.btn_manage_currencies)
         val btnSensitivity = view.findViewById<View>(R.id.btn_sensitivity)
         val dividerAfterCurrencies = view.findViewById<View>(R.id.divider_after_currencies)
         val dividerAfterSensitivity = view.findViewById<View>(R.id.divider_after_sensitivity)
         val switchShowBookEntry = view.findViewById<CompoundButton>(R.id.switch_show_book_entry)
-        val switchFlipDisableLandscape = view.findViewById<CompoundButton>(R.id.switch_flip_disable_landscape)
-        val layoutFlipDisableLandscape = view.findViewById<View>(R.id.layout_flip_disable_landscape)
-        val layoutVibrateFeedback = view.findViewById<View>(R.id.layout_vibrate_feedback)
         val switchShizukuMode = view.findViewById<CompoundButton>(R.id.switch_shizuku_mode)
         val layoutWhitelist = view.findViewById<View>(R.id.layout_whitelist_container)
         val layoutScreenAccounting = view.findViewById<View>(R.id.layout_screen_accounting_container)
@@ -387,23 +383,20 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         var ignoreWhitelistToggle = false
         var ignoreScreenAccountingToggle = false
         fun updateWhitelistUi() {
-            val flipEnabled = switchFlip.isChecked
+            val quickGestureEnabled = switchQuickGesture.isChecked
             val shizukuModeEnabled = switchShizukuMode.isChecked
-            layoutWhitelist.visibility = if (flipEnabled && shizukuModeEnabled) View.VISIBLE else View.GONE
-            layoutScreenAccounting.visibility = if (flipEnabled && shizukuModeEnabled) View.VISIBLE else View.GONE
+            layoutWhitelist.visibility = if (quickGestureEnabled && shizukuModeEnabled) View.VISIBLE else View.GONE
+            layoutScreenAccounting.visibility = if (quickGestureEnabled && shizukuModeEnabled) View.VISIBLE else View.GONE
             tvScreenAccountingHint.visibility = View.GONE
             btnManageWhitelist.visibility = if (layoutWhitelist.visibility == View.VISIBLE && switchWhitelistMode.isChecked) View.VISIBLE else View.GONE
         }
-        fun updateDataEntriesUi(flipEnabled: Boolean, multiCurrencyEnabled: Boolean) {
-            val tapEnabled = switchDoubleTap.isChecked
-            layoutFlipDisableLandscape.visibility = if (flipEnabled || tapEnabled) View.VISIBLE else View.GONE
-            layoutVibrateFeedback.visibility = if (flipEnabled || tapEnabled) View.VISIBLE else View.GONE
-            btnSensitivity.visibility = if (flipEnabled || tapEnabled) View.VISIBLE else View.GONE
+        fun updateDataEntriesUi(quickGestureEnabled: Boolean, multiCurrencyEnabled: Boolean) {
+            btnSensitivity.visibility = if (quickGestureEnabled) View.VISIBLE else View.GONE
             btnManageCurrencies.visibility = if (multiCurrencyEnabled) View.VISIBLE else View.GONE
             dividerAfterCurrencies.visibility =
-                if (multiCurrencyEnabled && (flipEnabled || tapEnabled)) View.VISIBLE else View.GONE
+                if (multiCurrencyEnabled && quickGestureEnabled) View.VISIBLE else View.GONE
             dividerAfterSensitivity.visibility =
-                if (multiCurrencyEnabled || flipEnabled || tapEnabled) View.VISIBLE else View.GONE
+                if (multiCurrencyEnabled || quickGestureEnabled) View.VISIBLE else View.GONE
         }
         switchShowMultiCur.isChecked = Prefs.isShowMultiCurrency(requireContext())
         switchScreenAccounting.apply {
@@ -433,61 +426,38 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 Utils.toast(context, if (isChecked) "已开启截屏记账按钮" else "已关闭截屏记账按钮")
             }
         }
-        switchFlip.apply {
-            isChecked = Prefs.isFlipEnabled(requireContext())
+        switchQuickGesture.apply {
+            isChecked = Prefs.isQuickGestureEnabled(requireContext())
             updateDataEntriesUi(isChecked, switchShowMultiCur.isChecked)
             refreshOverlayReminder(view, isChecked)
             setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setFlipEnabled(requireContext(), isChecked)
+                Prefs.setQuickGestureEnabled(requireContext(), isChecked)
                 updateDataEntriesUi(isChecked, switchShowMultiCur.isChecked)
                 updateWhitelistUi()
-                updateFlipService(isChecked)
                 refreshOverlayReminder(view, isChecked)
                 if (isChecked) {
-                    if (!Settings.canDrawOverlays(requireContext())) {
-                        Utils.toast(context, "请先开启悬浮窗权限，否则翻转记账无法唤起")
-                        promptOverlayPermissionDialog()
+                    val flipEnabled = Prefs.isFlipEnabled(requireContext())
+                    val tapEnabled = Prefs.isDoubleTapEnabled(requireContext())
+                    if (flipEnabled) updateFlipService(true)
+                    if (tapEnabled) updateDoubleTapService(true)
+                    if (!flipEnabled && !tapEnabled) {
+                        Prefs.setFlipEnabled(requireContext(), true)
+                        updateFlipService(true)
                     }
-                    // 仅在用户主动开启翻转手势时，提示后台常驻相关设置
-                    checkBatteryOptimization()
-                    Utils.toast(context, "翻转手势已启用")
-                }
-            }
-        }
-        switchDoubleTap.apply {
-            isChecked = Prefs.isDoubleTapEnabled(requireContext())
-            updateDataEntriesUi(switchFlip.isChecked, switchShowMultiCur.isChecked)
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setDoubleTapEnabled(requireContext(), isChecked)
-                updateDoubleTapService(isChecked)
-                // 更新灵敏度按钮可见性
-                updateDataEntriesUi(switchFlip.isChecked, switchShowMultiCur.isChecked)
-                if (isChecked) {
                     if (!Settings.canDrawOverlays(requireContext())) {
-                        Utils.toast(context, "请先开启悬浮窗权限，否则敲击背板无法唤起")
+                        Utils.toast(context, "请先开启悬浮窗权限，否则快捷手势无法唤起")
                         promptOverlayPermissionDialog()
                     }
                     checkBatteryOptimization()
-                    // 首次开启时自动推荐模型
                     if (Prefs.getTapModel(requireContext()).isEmpty()) {
                         val recommended = tao.test.flipaccounting.tap.TapModel.recommend(requireContext())
                         Prefs.setTapModel(requireContext(), recommended.path)
                     }
-                    if (!Prefs.hasSeenDoubleTapGuide(requireContext())) {
-                        showDoubleTapGuideDialog()
-                    } else {
-                        Utils.toast(context, "敲击背板已启用")
-                    }
+                    Utils.toast(context, "快捷手势已启用，可进入「手势设置」微调")
                 } else {
-                    Utils.toast(context, "敲击背板已关闭")
+                    requireContext().stopService(Intent(requireContext(), OverlayService::class.java))
+                    Utils.toast(context, "快捷手势已关闭")
                 }
-            }
-        }
-        switchFlipDisableLandscape.apply {
-            isChecked = Prefs.isFlipDisableLandscape(requireContext())
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setFlipDisableLandscape(requireContext(), isChecked)
-                Utils.toast(context, if (isChecked) "已开启横屏不检测" else "已关闭横屏不检测")
             }
         }
         switchShowBookEntry.apply {
@@ -510,7 +480,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 }
                 updateShizukuPersistenceVisibility(view, isChecked)
                 updateWhitelistUi()
-                updateFlipService(switchFlip.isChecked)
+                if (switchQuickGesture.isChecked) {
+                    updateFlipService(Prefs.isFlipEnabled(requireContext()))
+                }
             }
         }
         // 初始化 Shizuku 持久化行的可见状态
@@ -543,7 +515,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 }
                 Prefs.setFlipAlways(requireContext(), !isChecked)
                 btnManageWhitelist.visibility = if (isChecked) View.VISIBLE else View.GONE
-                updateFlipService(switchFlip.isChecked)
+                if (switchQuickGesture.isChecked) {
+                    updateFlipService(Prefs.isFlipEnabled(requireContext()))
+                }
                 Utils.toast(context, if (isChecked) "已开启白名单模式" else "已恢复全局模式")
             }
         }
@@ -559,11 +533,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             } else {
                 requireActivity().startActivity(Intent(requireContext(), AppListActivity::class.java))
             }
-        }
-
-        view.findViewById<CompoundButton>(R.id.switch_vibrate_feedback).apply {
-            isChecked = Prefs.isVibrateFeedbackEnabled(requireContext())
-            setOnCheckedChangeListener { _, isChecked -> Prefs.setVibrateFeedbackEnabled(requireContext(), isChecked) }
         }
 
         view.findViewById<CompoundButton>(R.id.switch_asset_feature).apply {
@@ -586,7 +555,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         switchShowMultiCur.apply {
             setOnCheckedChangeListener { _, isChecked ->
                 Prefs.setShowMultiCurrency(requireContext(), isChecked)
-                updateDataEntriesUi(switchFlip.isChecked, isChecked)
+                updateDataEntriesUi(switchQuickGesture.isChecked, isChecked)
             }
         }
 
@@ -617,15 +586,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         // 让包含开关的整行都可点击：点击行会触发对应的开关（不会破坏已有的 setOnCheckedChangeListener）
         try {
             val toggleIds = intArrayOf(
-                R.id.switch_flip_trigger,
-                R.id.switch_double_tap,
+                R.id.switch_quick_gesture,
                 R.id.switch_show_book_entry,
-                R.id.switch_flip_disable_landscape,
                 R.id.switch_shizuku_mode,
                 R.id.switch_asset_feature,
                 R.id.switch_whitelist_mode,
                 R.id.switch_screen_accounting,
-                R.id.switch_vibrate_feedback,
                 R.id.switch_show_home_trend_card,
                 R.id.switch_enable_ai_in_prefs,
                 R.id.switch_show_multi_cur,
@@ -661,7 +627,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
     }
 
-    private fun refreshOverlayReminder(view: View, flipEnabled: Boolean) {
+    private fun refreshOverlayReminder(view: View, quickGestureEnabled: Boolean) {
         val card = view.findViewById<View>(R.id.card_overlay_reminder) ?: return
         val tvTitle = view.findViewById<TextView>(R.id.tv_overlay_reminder_title)
         val tvDesc = view.findViewById<TextView>(R.id.tv_overlay_reminder_desc)
@@ -670,16 +636,16 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         val hasOverlayPermission = Settings.canDrawOverlays(requireContext())
 
-        // 仅在「翻转手势已开启 且 缺少悬浮窗权限」时显示提醒
-        if (!flipEnabled || hasOverlayPermission) {
+        // 仅在「快捷手势已开启 且 缺少悬浮窗权限」时显示提醒
+        if (!quickGestureEnabled || hasOverlayPermission) {
             card.visibility = View.GONE
             return
         }
 
         card.visibility = View.VISIBLE
-        tvTitle?.text = "⚠ 翻转记账需要悬浮窗权限"
+        tvTitle?.text = "⚠ 快捷手势需要悬浮窗权限"
 
-        tvDesc?.text = "当前未授予悬浮窗权限，翻转手势将无法正常唤起记账界面。"
+        tvDesc?.text = "当前未授予悬浮窗权限，快捷手势将无法正常唤起记账界面。"
         btnRequestOverlay?.isEnabled = true
         btnRequestOverlay?.alpha = 1f
         btnRequestOverlay?.text = "立即去开启"
@@ -690,7 +656,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         if (!isAdded) return
         val dialog = AlertDialog.Builder(requireContext())
             .setTitle("需要悬浮窗权限")
-            .setMessage("已开启翻转记账。请先授予悬浮窗权限，否则无法正常弹出记账界面。")
+            .setMessage("已开启快捷手势。请先授予悬浮窗权限，否则无法正常弹出记账界面。")
             .setPositiveButton("去开启") { _, _ ->
                 val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                     data = Uri.parse("package:${requireContext().packageName}")

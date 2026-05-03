@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Typography -->
+    <!-- ==================== Typography (legacy) ==================== -->
     <dimen name="text_size_10">10sp</dimen>
     <dimen name="text_size_11">12sp</dimen>
     <dimen name="text_size_12">12sp</dimen>
@@ -17,7 +17,7 @@
     <dimen name="text_size_32">32sp</dimen>
     <dimen name="text_size_36">36sp</dimen>
 
-    <!-- Icon sizing -->
+    <!-- ==================== Icon sizing (legacy) ==================== -->
     <dimen name="icon_size_10">10dp</dimen>
     <dimen name="icon_size_14">14dp</dimen>
     <dimen name="icon_size_16">16dp</dimen>
@@ -30,4 +30,106 @@
     <dimen name="icon_size_40">40dp</dimen>
     <dimen name="icon_size_48">48dp</dimen>
     <dimen name="icon_size_64">64dp</dimen>
+
+    <!-- ==================== Spacing ==================== -->
+    <dimen name="space_4">4dp</dimen>
+    <dimen name="space_8">8dp</dimen>
+    <dimen name="space_12">12dp</dimen>
+    <dimen name="space_16">16dp</dimen>
+    <dimen name="space_20">20dp</dimen>
+    <dimen name="space_24">24dp</dimen>
+
+    <!-- ==================== Corner radius ==================== -->
+    <dimen name="radius_8">8dp</dimen>
+    <dimen name="radius_12">12dp</dimen>
+    <dimen name="radius_16">16dp</dimen>
+    <dimen name="radius_20">20dp</dimen>
+
+    <!-- ==================== Component dimensions ==================== -->
+    <dimen name="toolbar_height">56dp</dimen>
+    <dimen name="bottom_nav_height">56dp</dimen>
+    <dimen name="card_padding">16dp</dimen>
+    <dimen name="list_item_min_height">56dp</dimen>
+    <dimen name="button_height">48dp</dimen>
+    <dimen name="touch_target_min">48dp</dimen>
+
+    <!-- ==================== Home Page ==================== -->
+    <dimen name="home_item_press_scale">0.98</dimen>
+    <dimen name="home_stagger_item_initial_alpha">0</dimen>
+    <dimen name="home_empty_icon_size">120dp</dimen>
+    <dimen name="home_empty_action_height">44dp</dimen>
+
+    <!-- Overlay pickers: 4 exact grid rows, no clipped half row. -->
+    <dimen name="overlay_picker_grid_item_height">66dp</dimen>
+    <dimen name="overlay_picker_grid_visible_height">264dp</dimen>
+
+    <!-- ==================== Chat Page ==================== -->
+    <dimen name="chat_msg_spacing_vertical">4dp</dimen>
+    <dimen name="chat_msg_spacing_horizontal">12dp</dimen>
+    <dimen name="chat_bubble_padding_h">14dp</dimen>
+    <dimen name="chat_bubble_padding_v">10dp</dimen>
+    <dimen name="chat_avatar_size">34dp</dimen>
+    <dimen name="chat_avatar_margin_end">8dp</dimen>
+    <dimen name="chat_time_margin_bottom">6dp</dimen>
+    <dimen name="chat_input_field_radius">18dp</dimen>
+    <dimen name="chat_input_field_padding_h">12dp</dimen>
+    <dimen name="chat_input_field_padding_v">8dp</dimen>
+    <dimen name="chat_icon_btn_size">40dp</dimen>
+    <dimen name="chat_send_btn_size">40dp</dimen>
+    <dimen name="chat_send_btn_radius">14dp</dimen>
+    <dimen name="chat_bill_card_radius">12dp</dimen>
+    <dimen name="chat_bill_card_padding">12dp</dimen>
+    <dimen name="chat_bill_action_height">34dp</dimen>
+    <dimen name="chat_bill_action_radius">10dp</dimen>
+    <dimen name="chat_bill_icon_size">38dp</dimen>
+    <dimen name="chat_bill_icon_inner">26dp</dimen>
+    <dimen name="chat_voice_overlay_radius">14dp</dimen>
+    <dimen name="chat_interrupt_btn_size">28dp</dimen>
+    <dimen name="chat_loading_dot_size">16dp</dimen>
+
+    <!-- ==================== Assets Page ==================== -->
+    <dimen name="asset_overview_amount_size">28sp</dimen>
+    <dimen name="asset_overview_label_size">13sp</dimen>
+    <dimen name="asset_summary_label_size">12sp</dimen>
+    <dimen name="asset_summary_amount_size">14sp</dimen>
+    <dimen name="asset_category_title_size">14sp</dimen>
+    <dimen name="asset_category_total_size">14sp</dimen>
+    <dimen name="asset_category_min_height">48dp</dimen>
+    <dimen name="asset_row_height">56dp</dimen>
+    <dimen name="asset_row_icon_size">32dp</dimen>
+    <dimen name="asset_row_name_size">15sp</dimen>
+    <dimen name="asset_row_balance_size">15sp</dimen>
+    <dimen name="asset_row_remark_size">11sp</dimen>
+    <dimen name="asset_overview_card_radius">16dp</dimen>
+    <dimen name="asset_overview_card_padding_h">16dp</dimen>
+    <dimen name="asset_overview_card_padding_top">18dp</dimen>
+    <dimen name="asset_overview_card_padding_bottom">14dp</dimen>
+    <dimen name="asset_category_card_radius">14dp</dimen>
+    <dimen name="asset_category_header_height">48dp</dimen>
+    <dimen name="asset_fab_margin_end">24dp</dimen>
+    <dimen name="asset_fab_margin_bottom">80dp</dimen>
+    <dimen name="asset_empty_icon_size">64dp</dimen>
+
+    <!-- ==================== Stats Page ==================== -->
+    <dimen name="stats_card_margin_h">12dp</dimen>
+    <dimen name="stats_card_margin_top">12dp</dimen>
+    <dimen name="stats_card_radius">14dp</dimen>
+    <dimen name="stats_card_padding">14dp</dimen>
+    <dimen name="stats_category_icon_size">30dp</dimen>
+    <dimen name="stats_category_icon_padding">7dp</dimen>
+    <dimen name="stats_daily_item_padding_v">11dp</dimen>
+    <dimen name="stats_segmented_height">36dp</dimen>
+    <dimen name="stats_segmented_radius">10dp</dimen>
+    <dimen name="stats_segmented_tab_radius">8dp</dimen>
+
+    <!-- ==================== Settings Page ==================== -->
+    <dimen name="settings_card_radius">16dp</dimen>
+    <dimen name="settings_card_margin_bottom">16dp</dimen>
+    <dimen name="settings_item_padding_h">18dp</dimen>
+    <dimen name="settings_item_min_height">58dp</dimen>
+    <dimen name="settings_icon_badge_size">40dp</dimen>
+    <dimen name="settings_title_size">15sp</dimen>
+    <dimen name="settings_subtitle_size">12sp</dimen>
+    <dimen name="settings_section_title_size">13sp</dimen>
+    <dimen name="settings_chevron_size">18dp</dimen>
 </resources>

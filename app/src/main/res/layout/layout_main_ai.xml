@@ -4,18 +4,18 @@
     android:id="@+id/page_ai_config"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA"
+    android:background="@color/page_background"
     android:orientation="vertical">
 
     <!-- Header Toolbar -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardElevation="2dp">
+        app:cardElevation="0dp">
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:background="#FFFFFF"
+            android:background="@color/surface_card"
             android:paddingHorizontal="12dp">
             <ImageView
                 android:id="@+id/btn_back_to_settings"
@@ -24,7 +24,7 @@
                 android:layout_centerVertical="true"
                 android:padding="8dp"
                 android:src="@drawable/ic_chevron_left"
-                app:tint="#333333"
+                app:tint="@color/text_primary"
                 android:background="?attr/selectableItemBackgroundBorderless"/>
             <TextView
                 android:layout_width="wrap_content"
@@ -32,7 +32,7 @@
                 android:text="智能配置"
                 android:textSize="@dimen/text_size_18"
                 android:textStyle="bold"
-                android:textColor="#333333"
+                android:textColor="@color/settings_item_title"
                 android:layout_centerInParent="true"/>
         </RelativeLayout>
     </androidx.cardview.widget.CardView>
@@ -55,8 +55,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="接口基础设置"
-                android:textColor="#1A73E8"
-                android:textSize="@dimen/text_size_14"
+                android:textColor="@color/brand_primary"
+                android:textSize="@dimen/settings_section_title_size"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp"
                 android:layout_marginStart="4dp"/>
@@ -66,8 +66,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_ai_input_modern"
-                android:padding="16dp"
-                android:layout_marginBottom="20dp">
+                android:padding="@dimen/card_padding"
+                android:layout_marginBottom="@dimen/settings_card_margin_bottom">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -139,8 +139,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="业务模型与提示词"
-                android:textColor="#1A73E8"
-                android:textSize="@dimen/text_size_14"
+                android:textColor="@color/brand_primary"
+                android:textSize="@dimen/settings_section_title_size"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp"
                 android:layout_marginStart="4dp"/>
@@ -150,7 +150,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_ai_input_modern"
-                android:padding="16dp"
+                android:padding="@dimen/card_padding"
                 android:layout_marginBottom="24dp">
 
                 <com.google.android.material.switchmaterial.SwitchMaterial

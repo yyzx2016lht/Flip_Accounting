@@ -1,20 +1,40 @@
 <resources>
     <style name="Theme.FlipAccounting" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- 主颜色配置 -->
-        <item name="colorPrimary">#5C6BC0</item>
-        <item name="colorPrimaryVariant">#3F51B5</item>
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorPrimaryVariant">@color/brand_primary_dark</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <!-- 全局字体恢复系统默认无衬线 -->
         <item name="fontFamily">sans-serif</item>
         <item name="android:fontFamily">sans-serif</item>
         <!-- 次要颜色 -->
-        <item name="colorSecondary">#FF4081</item>
+        <item name="colorSecondary">@color/brand_secondary</item>
         <item name="colorSecondaryVariant">#F50057</item>
         <item name="colorOnSecondary">#FFFFFF</item>
 
+        <!-- Surface & background -->
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <item name="colorSurface">@color/surface_card</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+
+        <!-- Error -->
+        <item name="colorError">@color/danger_color</item>
+
         <!-- 状态栏颜色 -->
-        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:statusBarColor">@color/surface_card</item>
         <item name="android:windowLightStatusBar">true</item>
+
+        <!-- Default corner radius for Material cards / sheets -->
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.FlipAccounting.SmallComponent</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.FlipAccounting.MediumComponent</item>
+    </style>
+
+    <style name="ShapeAppearance.FlipAccounting.SmallComponent" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerSize">@dimen/radius_8</item>
+    </style>
+
+    <style name="ShapeAppearance.FlipAccounting.MediumComponent" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerSize">@dimen/radius_12</item>
     </style>
 
     <style name="Theme.FlipAccounting.Transparent" parent="Theme.FlipAccounting">
@@ -28,7 +48,7 @@
     <style name="Theme.FlipAccounting.AppCompatNoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="fontFamily">sans-serif</item>
         <item name="android:fontFamily">sans-serif</item>
-        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:statusBarColor">@color/surface_card</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
@@ -37,5 +57,9 @@
         <item name="android:windowExitAnimation">@anim/dialog_soft_exit</item>
     </style>
 
-</resources>
+    <style name="Animation_FlipAccounting_BottomDialogSoft">
+        <item name="android:windowEnterAnimation">@anim/dialog_bottom_soft_enter</item>
+        <item name="android:windowExitAnimation">@anim/dialog_bottom_soft_exit</item>
+    </style>
 
+</resources>

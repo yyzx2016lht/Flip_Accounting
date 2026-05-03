@@ -22,6 +22,7 @@ object PrefsBackupSupport {
     private const val KEY_WHITE_LIST = "app_white_list"
     private const val KEY_ACTIVE_CURRENCIES = "active_currencies_v1"
     private const val KEY_EXCHANGE_REFRESH_INTERVAL = "exchange_refresh_interval_v1"
+    private const val KEY_QUICK_GESTURE_ENABLED = "quick_gesture_enabled"
     private const val KEY_FLIP_ENABLED = "flip_enabled"
     private const val KEY_FLIP_ALWAYS = "flip_always_on"
     private const val KEY_FLIP_DISABLE_LANDSCAPE = "flip_disable_landscape"
@@ -83,6 +84,7 @@ object PrefsBackupSupport {
     private const val KEY_PERMANENT_WAKELOCK = "advanced_permanent_wakelock"
     private const val KEY_SHIZUKU_PERSISTENCE = "advanced_shizuku_persistence"
     private const val KEY_VIBRATE_FEEDBACK = "vibrate_feedback"
+    private const val KEY_SAVE_VIBRATE = "save_vibrate_feedback"
     private const val KEY_APP_USAGE_MODE = "app_usage_mode"
     private const val KEY_ASR_DOWNLOAD_SOURCE = "asr_download_source_v1"
     private const val KEY_ASSET_FEATURE_ENABLED = "asset_feature_enabled_v1"
@@ -163,6 +165,7 @@ object PrefsBackupSupport {
             }
         }
 
+        if (root.has("quick_gesture_enabled_v1")) edit.putBoolean(KEY_QUICK_GESTURE_ENABLED, root.getBoolean("quick_gesture_enabled_v1"))
         if (root.has("flip_enabled_v1")) edit.putBoolean(KEY_FLIP_ENABLED, root.getBoolean("flip_enabled_v1"))
         if (root.has("flip_always_v1")) edit.putBoolean(KEY_FLIP_ALWAYS, root.getBoolean("flip_always_v1"))
         if (root.has("flip_disable_landscape_v1")) edit.putBoolean(KEY_FLIP_DISABLE_LANDSCAPE, root.getBoolean("flip_disable_landscape_v1"))
@@ -215,6 +218,7 @@ object PrefsBackupSupport {
         if (root.has("shizuku_persistence_v1")) edit.putBoolean(KEY_SHIZUKU_PERSISTENCE, root.getBoolean("shizuku_persistence_v1"))
         if (root.has("shizuku_mode_v1")) edit.putBoolean("advanced_shizuku_mode", root.getBoolean("shizuku_mode_v1"))
         if (root.has("vibrate_feedback_v1")) edit.putBoolean(KEY_VIBRATE_FEEDBACK, root.getBoolean("vibrate_feedback_v1"))
+        if (root.has("save_vibrate_v1")) edit.putBoolean(KEY_SAVE_VIBRATE, root.getBoolean("save_vibrate_v1"))
         if (root.has("app_usage_mode_v1")) edit.putInt(KEY_APP_USAGE_MODE, root.getInt("app_usage_mode_v1"))
         if (root.has("first_day_of_week_v1")) edit.putInt("first_day_of_week", root.getInt("first_day_of_week_v1"))
         if (root.has("ai_prompt_correction_v1")) edit.putBoolean("enable_ai_prompt_correction", root.getBoolean("ai_prompt_correction_v1"))
@@ -282,11 +286,13 @@ object PrefsBackupSupport {
         val currencyPrefs = ctx.getSharedPreferences("flip_currency_prefs", Context.MODE_PRIVATE)
         val cloudPrefs = cloudPrefs(ctx)
         return JSONObject().apply {
+            put("quick_gesture_enabled_v1", Prefs.isQuickGestureEnabled(ctx))
             put("flip_enabled_v1", Prefs.isFlipEnabled(ctx))
             put("flip_always_v1", Prefs.isFlipAlways(ctx))
             put("flip_disable_landscape_v1", Prefs.isFlipDisableLandscape(ctx))
             put("hide_recents_v1", Prefs.isHideRecents(ctx))
             put("vibrate_feedback_v1", Prefs.isVibrateFeedbackEnabled(ctx))
+            put("save_vibrate_v1", Prefs.isSaveVibrateEnabled(ctx))
             put("permanent_wakelock_v1", Prefs.isPermanentWakeLockEnabled(ctx))
             put("shizuku_persistence_v1", Prefs.isShizukuPersistenceEnabled(ctx))
             put("shizuku_mode_v1", Prefs.isShizukuModeEnabled(ctx))
@@ -401,21 +407,21 @@ object PrefsBackupSupport {
     fun serializeSettingsModules(ctx: Context): Map<String, String> {
         val full = JSONObject(serializeSettings(ctx))
         return linkedMapOf(
-            "settings_general_basic" to filterSettingsModule(full, "flip_enabled_v1", "flip_always_v1", "flip_disable_landscape_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "app_white_list_v1"),
+            "settings_general_basic" to filterSettingsModule(full, "quick_gesture_enabled_v1", "flip_enabled_v1", "flip_always_v1", "flip_disable_landscape_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "app_white_list_v1"),
             "settings_general_assets" to filterSettingsModule(full, "asset_feature_enabled_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1"),
             "settings_general_cloud" to filterSettingsModule(full, "cloud_webdav_url_v1", "cloud_webdav_user_v1", "cloud_webdav_pass_v1", "cloud_webdav_dir_v1", "cloud_device_name_v1"),
             "settings_display_entries" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1"),
             "settings_display_bills" to filterSettingsModule(full, "amount_grouping_v1", "bill_show_category_icon_v1", "bill_show_full_category_v1", "bill_remark_priority_v1"),
             "settings_display_multibill" to filterSettingsModule(full, "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "multi_bill_fast_mode_v1", "save_ocr_debug_v1"),
-            "settings_general" to filterSettingsModule(full, "flip_enabled_v1", "flip_always_v1", "flip_disable_landscape_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "asset_feature_enabled_v1", "app_white_list_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1", "cloud_webdav_url_v1", "cloud_webdav_user_v1", "cloud_webdav_pass_v1", "cloud_webdav_dir_v1", "cloud_device_name_v1"),
+            "settings_general" to filterSettingsModule(full, "quick_gesture_enabled_v1", "flip_enabled_v1", "flip_always_v1", "flip_disable_landscape_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "asset_feature_enabled_v1", "app_white_list_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1", "cloud_webdav_url_v1", "cloud_webdav_user_v1", "cloud_webdav_pass_v1", "cloud_webdav_dir_v1", "cloud_device_name_v1"),
             "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "multi_bill_fast_mode_v1", "save_ocr_debug_v1", "amount_grouping_v1", "bill_show_category_icon_v1", "bill_show_full_category_v1", "bill_remark_priority_v1"),
             "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_model_id_v1", "ai_multi_model_v1", "ai_modify_model_v1", "ai_category_refine_model_v1", "ai_rule_model_v1", "ai_llm_router_enabled_v1", "ai_receipt_model_v1", "ai_receipt_vision_model_v1", "ai_screen_model_v1", "ai_receipt_ocr_refine_model_v1", "ai_speech_model_v1", "screen_vision_supported_models_v1", "ai_models_cache_v1", "asr_mode_v1", "asr_download_source_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1", "ai_thinking_modify_bill_v1", "ai_thinking_category_refine_v1"),
             "settings_ai_prompts" to filterSettingsModule(full, "modify_bill_prompt_v1", "rule_prompt_v1", "receipt_bill_prompt_v1", "receipt_vision_prompt_v1", "screen_accounting_prompt_v1", "receipt_ocr_refine_prompt_v1"),
             "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
             "settings_books" to filterSettingsModule(full, "book_accounts_v1", "selected_book_v1", "default_book_v1", "book_colors_v1", "book_banners_v1"),
-            "settings_advanced_runtime" to filterSettingsModule(full, "vibrate_feedback_v1", "permanent_wakelock_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1"),
+            "settings_advanced_runtime" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "permanent_wakelock_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1"),
             "settings_advanced_flip" to filterSettingsModule(full, "flip_sensitivity_v1", "flip_debounce_v1", "use_custom_sensitivity_v1", "custom_g_threshold_v1", "custom_max_duration_v1"),
-            "settings_advanced" to filterSettingsModule(full, "vibrate_feedback_v1", "permanent_wakelock_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1", "show_multi_cur_v1", "show_screen_accounting_v1", "flip_sensitivity_v1", "flip_debounce_v1", "use_custom_sensitivity_v1", "custom_g_threshold_v1", "custom_max_duration_v1")
+            "settings_advanced" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "permanent_wakelock_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1", "show_multi_cur_v1", "show_screen_accounting_v1", "flip_sensitivity_v1", "flip_debounce_v1", "use_custom_sensitivity_v1", "custom_g_threshold_v1", "custom_max_duration_v1")
         )
     }
 

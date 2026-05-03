@@ -9,7 +9,7 @@
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginBottom="56dp" />
+        android:layout_marginBottom="@dimen/bottom_nav_height" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
@@ -18,7 +18,9 @@
         android:layout_gravity="bottom"
         app:menu="@menu/bottom_nav_menu"
         app:labelVisibilityMode="labeled"
-        android:background="?android:attr/windowBackground"
+        android:background="@color/surface_card"
+        app:itemIconTint="@color/bottom_nav_item_color"
+        app:itemTextColor="@color/bottom_nav_item_color"
         app:elevation="8dp" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -27,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="80dp"
-        app:backgroundTint="#2196F3"
+        app:backgroundTint="@color/brand_primary"
         app:tint="@android:color/white"
         android:src="@android:drawable/ic_input_add"
         app:elevation="12dp" />

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F3F6FB"
+    android:background="@color/page_background"
     android:orientation="vertical">
 
     <LinearLayout
@@ -26,8 +26,8 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="2dp"
             android:text="云端备份设置"
-            android:textColor="#1A2744"
-            android:textSize="18sp"
+            android:textColor="@color/settings_item_title"
+            android:textSize="@dimen/text_size_18"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -49,7 +49,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="1dp"
                 app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
@@ -63,9 +63,9 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="WebDAV 参数"
-                        android:textColor="#1A2744"
-                        android:textSize="16sp"
+                    android:text="WebDAV 参数"
+                    android:textColor="@color/settings_item_title"
+                    android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
 
                     <TextView
@@ -175,7 +175,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="1dp"
                 app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
@@ -189,9 +189,9 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="手动同步"
-                        android:textColor="#1A2744"
-                        android:textSize="16sp"
+                    android:text="手动同步"
+                    android:textColor="@color/settings_item_title"
+                    android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
 
                     <TextView

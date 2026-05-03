@@ -4,13 +4,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F7F8FA">
+    android:background="@color/asset_page_bg">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar_asset_detail"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@color/surface_card"
         app:elevation="0dp">
 
         <androidx.appcompat.widget.Toolbar
@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_chevron_left"
-            app:navigationIconTint="#333333">
+            app:navigationIconTint="@color/text_primary">
 
             <TextView
                 android:id="@+id/tv_toolbar_asset_name"
@@ -26,7 +26,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="start|center_vertical"
                 android:text="账户"
-                android:textColor="#333333"
+                android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_18"
                 android:textStyle="bold" />
 
@@ -49,7 +49,7 @@
                     android:gravity="center"
                     android:paddingHorizontal="6dp"
                     android:text="搜索"
-                    android:textColor="#333333"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold" />
 
@@ -64,7 +64,7 @@
                     android:gravity="center"
                     android:paddingHorizontal="6dp"
                     android:text="统计"
-                    android:textColor="#333333"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold" />
 
@@ -79,7 +79,7 @@
                     android:gravity="center"
                     android:paddingHorizontal="6dp"
                     android:text="编辑"
-                    android:textColor="#333333"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold" />
 
@@ -123,7 +123,7 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:textColor="#333333"
-                android:textColorHint="#8892A0"
+                android:textColorHint="@color/text_tertiary"
                 android:textSize="@dimen/text_size_14" />
         </LinearLayout>
 
@@ -143,7 +143,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="账户余额"
-                android:textColor="#999999"
+                android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_14" />
 
             <TextView
@@ -152,7 +152,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="¥0.00"
-                android:textColor="#333333"
+                android:textColor="@color/asset_overview_amount"
                 android:textSize="@dimen/text_size_28"
                 android:textStyle="bold" />
 
@@ -161,7 +161,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:textColor="#8E98A3"
+                android:textColor="@color/asset_summary_label"
                 android:textSize="@dimen/text_size_12"
                 android:visibility="gone"
                 tools:text="报销专用 · 不计入总资产" />
@@ -187,7 +187,7 @@
         android:layout_margin="24dp"
         android:layout_marginBottom="80dp"
         android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="#2196F3"
+        app:backgroundTint="@color/asset_fab_tint"
         app:tint="@android:color/white"
         app:elevation="12dp" />
 
@@ -196,7 +196,7 @@
         android:layout_width="match_parent"
         android:layout_height="72dp"
         android:layout_gravity="bottom"
-        android:background="#FFFFFF"
+        android:background="@color/surface_card"
         android:elevation="16dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -211,7 +211,7 @@
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
             android:text="退出多选"
-            android:textColor="#666666"
+            android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_size_16" />
 
         <TextView
@@ -223,7 +223,7 @@
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
             android:text="全选"
-            android:textColor="#333333"
+            android:textColor="@color/text_primary"
             android:textSize="@dimen/text_size_16" />
 
         <TextView

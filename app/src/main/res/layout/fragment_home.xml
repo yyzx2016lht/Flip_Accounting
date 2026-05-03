@@ -235,29 +235,43 @@
                     app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
                         <ImageView
-                            android:layout_width="128dp"
-                            android:layout_height="128dp"
+                            android:layout_width="@dimen/home_empty_icon_size"
+                            android:layout_height="@dimen/home_empty_icon_size"
                             android:src="@drawable/ic_empty_bills"
-                            android:scaleType="fitCenter" />
+                            android:scaleType="fitCenter"
+                            android:alpha="0.85" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="20dp"
                             android:text="还没有账单"
-                            android:textColor="#7E8CA2"
-                            android:textSize="@dimen/text_size_16"
+                            android:textColor="@color/home_empty_title"
+                            android:textSize="@dimen/text_size_18"
                             android:textStyle="bold"
-                            android:letterSpacing="0.05" />
+                            android:letterSpacing="0.04" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="记录第一笔，开启你的财务掌控"
-                            android:textColor="#9CA8BA"
+                            android:text="记录每一笔收支，掌控财务从现在开始"
+                            android:textColor="@color/home_empty_subtitle"
                             android:textSize="@dimen/text_size_13"
                             android:letterSpacing="0.02" />
+
+                        <TextView
+                            android:id="@+id/btnEmptyAddBill"
+                            android:layout_width="160dp"
+                            android:layout_height="@dimen/home_empty_action_height"
+                            android:layout_marginTop="24dp"
+                            android:background="@drawable/bg_home_empty_action"
+                            android:gravity="center"
+                            android:text="记一笔"
+                            android:textColor="#FFFFFF"
+                            android:textSize="@dimen/text_size_15"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.04" />
 
                 </LinearLayout>
 
@@ -273,15 +287,15 @@
 
                     <ImageView
                         android:id="@+id/ivBookSwitcher"
-                        android:layout_width="34dp"
-                        android:layout_height="34dp"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
                         android:layout_alignParentStart="true"
                         android:layout_centerVertical="true"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:contentDescription="&#x5207;&#x6362;&#x8D26;&#x6237;"
                         android:focusable="true"
-                        android:padding="6dp"
+                        android:padding="7dp"
                         android:src="@drawable/ic_switch_book"
                         app:tint="#FFFFFF" />
 
@@ -303,29 +317,29 @@
 
                     <ImageView
                         android:id="@+id/ivCalendarView"
-                        android:layout_width="34dp"
-                        android:layout_height="34dp"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
                         android:layout_toStartOf="@id/ivSearchBill"
-                        android:layout_marginEnd="10dp"
+                        android:layout_marginEnd="8dp"
                         android:layout_centerVertical="true"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
-                        android:padding="6dp"
+                        android:padding="7dp"
                         android:src="@drawable/ic_home_calendar"
                         app:tint="#FFFFFF" />
 
                     <ImageView
                         android:id="@+id/ivSearchBill"
-                        android:layout_width="34dp"
-                        android:layout_height="34dp"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:contentDescription="搜索账单"
                         android:focusable="true"
-                        android:padding="6dp"
+                        android:padding="7dp"
                         android:src="@drawable/ic_home_search"
                         app:tint="#FFFFFF" />
                 </RelativeLayout>

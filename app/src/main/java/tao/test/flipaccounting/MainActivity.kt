@@ -8,6 +8,7 @@ import android.content.Intent
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.view.VelocityTracker
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
@@ -20,6 +21,10 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
 import tao.test.flipaccounting.ui.common.AddBillEntrySheetLauncher
+import tao.test.flipaccounting.ui.common.UiMotion
+import tao.test.flipaccounting.ui.common.UiMotion.hideAnimated
+import tao.test.flipaccounting.ui.common.UiMotion.showAnimated
+import tao.test.flipaccounting.ui.common.UiMotion.pressFeedback
 import tao.test.flipaccounting.ui.main.home.HomeFragment
 import tao.test.flipaccounting.ui.main.stats.StatsFragment
 import tao.test.flipaccounting.ui.main.assets.AssetsFragment
@@ -207,6 +212,9 @@ class MainActivity : AppCompatActivity() {
     // 预加载的目标 tab 索引
     private var peekIndex = -1
 
+    // 防止快速连续切换 Tab 导致状态错乱
+    private var isSwitching = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -280,6 +288,9 @@ class MainActivity : AppCompatActivity() {
 
     // 滑动开始：预加载下一页（show 但不 replace），与当前页并排摆放
         swipeContainer.onSwipeStart = { dir, rawX, rawY ->
+            if (isSwitching) {
+                false
+            } else {
             val home = curFragment() as? HomeFragment
             val nextIdx = findAdjacentVisibleTabIndex(dir)
             when {
@@ -316,6 +327,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     true
                 }
+            }
             }
         }
 
@@ -366,6 +378,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         fabApp?.setOnClickListener {
+            it.pressFeedback()
             if (Prefs.getAiEntryMode(this) == Prefs.AI_ENTRY_MODE_CHAT) {
                 startActivity(
                     Intent(this, ChatActivity::class.java)
@@ -413,12 +426,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onDestroy() {
+        settleAnimator?.cancel()
+        settleAnimator = null
+        super.onDestroy()
+    }
+
     private fun updateFabVisibility() {
         val fab = fabApp ?: return
         if (currentTabIndex == 0) {
-            fab.show()
+            fab.showAnimated()
         } else {
-            fab.hide()
+            fab.hideAnimated()
         }
     }
 
@@ -467,6 +486,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun commitSwipe() {
         settleAnimator?.cancel()
+        isSwitching = true
         val w = swipeContainer.width.toFloat().coerceAtLeast(1f)
 
         val peekFrag = peekFragment
@@ -487,7 +507,7 @@ class MainActivity : AppCompatActivity() {
         closeHomeDrawerIfLeaving(newIndex)
 
         settleAnimator = ValueAnimator.ofFloat(fromOffset, toOffset).apply {
-            duration = 220L
+            duration = UiMotion.NORMAL
             interpolator = DecelerateInterpolator(2.0f)
             addUpdateListener { va ->
                 val offset = va.animatedValue as Float
@@ -523,6 +543,7 @@ class MainActivity : AppCompatActivity() {
                     rebindBottomNav()
                     updateFabVisibility()
                     showAssetFabForActiveTab(target)
+                    isSwitching = false
                 }
             })
             start()
@@ -545,7 +566,7 @@ class MainActivity : AppCompatActivity() {
         val savedDir = swipeDir
 
         settleAnimator = ValueAnimator.ofFloat(fromOffset, 0f).apply {
-            duration = 260L
+            duration = UiMotion.SLOW
             interpolator = DecelerateInterpolator(2.5f)
             addUpdateListener { va ->
                 val offset = va.animatedValue as Float
@@ -573,6 +594,7 @@ class MainActivity : AppCompatActivity() {
                     peekFragment = null
                     peekIndex = -1
                     swipeDir = 0
+                    isSwitching = false
                 }
             })
             start()
@@ -583,6 +605,8 @@ class MainActivity : AppCompatActivity() {
      * BottomNav 点击切换入口；必要时带入动画参数。
      */
     private fun switchTab(newIndex: Int, dir: Int, fromSwipe: Boolean, currentDx: Float = 0f) {
+        if (isSwitching) return
+        isSwitching = true
         closeHomeDrawerIfLeaving(newIndex)
         // 清理临时 peek 状态
         settleAnimator?.cancel()
@@ -649,6 +673,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 resetTabViewState(newView)
                 showAssetFabForActiveTab(newFrag)
+                isSwitching = false
             }
         }
 
@@ -678,15 +703,15 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     0.992f
                 })
-                .setDuration(if (useSlideMotion) {
-                    if (fromSwipe) 240L else 150L
-                } else {
-                    120L
+                .setDuration(when {
+                    !useSlideMotion -> UiMotion.FAST
+                    fromSwipe -> UiMotion.NORMAL
+                    else -> UiMotion.FAST
                 })
-                .setInterpolator(if (useSlideMotion) {
-                    if (fromSwipe) AccelerateInterpolator(1.45f) else DecelerateInterpolator(1.6f)
-                } else {
-                    DecelerateInterpolator(1.5f)
+                .setInterpolator(when {
+                    fromSwipe -> AccelerateInterpolator(1.45f)
+                    useSlideMotion -> DecelerateInterpolator(1.6f)
+                    else -> DecelerateInterpolator(1.5f)
                 })
                 .withLayer()
                 .withEndAction(finishSwitch)
@@ -700,20 +725,21 @@ class MainActivity : AppCompatActivity() {
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setDuration(if (useSlideMotion) {
-                    if (fromSwipe) 240L else 150L
-                } else {
-                    120L
+                .setDuration(when {
+                    !useSlideMotion -> UiMotion.FAST
+                    fromSwipe -> UiMotion.NORMAL
+                    else -> UiMotion.FAST
                 })
-                .setInterpolator(if (useSlideMotion) {
-                    if (fromSwipe) DecelerateInterpolator(2.0f) else DecelerateInterpolator(1.8f)
-                } else {
-                    DecelerateInterpolator(1.5f)
+                .setInterpolator(when {
+                    fromSwipe -> DecelerateInterpolator(2.0f)
+                    useSlideMotion -> DecelerateInterpolator(1.8f)
+                    else -> DecelerateInterpolator(1.5f)
                 })
                 .withLayer()
                 .withEndAction(finishSwitch)
                 .start()
         } else if (expectedAnimations == 0) {
+            isSwitching = false
             showAssetFabForActiveTab(newFrag)
         }
 
@@ -804,7 +830,10 @@ class MainActivity : AppCompatActivity() {
     private fun showAddBillBottomSheet() {
         AddBillEntrySheetLauncher.show(
             activity = this,
-            onShow = { fabApp?.hide() },
+            onShow = {
+                fabApp?.animate()?.cancel()
+                fabApp?.visibility = View.GONE
+            },
             onDismiss = { updateFabVisibility() }
         )
     }

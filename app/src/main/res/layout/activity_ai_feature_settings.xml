@@ -3,14 +3,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F7F8FA"
+    android:background="@color/page_background"
     android:orientation="vertical">
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="#FFFFFF"
-        android:paddingHorizontal="12dp">
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@color/surface_card"
+            android:paddingHorizontal="12dp">
 
         <ImageView
             android:id="@+id/btn_back_ai_feature"
@@ -27,8 +27,8 @@
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:text="AI 智能功能"
-            android:textColor="#1A2744"
-            android:textSize="18sp"
+                android:textColor="@color/settings_item_title"
+            android:textSize="@dimen/text_size_18"
             android:textStyle="bold" />
     </RelativeLayout>
 
@@ -63,8 +63,8 @@
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.02"
                     android:text="入口与流程"
-                    android:textColor="#1A2744"
-                    android:textSize="@dimen/text_size_14"
+                    android:textColor="@color/settings_section_title"
+                    android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -73,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="0dp"
                 app:cardUseCompatPadding="false">
 
@@ -261,8 +261,8 @@
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.02"
                     android:text="策略与规则"
-                    android:textColor="#1A2744"
-                    android:textSize="@dimen/text_size_14"
+                    android:textColor="@color/settings_section_title"
+                    android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -271,7 +271,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="0dp"
                 app:cardUseCompatPadding="false">
 
@@ -412,8 +412,8 @@
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.02"
                     android:text="识别能力"
-                    android:textColor="#1A2744"
-                    android:textSize="@dimen/text_size_14"
+                    android:textColor="@color/settings_section_title"
+                    android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -422,7 +422,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="20dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="0dp"
                 app:cardUseCompatPadding="false">
 

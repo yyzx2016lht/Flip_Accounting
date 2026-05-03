@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#EEF1F5"
+    android:background="@color/page_background"
     android:orientation="vertical">
 
     <RelativeLayout
@@ -27,8 +27,8 @@
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:text="账单显示效果"
-            android:textColor="#1A2744"
-            android:textSize="18sp"
+            android:textColor="@color/settings_item_title"
+            android:textSize="@dimen/text_size_18"
             android:textStyle="bold" />
     </RelativeLayout>
 
@@ -58,7 +58,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="14dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="0dp"
                 app:cardUseCompatPadding="false">
 
@@ -129,7 +129,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="0dp"
                 app:cardUseCompatPadding="false">
 

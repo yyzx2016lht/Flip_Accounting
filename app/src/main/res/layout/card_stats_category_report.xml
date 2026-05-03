@@ -3,67 +3,79 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="12dp"
-    android:layout_marginTop="10dp"
-    app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="14dp"
+    android:layout_marginHorizontal="@dimen/stats_card_margin_h"
+    android:layout_marginTop="@dimen/stats_card_margin_top"
+    app:cardBackgroundColor="@color/stats_card_bg"
+    app:cardCornerRadius="@dimen/stats_card_radius"
     app:cardElevation="0dp"
-    app:strokeColor="#E5E7EB"
-    app:strokeWidth="1dp">
+    app:strokeColor="@color/stats_card_stroke"
+    app:strokeWidth="0.5dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="14dp">
+        android:padding="@dimen/stats_card_padding">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="占比分析"
-            android:textColor="#111827"
+            android:textColor="@color/stats_segmented_text_active"
             android:textSize="@dimen/text_size_16"
             android:textStyle="bold" />
 
+        <!-- Expense / Income segmented control -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginHorizontal="24dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_segmented_control"
+            android:layout_height="@dimen/stats_segmented_height"
+            android:layout_marginHorizontal="32dp"
+            android:layout_marginTop="@dimen/space_16"
+            android:background="@drawable/bg_stats_segmented_control"
             android:orientation="horizontal"
-            android:padding="2dp">
+            android:padding="3dp">
 
-            <TextView
+            <FrameLayout
                 android:id="@+id/btn_category_expense"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="@drawable/bg_segmented_tab_selected"
-                android:gravity="center"
-                android:text="支出"
-                android:textColor="#111827"
-                android:textSize="@dimen/text_size_13"
-                android:textStyle="bold" />
+                android:background="@drawable/bg_stats_segmented_selected"
+                android:elevation="1dp">
 
-            <TextView
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="支出"
+                    android:textColor="@color/stats_segmented_text_active"
+                    android:textSize="@dimen/text_size_13"
+                    android:textStyle="bold" />
+            </FrameLayout>
+
+            <FrameLayout
                 android:id="@+id/btn_category_income"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:gravity="center"
-                android:text="收入"
-                android:textColor="#6B7280"
-                android:textSize="@dimen/text_size_13"
-                android:textStyle="bold" />
+                android:background="@drawable/bg_stats_segmented_unselected">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="收入"
+                    android:textColor="@color/stats_segmented_text_inactive"
+                    android:textSize="@dimen/text_size_13"
+                    android:textStyle="bold" />
+            </FrameLayout>
         </LinearLayout>
 
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp">
+            android:layout_marginTop="@dimen/space_16">
 
             <com.github.mikephil.charting.charts.PieChart
                 android:id="@+id/pie_chart"
@@ -78,19 +90,19 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="📭"
-                    android:textSize="32sp" />
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_stats_empty"
+                    android:alpha="0.5" />
 
                 <TextView
                     android:id="@+id/tv_tab_empty_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="@dimen/space_8"
                     android:text="本期暂无支出数据"
-                    android:textColor="#9CA3AF"
+                    android:textColor="@color/stats_empty_text"
                     android:textSize="@dimen/text_size_13" />
             </LinearLayout>
         </FrameLayout>
@@ -100,30 +112,30 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="@dimen/space_8"
             android:background="@drawable/bg_tip_container"
-            android:paddingHorizontal="14dp"
+            android:paddingHorizontal="@dimen/space_12"
             android:paddingVertical="6dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="💡 点击分类可查看对应账单明细"
-                android:textColor="#64748B"
+                android:text="点击分类可查看对应账单明细"
+                android:textColor="@color/stats_daily_header_text"
                 android:textSize="@dimen/text_size_12" />
         </LinearLayout>
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="10dp"
-            android:background="#EEF2F7" />
+            android:layout_height="0.5dp"
+            android:layout_marginTop="@dimen/space_12"
+            android:background="@color/stats_card_stroke" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_category_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" />
+            android:layout_marginTop="@dimen/space_8" />
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

@@ -3,21 +3,21 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_stats_page_gradient">
+    android:background="@color/stats_empty_bg">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@color/surface_card"
         app:elevation="0dp">
 
         <LinearLayout
             android:id="@+id/stats_top_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#FFFFFF"
+            android:background="@color/surface_card"
             android:orientation="vertical"
-            android:paddingHorizontal="12dp">
+            android:paddingHorizontal="@dimen/stats_card_margin_h">
 
             <View
                 android:layout_width="match_parent"
@@ -29,15 +29,15 @@
 
                 <ImageView
                     android:id="@+id/btn_book_switch"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="切换账本"
                     android:padding="7dp"
                     android:src="@drawable/ic_switch_book"
-                    app:tint="#1F2937" />
+                    app:tint="@color/stats_segmented_text_active" />
 
                 <ImageView
                     android:id="@+id/btn_prev_date"
@@ -49,14 +49,14 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="9dp"
                     android:src="@drawable/ic_chevron_left"
-                    app:tint="#4B5563" />
+                    app:tint="@color/stats_segmented_text_inactive" />
 
                 <LinearLayout
                     android:id="@+id/layout_date_selector"
                     android:layout_width="wrap_content"
-                    android:layout_height="34dp"
+                    android:layout_height="40dp"
                     android:layout_centerInParent="true"
-                    android:background="@android:color/transparent"
+                    android:background="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:orientation="horizontal"
                     android:paddingHorizontal="12dp">
@@ -66,7 +66,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2026-03"
-                        android:textColor="#111827"
+                        android:textColor="@color/stats_segmented_text_active"
                         android:textSize="@dimen/text_size_15"
                         android:textStyle="bold" />
 
@@ -77,7 +77,7 @@
                         android:layout_marginStart="4dp"
                         android:src="@drawable/ic_chevron_down"
                         android:visibility="visible"
-                        app:tint="#000000" />
+                        app:tint="@color/stats_segmented_text_active" />
                 </LinearLayout>
 
                 <ImageView
@@ -90,34 +90,34 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="9dp"
                     android:src="@drawable/ic_chevron_right"
-                    app:tint="#4B5563" />
+                    app:tint="@color/stats_segmented_text_inactive" />
 
                 <ImageView
                     android:id="@+id/btn_filter"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="7dp"
                     android:src="@drawable/ic_shaixuan"
-                    app:tint="#1F2937" />
+                    app:tint="@color/stats_segmented_text_active" />
             </RelativeLayout>
 
         </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Month/Year tab + indicator -->
     <LinearLayout
         android:id="@+id/layout_mode_switcher"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:layout_marginTop="112dp"
-        android:layout_marginHorizontal="12dp"
-        android:background="#F5F7FA"
+        android:layout_marginHorizontal="@dimen/stats_card_margin_h"
+        android:background="@android:color/transparent"
         android:elevation="0dp"
-        android:translationZ="0dp"
         android:orientation="vertical"
         android:paddingHorizontal="0dp">
 
@@ -134,7 +134,7 @@
                 android:gravity="center"
                 android:paddingVertical="8dp"
                 android:text="月视图"
-                android:textColor="#111827"
+                android:textColor="@color/stats_segmented_text_active"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
 
@@ -146,7 +146,7 @@
                 android:gravity="center"
                 android:paddingVertical="8dp"
                 android:text="年视图"
-                android:textColor="#6B7280"
+                android:textColor="@color/stats_segmented_text_inactive"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -161,7 +161,7 @@
                 android:layout_width="0dp"
                 android:layout_height="2dp"
                 android:layout_weight="1"
-                android:background="#111827" />
+                android:background="@color/stats_segmented_text_active" />
 
             <View
                 android:layout_width="14dp"
@@ -182,14 +182,14 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:paddingTop="36dp"
-        android:paddingBottom="16dp"
+        android:paddingBottom="@dimen/space_16"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingTop="8dp">
+            android:paddingTop="@dimen/space_8">
 
             <include layout="@layout/card_stats_overview" />
 
@@ -197,17 +197,33 @@
                 android:id="@+id/empty_state_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="40dp"
+                android:layout_marginTop="48dp"
                 android:gravity="center"
                 android:orientation="vertical"
                 android:visibility="gone">
 
+                <ImageView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:src="@drawable/ic_stats_empty"
+                    android:alpha="0.6" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_12"
                     android:text="没有可统计的数据"
-                    android:textColor="#9CA3AF"
+                    android:textColor="@color/stats_empty_text"
                     android:textSize="@dimen/text_size_14" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_4"
+                    android:text="试试切换时间范围或账本"
+                    android:textColor="@color/stats_empty_text"
+                    android:textSize="@dimen/text_size_12"
+                    android:alpha="0.7" />
             </LinearLayout>
 
             <LinearLayout

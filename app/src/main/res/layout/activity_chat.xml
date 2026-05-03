@@ -10,7 +10,7 @@
         android:id="@+id/chat_root"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/bg_chat_page_soft">
+        android:background="@color/chat_page_bg">
 
         <ImageView
             android:id="@+id/iv_chat_bg"
@@ -26,12 +26,12 @@
         <LinearLayout
             android:id="@+id/toolbar_chat"
             android:layout_width="0dp"
-            android:layout_height="58dp"
-            android:background="#F7F7F7"
+            android:layout_height="56dp"
+            android:background="@color/chat_toolbar_bg"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="10dp"
-            android:elevation="4dp"
+            android:elevation="2dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -61,7 +61,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="10dp"
                 android:orientation="vertical"
                 android:clickable="true"
                 android:focusable="true">
@@ -71,7 +71,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="小计"
-                    android:textColor="#333333"
+                    android:textColor="@color/chat_bill_category_text"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -79,7 +79,7 @@
                     android:id="@+id/tv_ai_model"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="#555555"
+                    android:textColor="@color/chat_bill_detail_text"
                     android:textSize="11sp"
                     android:ellipsize="end"
                     android:maxLines="1" />
@@ -92,8 +92,8 @@
                 android:text="切换"
                 android:textColor="#3390EC"
                 android:textSize="13sp"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp"
                 android:background="@drawable/bg_search_box"
                 android:layout_marginEnd="4dp"
                 android:clickable="true"
@@ -131,9 +131,9 @@
             android:background="@drawable/bg_chat_voice_record_overlay"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="12dp"
+            android:paddingStart="14dp"
             android:paddingTop="10dp"
-            android:paddingEnd="12dp"
+            android:paddingEnd="14dp"
             android:paddingBottom="10dp"
             android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/layout_chat_bottom"
@@ -151,7 +151,7 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="10dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -192,16 +192,16 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#F3F6FB"
-            android:elevation="3dp"
+            android:background="@color/chat_input_bar_bg"
+            android:elevation="2dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
             <View
                 android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#D5DDE8" />
+                android:layout_height="0.5dp"
+                android:background="@color/chat_divider" />
 
             <LinearLayout
                 android:id="@+id/layout_voice_selection_bar"
@@ -222,7 +222,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="已选择 0 条语音"
-                    android:textColor="#2A3A53"
+                    android:textColor="@color/chat_bill_category_text"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -233,7 +233,7 @@
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="6dp"
                     android:text="取消"
-                    android:textColor="#72819A"
+                    android:textColor="@color/chat_bill_detail_text"
                     android:textSize="13sp" />
 
                 <TextView
@@ -245,7 +245,7 @@
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="8dp"
                     android:text="删除"
-                    android:textColor="#B3261E"
+                    android:textColor="@color/chat_bill_action_danger_text"
                     android:textSize="13sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -269,7 +269,7 @@
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="8dp"
                     android:text="当前模型不支持直接语音识别，已改为先转文本再发送，可能存在一点误差。"
-                    android:textColor="#7E8CA3"
+                    android:textColor="@color/chat_bill_detail_text"
                     android:textSize="12sp"
                     android:visibility="gone" />
 
@@ -302,10 +302,10 @@
                         android:background="@drawable/bg_chat_input"
                         android:hint="说点什么，我来帮你记账"
                         android:textSize="15sp"
-                        android:textColor="#233248"
-                        android:textColorHint="#8CA0BE"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="8dp"
+                        android:textColor="@color/chat_bill_category_text"
+                        android:textColorHint="@color/chat_input_hint"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="10dp"
                         android:minLines="1"
                         android:maxLines="5"
                         android:inputType="textMultiLine|textCapSentences"

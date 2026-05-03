@@ -1,5 +1,7 @@
 package tao.test.flipaccounting
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
@@ -14,8 +16,9 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
+import android.view.ViewPropertyAnimator
 import android.view.animation.LinearInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
@@ -35,10 +38,31 @@ import java.util.Date
 import java.util.Locale
 
 class OverlayManager(private val ctx: Context) {
+    companion object {
+        private const val OVERLAY_FINAL_Y = 150
+        private const val OVERLAY_ENTER_DURATION_MS = 285L
+        private const val OVERLAY_EXIT_DURATION_MS = 190L
+        private const val OVERLAY_VISIBILITY_DURATION_MS = 170L
+        private const val OVERLAY_ENTER_TRANSLATION_DP = 46f
+        private const val OVERLAY_EXIT_TRANSLATION_DP = 30f
+        private const val OVERLAY_RESTORE_TRANSLATION_DP = 14f
+        private const val OVERLAY_ENTER_SCALE = 0.955f
+        private const val OVERLAY_EXIT_SCALE = 0.965f
+        private const val OVERLAY_HIDDEN_SCALE = 0.985f
+        private const val CAPTURE_CARD_ENTER_DURATION_MS = 260L
+        private const val CAPTURE_CARD_EXIT_DURATION_MS = 150L
+    }
+
+    private val overlayEnterInterpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
+    private val overlayExitInterpolator = PathInterpolator(0.4f, 0f, 1f, 1f)
+    private val overlaySoftInterpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
 
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var overlayParams: WindowManager.LayoutParams? = null
+    private var isRemovingOverlay = false
+    private var currentAnimator: Animator? = null
+    private var currentViewAnimator: ViewPropertyAnimator? = null
 
     private var captureLoadingView: View? = null
     private var captureLoadingParams: WindowManager.LayoutParams? = null
@@ -98,7 +122,7 @@ class OverlayManager(private val ctx: Context) {
     }
 
     fun showOverlay(prefill: JSONObject? = null, showSaveOnly: Boolean = false) {
-        if (overlayView != null) return
+        if (overlayView != null || isRemovingOverlay) return
         Logger.d(ctx, "OverlayManager", "Showing Overlay")
 
         val themeContext = android.view.ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting)
@@ -135,12 +159,25 @@ class OverlayManager(private val ctx: Context) {
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             format = PixelFormat.TRANSLUCENT
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = 150
+            y = OVERLAY_FINAL_Y
             windowAnimations = 0
         }
 
         setupLogic(overlayView!!, prefill, showSaveOnly)
-        windowManager?.addView(overlayView, overlayParams)
+
+        val view = overlayView!!
+        val enterOffsetPx = OVERLAY_ENTER_TRANSLATION_DP * ctx.resources.displayMetrics.density
+
+        // addView 前设置初始态，避免首帧闪烁
+        overlayParams!!.y = OVERLAY_FINAL_Y
+        view.translationY = enterOffsetPx
+        view.alpha = 0f
+        view.scaleX = OVERLAY_ENTER_SCALE
+        view.scaleY = OVERLAY_ENTER_SCALE
+
+        windowManager?.addView(view, overlayParams)
+
+        startOverlayEnterAnimation(view)
 
         overlayView?.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_OUTSIDE) {
@@ -228,6 +265,7 @@ class OverlayManager(private val ctx: Context) {
         formController!!.layoutAiTextEntry.setOnClickListener {
             aiAssistant.showInputPanel(
                 isMultiMode = true,
+                hideStreamText = true,
                 onResult = handleAiResult
             )
         }
@@ -269,8 +307,7 @@ class OverlayManager(private val ctx: Context) {
         showScreenCaptureLoadingOverlay("正在准备截图识别...")
         updateScreenCaptureLoadingHint("正在检测模型能力")
 
-        // 截屏前直接隐藏悬浮窗，不做动画
-        overlayView?.visibility = View.INVISIBLE
+        setOverlayVisible(false)
 
         screenCaptureJob?.cancel()
         screenCaptureJob = CoroutineScope(Dispatchers.IO).launch {
@@ -431,15 +468,60 @@ class OverlayManager(private val ctx: Context) {
     private fun setOverlayVisible(visible: Boolean) {
         Logger.d(ctx, "OverlayManager", "setOverlayVisible($visible)")
         val view = overlayView ?: return
-        view.animate().cancel()
+        cancelOverlayAnimations(view)
         if (visible) {
-            view.alpha = 1f
-            view.scaleX = 1f
-            view.scaleY = 1f
-            view.translationY = 0f
+            overlayParams?.y = OVERLAY_FINAL_Y
+            runCatching { overlayParams?.let { windowManager?.updateViewLayout(view, it) } }
             view.visibility = View.VISIBLE
+            if (view.alpha >= 0.98f && view.scaleX >= 0.995f) {
+                view.alpha = 1f
+                view.translationY = 0f
+                view.scaleX = 1f
+                view.scaleY = 1f
+                return
+            }
+            val restoreOffset = OVERLAY_RESTORE_TRANSLATION_DP * ctx.resources.displayMetrics.density
+            view.alpha = 0f
+            view.translationY = restoreOffset
+            view.scaleX = OVERLAY_HIDDEN_SCALE
+            view.scaleY = OVERLAY_HIDDEN_SCALE
+            currentViewAnimator = view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(OVERLAY_VISIBILITY_DURATION_MS)
+                .setInterpolator(overlaySoftInterpolator)
+                .withLayer()
+                .setListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        currentViewAnimator = null
+                        currentAnimator = null
+                    }
+                })
+            currentViewAnimator?.start()
         } else {
-            view.visibility = View.INVISIBLE
+            currentViewAnimator = view.animate()
+                .alpha(0f)
+                .translationY(OVERLAY_RESTORE_TRANSLATION_DP * ctx.resources.displayMetrics.density)
+                .scaleX(OVERLAY_HIDDEN_SCALE)
+                .scaleY(OVERLAY_HIDDEN_SCALE)
+                .setDuration(OVERLAY_VISIBILITY_DURATION_MS)
+                .setInterpolator(overlayExitInterpolator)
+                .withLayer()
+                .setListener(object : AnimatorListenerAdapter() {
+                    private var cancelled = false
+                    override fun onAnimationCancel(animation: Animator) {
+                        cancelled = true
+                    }
+
+                    override fun onAnimationEnd(animation: Animator) {
+                        currentViewAnimator = null
+                        currentAnimator = null
+                        if (!cancelled) view.visibility = View.INVISIBLE
+                    }
+                })
+            currentViewAnimator?.start()
         }
     }
 
@@ -529,7 +611,23 @@ class OverlayManager(private val ctx: Context) {
         val wm = windowManager ?: ctx.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
         captureLoadingView = null
         captureLoadingParams = null
-        runCatching { wm?.removeView(view) }
+        val captureCard = view.findViewById<View>(R.id.layout_capture_card)
+        view.animate().cancel()
+        captureCard?.animate()?.cancel()
+        view.animate()
+            .alpha(0f)
+            .setDuration(CAPTURE_CARD_EXIT_DURATION_MS)
+            .setInterpolator(overlayExitInterpolator)
+            .withLayer()
+            .withEndAction { runCatching { wm?.removeView(view) } }
+            .start()
+        captureCard?.animate()
+            ?.scaleX(0.985f)
+            ?.scaleY(0.985f)
+            ?.translationY(8f * ctx.resources.displayMetrics.density)
+            ?.setDuration(CAPTURE_CARD_EXIT_DURATION_MS)
+            ?.setInterpolator(overlayExitInterpolator)
+            ?.start()
     }
 
     private fun startCaptureLoadingAnimation(root: View) {
@@ -537,14 +635,24 @@ class OverlayManager(private val ctx: Context) {
         val captureCard = root.findViewById<View>(R.id.layout_capture_card) ?: return
         val scanLine   = root.findViewById<View>(R.id.view_scan_line) ?: return
 
-        // 卡片入场：scale 0.85→1.0 + alpha 0→1，220ms
-        val scaleX = ObjectAnimator.ofFloat(captureCard, "scaleX", 0.85f, 1f)
-        val scaleY = ObjectAnimator.ofFloat(captureCard, "scaleY", 0.85f, 1f)
+        root.alpha = 0f
+        root.animate()
+            .alpha(1f)
+            .setDuration(180L)
+            .setInterpolator(overlaySoftInterpolator)
+            .withLayer()
+            .start()
+
+        captureCard.translationY = 18f * ctx.resources.displayMetrics.density
+
+        val scaleX = ObjectAnimator.ofFloat(captureCard, "scaleX", 0.94f, 1f)
+        val scaleY = ObjectAnimator.ofFloat(captureCard, "scaleY", 0.94f, 1f)
         val alpha  = ObjectAnimator.ofFloat(captureCard, "alpha", 0f, 1f)
+        val translationY = ObjectAnimator.ofFloat(captureCard, "translationY", captureCard.translationY, 0f)
         captureCardEnterAnimator = AnimatorSet().apply {
-            playTogether(scaleX, scaleY, alpha)
-            duration = 220L
-            interpolator = DecelerateInterpolator()
+            playTogether(scaleX, scaleY, alpha, translationY)
+            duration = CAPTURE_CARD_ENTER_DURATION_MS
+            interpolator = overlaySoftInterpolator
             start()
         }
 
@@ -554,7 +662,12 @@ class OverlayManager(private val ctx: Context) {
             duration = 2200L
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
-            addUpdateListener { scanLine.translationY = it.animatedValue as Float }
+            addUpdateListener {
+                val progress = it.animatedFraction
+                scanLine.translationY = it.animatedValue as Float
+                scanLine.alpha = (0.25f + 0.75f * kotlin.math.sin(progress * Math.PI).toFloat())
+                    .coerceIn(0.25f, 1f)
+            }
             start()
         }
     }
@@ -683,14 +796,88 @@ class OverlayManager(private val ctx: Context) {
         voiceHandler?.release()
         voiceHandler = null
 
-        if (overlayView != null) {
-            Logger.d(ctx, "OverlayManager", "Removing Overlay")
-            runCatching { windowManager?.removeView(overlayView) }
-            overlayView = null
+        if (overlayView == null || isRemovingOverlay) {
+            formController = null
+            overlayParams = null
+            return
         }
-        formController = null
-        overlayParams = null
 
+        isRemovingOverlay = true
+        Logger.d(ctx, "OverlayManager", "Removing Overlay with animation")
+
+        // 立即锁定表单，阻止用户继续交互
+        formController = null
+        val view = overlayView!!
+        cancelOverlayAnimations(view)
+
+        val exitOffset = OVERLAY_EXIT_TRANSLATION_DP * ctx.resources.displayMetrics.density
+        // 退场改为“下滑 + 淡出 + 轻缩放”，可感知更强，同时保持稳定
+        currentViewAnimator = view.animate()
+            .alpha(0f)
+            .translationY(exitOffset)
+            .scaleX(0.97f)
+            .scaleY(0.97f)
+            .setDuration(OVERLAY_EXIT_DURATION_MS)
+            .setInterpolator(overlayExitInterpolator)
+            .withLayer()
+            .setListener(object : AnimatorListenerAdapter() {
+                private var cancelled = false
+                override fun onAnimationCancel(animation: Animator) {
+                    cancelled = true
+                }
+                override fun onAnimationEnd(animation: Animator) {
+                    currentViewAnimator = null
+                    currentAnimator = null
+                    if (cancelled) {
+                        isRemovingOverlay = false
+                        return
+                    }
+                    view.visibility = View.INVISIBLE
+                    runCatching { windowManager?.removeView(view) }
+                    overlayView = null
+                    overlayParams = null
+                    isRemovingOverlay = false
+                    handlePostRemove(isSaved)
+                }
+            })
+        currentViewAnimator?.start()
+    }
+
+    private fun startOverlayEnterAnimation(view: View) {
+        cancelOverlayAnimations(view)
+        currentViewAnimator = view.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(OVERLAY_ENTER_DURATION_MS)
+            .setInterpolator(overlayEnterInterpolator)
+            .setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationStart(animation: Animator) {
+                    view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    view.setLayerType(View.LAYER_TYPE_NONE, null)
+                    currentViewAnimator = null
+                    currentAnimator = null
+                }
+            })
+        currentViewAnimator?.start()
+    }
+
+    private fun cancelOverlayAnimations(view: View) {
+        currentAnimator?.cancel()
+        currentAnimator = null
+        currentViewAnimator?.setListener(null)
+        currentViewAnimator?.cancel()
+        currentViewAnimator = null
+        view.animate().setListener(null)
+        view.animate().cancel()
+        view.setLayerType(View.LAYER_TYPE_NONE, null)
+    }
+
+    private fun handlePostRemove(isSaved: Boolean) {
         if (!isSaved) {
             if (pendingBills.isNotEmpty()) {
                 pendingBills.clear()
@@ -698,7 +885,6 @@ class OverlayManager(private val ctx: Context) {
             }
             return
         }
-
         if (pendingBills.isNotEmpty()) {
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 processNextPendingBill()

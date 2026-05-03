@@ -3,13 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="0dp"
     android:background="@android:color/transparent"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
     android:orientation="vertical"
-    android:paddingHorizontal="0dp"
     android:paddingTop="10dp"
     android:paddingBottom="0dp">
 
@@ -21,94 +19,100 @@
 
         <ImageView
             android:id="@+id/iv_category_icon"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="@dimen/stats_category_icon_size"
+            android:layout_height="@dimen/stats_category_icon_size"
             android:background="@drawable/bg_circle_soft"
-            android:padding="6dp"
+            android:padding="@dimen/stats_category_icon_padding"
             android:src="@drawable/ic_placeholder" />
 
-        <TextView
-            android:id="@+id/tv_category_name"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="10dp"
             android:layout_weight="1"
-            android:text="分类"
-            android:textColor="#111827"
-            android:textSize="@dimen/text_size_13"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tv_category_percent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0.00%"
-            android:textColor="#6B7280"
-            android:textSize="@dimen/text_size_11" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/tv_category_amount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="¥0.00"
-            android:textColor="#1F2937"
-            android:textSize="@dimen/text_size_14"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:id="@+id/ll_comparison"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_stats_comparison_down"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="7dp"
-            android:paddingVertical="3dp">
-
-            <ImageView
-                android:id="@+id/iv_comparison_arrow"
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:src="@drawable/ic_trend_down"
-                app:tint="#059669" />
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/tv_comparison_amount"
+                android:id="@+id/tv_category_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:text="¥0.00"
-                android:textColor="#059669"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="分类"
+                android:textColor="@color/stats_segmented_text_active"
+                android:textSize="@dimen/text_size_13"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_category_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="0.00%"
+                android:textColor="@color/stats_header_label"
                 android:textSize="@dimen/text_size_11" />
         </LinearLayout>
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_category_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="¥0.00"
+                android:textColor="@color/stats_segmented_text_active"
+                android:textSize="@dimen/text_size_14"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/ll_comparison"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:background="@drawable/bg_stats_comparison_down"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp">
+
+                <ImageView
+                    android:id="@+id/iv_comparison_arrow"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:src="@drawable/ic_trend_down"
+                    app:tint="@color/income_color" />
+
+                <TextView
+                    android:id="@+id/tv_comparison_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:text="¥0.00"
+                    android:textColor="@color/income_color"
+                    android:textSize="@dimen/text_size_11" />
+            </LinearLayout>
+        </LinearLayout>
 
         <ImageView
             android:layout_width="14dp"
             android:layout_height="14dp"
+            android:layout_marginStart="8dp"
             android:src="@drawable/ic_chevron_right"
-            app:tint="#9CA3AF" />
+            app:tint="@color/stats_header_label" />
     </LinearLayout>
 
     <ProgressBar
         android:id="@+id/pb_category_percent"
         style="@android:style/Widget.ProgressBar.Horizontal"
         android:layout_width="match_parent"
-        android:layout_height="5dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="4dp"
+        android:layout_marginTop="@dimen/space_8"
+        android:layout_marginStart="40dp"
         android:max="100"
         android:progress="0"
         android:progressDrawable="@drawable/bg_stats_progress" />
@@ -116,8 +120,9 @@
     <View
         android:id="@+id/view_item_divider"
         android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="10dp"
-        android:background="#EEF2F7" />
+        android:layout_height="0.5dp"
+        android:layout_marginTop="@dimen/space_8"
+        android:layout_marginStart="40dp"
+        android:background="@color/stats_card_stroke" />
 
 </LinearLayout>

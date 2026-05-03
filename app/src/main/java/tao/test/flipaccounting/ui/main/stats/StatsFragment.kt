@@ -50,6 +50,9 @@ import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.ui.common.UiMotion
+import tao.test.flipaccounting.ui.common.UiMotion.crossfadeText
+import tao.test.flipaccounting.ui.common.UiMotion.fadeIn
 import tao.test.flipaccounting.ui.dialog.ElegantDatePickerSheet
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
@@ -99,8 +102,8 @@ class StatsFragment : Fragment() {
     private lateinit var tvDailyAvgLabel: TextView
     private lateinit var btnModeMonth: TextView
     private lateinit var btnModeYear: TextView
-    private lateinit var btnCategoryExpense: TextView
-    private lateinit var btnCategoryIncome: TextView
+    private lateinit var btnCategoryExpense: View
+    private lateinit var btnCategoryIncome: View
     private lateinit var indicatorModeMonth: View
     private lateinit var indicatorModeYear: View
 
@@ -122,6 +125,7 @@ class StatsFragment : Fragment() {
 
     private var isOverviewExpanded = false
     private var lastModeIsMonth: Boolean? = null
+    private var lastDateLabel: String? = null
     private var lastHostSyncSignature: String? = null
     private var lastScreenRenderKey: Long? = null
     private var lastCategoryListRenderKey: Long? = null
@@ -417,10 +421,48 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateCategoryTabStyles(isExpenseTab: Boolean) {
-        btnCategoryExpense.setTextColor(Color.parseColor(if (isExpenseTab) "#111827" else "#6B7280"))
-        btnCategoryIncome.setTextColor(Color.parseColor(if (isExpenseTab) "#6B7280" else "#111827"))
-        btnCategoryExpense.setBackgroundResource(if (isExpenseTab) R.drawable.bg_segmented_tab_selected else android.R.color.transparent)
-        btnCategoryIncome.setBackgroundResource(if (isExpenseTab) android.R.color.transparent else R.drawable.bg_segmented_tab_selected)
+        val expTv = btnCategoryExpense.findViewByType(TextView::class.java)
+        val incTv = btnCategoryIncome.findViewByType(TextView::class.java)
+        expTv?.setTextColor(Color.parseColor(if (isExpenseTab) "#111827" else "#6B7280"))
+        incTv?.setTextColor(Color.parseColor(if (isExpenseTab) "#6B7280" else "#111827"))
+        btnCategoryExpense.setBackgroundResource(if (isExpenseTab) R.drawable.bg_stats_segmented_selected else R.drawable.bg_stats_segmented_unselected)
+        btnCategoryIncome.setBackgroundResource(if (isExpenseTab) R.drawable.bg_stats_segmented_unselected else R.drawable.bg_stats_segmented_selected)
+        btnCategoryExpense.elevation = if (isExpenseTab) 2f else 0f
+        btnCategoryIncome.elevation = if (isExpenseTab) 0f else 2f
+    }
+
+    private fun <T : View> View.findViewByType(clazz: Class<T>): T? {
+        if (clazz.isInstance(this)) return this as T
+        if (this is ViewGroup) {
+            for (i in 0 until childCount) {
+                val child = getChildAt(i).findViewByType(clazz)
+                if (child != null) return child
+            }
+        }
+        return null
+    }
+
+    private fun animateContentTransition() {
+        val container = statsContentContainer ?: return
+        container.animate().cancel()
+        container.alpha = 0.6f
+        container.translationY = 12f
+        container.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(UiMotion.NORMAL)
+            .setInterpolator(UiMotion.STANDARD_EASING)
+            .start()
+        val overview = view?.findViewById<View>(R.id.tv_balance)?.parent as? View
+        overview?.let {
+            it.animate().cancel()
+            it.alpha = 0.7f
+            it.animate()
+                .alpha(1f)
+                .setDuration(UiMotion.FAST)
+                .setInterpolator(UiMotion.STANDARD_EASING)
+                .start()
+        }
     }
 
     private fun updateOverviewExpandState() {
@@ -477,8 +519,13 @@ class StatsFragment : Fragment() {
         btnNextDate.contentDescription = if (state.isMonthMode) "下个月" else "下一年"
         updateModeTabStyles(state.isMonthMode)
         updateCategoryTabStyles(isCategoryExpense)
-        if (modeChanged) playModeSwitchAnimation(state)
+        if (modeChanged) {
+            playModeSwitchAnimation(state)
+        } else if (lastDateLabel != null && lastDateLabel != tvDateSelector.text.toString()) {
+            animateContentTransition()
+        }
         lastModeIsMonth = state.isMonthMode
+        lastDateLabel = tvDateSelector.text.toString()
 
         val hasAnyCategoryData = state.categoryStatsExpense.isNotEmpty() || state.categoryStatsIncome.isNotEmpty()
         
@@ -550,7 +597,6 @@ class StatsFragment : Fragment() {
     }
 
     private fun playModeSwitchAnimation(state: StatsUiState) {
-        // Large datasets prioritize responsiveness over transition effects.
         if (state.bills.size >= CHART_ANIMATE_MAX_BILLS) return
         val now = SystemClock.elapsedRealtime()
         if (now - lastModeSwitchAnimAt < MODE_SWITCH_ANIM_MIN_INTERVAL_MS) return
@@ -559,8 +605,10 @@ class StatsFragment : Fragment() {
         tvDateSelector.alpha = 0.86f
         tvDateSelector.animate()
             .alpha(1f)
-            .setDuration(90L)
+            .setDuration(UiMotion.FAST)
+            .setInterpolator(UiMotion.STANDARD_EASING)
             .start()
+        animateContentTransition()
     }
 
     private fun setupPieChart() {

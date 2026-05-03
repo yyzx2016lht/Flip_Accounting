@@ -2,11 +2,13 @@ package tao.test.flipaccounting.ui
 
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -53,6 +55,12 @@ class SensitivityActivity : AppCompatActivity() {
     private lateinit var switchTapTriple: SwitchMaterial
     private lateinit var btnTapActionTriple: View
 
+    private lateinit var switchFlipEnable: SwitchMaterial
+    private lateinit var switchTapEnable: SwitchMaterial
+    private lateinit var switchLandscapeDisable: SwitchMaterial
+    private lateinit var switchVibrationFeedback: SwitchMaterial
+    private lateinit var switchSaveVibrate: SwitchMaterial
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sensitivity)
@@ -68,14 +76,93 @@ class SensitivityActivity : AppCompatActivity() {
         cardTapSensitivity = findViewById(R.id.card_tap_sensitivity)
         cardTapOptions = findViewById(R.id.card_tap_options)
 
-        val tapEnabled = Prefs.isDoubleTapEnabled(this)
-        cardFlipSensitivity.visibility = if (Prefs.isFlipEnabled(this)) View.VISIBLE else View.GONE
-        cardTapSensitivity.visibility = if (tapEnabled) View.VISIBLE else View.GONE
-        cardTapOptions.visibility = if (tapEnabled) View.VISIBLE else View.GONE
-
+        initGestureSwitches()
         initFlipViews()
         initTapViews()
         initTapOptions()
+
+        // 让包含开关的整行都可点击
+        makeSwitchRowsClickable()
+    }
+
+    private fun initGestureSwitches() {
+        switchFlipEnable = findViewById(R.id.switch_flip_enable)
+        switchTapEnable = findViewById(R.id.switch_tap_enable)
+        switchLandscapeDisable = findViewById(R.id.switch_landscape_disable)
+        switchVibrationFeedback = findViewById(R.id.switch_vibration_feedback)
+        switchSaveVibrate = findViewById(R.id.switch_save_vibrate)
+
+        switchFlipEnable.isChecked = Prefs.isFlipEnabled(this)
+        cardFlipSensitivity.visibility = if (switchFlipEnable.isChecked) View.VISIBLE else View.GONE
+        switchFlipEnable.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setFlipEnabled(this, isChecked)
+            cardFlipSensitivity.visibility = if (isChecked) View.VISIBLE else View.GONE
+            val intent = Intent(this, OverlayService::class.java).apply {
+                action = if (isChecked) OverlayService.ACTION_START_FLIP else OverlayService.ACTION_STOP_FLIP
+            }
+            startServiceCompat(intent)
+        }
+
+        switchTapEnable.isChecked = Prefs.isDoubleTapEnabled(this)
+        cardTapSensitivity.visibility = if (switchTapEnable.isChecked) View.VISIBLE else View.GONE
+        cardTapOptions.visibility = cardTapSensitivity.visibility
+        switchTapEnable.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setDoubleTapEnabled(this, isChecked)
+            cardTapSensitivity.visibility = if (isChecked) View.VISIBLE else View.GONE
+            cardTapOptions.visibility = cardTapSensitivity.visibility
+            val intent = Intent(this, OverlayService::class.java).apply {
+                action = if (isChecked) OverlayService.ACTION_START_DOUBLE_TAP else OverlayService.ACTION_STOP_DOUBLE_TAP
+            }
+            startServiceCompat(intent)
+            if (isChecked) {
+                if (Prefs.getTapModel(this).isEmpty()) {
+                    val recommended = TapModel.recommend(this)
+                    Prefs.setTapModel(this, recommended.path)
+                }
+            }
+        }
+
+        switchLandscapeDisable.isChecked = Prefs.isFlipDisableLandscape(this)
+        switchLandscapeDisable.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setFlipDisableLandscape(this, isChecked)
+        }
+
+        switchVibrationFeedback.isChecked = Prefs.isVibrateFeedbackEnabled(this)
+        switchVibrationFeedback.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setVibrateFeedbackEnabled(this, isChecked)
+        }
+
+        switchSaveVibrate.isChecked = Prefs.isSaveVibrateEnabled(this)
+        switchSaveVibrate.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setSaveVibrateEnabled(this, isChecked)
+        }
+    }
+
+    private fun makeSwitchRowsClickable() {
+        val toggleIds = intArrayOf(
+            R.id.switch_flip_enable,
+            R.id.switch_tap_enable,
+            R.id.switch_landscape_disable,
+            R.id.switch_vibration_feedback,
+            R.id.switch_save_vibrate
+        )
+        for (tid in toggleIds) {
+            val sw = findViewById<CompoundButton>(tid) ?: continue
+            val parent = sw.parent as? View
+            if (parent != null) {
+                parent.isClickable = true
+                parent.isFocusable = true
+                parent.setOnClickListener { sw.performClick() }
+            }
+        }
+    }
+
+    private fun startServiceCompat(intent: Intent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
     }
 
     private fun initFlipViews() {

@@ -280,8 +280,10 @@ class OverlayService : Service() {
             isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
             keepAliveManager.attach()
 
-            if (isFlipEnabled) startFlipDetection()
-            if (isDoubleTapEnabled) startTapDetection()
+            if (Prefs.isQuickGestureEnabled(this)) {
+                if (isFlipEnabled) startFlipDetection()
+                if (isDoubleTapEnabled) startTapDetection()
+            }
 
             keepAliveManager.syncWatchdogState()
             Logger.d(this, "OverlayService", "Service onCreate completed.")
@@ -324,6 +326,7 @@ class OverlayService : Service() {
         when (action) {
             null -> {
                 // START_STICKY 重建，从 Prefs 恢复状态
+                if (!Prefs.isQuickGestureEnabled(this)) return START_STICKY
                 isFlipEnabled = Prefs.isFlipEnabled(this)
                 isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
                 if (isFlipEnabled) startFlipDetection()
@@ -378,13 +381,13 @@ class OverlayService : Service() {
         stopTapDetection()
         overlayManager.removeOverlay()
         // START_STICKY 会自动重建，setExact 作为额外保险（部分 ROM 不遵循 START_STICKY）
-        if (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
+        if (Prefs.isQuickGestureEnabled(this) && (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this))) scheduleRestart(RESTART_DELAY_MS)
         super.onDestroy()
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Logger.d(this, "OverlayService", "onTaskRemoved")
-        if (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
+        if (Prefs.isQuickGestureEnabled(this) && (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this))) scheduleRestart(RESTART_DELAY_MS)
         super.onTaskRemoved(rootIntent)
     }
 

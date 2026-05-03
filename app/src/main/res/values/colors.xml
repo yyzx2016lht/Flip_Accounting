@@ -1,8 +1,151 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Legacy (kept for backward compatibility) -->
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
     <color name="colorBackground">#FFFFFF</color>
     <color name="colorOnBackground">#212121</color>
+
+    <!-- ==================== Semantic Colors ==================== -->
+
+    <!-- Surfaces -->
+    <color name="page_background">#F5F5F5</color>
+    <color name="surface_card">#FFFFFF</color>
+    <color name="surface_elevated">#FFFFFF</color>
+
+    <!-- Text hierarchy -->
+    <color name="text_primary">#DE000000</color>
+    <color name="text_secondary">#8A000000</color>
+    <color name="text_tertiary">#61000000</color>
+
+    <!-- Dividers & outlines -->
+    <color name="divider_soft">#1F000000</color>
+
+    <!-- Brand palette (aligned with existing indigo primary) -->
+    <color name="brand_primary">#5C6BC0</color>
+    <color name="brand_primary_dark">#3F51B5</color>
+    <color name="brand_secondary">#FF4081</color>
+
+    <!-- Domain: accounting -->
+    <color name="expense_color">#E53935</color>
+    <color name="income_color">#43A047</color>
+
+    <!-- Semantic: feedback -->
+    <color name="warning_color">#FB8C00</color>
+    <color name="success_color">#43A047</color>
+    <color name="danger_color">#E53935</color>
+
+    <!-- AI accent -->
+    <color name="ai_accent">#7C4DFF</color>
+
+    <!-- Form: accounting overlay -->
+    <color name="form_row_press">#0A000000</color>
+    <color name="form_row_divider">#1F000000</color>
+    <color name="form_tag_bg">#F5F8FE</color>
+    <color name="form_tag_stroke">#DEE7F3</color>
+    <color name="keypad_panel_bg">#FFFFFF</color>
+    <color name="key_confirm_ripple">#40FFFFFF</color>
+    <color name="key_operator_bg">#EFF6FF</color>
+    <color name="key_operator_stroke">#BFDBFE</color>
+    <color name="key_delete_bg">#FEF2F2</color>
+    <color name="key_delete_stroke">#FECACA</color>
+
+    <!-- Navigation -->
+    <color name="nav_item_selected">@color/brand_primary</color>
+    <color name="nav_item_unselected">@color/text_tertiary</color>
+
+    <!-- ==================== Chat Page ==================== -->
+    <color name="chat_page_bg">#E9EFF5</color>
+    <color name="chat_toolbar_bg">#F7F7F7</color>
+    <color name="chat_input_bar_bg">#F3F6FB</color>
+    <color name="chat_input_field_bg">#FFFFFF</color>
+    <color name="chat_input_field_stroke">#CBD5E1</color>
+    <color name="chat_input_hint">#8CA0BE</color>
+    <color name="chat_ai_bubble_bg">#FFFFFF</color>
+    <color name="chat_ai_bubble_stroke">#E1E8F0</color>
+    <color name="chat_ai_bubble_text">#2A364A</color>
+    <color name="chat_user_bubble">#3390EC</color>
+    <color name="chat_user_bubble_text">#FFFFFF</color>
+    <color name="chat_time_chip_text">#6F8099</color>
+    <color name="chat_loading_text">#999999</color>
+    <color name="chat_loading_progress">#AAAAAA</color>
+    <color name="chat_interrupt_bg">#F4F6F8</color>
+    <color name="chat_interrupt_stroke">#D8DEE6</color>
+    <color name="chat_send_btn">#3A9BF2</color>
+    <color name="chat_send_btn_pressed">#2C86E3</color>
+    <color name="chat_send_btn_stroke">#2489DF</color>
+    <color name="chat_icon_btn_bg">#EEF3FA</color>
+    <color name="chat_icon_btn_stroke">#D4DEEB</color>
+    <color name="chat_icon_btn_pressed_bg">#E8EEF7</color>
+    <color name="chat_icon_btn_pressed_stroke">#C9D3E2</color>
+    <color name="chat_bill_card_bg">#FFFFFF</color>
+    <color name="chat_bill_card_stroke">#E8EDF5</color>
+    <color name="chat_bill_category_text">#25344C</color>
+    <color name="chat_bill_detail_text">#7A8598</color>
+    <color name="chat_bill_time_text">#8C97AA</color>
+    <color name="chat_bill_action_primary_bg">#F2F7FF</color>
+    <color name="chat_bill_action_primary_stroke">#B7CEF3</color>
+    <color name="chat_bill_action_primary_pressed">#E7F0FF</color>
+    <color name="chat_bill_action_primary_text">#1F5FC8</color>
+    <color name="chat_bill_action_danger_bg">#FFF7F8</color>
+    <color name="chat_bill_action_danger_stroke">#F0C6CB</color>
+    <color name="chat_bill_action_danger_pressed">#FFF0F2</color>
+    <color name="chat_bill_action_danger_text">#C13E4A</color>
+    <color name="chat_bill_hint_bg">#F5F8FE</color>
+    <color name="chat_bill_hint_text">#223248</color>
+    <color name="chat_voice_overlay_bg">#E6262D38</color>
+    <color name="chat_voice_overlay_stroke">#3DFFFFFF</color>
+    <color name="chat_divider">#D5DDE8</color>
+
+    <!-- ==================== Home Page ==================== -->
+    <color name="home_empty_subtitle">#9CA8BA</color>
+    <color name="home_empty_title">#5C6B82</color>
+    <color name="home_sticky_topbar_bg">#CCFFFFFF</color>
+    <color name="home_header_label">#D7E3FF</color>
+    <color name="home_header_value">#F0F4FF</color>
+    <color name="home_item_press_bg">#0A000000</color>
+    <color name="home_date_header_text">#3D4F6F</color>
+    <color name="home_date_summary_text">#6D7B92</color>
+
+    <!-- ==================== Assets Page ==================== -->
+    <color name="asset_page_bg">#F7F8FA</color>
+    <color name="asset_overview_label">#8A94A6</color>
+    <color name="asset_overview_amount">#1A2744</color>
+    <color name="asset_summary_label">#8E98A6</color>
+    <color name="asset_summary_amount">#2B2F36</color>
+    <color name="asset_category_header_total">#333333</color>
+    <color name="asset_divider">#EEF1F5</color>
+    <color name="asset_excluded_text">#8A94A6</color>
+    <color name="asset_rate_status_text">#9E9E9E</color>
+    <color name="asset_fab_tint">#2196F3</color>
+    <color name="asset_empty_icon_tint">#D0D5DD</color>
+    <color name="asset_row_name">#333333</color>
+    <color name="asset_row_balance">#333333</color>
+    <color name="asset_row_remark">#999999</color>
+
+    <!-- ==================== Settings Page ==================== -->
+    <color name="settings_page_bg">#F7F8FA</color>
+    <color name="settings_card_bg">#FFFFFF</color>
+    <color name="settings_section_title">#1A2744</color>
+    <color name="settings_item_title">#1A2744</color>
+    <color name="settings_item_subtitle">#9AA4B2</color>
+    <color name="settings_divider">#F0F2F5</color>
+    <color name="settings_chevron">#C0C8D4</color>
+    <color name="settings_icon_badge_blue">#5B8DEF</color>
+    <color name="settings_danger_text">#B42318</color>
+    <color name="settings_danger_bg">#FFF1F0</color>
+
+    <!-- ==================== Stats Page ==================== -->
+    <color name="stats_segmented_bg">#F0F2F5</color>
+    <color name="stats_segmented_selected">#FFFFFF</color>
+    <color name="stats_segmented_text_active">#111827</color>
+    <color name="stats_segmented_text_inactive">#6B7280</color>
+    <color name="stats_card_stroke">#E5E7EB</color>
+    <color name="stats_card_bg">#FFFFFF</color>
+    <color name="stats_empty_bg">#F5F7FA</color>
+    <color name="stats_empty_text">#9CA3AF</color>
+    <color name="stats_header_label">#9CA3AF</color>
+    <color name="stats_daily_header_bg">#F8FAFC</color>
+    <color name="stats_daily_header_text">#64748B</color>
 </resources>

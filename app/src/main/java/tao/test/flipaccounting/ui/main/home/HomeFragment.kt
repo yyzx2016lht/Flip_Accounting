@@ -75,7 +75,9 @@ import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.repository.BillRepository
 import tao.test.flipaccounting.ui.activity.EditBillActivity
 import tao.test.flipaccounting.ui.common.StatusBarStyle
+import tao.test.flipaccounting.ui.common.UiMotion
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
+import tao.test.flipaccounting.MainActivity
 import tao.test.flipaccounting.ui.main.YearMonthPickerDialog
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
 import java.io.File
@@ -92,6 +94,7 @@ class HomeFragment : Fragment() {
     private lateinit var cvChartContainer: View  // 动态 inflate 的图表卡片，作为 adapter header item
     private lateinit var rvTransactions: RecyclerView
     private lateinit var layoutEmptyView: View
+    private lateinit var btnEmptyAddBill: View
     private lateinit var homeAdapter: HomeAdapter
     private lateinit var bookDrawerController: HomeBookDrawerController
     private lateinit var bannerController: HomeBannerController
@@ -194,6 +197,8 @@ class HomeFragment : Fragment() {
     private var pendingBookSwitchName: String? = null
     // 切账本后首次数据显示时做一次轻量淡入，缓解“突然出现”的突兀感
     private var animateNextBookDataReveal: Boolean = false
+    // 首次加载数据后做一次 stagger 入场动画，只播放一次
+    private var hasPlayedInitialStagger: Boolean = false
 
     private lateinit var layoutMultiSelectActions: View
     private lateinit var btnMsCancel: View
@@ -273,6 +278,7 @@ class HomeFragment : Fragment() {
         }
         rvTransactions = view.findViewById(R.id.rvTransactions)
         layoutEmptyView = view.findViewById(R.id.layoutEmptyView)
+        btnEmptyAddBill = view.findViewById(R.id.btnEmptyAddBill)
         swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout)
         drawerBooks = view.findViewById(R.id.drawerBooks)
     layoutBookDrawer = view.findViewById(R.id.layoutBookDrawer)
@@ -462,6 +468,11 @@ class HomeFragment : Fragment() {
     setupBookDrawerImeInsets()
         setupBannerLongPress()
 
+        // 空状态"记一笔"按钮：复用 FAB 的添加账单入口
+        btnEmptyAddBill.setOnClickListener {
+            (activity as? MainActivity)?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add)?.performClick()
+        }
+
         updateMonthSelectorText()
         tvMonthSelector.setOnClickListener {
             showMonthYearPicker()
@@ -518,12 +529,17 @@ class HomeFragment : Fragment() {
                     val lag = System.currentTimeMillis() - collectStartMs
                     Log.d("HomePerf", "collect emission: bills=${state.monthlyBills.size}  isLoading=${state.isLoading}  [+${lag}ms since collect registered]")
                     // 同步本地 UI 状态字段（用于 UI 联动，如日历跳转等）
+                    val prevBookName = selectedBookName
                     selectedBookName = state.selectedBookName
                     selectedYear = state.selectedYear
                     selectedMonth = state.selectedMonth
                     currentTimeRange = state.currentTimeRange
                     currentType = state.currentType
                     isChartHidden = state.isChartHidden
+                    // 切换账本时重置 stagger 标记，让新账本数据也做入场动画
+                    if (prevBookName != selectedBookName) {
+                        hasPlayedInitialStagger = false
+                    }
                     updateMonthSelectorText()
                     updateChartTitleLabel()
                     syncTrendCardState()
@@ -556,7 +572,13 @@ class HomeFragment : Fragment() {
                         }
                         Log.d("HomePerf", "submitList called: ${monthlyBills.size} bills  [${System.currentTimeMillis() - adapterT0}ms]")
                         rvTransactions.requestLayout()
-                        updateSummary(monthlyBills)
+                        crossfadeSummaryAmounts(monthlyBills)
+
+                        // 首次加载到数据时，对首屏可见的前几项做 stagger 入场动画
+                        if (!hasPlayedInitialStagger && !state.isLoading && monthlyBills.isNotEmpty()) {
+                            hasPlayedInitialStagger = true
+                            UiMotion.staggerFirstLoadAnimation(rvTransactions, maxItems = 6, itemDelayMs = 40L, startDelayMs = 100L)
+                        }
 
                         // 只有当加载完成且真的没有账单时，才显示"暂无账单"
                         if (!state.isLoading && monthlyBills.isEmpty()) {
@@ -1026,6 +1048,38 @@ class HomeFragment : Fragment() {
 
     private fun updateSummary(transactions: List<Bill>) {
         ensureChartController().updateSummary(transactions)
+    }
+
+    /**
+     * 对头部摘要金额做 crossfade 过渡，避免切换月份/账本时数字直接闪变。
+     * 在 updateSummary 之前记录旧文本，之后比较并应用淡出→更新→淡入。
+     */
+    private fun crossfadeSummaryAmounts(transactions: List<Bill>) {
+        val oldExpense = tvMonthExpense.text?.toString()
+        val oldIncome = tvMonthIncome.text?.toString()
+        val oldBalance = tvMonthBalance.text?.toString()
+        // updateSummary 会同步设置 TextView 文本
+        updateSummary(transactions)
+        val newExpense = tvMonthExpense.text?.toString()
+        val newIncome = tvMonthIncome.text?.toString()
+        val newBalance = tvMonthBalance.text?.toString()
+        if (oldExpense != newExpense) {
+            tvMonthExpense.alpha = 0f
+            tvMonthExpense.animate().alpha(1f).setDuration(180L)
+                .setInterpolator(UiMotion.STANDARD_EASING).start()
+        }
+        if (oldIncome != newIncome) {
+            tvMonthIncome.alpha = 0f
+            tvMonthIncome.animate().alpha(1f).setDuration(180L)
+                .setStartDelay(30L)
+                .setInterpolator(UiMotion.STANDARD_EASING).start()
+        }
+        if (oldBalance != newBalance) {
+            tvMonthBalance.alpha = 0f
+            tvMonthBalance.animate().alpha(1f).setDuration(180L)
+                .setStartDelay(60L)
+                .setInterpolator(UiMotion.STANDARD_EASING).start()
+        }
     }
 
     private fun updateChart(transactions: List<Bill>) {

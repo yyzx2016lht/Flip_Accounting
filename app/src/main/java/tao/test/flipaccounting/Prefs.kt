@@ -33,6 +33,10 @@ object Prefs {
     fun setVibrateFeedbackEnabled(ctx: Context, enabled: Boolean) =
         PrefsGeneralSupport.setVibrateFeedbackEnabled(ctx, enabled)
 
+    fun isSaveVibrateEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isSaveVibrateEnabled(ctx)
+    fun setSaveVibrateEnabled(ctx: Context, enabled: Boolean) =
+        PrefsGeneralSupport.setSaveVibrateEnabled(ctx, enabled)
+
     fun isFlipAlways(ctx: Context): Boolean = PrefsGeneralSupport.isFlipAlways(ctx)
     fun setFlipAlways(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setFlipAlways(ctx, enabled)
 
@@ -344,6 +348,11 @@ object Prefs {
     fun getFlipDuration(ctx: Context): Long = PrefsGeneralSupport.getFlipDuration(ctx)
     fun setFlipDuration(ctx: Context, duration: Long) =
         PrefsGeneralSupport.setFlipDuration(ctx, duration)
+
+    // --- Quick gesture master switch ---
+    fun isQuickGestureEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isQuickGestureEnabled(ctx)
+    fun setQuickGestureEnabled(ctx: Context, enabled: Boolean) =
+        PrefsGeneralSupport.setQuickGestureEnabled(ctx, enabled)
 
     // --- Double tap detection ---
     fun isDoubleTapEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isDoubleTapEnabled(ctx)

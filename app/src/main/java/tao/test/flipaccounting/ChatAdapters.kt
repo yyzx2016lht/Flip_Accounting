@@ -28,6 +28,8 @@ import tao.test.flipaccounting.data.local.entity.ChatMessage
 import tao.test.flipaccounting.data.repository.CategoryRepository
 import tao.test.flipaccounting.logic.BillMutationService
 import tao.test.flipaccounting.logic.BillDisplayFormatter
+import tao.test.flipaccounting.ui.common.UiMotion
+import tao.test.flipaccounting.ui.common.UiMotion.pressFeedback
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -297,7 +299,8 @@ class ChatAdapter(
                 .translationX(0f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setDuration(220L)
+                .setDuration(UiMotion.NORMAL)
+                .setInterpolator(UiMotion.STANDARD_EASING)
                 .start()
         }
 
@@ -310,7 +313,8 @@ class ChatAdapter(
             layoutVoiceTranscript.animate()
                 .alpha(1f)
                 .translationY(0f)
-                .setDuration(200L)
+                .setDuration(UiMotion.FAST)
+                .setInterpolator(UiMotion.STANDARD_EASING)
                 .start()
         }
 
@@ -359,7 +363,10 @@ class ChatAdapter(
                 loadingRow.visibility = View.VISIBLE
                 tvText.visibility = View.GONE
                 tvLoading.text = item.content.ifBlank { "分析中..." }
-                ivInterrupt.setOnClickListener { onInterruptAiLoading() }
+                ivInterrupt.setOnClickListener {
+                    it.pressFeedback()
+                    onInterruptAiLoading()
+                }
             } else {
                 loadingRow.visibility = View.GONE
                 tvText.visibility = View.VISIBLE
@@ -979,7 +986,7 @@ class SessionListAdapter(
             } else if (openedPosition == pos) {
                 openedPosition = RecyclerView.NO_POSITION
             }
-            foreground.animate().translationX(target).setDuration(180L).start()
+            foreground.animate().translationX(target).setDuration(UiMotion.FAST).setInterpolator(UiMotion.STANDARD_EASING).start()
         }
 
         private fun startInlineEdit(pos: Int) {

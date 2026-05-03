@@ -27,6 +27,10 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.logic.CurrencyUtils
+import tao.test.flipaccounting.ui.common.UiMotion
+import tao.test.flipaccounting.ui.common.UiMotion.fadeIn
+import tao.test.flipaccounting.ui.common.UiMotion.applyItemPressFeedback
+import tao.test.flipaccounting.ui.common.UiMotion.crossfadeText
 
 class AssetsFragment : Fragment() {
 
@@ -38,6 +42,7 @@ class AssetsFragment : Fragment() {
     private lateinit var containerCategoryCards: LinearLayout
     private lateinit var nsvAssets: NestedScrollView
     private lateinit var fabAddAsset: FloatingActionButton
+    private lateinit var layoutEmptyState: View
 
     private val db by lazy { AppDatabase.getDatabase(requireContext()) }
     private var hasTriggeredInitialRateRefresh = false
@@ -47,6 +52,7 @@ class AssetsFragment : Fragment() {
     private var dragAutoScrollDirection = 0
     private var dragAutoScrollSpeedPx = 0
     private val collapsedCategories = mutableSetOf<String>()
+    private var isFirstLoad = true
     private val dragAutoScrollRunner = object : Runnable {
         override fun run() {
             if (!dragAutoScrollActive || !isAdded || !::nsvAssets.isInitialized) return
@@ -72,6 +78,7 @@ class AssetsFragment : Fragment() {
         tvTotalDebt = view.findViewById(R.id.tv_total_debt)
         containerCategoryCards = view.findViewById(R.id.container_category_cards)
         nsvAssets = view.findViewById(R.id.nsv_assets)
+        layoutEmptyState = view.findViewById(R.id.layout_empty_state)
 
         fabAddAsset = view.findViewById(R.id.fab_add_asset)
         fabAddAsset.setOnClickListener {
@@ -79,7 +86,6 @@ class AssetsFragment : Fragment() {
         }
         fabAddAsset.post { showAssetFab() }
 
-        // 上滑隐藏 FAB，下滑显示 FAB
         nsvAssets.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
             val dy = scrollY - oldScrollY
             applyFabScrollBehavior(dy, scrollY)
@@ -100,14 +106,44 @@ class AssetsFragment : Fragment() {
         if (!isAdded || !::fabAddAsset.isInitialized) return
         fabHiddenByScroll = false
         fabScrollAccumulator = 0
-        fabAddAsset.show()
+        fabAddAsset.animate().cancel()
+        if (fabAddAsset.visibility != View.VISIBLE) {
+            fabAddAsset.alpha = 0f
+            fabAddAsset.scaleX = 0.5f
+            fabAddAsset.scaleY = 0.5f
+            fabAddAsset.show()
+        }
+        fabAddAsset.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(UiMotion.NORMAL)
+            .setInterpolator(UiMotion.STANDARD_EASING)
+            .withLayer()
+            .start()
     }
 
     fun hideAssetFab() {
         if (!::fabAddAsset.isInitialized) return
         fabHiddenByScroll = true
         fabScrollAccumulator = 0
-        fabAddAsset.hide()
+        fabAddAsset.animate().cancel()
+        fabAddAsset.animate()
+            .alpha(0f)
+            .scaleX(0.5f)
+            .scaleY(0.5f)
+            .setDuration(UiMotion.NORMAL)
+            .setInterpolator(UiMotion.EXIT_EASING)
+            .withLayer()
+            .withEndAction {
+                if (isAdded) {
+                    fabAddAsset.hide()
+                    fabAddAsset.alpha = 1f
+                    fabAddAsset.scaleX = 1f
+                    fabAddAsset.scaleY = 1f
+                }
+            }
+            .start()
     }
 
     private fun applyFabScrollBehavior(dy: Int, scrollY: Int) {
@@ -188,10 +224,26 @@ class AssetsFragment : Fragment() {
         val netText = CurrencyUtils.formatAmount(netAssetCny, "CNY")
         val totalText = CurrencyUtils.formatAmount(totalAssetCny, "CNY")
         val shouldMarkEstimated = (hasForeignIncludedAsset && !hasSyncedRates) || hasMissingIncludedRates
-        tvNetAsset.text = if (shouldMarkEstimated) "${netText}（估算）" else netText
-        tvTotalAsset.text = if (shouldMarkEstimated) "${totalText}（估算）" else totalText
-        tvTotalDebt.text = if (creditCardDebtCny == 0.0) "暂无"
+        val netDisplay = if (shouldMarkEstimated) "${netText}（估算）" else netText
+        val totalDisplay = if (shouldMarkEstimated) "${totalText}（估算）" else totalText
+        val debtDisplay = if (creditCardDebtCny == 0.0) "暂无"
         else CurrencyUtils.formatAmount(creditCardDebtCny, "CNY")
+
+        tvNetAsset.crossfadeText(netDisplay)
+        tvTotalAsset.crossfadeText(totalDisplay)
+        tvTotalDebt.crossfadeText(debtDisplay)
+
+        // Rate status chip
+        if (hasForeignIncludedAsset) {
+            if (hasSyncedRates && !hasMissingIncludedRates) {
+                tvRateStatus.text = "汇率已同步"
+            } else {
+                tvRateStatus.text = "部分汇率缺失（估算中）"
+            }
+            tvRateStatus.visibility = View.VISIBLE
+        } else {
+            tvRateStatus.visibility = View.GONE
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -200,7 +252,18 @@ class AssetsFragment : Fragment() {
     private fun buildCategoryCards(assets: List<Asset>) {
         containerCategoryCards.removeAllViews()
 
-        // 按固定顺序遍历类别，有资产才生成卡片
+        // Empty state
+        if (assets.isEmpty()) {
+            layoutEmptyState.visibility = View.VISIBLE
+            containerCategoryCards.visibility = View.GONE
+            return
+        } else {
+            layoutEmptyState.visibility = View.GONE
+            containerCategoryCards.visibility = View.VISIBLE
+        }
+
+        val categoryViews = mutableListOf<View>()
+
         Asset.CATEGORY_ORDER.forEach { category ->
             val group = assets.filter { it.assetCategory == category }
             if (group.isEmpty()) return@forEach
@@ -210,16 +273,32 @@ class AssetsFragment : Fragment() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = (16 * resources.displayMetrics.density).toInt()
+                bottomMargin = resources.getDimensionPixelSize(R.dimen.space_16)
             }
             containerCategoryCards.addView(cardView, lp)
+            categoryViews.add(cardView)
+        }
+
+        // Stagger first-load animation
+        if (isFirstLoad && categoryViews.isNotEmpty()) {
+            isFirstLoad = false
+            categoryViews.forEachIndexed { index, view ->
+                view.alpha = 0f
+                view.translationY = 20f
+                view.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(UiMotion.NORMAL)
+                    .setInterpolator(UiMotion.STANDARD_EASING)
+                    .setStartDelay(index * 40L)
+                    .withLayer()
+                    .start()
+            }
         }
     }
 
     /**
      * 构建单个类别卡片
-     * @param category  类别常量
-     * @param group     该类别下的资产列表
      */
     private fun buildCategoryCard(
         category: String,
@@ -228,7 +307,6 @@ class AssetsFragment : Fragment() {
         val ctx = requireContext()
         val density = resources.displayMetrics.density
 
-        // ── 计算该类别合计金额 ──
         val total = group
             .filter { it.includeInNetAsset }
             .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
@@ -236,56 +314,68 @@ class AssetsFragment : Fragment() {
             .filterNot { it.includeInNetAsset }
             .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
 
-        // ── CardView ──
         val card = CardView(ctx).apply {
-            radius = 16 * density
+            radius = resources.getDimension(R.dimen.asset_category_card_radius)
             cardElevation = 0f
-            setCardBackgroundColor(android.graphics.Color.WHITE)
+            setCardBackgroundColor(ctx.getColor(R.color.surface_card))
         }
 
         val cardContent = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
         }
 
-        // ── 标题行 ──
+        // ── 标题行（with ripple press feedback） ──
         val headerRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding((16 * density).toInt(), 0, (16 * density).toInt(), 0)
-            minimumHeight = (52 * density).toInt()
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.card_padding),
+                0,
+                resources.getDimensionPixelSize(R.dimen.card_padding),
+                0
+            )
+            minimumHeight = resources.getDimensionPixelSize(R.dimen.asset_category_header_height)
+            background = ctx.getDrawable(R.drawable.bg_asset_category_header)
+            isClickable = true
+            isFocusable = true
         }
+
         val tvTitle = TextView(ctx).apply {
             text = Asset.categoryLabel(category)
-            setTextColor(android.graphics.Color.parseColor("#333333"))
-            textSize = 14f
+            setTextColor(ctx.getColor(R.color.text_primary))
+            textSize = resources.getDimension(R.dimen.asset_category_title_size) / density
             setTypeface(null, android.graphics.Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
+
         val tvTotal = TextView(ctx).apply {
             text = CurrencyUtils.formatAmount(total, "CNY")
-            setTextColor(android.graphics.Color.parseColor("#333333"))
-            textSize = 14f
+            setTextColor(ctx.getColor(R.color.asset_category_header_total))
+            textSize = resources.getDimension(R.dimen.asset_category_total_size) / density
             setTypeface(null, android.graphics.Typeface.BOLD)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
         }
+
         val ivExpand = ImageView(ctx).apply {
             setImageResource(R.drawable.ic_chevron_right)
             imageTintList = android.content.res.ColorStateList.valueOf(
-                android.graphics.Color.parseColor("#8A94A6")
+                ctx.getColor(R.color.text_tertiary)
             )
-            // 使用现有向右箭头资源，旋转成向下箭头
             rotation = 90f
-            layoutParams = LinearLayout.LayoutParams(
-                (16 * density).toInt(),
-                (16 * density).toInt()
-            ).apply { marginStart = (4 * density).toInt() }
+            val iconSize = resources.getDimensionPixelSize(R.dimen.icon_size_16)
+            layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
+                marginStart = resources.getDimensionPixelSize(R.dimen.space_4)
+            }
         }
+
         headerRow.addView(tvTitle)
         headerRow.addView(tvTotal)
         headerRow.addView(ivExpand)
 
         // ── 分割线 ──
         val divider = View(ctx).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#F0F0F0"))
+            setBackgroundColor(ctx.getColor(R.color.asset_divider))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 1
             )
@@ -390,18 +480,62 @@ class AssetsFragment : Fragment() {
         cardContent.addView(assetsRecycler)
         val tvExcludedSummary = TextView(ctx).apply {
             text = "不计入总资产：${CurrencyUtils.formatAmount(excludedTotal, "CNY")}"
-            setTextColor(android.graphics.Color.parseColor("#8A94A6"))
-            textSize = 12f
-            setPadding((16 * density).toInt(), (8 * density).toInt(), (16 * density).toInt(), (12 * density).toInt())
+            setTextColor(ctx.getColor(R.color.asset_excluded_text))
+            textSize = resources.getDimension(R.dimen.text_size_12) / density
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.card_padding),
+                resources.getDimensionPixelSize(R.dimen.space_8),
+                resources.getDimensionPixelSize(R.dimen.card_padding),
+                resources.getDimensionPixelSize(R.dimen.space_12)
+            )
         }
         cardContent.addView(tvExcludedSummary)
 
         fun applyCollapsedState(collapsed: Boolean, withAnimation: Boolean) {
             val targetVisibility = if (collapsed) View.GONE else View.VISIBLE
-            ivExpand.animate().rotation(if (collapsed) 0f else 90f).setDuration(if (withAnimation) 180L else 0L).start()
-            divider.visibility = targetVisibility
-            assetsRecycler.visibility = targetVisibility
-            tvExcludedSummary.visibility = targetVisibility
+            val duration = if (withAnimation) UiMotion.FAST else 0L
+            ivExpand.animate()
+                .rotation(if (collapsed) 0f else 90f)
+                .setDuration(duration)
+                .setInterpolator(if (withAnimation) UiMotion.STANDARD_EASING else null)
+                .start()
+            if (withAnimation && !collapsed) {
+                divider.alpha = 0f
+                divider.visibility = View.VISIBLE
+                divider.animate().alpha(1f).setDuration(duration).start()
+                assetsRecycler.alpha = 0f
+                assetsRecycler.translationY = 12f
+                assetsRecycler.visibility = View.VISIBLE
+                assetsRecycler.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(UiMotion.NORMAL)
+                    .setInterpolator(UiMotion.STANDARD_EASING)
+                    .start()
+                tvExcludedSummary.alpha = 0f
+                tvExcludedSummary.visibility = View.VISIBLE
+                tvExcludedSummary.animate().alpha(1f).setDuration(duration).start()
+            } else if (withAnimation && collapsed) {
+                divider.animate().alpha(0f).setDuration(duration).withEndAction {
+                    divider.visibility = View.GONE
+                }.start()
+                assetsRecycler.animate()
+                    .alpha(0f)
+                    .translationY(8f)
+                    .setDuration(duration)
+                    .setInterpolator(UiMotion.EXIT_EASING)
+                    .withEndAction {
+                        assetsRecycler.visibility = View.GONE
+                        assetsRecycler.translationY = 0f
+                    }.start()
+                tvExcludedSummary.animate().alpha(0f).setDuration(duration).withEndAction {
+                    tvExcludedSummary.visibility = View.GONE
+                }.start()
+            } else {
+                divider.visibility = targetVisibility
+                assetsRecycler.visibility = targetVisibility
+                tvExcludedSummary.visibility = targetVisibility
+            }
         }
 
         val initiallyCollapsed = collapsedCategories.contains(category)
@@ -475,11 +609,9 @@ class AssetsFragment : Fragment() {
 
     private fun persistCategoryOrder(changedCategory: String, reorderedList: List<Asset>) {
         viewLifecycleOwner.lifecycleScope.launch {
-            // 取出全部资产，替换掉被拖拽类别的顺序，按 CATEGORY_ORDER 顺序重新分配全局 sortOrder
             val allAssets = db.assetDao().getAllAssetsList()
             val otherAssets = allAssets.filter { it.assetCategory != changedCategory }
 
-            // 按固定类别顺序重建完整的全局排列
             val globalList = mutableListOf<Asset>()
             Asset.CATEGORY_ORDER.forEach { cat ->
                 if (cat == changedCategory) {
@@ -511,6 +643,11 @@ class AssetsFragment : Fragment() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AssetVH {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.item_asset_row, parent, false)
             return AssetVH(view)
+        }
+
+        override fun onViewAttachedToWindow(holder: AssetVH) {
+            super.onViewAttachedToWindow(holder)
+            holder.itemView.applyItemPressFeedback()
         }
 
         override fun onBindViewHolder(holder: AssetVH, position: Int) {

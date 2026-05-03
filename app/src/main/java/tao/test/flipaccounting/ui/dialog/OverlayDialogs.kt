@@ -103,6 +103,38 @@ object OverlayDialogs {
         )
     }
 
+    private fun applyBottomPickerEnterAnimation(
+        dialog: AlertDialog,
+        panelView: View,
+        vararg contentViews: View?,
+        onShown: (() -> Unit)? = null
+    ) {
+        dialog.setOnShowListener {
+            val offsetY = 18f * panelView.resources.displayMetrics.density
+            panelView.animate().cancel()
+            panelView.alpha = 0f
+            panelView.translationY = offsetY
+            contentViews.filterNotNull().forEach { content ->
+                content.animate().cancel()
+                content.alpha = 0f
+            }
+            panelView.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(220L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+            contentViews.filterNotNull().forEach { content ->
+                content.animate()
+                    .alpha(1f)
+                    .setStartDelay(70L)
+                    .setDuration(180L)
+                    .start()
+            }
+            onShown?.invoke()
+        }
+    }
+
     private fun styleDialogWindow(
         dialog: AlertDialog,
         ctx: Context,
@@ -115,7 +147,12 @@ object OverlayDialogs {
     ) {
         dialog.window?.let { window ->
             WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
+            val animationStyle = if (gravity and Gravity.BOTTOM == Gravity.BOTTOM) {
+                R.style.Animation_FlipAccounting_BottomDialogSoft
+            } else {
+                R.style.Animation_FlipAccounting_DialogSoft
+            }
+            window.setWindowAnimations(animationStyle)
             window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             window.setGravity(gravity)
             window.setDimAmount(dimAmount)
@@ -351,9 +388,6 @@ object OverlayDialogs {
                     for (i in 0 until (5 - row.size)) rowLayout.addView(View(ctx), LinearLayout.LayoutParams(0, -2, 1f))
                 }
                 container.addView(rowLayout)
-                rowLayout.post {
-                    setExactVisibleRowsHeight(scrollCategories, rowLayout.height)
-                }
                 if (parent != null && row.any { it.name == parent.name } && parent.subs.isNotEmpty()) {
                     val anchorIndex = row.indexOfFirst { it.name == parent.name }.coerceAtLeast(0)
                     container.addView(createSubPanel(ctx, parent, anchorIndex, parts.getOrNull(1), dbType, {
@@ -368,16 +402,16 @@ object OverlayDialogs {
         CoroutineScope(Dispatchers.Main).launch {
             val categories = withContext(Dispatchers.IO) { categoryRepository.getCategoryTree(dbType) }
             render(categories)
+            applyBottomPickerEnterAnimation(dialog, view, scrollCategories)
+            showStyledDialog(
+                dialog = dialog,
+                ctx = ctx,
+                widthRatio = 0.9f,
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                y = 150,
+                clearDecorPadding = true
+            )
         }
-
-        showStyledDialog(
-            dialog = dialog,
-            ctx = ctx,
-            widthRatio = 0.9f,
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
-            y = 150,
-            clearDecorPadding = true
-        )
     }
 
     private fun createSubPanel(
@@ -827,24 +861,7 @@ object OverlayDialogs {
         }
         rv.layoutManager = LinearLayoutManager(themeContext)
         rv.adapter = adapter
-        dialog.setOnShowListener {
-            // 面板和列表做一次轻量入场动画，观感与分类/资产选择器一致
-            val offsetY = 18f * density
-            view.alpha = 0f
-            view.translationY = offsetY
-            rv.alpha = 0f
-            view.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(220L)
-                .setInterpolator(android.view.animation.DecelerateInterpolator())
-                .start()
-            rv.animate()
-                .alpha(1f)
-                .setStartDelay(70L)
-                .setDuration(180L)
-                .start()
-
+        applyBottomPickerEnterAnimation(dialog, view, rv) {
             if (selectedIndex >= 0) {
                 rv.post { rv.smoothScrollToPosition(selectedIndex) }
             }
@@ -1045,6 +1062,13 @@ object OverlayDialogs {
         }
         view.findViewById<View>(R.id.btn_cancel_time)?.setOnClickListener { dialog.dismiss() }
 
+        val panelGroup = view as? ViewGroup
+        applyBottomPickerEnterAnimation(
+            dialog = dialog,
+            panelView = view,
+            panelGroup?.getChildAt(1),
+            panelGroup?.getChildAt(3)
+        )
         showStyledDialog(
             dialog = dialog,
             ctx = ctx,
@@ -1166,22 +1190,16 @@ object OverlayDialogs {
             assetList.clear()
             assetList.addAll(assets)
             adapter.notifyDataSetChanged()
-            rv.post {
-                val firstChild = rv.getChildAt(0)
-                if (firstChild != null) {
-                    setExactVisibleRowsHeight(rv, firstChild.height)
-                }
-            }
+            applyBottomPickerEnterAnimation(dialog, view, rv)
+            showStyledDialog(
+                dialog = dialog,
+                ctx = ctx,
+                widthRatio = 0.9f,
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                y = 150,
+                clearDecorPadding = true
+            )
         }
-
-        showStyledDialog(
-            dialog = dialog,
-            ctx = ctx,
-            widthRatio = 0.9f,
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
-            y = 150,
-            clearDecorPadding = true
-        )
     }
 
     fun showShizukuPrompt(ctx: Context) {

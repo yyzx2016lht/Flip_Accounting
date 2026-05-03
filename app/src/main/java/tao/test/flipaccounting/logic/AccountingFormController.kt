@@ -30,6 +30,7 @@ import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.AiRule
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.ui.ExchangeRateActivity
+import tao.test.flipaccounting.ui.common.UiMotion.applyFormRowPressFeedback
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.text.SimpleDateFormat
 import java.util.*
@@ -636,16 +637,25 @@ class AccountingFormController(
         tvCategory.setOnClickListener(clickListener)
         layoutAccount2.setOnClickListener(clickListener)
         tvAccount2.setOnClickListener(clickListener)
+
+        // Apply consistent press feedback to all form rows
+        layoutAccount.applyFormRowPressFeedback()
+        layoutCategory.applyFormRowPressFeedback()
+        layoutAccount2.applyFormRowPressFeedback()
+        layoutBook.applyFormRowPressFeedback()
+
         btnSwapAccounts?.setOnClickListener {
             hideAmountKeypad()
             swapAccounts()
         }
+        btnSwapAccounts?.applyFormRowPressFeedback()
 
         // 分类行右侧“退款”标签：点击进入退款模式
         tvRefundToggle?.setOnClickListener {
             if (!isActivityAlive()) return@setOnClickListener
             enterRefundMode()
         }
+        tvRefundToggle?.applyFormRowPressFeedback()
 
         // 退款来源账单行：整行点击弹出账单选择
         layoutRefundSource?.setOnClickListener {
@@ -692,13 +702,30 @@ class AccountingFormController(
                 OverlayDialogs.showCustomTimePicker(ctx, initialTimeMillis = initialTimeMillis) { tvTime.text = it }
             }
         }
+        rootView.findViewById<View>(R.id.layout_time)?.applyFormRowPressFeedback()
         layoutBook.setOnClickListener {
             hideAmountKeypad()
             showBookPickerDialog()
         }
-        btnSave.setOnClickListener {
+        btnSave.setOnClickListener { v ->
             hideAmountKeypad()
-            handleSave()
+            // Press feedback: quick scale-down then restore
+            v.animate().cancel()
+            v.animate()
+                .scaleX(0.93f)
+                .scaleY(0.93f)
+                .setDuration(80L)
+                .setInterpolator(tao.test.flipaccounting.ui.common.UiMotion.EXIT_EASING)
+                .withEndAction {
+                    v.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(120L)
+                        .setInterpolator(tao.test.flipaccounting.ui.common.UiMotion.STANDARD_EASING)
+                        .withEndAction { handleSave() }
+                        .start()
+                }
+                .start()
         }
         btnCancel.setOnClickListener {
             hideAmountKeypad()
@@ -1406,6 +1433,9 @@ class AccountingFormController(
 
             withContext(Dispatchers.Main) {
                 Utils.toast(ctx, "记账成功")
+                if (Prefs.isSaveVibrateEnabled(ctx)) {
+                    Utils.vibrate(ctx, 50)
+                }
                 // Reset custom transfer data
                 customTransferRate = null
                 customTargetAmount = null

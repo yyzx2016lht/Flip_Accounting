@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="18dp"
-    android:layout_marginTop="18dp"
-    app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp">
+    android:layout_marginHorizontal="@dimen/stats_card_margin_h"
+    android:layout_marginTop="@dimen/stats_card_margin_top"
+    app:cardBackgroundColor="@color/stats_card_bg"
+    app:cardCornerRadius="@dimen/stats_card_radius"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/stats_card_stroke"
+    app:strokeWidth="0.5dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="@dimen/stats_card_padding">
 
         <RelativeLayout
             android:layout_width="match_parent"
@@ -24,7 +26,7 @@
                 android:layout_height="wrap_content"
                 android:layout_centerHorizontal="true"
                 android:text="每日统计"
-                android:textColor="#222222"
+                android:textColor="@color/stats_segmented_text_active"
                 android:textSize="@dimen/text_size_16"
                 android:textStyle="bold" />
 
@@ -40,23 +42,23 @@
                     android:layout_height="@dimen/icon_size_24"
                     android:padding="4dp"
                     android:src="@android:drawable/ic_menu_sort_by_size"
-                    app:tint="#666666" />
+                    app:tint="@color/stats_segmented_text_inactive" />
 
                 <ImageView
                     android:id="@+id/btn_chart_fullscreen"
                     android:layout_width="@dimen/icon_size_24"
                     android:layout_height="@dimen/icon_size_24"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="@dimen/space_8"
                     android:padding="4dp"
                     android:src="@android:drawable/ic_menu_zoom"
-                    app:tint="#666666" />
+                    app:tint="@color/stats_segmented_text_inactive" />
             </LinearLayout>
         </RelativeLayout>
 
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="220dp"
-            android:layout_marginTop="16dp">
+            android:layout_marginTop="@dimen/space_16">
 
             <com.github.mikephil.charting.charts.BarChart
                 android:id="@+id/bar_chart"
@@ -72,10 +74,10 @@
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="34dp"
+            android:layout_height="@dimen/stats_segmented_height"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="18dp"
-            android:background="@drawable/bg_segmented_container"
+            android:layout_marginTop="@dimen/space_16"
+            android:background="@drawable/bg_stats_segmented_control"
             android:orientation="horizontal"
             android:padding="3dp">
 
@@ -83,13 +85,14 @@
                 android:id="@+id/btn_daily_expense"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:background="@drawable/bg_segmented_selected"
+                android:background="@drawable/bg_stats_segmented_selected"
                 android:gravity="center"
                 android:minWidth="68dp"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="@dimen/space_12"
                 android:text="支出"
-                android:textColor="#222222"
-                android:textSize="@dimen/text_size_13" />
+                android:textColor="@color/stats_segmented_text_active"
+                android:textSize="@dimen/text_size_13"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/btn_daily_income"
@@ -97,9 +100,9 @@
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:minWidth="68dp"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="@dimen/space_12"
                 android:text="收入"
-                android:textColor="#666666"
+                android:textColor="@color/stats_segmented_text_inactive"
                 android:textSize="@dimen/text_size_13" />
 
             <TextView
@@ -108,11 +111,11 @@
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:minWidth="68dp"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="@dimen/space_12"
                 android:text="全部"
-                android:textColor="#666666"
+                android:textColor="@color/stats_segmented_text_inactive"
                 android:textSize="@dimen/text_size_13" />
         </LinearLayout>
 
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

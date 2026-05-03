@@ -368,6 +368,7 @@
             android:id="@+id/layout_time"
             android:layout_width="match_parent"
             android:layout_height="46dp"
+            android:background="?android:attr/selectableItemBackground"
             android:gravity="center_vertical">
 
             <TextView

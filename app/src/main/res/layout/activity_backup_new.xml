@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F3F6FB"
+    android:background="@color/page_background"
     android:orientation="vertical">
 
     <tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
@@ -31,7 +31,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="14dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="1dp"
                 app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
@@ -46,8 +46,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="导出备份"
-                        android:textColor="#1A2744"
-                        android:textSize="16sp"
+                        android:textColor="@color/settings_item_title"
+                        android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
 
                     <TextView
@@ -579,7 +579,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="14dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="1dp"
                 app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
@@ -593,9 +593,9 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="导入恢复"
-                        android:textColor="#1A2744"
-                        android:textSize="16sp"
+                    android:text="导入恢复"
+                    android:textColor="@color/settings_item_title"
+                    android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
 
                     <TextView
@@ -632,7 +632,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="1dp"
                 app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
@@ -646,9 +646,9 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="云端备份设置"
-                        android:textColor="#1A2744"
-                        android:textSize="15sp"
+                    android:text="云端备份设置"
+                    android:textColor="@color/settings_item_title"
+                    android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
 
                     <TextView
@@ -832,7 +832,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="18dp"
+                app:cardCornerRadius="@dimen/settings_card_radius"
                 app:cardElevation="1dp"
                 app:strokeColor="#DEE6F2"
                 app:strokeWidth="1dp">
@@ -846,9 +846,9 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="账单 CSV 导入 / 导出"
-                        android:textColor="#1A2744"
-                        android:textSize="16sp"
+                    android:text="账单 CSV 导入 / 导出"
+                    android:textColor="@color/settings_item_title"
+                    android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
 
                     <TextView

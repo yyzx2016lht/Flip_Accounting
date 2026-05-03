@@ -26,6 +26,7 @@ import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillDisplayFormatter
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.ui.common.UiMotion.applyItemPressFeedback
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -309,6 +310,13 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             holder.iconJob?.cancel()
             holder.iconJob = null
             Glide.with(holder.ivIcon.context).clear(holder.ivIcon)
+        }
+    }
+
+    override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        if (holder is ItemViewHolder) {
+            holder.itemView.applyItemPressFeedback()
         }
     }
 
