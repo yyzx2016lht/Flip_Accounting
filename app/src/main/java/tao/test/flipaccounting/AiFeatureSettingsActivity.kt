@@ -32,10 +32,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val switchShowAiChatEntry = findViewById<CompoundButton>(R.id.switch_show_ai_chat_entry)
         val showAiChatEntryRow = switchShowAiChatEntry.parent as? View
         val layoutOpenAiChatPage = findViewById<View>(R.id.layout_open_ai_chat_page)
-        val layoutMultiBillMode = findViewById<View>(R.id.layout_multi_bill_mode)
-        val dividerMultiBillDetailTop = findViewById<View>(R.id.divider_multi_bill_detail_top)
         val layoutMultiBillFastMode = findViewById<View>(R.id.layout_multi_bill_fast_mode)
-        val switchShowMultiBill = findViewById<CompoundButton>(R.id.switch_show_multi_bill)
         val switchAiLlmRouter = findViewById<CompoundButton>(R.id.switch_ai_llm_router)
         val isFlipOverlayEnabled = Prefs.isFlipEnabled(this)
 
@@ -45,14 +42,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
 
         switchAiChatMode.isChecked = Prefs.getAiEntryMode(this) == Prefs.AI_ENTRY_MODE_CHAT
         fun updateMultiBillUiVisibility() {
-            val aiChatEnabled = switchAiChatMode.isChecked
-            val showMultiModeRow = isFlipOverlayEnabled || !aiChatEnabled
-            val showDetailRow = true
-
-            layoutMultiBillMode.visibility = if (showMultiModeRow) View.VISIBLE else View.GONE
-            layoutMultiBillFastMode.visibility = if (showDetailRow) View.VISIBLE else View.GONE
-            dividerMultiBillDetailTop.visibility =
-                if (showMultiModeRow && showDetailRow) View.VISIBLE else View.GONE
+            layoutMultiBillFastMode.visibility = View.VISIBLE
         }
         switchAiChatMode.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setAiEntryMode(
@@ -75,14 +65,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             }
         }
 
-        switchShowMultiBill.apply {
-            isChecked = Prefs.isMultiBillEnabled(this@AiFeatureSettingsActivity)
-        }
         updateMultiBillUiVisibility()
-        switchShowMultiBill.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setMultiBillEnabled(this, isChecked)
-            updateMultiBillUiVisibility()
-        }
         switchAiLlmRouter.apply {
             isChecked = Prefs.isAiLlmRouterEnabled(this@AiFeatureSettingsActivity)
             setOnCheckedChangeListener { _, isChecked ->
@@ -274,7 +257,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             val toggleIds = intArrayOf(
                 R.id.switch_ai_chat_mode,
                 R.id.switch_show_ai_chat_entry,
-                R.id.switch_show_multi_bill,
                 R.id.switch_ai_llm_router,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,

@@ -61,7 +61,7 @@ object PrefsChatSupport {
         prefs(ctx).edit().putString(KEY_AI_CHAT_BG_PATH, path).apply()
 
     fun getAiChatModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_CHAT_MODEL, "") ?: "").ifBlank { Prefs.getAiSingleModel(ctx) }
+        (prefs(ctx).getString(KEY_AI_CHAT_MODEL, "") ?: "").ifBlank { Prefs.getAiMultiModel(ctx) }
     fun setAiChatModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_CHAT_MODEL, value).apply()
 

@@ -36,8 +36,6 @@ import java.util.Locale
 
 class OverlayManager(private val ctx: Context) {
 
-    private var floatingMultiBillMode: Boolean = false
-
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var overlayParams: WindowManager.LayoutParams? = null
@@ -54,32 +52,27 @@ class OverlayManager(private val ctx: Context) {
 
     private val aiAssistant = AiAssistant(ctx)
     private var formController: AccountingFormController? = null
-    private var currentQueueShowSaveOnly = false
     private var voiceHandler: VoiceInputHandler? = null
 
     fun isShowing(): Boolean = overlayView != null
 
     fun handleExternalAiResult(result: JSONObject, showSaveOnly: Boolean = false) {
-        currentQueueShowSaveOnly = showSaveOnly
         handleAiResult(result)
     }
 
     fun showAiInputPanel() {
-        val isMulti = if (overlayView != null) floatingMultiBillMode else Prefs.isMultiBillEnabled(ctx)
-        val tapVoiceHandler = VoiceInputHandler(ctx, aiAssistant, { floatingMultiBillMode }, handleAiResult)
+        val tapVoiceHandler = VoiceInputHandler(ctx, aiAssistant, handleAiResult)
         aiAssistant.voiceInputBtnSetup = { btn ->
             tapVoiceHandler.setupVoiceButton(btn)
         }
         aiAssistant.showInputPanel(
-            isMultiMode = isMulti,
             hideStreamText = true,
             onResult = handleAiResult
         )
     }
 
     private val handleAiResult: (JSONObject) -> Unit = { resultJson ->
-        val isMulti = if (overlayView != null) floatingMultiBillMode else Prefs.isMultiBillEnabled(ctx)
-        if (isMulti && resultJson.has("bills")) {
+        if (resultJson.has("bills")) {
             val billsArray = resultJson.getJSONArray("bills")
             if (Prefs.isMultiBillNotSync(ctx)) {
                 for (i in 0 until billsArray.length()) {
@@ -99,14 +92,13 @@ class OverlayManager(private val ctx: Context) {
                 formController?.fillDataToUi(resultJson, showToast = true)
                 formController?.setCurrency(resultJson.optString("currency", "CNY"))
             } else {
-                showOverlay(resultJson, showSaveOnly = currentQueueShowSaveOnly)
+                showOverlay(resultJson, showSaveOnly = false)
             }
         }
     }
 
     fun showOverlay(prefill: JSONObject? = null, showSaveOnly: Boolean = false) {
         if (overlayView != null) return
-        currentQueueShowSaveOnly = showSaveOnly
         Logger.d(ctx, "OverlayManager", "Showing Overlay")
 
         val themeContext = android.view.ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting)
@@ -128,24 +120,8 @@ class OverlayManager(private val ctx: Context) {
             cornerRadius = ctx.resources.displayMetrics.density * 16
         }
 
-        val multiBillEnabled = Prefs.isMultiBillEnabled(ctx)
-        val layoutBillModeSwitch = overlayView?.findViewById<View>(R.id.layout_bill_mode_switch)
-        val rgBillMode = overlayView?.findViewById<RadioGroup>(R.id.rg_bill_mode)
-        val rbSingle = overlayView?.findViewById<RadioButton>(R.id.rb_single)
-        val rbMulti = overlayView?.findViewById<RadioButton>(R.id.rb_multi)
-        if (multiBillEnabled && layoutBillModeSwitch != null && rgBillMode != null && rbSingle != null && rbMulti != null) {
-            layoutBillModeSwitch.visibility = View.VISIBLE
-            floatingMultiBillMode = false
-            rbSingle.isChecked = true
-            rbMulti.isChecked = false
-            rgBillMode.setOnCheckedChangeListener { _, checkedId ->
-                floatingMultiBillMode = checkedId == R.id.rb_multi
-                currentQueueShowSaveOnly = floatingMultiBillMode
-            }
-        } else {
-            layoutBillModeSwitch?.visibility = View.GONE
-            floatingMultiBillMode = false
-        }
+        overlayView?.findViewById<View>(R.id.layout_bill_mode_switch)?.visibility = View.GONE
+        overlayView?.findViewById<RadioGroup>(R.id.rg_bill_mode)?.visibility = View.GONE
 
         overlayParams = WindowManager.LayoutParams().apply {
             width = (ctx.resources.displayMetrics.widthPixels * 0.9f).toInt()
@@ -201,15 +177,10 @@ class OverlayManager(private val ctx: Context) {
 
         if (prefill != null) {
             val forceMulti = prefill.has("bills")
-            if (forceMulti) {
-                floatingMultiBillMode = true
-                view.findViewById<RadioButton>(R.id.rb_multi)?.isChecked = true
-                view.findViewById<RadioButton>(R.id.rb_single)?.isChecked = false
-            }
             formController?.fillDataToUi(prefill, showToast = false, forceMultiMode = forceMulti)
         }
 
-        voiceHandler = VoiceInputHandler(ctx, aiAssistant, { floatingMultiBillMode }, handleAiResult)
+        voiceHandler = VoiceInputHandler(ctx, aiAssistant, handleAiResult)
         aiAssistant.voiceInputBtnSetup = { btn ->
             voiceHandler?.setupVoiceButton(btn)
         }
@@ -233,9 +204,6 @@ class OverlayManager(private val ctx: Context) {
         if (Prefs.isShowAiImage(ctx)) {
             btnAiImage?.visibility = View.VISIBLE
             btnAiImage?.setOnClickListener {
-                floatingMultiBillMode = true
-                overlayView?.findViewById<RadioButton>(R.id.rb_multi)?.isChecked = true
-
                 overlayView?.visibility = View.INVISIBLE
                 ImagePickerActivity.onImagePicked = { uri ->
                     ImagePickerActivity.onImagePicked = null
@@ -259,7 +227,7 @@ class OverlayManager(private val ctx: Context) {
 
         formController!!.layoutAiTextEntry.setOnClickListener {
             aiAssistant.showInputPanel(
-                isMultiMode = floatingMultiBillMode,
+                isMultiMode = true,
                 onResult = handleAiResult
             )
         }
@@ -277,7 +245,7 @@ class OverlayManager(private val ctx: Context) {
         triggerBtn?.animate()?.alpha(0.45f)?.setDuration(120L)?.start()
 
         val screenModel = Prefs.getAiScreenModel(ctx).trim()
-        Logger.d(ctx, "OverlayManager", "Screen capture recognition clicked. model=$screenModel, isMulti=$floatingMultiBillMode")
+        Logger.d(ctx, "OverlayManager", "Screen capture recognition clicked. model=$screenModel, isMulti=true")
         if (screenModel.isEmpty()) {
             Logger.d(ctx, "OverlayManager", "Screen capture aborted: no screen model configured")
             Utils.toast(ctx, "请先在智能配置中选择屏幕识别模型")
@@ -343,7 +311,7 @@ class OverlayManager(private val ctx: Context) {
         ScreenCaptureActivity.onRecognitionCancelled = { handleScreenCaptureCancelled() }
         val intent = android.content.Intent(ctx, ScreenCaptureActivity::class.java).apply {
             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(ScreenCaptureActivity.EXTRA_IS_MULTI_MODE, floatingMultiBillMode)
+            putExtra(ScreenCaptureActivity.EXTRA_IS_MULTI_MODE, true)
         }
         Logger.d(ctx, "OverlayManager", "Launching ScreenCaptureActivity")
         updateScreenCaptureLoadingStatus("正在请求截屏权限...")
@@ -393,7 +361,7 @@ class OverlayManager(private val ctx: Context) {
                     ctx = ctx,
                     imageBase64 = bitmapToBase64(bitmap),
                     mimeType = "image/jpeg",
-                    isMultiModeOverride = floatingMultiBillMode
+                    isMultiModeOverride = true
                 ) ?: JSONObject().apply {
                     put("no_bill", true)
                     put("reply", "未识别到可记账内容")
@@ -433,7 +401,7 @@ class OverlayManager(private val ctx: Context) {
     }
 
     private fun shouldRestoreOverlayForScreenResult(result: JSONObject): Boolean {
-        val isMulti = floatingMultiBillMode || Prefs.isMultiBillEnabled(ctx)
+        val isMulti = true
         val isAutoSaveMultiBills = isMulti && result.has("bills") && Prefs.isMultiBillNotSync(ctx)
         return !isAutoSaveMultiBills
     }
@@ -635,7 +603,7 @@ class OverlayManager(private val ctx: Context) {
                 Utils.toast(ctx, "这是最后一条记录")
             }
         } else {
-            showOverlay(next, showSaveOnly = currentQueueShowSaveOnly)
+            showOverlay(next, showSaveOnly = false)
         }
     }
 

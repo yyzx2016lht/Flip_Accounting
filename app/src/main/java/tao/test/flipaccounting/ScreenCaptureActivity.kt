@@ -56,7 +56,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
     private var scanAnimator: ValueAnimator? = null
     private var cardEnterAnimator: AnimatorSet? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var isMultiMode: Boolean = false
+    private var isMultiMode: Boolean = true
     private var finished = false
 
     private val capturePermissionLauncher =
@@ -80,7 +80,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
         captureCard = findViewById(R.id.layout_capture_card)
         scanLine = findViewById(R.id.view_scan_line)
         mediaProjectionManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        isMultiMode = intent.getBooleanExtra(EXTRA_IS_MULTI_MODE, false)
+        isMultiMode = intent.getBooleanExtra(EXTRA_IS_MULTI_MODE, true)
         startWaitingAnimation()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {

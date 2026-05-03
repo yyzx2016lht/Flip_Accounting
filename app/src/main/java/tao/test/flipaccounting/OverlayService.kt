@@ -140,7 +140,7 @@ class OverlayService : Service() {
                 Logger.d(this@OverlayService, "OverlayService", "Watchdog started")
                 while (isActive) {
                     delay(15_000L)
-                    if (!isFlipEnabled) break
+                    if (!isFlipEnabled && !isDoubleTapEnabled) break
                     checkSensorHealth()
                 }
             }
@@ -153,7 +153,7 @@ class OverlayService : Service() {
         }
 
         fun syncWatchdogState() {
-            if (isFlipEnabled) startWatchdog() else stopWatchdog()
+            if (isFlipEnabled || isDoubleTapEnabled) startWatchdog() else stopWatchdog()
         }
 
         fun onDetectorStarted() {
@@ -189,37 +189,62 @@ class OverlayService : Service() {
 
         // ── 传感器健康检查 ────────────────────────────────────
         private fun checkSensorHealth() {
-            if (!isFlipEnabled) return
+            if (!isFlipEnabled && !isDoubleTapEnabled) return
 
             // 息屏时传感器已被完全停止，无需检查
             if (!isScreenInteractive()) return
 
-            val det = flipDetector
-            if (det == null) {
-                Logger.d(this@OverlayService, "OverlayService", "Watchdog: detector is null (screen on), rebuilding...")
-                acquireWakeLockBriefly()
-                restartDetector("watchdog-null")
-                return
-            }
-
-            val timeSinceLastEvent = System.currentTimeMillis() - det.lastSensorEventTimeMillis
-            // 亮屏下 20s 无传感器事件，判定假死，强制重建
-            if (timeSinceLastEvent <= 20_000L) {
-                consecutiveDeadChecks = 0
-                return
-            }
-
-            // 防止频繁重启：距上次 Watchdog 重启不足 15s 则跳过
             val now = System.currentTimeMillis()
-            if (now - lastWatchdogRestartAtMs < 15_000L) return
-            lastWatchdogRestartAtMs = now
+            if (isFlipEnabled) {
+                val det = flipDetector
+                if (det == null) {
+                    Logger.d(this@OverlayService, "OverlayService", "Watchdog: flip detector is null (screen on), rebuilding...")
+                    acquireWakeLockBriefly()
+                    restartDetector("watchdog-null-flip")
+                    return
+                }
+                val timeSinceLastEvent = now - det.lastSensorEventTimeMillis
+                // 亮屏下 20s 无传感器事件，判定假死，强制重建
+                if (timeSinceLastEvent > 20_000L) {
+                    if (now - lastWatchdogRestartAtMs < 15_000L) return
+                    lastWatchdogRestartAtMs = now
+                    consecutiveDeadChecks++
+                    acquireWakeLockBriefly()
+                    Logger.d(
+                        this@OverlayService,
+                        "OverlayService",
+                        "Watchdog: flip sensor dead for ${timeSinceLastEvent}ms (consecutive=$consecutiveDeadChecks), restarting..."
+                    )
+                    restartDetector("watchdog-dead-flip")
+                    consecutiveDeadChecks = 0
+                    return
+                }
+            }
 
-            consecutiveDeadChecks++
-            acquireWakeLockBriefly()
-
-            Logger.d(this@OverlayService, "OverlayService",
-                "Watchdog: sensor dead for ${timeSinceLastEvent}ms (consecutive=$consecutiveDeadChecks), restarting...")
-            restartDetector("watchdog-dead")
+            if (isDoubleTapEnabled) {
+                val det = tapDetector
+                if (det == null) {
+                    Logger.d(this@OverlayService, "OverlayService", "Watchdog: tap detector is null (screen on), rebuilding...")
+                    acquireWakeLockBriefly()
+                    restartDetector("watchdog-null-tap")
+                    return
+                }
+                val timeSinceLastEvent = now - det.lastSensorEventTimeMillis
+                if (timeSinceLastEvent > 20_000L) {
+                    if (now - lastWatchdogRestartAtMs < 15_000L) return
+                    lastWatchdogRestartAtMs = now
+                    consecutiveDeadChecks++
+                    acquireWakeLockBriefly()
+                    Logger.d(
+                        this@OverlayService,
+                        "OverlayService",
+                        "Watchdog: tap sensor dead for ${timeSinceLastEvent}ms (consecutive=$consecutiveDeadChecks), restarting..."
+                    )
+                    restartDetector("watchdog-dead-tap")
+                    consecutiveDeadChecks = 0
+                    return
+                }
+            }
             consecutiveDeadChecks = 0
         }
 
@@ -359,7 +384,7 @@ class OverlayService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Logger.d(this, "OverlayService", "onTaskRemoved")
-        if (Prefs.isFlipEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
+        if (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
         super.onTaskRemoved(rootIntent)
     }
 

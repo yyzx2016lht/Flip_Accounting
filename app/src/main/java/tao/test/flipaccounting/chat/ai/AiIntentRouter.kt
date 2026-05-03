@@ -98,46 +98,6 @@ object AiIntentRouter {
 
         val explicitMulti = Regex("分别|各[记来]?一笔|再来一笔|还有一笔|一共\\d+笔|两笔|三笔|多笔").containsMatchIn(normalized)
         if (explicitMulti) return AiBookkeepingMode.MULTI
-
-        val explicitSingle = Regex("就这一笔|只记一笔|单笔|一笔就行|这笔就行").containsMatchIn(normalized)
-        if (explicitSingle) return AiBookkeepingMode.SINGLE
-
-        val moneyUnitRegex = Regex("\\d+(?:\\.\\d{1,2})?\\s*(元|块钱|块|rmb|cny|pln|usd|eur|€|\\$)")
-        val actionAmountRegex = Regex("(花了|花费|支付|付款|收了|收到|转账|还款|充值|提现|赚了|收入|退款到账|报销到账)\\s*\\d+(?:\\.\\d{1,2})?")
-        val amountCount = maxOf(
-            moneyUnitRegex.findAll(normalized).count(),
-            actionAmountRegex.findAll(normalized).count()
-        )
-
-        val actionWords = listOf("买", "花", "支付", "付款", "收", "到账", "退款", "转账", "还款", "充值", "提现", "借出", "收回")
-        val actionHitCount = actionWords.count { normalized.contains(it) }
-
-        val connectorRegex = Regex("然后|再|又|另外|同时|并且|以及|分别|之后")
-        val connectorCount = connectorRegex.findAll(normalized).count().coerceAtMost(3)
-
-        val sentenceLikeCount = normalized
-            .split(Regex("[,，。；;、\\n]+"))
-            .map { it.trim() }
-            .count { seg ->
-                seg.isNotBlank() &&
-                    (moneyUnitRegex.containsMatchIn(seg) ||
-                        actionAmountRegex.containsMatchIn(seg) ||
-                        actionWords.any { seg.contains(it) })
-            }
-
-        val hasIncome = listOf("收入", "收到", "到账", "退款到账", "报销到账", "工资").any { normalized.contains(it) }
-        val hasExpense = listOf("买", "花", "支付", "付款", "消费").any { normalized.contains(it) }
-        val hasTransferOrRepay = listOf("转账", "还款", "还卡").any { normalized.contains(it) }
-
-        val clearSingle =
-            amountCount <= 1 &&
-                actionHitCount <= 1 &&
-                connectorCount == 0 &&
-                sentenceLikeCount <= 1 &&
-                !hasIncome &&
-                !hasTransferOrRepay
-
-        if (clearSingle) return AiBookkeepingMode.SINGLE
         return AiBookkeepingMode.MULTI
     }
 

@@ -609,7 +609,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="1dp"
-                                android:text="管理多账单、图片记账、语音识别等 AI 能力"
+                                android:text="管理图片记账、语音识别等 AI 能力"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>

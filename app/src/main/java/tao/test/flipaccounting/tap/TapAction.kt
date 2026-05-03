@@ -7,6 +7,7 @@ import tao.test.flipaccounting.OverlayService
 interface TapAction {
     val id: String
     val displayName: String
+    val description: String get() = ""
     fun execute(context: Context)
 }
 
@@ -28,6 +29,7 @@ object TapActionRegistry {
 class ShowOverlayAction : TapAction {
     override val id = "show_overlay"
     override val displayName = "弹出悬浮窗"
+    override val description = "快速呼出记账悬浮窗"
     override fun execute(context: Context) {
         val intent = Intent(context, OverlayService::class.java).apply {
             action = OverlayService.ACTION_SHOW_OVERLAY
@@ -39,6 +41,7 @@ class ShowOverlayAction : TapAction {
 class OpenAiChatAction : TapAction {
     override val id = "open_ai_chat"
     override val displayName = "AI 智能记账助手"
+    override val description = "打开 AI 对话记账界面"
     override fun execute(context: Context) {
         val intent = Intent(context, OverlayService::class.java).apply {
             action = OverlayService.ACTION_SHOW_AI_INPUT

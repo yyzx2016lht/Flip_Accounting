@@ -28,7 +28,6 @@ import java.io.IOException
 class VoiceInputHandler(
     private val ctx: Context,
     private val aiAssistant: AiAssistant,
-    private val isMultiModeProvider: () -> Boolean,
     private val onResult: (JSONObject) -> Unit
 ) {
     private var audioRecord: AudioRecord? = null
@@ -88,7 +87,7 @@ class VoiceInputHandler(
                         aiAssistant.showInputPanel(
                             defaultText = currentVoiceRecordingHint(),
                             mode = AiAssistant.MODE_RECORDING,
-                            isMultiMode = isMultiModeProvider()
+                            
                         ) { resultJson ->
                             onResult(resultJson)
                         }
@@ -121,7 +120,7 @@ class VoiceInputHandler(
                                 Utils.vibrate(ctx, 30)
                                 aiAssistant.showInputPanel(
                                     mode = AiAssistant.MODE_CANCEL,
-                                    isMultiMode = isMultiModeProvider()
+                                    
                                 ) { onResult(it) }
                             }
                         } else if (isWannaCancel) {
@@ -130,7 +129,7 @@ class VoiceInputHandler(
                             aiAssistant.showInputPanel(
                                 defaultText = currentVoiceRecordingHint(),
                                 mode = AiAssistant.MODE_RECORDING,
-                                isMultiMode = isMultiModeProvider()
+                                
                             ) { onResult(it) }
                         }
                     }
@@ -160,30 +159,23 @@ class VoiceInputHandler(
                                             AIService.analyzeAccountingByAudio(
                                                 ctx = ctx,
                                                 audioFile = file,
-                                                isMultiModeOverride = isMultiModeProvider()
+                                                isMultiModeOverride = true
                                             )
                                         }.getOrNull()
 
-                                        withContext(Dispatchers.Main) {
-                                            if (result != null) {
+                                        if (result != null) {
+                                            withContext(Dispatchers.Main) {
                                                 aiAssistant.dismiss()
                                                 onResult(result)
-                                            } else {
-                                                aiAssistant.dismiss()
-                                                Utils.toast(ctx, "语音识别失败，请稍后重试")
                                             }
+                                            return@launch
                                         }
-                                        return@launch
                                     }
 
                                     val asrMode = Prefs.getAsrMode(ctx)
                                     val text = if (asrMode == Prefs.ASR_MODE_WHISPER) {
-                                        val finalResult = LocalAsrService.finishStreaming()
-                                        when {
-                                            !finalResult.isNullOrEmpty() -> finalResult
-                                            file != null -> LocalAsrService.speechToText(ctx, file)
-                                            else -> null
-                                        }
+                                        LocalAsrService.finishStreaming()
+                                        if (file != null) LocalAsrService.speechToText(ctx, file) else null
                                     } else {
                                         if (file != null) AIService.speechToText(ctx, file) else null
                                     }
@@ -194,7 +186,7 @@ class VoiceInputHandler(
                                             aiAssistant.showInputPanel(
                                                 defaultText = finalText,
                                                 mode = AiAssistant.MODE_INPUT,
-                                                isMultiMode = isMultiModeProvider()
+                                                
                                             ) { resultJson ->
                                                 onResult(resultJson)
                                             }
@@ -234,10 +226,10 @@ class VoiceInputHandler(
         pendingLongPressRunnable = null
     }
 
-    private fun currentAccountingModel(): String =
-        if (isMultiModeProvider()) Prefs.getAiMultiModel(ctx) else Prefs.getAiSingleModel(ctx)
+    private fun currentAccountingModel(): String = Prefs.getAiMultiModel(ctx).ifBlank { Prefs.getAiModel(ctx) }
 
     private fun currentModelSupportsDirectAudioInput(): Boolean {
+        if (Prefs.getAsrMode(ctx) == Prefs.ASR_MODE_WHISPER) return false
         val model = currentAccountingModel()
         return Prefs.getAiChatModelAudioSupport(ctx, model) == true
     }
@@ -264,7 +256,7 @@ class VoiceInputHandler(
                     aiAssistant.showInputPanel(
                         defaultText = currentVoiceRecordingHint(),
                         mode = AiAssistant.MODE_RECORDING,
-                        isMultiMode = isMultiModeProvider()
+                        
                     ) {}
                 }
             }
@@ -373,7 +365,7 @@ class VoiceInputHandler(
                                             aiAssistant.showInputPanel(
                                                 defaultText = currentText,
                                                 mode = AiAssistant.MODE_RECORDING,
-                                                isMultiMode = isMultiModeProvider()
+                                                
                                             ) {}
                                         }
                                     }

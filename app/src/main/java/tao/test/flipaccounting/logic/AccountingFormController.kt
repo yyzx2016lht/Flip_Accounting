@@ -263,25 +263,10 @@ class AccountingFormController(
     }
 
     private fun setupModeToggle() {
-        val layoutMode = rootView.findViewById<LinearLayout>(R.id.layout_bill_mode_switch)
-        val featureEnabled = Prefs.isMultiBillEnabled(ctx)
-        layoutMode?.visibility = if (featureEnabled) View.VISIBLE else View.GONE
-        val rbSingle = rootView.findViewById<RadioButton>(R.id.rb_single)
-        val rbMulti = rootView.findViewById<RadioButton>(R.id.rb_multi)
-
-        // 全局仅控制“是否显示切换器”，每次打开默认单账单
-        rbSingle.isChecked = true
-        rbMulti.isChecked = false
-        // 仅作为当前弹窗模式切换，不反写全局多账单开关
-        rbSingle.setOnCheckedChangeListener(null)
-        rbMulti.setOnCheckedChangeListener(null)
+        rootView.findViewById<View>(R.id.layout_bill_mode_switch)?.visibility = View.GONE
     }
 
-    private fun isCurrentUiMultiMode(): Boolean {
-        val layoutMode = rootView.findViewById<LinearLayout>(R.id.layout_bill_mode_switch)
-        val rbMulti = rootView.findViewById<RadioButton>(R.id.rb_multi)
-        return layoutMode?.visibility == View.VISIBLE && rbMulti?.isChecked == true
-    }
+    private fun isCurrentUiMultiMode(): Boolean = true
 
     private fun setupSpinner() {
         val types = if (isAssetFeatureEnabled) {

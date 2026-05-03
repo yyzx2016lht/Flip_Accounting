@@ -35,6 +35,10 @@ class TapDetector(
     @Volatile
     private var isRunning = false
 
+    @Volatile
+    var lastSensorEventTimeMillis: Long = 0L
+        private set
+
     fun start(): Boolean {
         if (isRunning) return true
 
@@ -80,6 +84,7 @@ class TapDetector(
             sensorManager.registerListener(this, gyroscope, 0, sensorHandler)
 
             isRunning = true
+            lastSensorEventTimeMillis = System.currentTimeMillis()
             Log.d(TAG, "TapDetector started: model=${tapModel.displayName}, sensitivity=$sensitivity, nnapi=$nnapiLowPower, triple=$tripleEnabled")
             return true
         } catch (e: Exception) {
@@ -111,6 +116,7 @@ class TapDetector(
         if (event == null || !isRunning) return
 
         val currentTap = tap ?: return
+        lastSensorEventTimeMillis = System.currentTimeMillis()
 
         val isTripleEnabled = Prefs.isTapTripleEnabled(context)
         currentTap.updateData(

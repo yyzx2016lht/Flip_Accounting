@@ -20,7 +20,6 @@ object PrefsAiSupport {
     private const val PREFS_NAME = "flip_prefs"
     private const val KEY_AI_KEY = "ai_api_key"
     private const val KEY_AI_MODEL = "ai_model_id"
-    private const val KEY_AI_SINGLE_MODEL = "ai_single_model_id"
     private const val KEY_AI_MULTI_MODEL = "ai_multi_model_id"
     private const val KEY_AI_MODIFY_MODEL = "ai_modify_model_id"
     private const val KEY_AI_CATEGORY_REFINE_MODEL = "ai_category_refine_model_id"
@@ -46,7 +45,6 @@ object PrefsAiSupport {
     private const val KEY_RECEIPT_OCR_REFINE_PROMPT = "receipt_ocr_refine_prompt"
     private const val KEY_AI_SPEECH_MODEL = "ai_speech_model_id"
     private const val KEY_AI_ENABLE_THINKING = "ai_enable_thinking"
-    private const val KEY_AI_THINKING_SINGLE_BILL = "ai_thinking_single_bill"
     private const val KEY_AI_THINKING_MULTI_BILL = "ai_thinking_multi_bill"
     private const val KEY_AI_THINKING_MODIFY_BILL = "ai_thinking_modify_bill"
     private const val KEY_AI_THINKING_VISION = "ai_thinking_vision"
@@ -71,18 +69,13 @@ object PrefsAiSupport {
     fun setAiModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_MODEL, value).apply()
 
-    fun getAiSingleModel(ctx: Context): String =
-        prefs(ctx).getString(KEY_AI_SINGLE_MODEL, "") ?: getAiModel(ctx)
-    fun setAiSingleModel(ctx: Context, value: String) =
-        prefs(ctx).edit().putString(KEY_AI_SINGLE_MODEL, value).apply()
-
     fun getAiMultiModel(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_MULTI_MODEL, "") ?: getAiModel(ctx)
     fun setAiMultiModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_MULTI_MODEL, value).apply()
 
     fun getAiModifyModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_MODIFY_MODEL, "") ?: "").ifBlank { getAiSingleModel(ctx) }
+        (prefs(ctx).getString(KEY_AI_MODIFY_MODEL, "") ?: "").ifBlank { getAiMultiModel(ctx) }
     fun setAiModifyModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_MODIFY_MODEL, value).apply()
 
@@ -157,11 +150,6 @@ object PrefsAiSupport {
         prefs(ctx).getBoolean(KEY_AI_ENABLE_THINKING, false)
     fun setAiEnableThinking(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_ENABLE_THINKING, enabled).apply()
-
-    fun isAiThinkingSingleBillEnabled(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_AI_THINKING_SINGLE_BILL, false)
-    fun setAiThinkingSingleBillEnabled(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean(KEY_AI_THINKING_SINGLE_BILL, enabled).apply()
 
     fun isAiThinkingMultiBillEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_AI_THINKING_MULTI_BILL, false)

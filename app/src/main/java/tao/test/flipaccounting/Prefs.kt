@@ -92,9 +92,6 @@ object Prefs {
     fun getAiModel(ctx: Context): String = PrefsAiSupport.getAiModel(ctx)
     fun setAiModel(ctx: Context, value: String) = PrefsAiSupport.setAiModel(ctx, value)
 
-    fun getAiSingleModel(ctx: Context): String = PrefsAiSupport.getAiSingleModel(ctx)
-    fun setAiSingleModel(ctx: Context, value: String) = PrefsAiSupport.setAiSingleModel(ctx, value)
-
     fun getAiMultiModel(ctx: Context): String = PrefsAiSupport.getAiMultiModel(ctx)
     fun setAiMultiModel(ctx: Context, value: String) = PrefsAiSupport.setAiMultiModel(ctx, value)
 
@@ -135,10 +132,6 @@ object Prefs {
     fun isAiThinkingEnabled(ctx: Context): Boolean = PrefsAiSupport.getAiEnableThinking(ctx)
     fun setAiThinkingEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiEnableThinking(ctx, enabled)
-    fun isAiThinkingSingleBillEnabled(ctx: Context): Boolean =
-        PrefsAiSupport.isAiThinkingSingleBillEnabled(ctx)
-    fun setAiThinkingSingleBillEnabled(ctx: Context, enabled: Boolean) =
-        PrefsAiSupport.setAiThinkingSingleBillEnabled(ctx, enabled)
     fun isAiThinkingMultiBillEnabled(ctx: Context): Boolean =
         PrefsAiSupport.isAiThinkingMultiBillEnabled(ctx)
     fun setAiThinkingMultiBillEnabled(ctx: Context, enabled: Boolean) =

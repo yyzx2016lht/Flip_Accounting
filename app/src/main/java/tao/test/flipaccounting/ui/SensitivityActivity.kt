@@ -1,11 +1,16 @@
 package tao.test.flipaccounting.ui
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ListView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -17,6 +22,7 @@ import tao.test.flipaccounting.OverlayService
 import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.tap.TapActionRegistry
+import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.tap.TapModel
 import java.util.Locale
 
@@ -154,22 +160,19 @@ class SensitivityActivity : AppCompatActivity() {
         layoutTapTriple.setOnClickListener { switchTapTriple.performClick() }
 
         // 模型选择
-        val currentModel = TapModel.resolve(this)
-        tvTapModelName.text = currentModel.displayName
+        tvTapModelName.text = TapModel.resolve(this).displayName
         findViewById<View>(R.id.btn_tap_model).setOnClickListener {
             val models = TapModel.values()
-            val names = models.map { it.displayName }.toTypedArray()
-            val currentIdx = models.indexOf(currentModel)
-            AlertDialog.Builder(this)
-                .setTitle("选择模型（设备尺寸）")
-                .setSingleChoiceItems(names, currentIdx) { dialog, which ->
-                    Prefs.setTapModel(this, models[which].path)
-                    tvTapModelName.text = models[which].displayName
-                    restartTapDetection()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+            val currentIdx = models.indexOf(TapModel.resolve(this)).coerceAtLeast(0)
+            showSelectionDialog(
+                title = "选择模型（设备尺寸）",
+                items = models.map { SelectionItem(it.displayName, "${it.screenInches} 寸") },
+                selectedIndex = currentIdx
+            ) { which ->
+                Prefs.setTapModel(this, models[which].path)
+                tvTapModelName.text = models[which].displayName
+                restartTapDetection()
+            }
         }
 
         // NNAPI 低功耗
@@ -193,17 +196,18 @@ class SensitivityActivity : AppCompatActivity() {
         tvTapActionDoubleName.text = TapActionRegistry.findById(doubleActionId)?.displayName ?: "未设置"
         findViewById<View>(R.id.btn_tap_action_double).setOnClickListener {
             val ids = TapActionRegistry.getIds()
-            val names = TapActionRegistry.getDisplayNames()
-            val currentIdx = ids.indexOf(Prefs.getTapActionDouble(this))
-            AlertDialog.Builder(this)
-                .setTitle("双击动作")
-                .setSingleChoiceItems(names, currentIdx) { dialog, which ->
-                    Prefs.setTapActionDouble(this, ids[which])
-                    tvTapActionDoubleName.text = names[which]
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+            val actions = TapActionRegistry.getAll()
+            val items = listOf(SelectionItem("无", "不执行任何操作")) +
+                actions.map { SelectionItem(it.displayName, it.description) }
+            val currentIdx = ids.indexOf(Prefs.getTapActionDouble(this)).coerceAtLeast(0)
+            showSelectionDialog(
+                title = "双击动作",
+                items = items,
+                selectedIndex = currentIdx
+            ) { which ->
+                Prefs.setTapActionDouble(this, ids[which])
+                tvTapActionDoubleName.text = items[which].title
+            }
         }
 
         // 三击动作
@@ -211,19 +215,94 @@ class SensitivityActivity : AppCompatActivity() {
         tvTapActionTripleName.text = TapActionRegistry.findById(tripleActionId)?.displayName ?: "未设置"
         findViewById<View>(R.id.btn_tap_action_triple).setOnClickListener {
             val ids = TapActionRegistry.getIds()
-            val names = TapActionRegistry.getDisplayNames()
-            val currentIdx = ids.indexOf(Prefs.getTapActionTriple(this))
-            AlertDialog.Builder(this)
-                .setTitle("三击动作")
-                .setSingleChoiceItems(names, currentIdx) { dialog, which ->
-                    Prefs.setTapActionTriple(this, ids[which])
-                    tvTapActionTripleName.text = names[which]
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+            val actions = TapActionRegistry.getAll()
+            val items = listOf(SelectionItem("无", "不执行任何操作")) +
+                actions.map { SelectionItem(it.displayName, it.description) }
+            val currentIdx = ids.indexOf(Prefs.getTapActionTriple(this)).coerceAtLeast(0)
+            showSelectionDialog(
+                title = "三击动作",
+                items = items,
+                selectedIndex = currentIdx
+            ) { which ->
+                Prefs.setTapActionTriple(this, ids[which])
+                tvTapActionTripleName.text = items[which].title
+            }
         }
     }
+
+    private data class SelectionItem(val title: String, val subtitle: String = "")
+
+    private fun showSelectionDialog(
+        title: String,
+        items: List<SelectionItem>,
+        selectedIndex: Int,
+        onSelected: (Int) -> Unit
+    ) {
+        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_option_picker, null, false)
+        panel.findViewById<TextView>(R.id.tv_option_picker_title).text = title
+        panel.findViewById<TextView>(R.id.tv_option_picker_desc).visibility = View.GONE
+
+        val listView = panel.findViewById<ListView>(R.id.lv_option_picker)
+        val adapter = SelectionAdapter(items, selectedIndex)
+        listView.adapter = adapter
+        listView.divider = android.graphics.drawable.ColorDrawable(Color.parseColor("#12000000"))
+        listView.dividerHeight = 1
+
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
+        val estimatedItemHeight = (64 * resources.displayMetrics.density).toInt()
+        val estimatedContentHeight = (items.size * estimatedItemHeight).coerceAtLeast(dp(1))
+        listView.layoutParams = listView.layoutParams.apply {
+            height = maxHeight.coerceAtMost(estimatedContentHeight)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(panel)
+            .create()
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            if (position in items.indices) {
+                dialog.dismiss()
+                onSelected(position)
+            }
+        }
+        panel.findViewById<TextView>(R.id.btn_option_picker_cancel).setOnClickListener { dialog.dismiss() }
+
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.9f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = false
+        )
+    }
+
+    private inner class SelectionAdapter(
+        private val items: List<SelectionItem>,
+        private val selectedIndex: Int
+    ) : BaseAdapter() {
+        override fun getCount(): Int = items.size
+        override fun getItem(position: Int): SelectionItem = items[position]
+        override fun getItemId(position: Int): Long = position.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+            val view = convertView ?: LayoutInflater.from(this@SensitivityActivity)
+                .inflate(R.layout.item_dialog_option_picker, parent, false)
+            val titleView = view.findViewById<TextView>(R.id.tv_option_title)
+            val subtitleView = view.findViewById<TextView>(R.id.tv_option_subtitle)
+            val checkView = view.findViewById<TextView>(R.id.tv_option_check)
+            val riskView = view.findViewById<TextView>(R.id.tv_option_risk)
+
+            val item = getItem(position)
+            titleView.text = item.title
+            subtitleView.text = item.subtitle
+            subtitleView.visibility = if (item.subtitle.isBlank()) View.GONE else View.VISIBLE
+            checkView.visibility = if (position == selectedIndex) View.VISIBLE else View.GONE
+            riskView.visibility = View.GONE
+            return view
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun loadData() {
         if (Prefs.isFlipEnabled(this)) {

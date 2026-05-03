@@ -285,43 +285,7 @@
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp">
 
-                    <LinearLayout
-                        android:id="@+id/layout_multi_bill_mode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="6dp">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="多账单模式"
-                                android:textColor="#1F2A3D"
-                                android:textSize="@dimen/text_size_14"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_show_multi_bill"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:id="@+id/divider_multi_bill_detail_top"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginVertical="4dp"
-                        android:background="#E7ECF4" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -348,7 +312,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="关闭后仅区分“记账/闲聊”，记账统一走多账单。"
+                                android:text="关闭后仅区分“记账/闲聊”。"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>

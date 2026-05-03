@@ -851,7 +851,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun currentChatModelSupportsDirectAudioInput(): Boolean {
-        val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiSingleModel(this) }
+        val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiMultiModel(this) }
         return Prefs.getAiChatModelAudioSupport(this, model) == true
     }
 
@@ -987,7 +987,7 @@ class ChatActivity : AppCompatActivity() {
         msgType == MSG_TYPE_USER_TEXT || msgType == MSG_TYPE_USER_IMAGE || msgType == MSG_TYPE_USER_VOICE
 
     private fun ensureModelAudioSupportProbed() {
-        val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiSingleModel(this) }
+        val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiMultiModel(this) }
         if (Prefs.getAiChatModelAudioSupport(this, model) != null || audioSupportProbeJob?.isActive == true) {
             refreshVoiceSupportHint()
             return

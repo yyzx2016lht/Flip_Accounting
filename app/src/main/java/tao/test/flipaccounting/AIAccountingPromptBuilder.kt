@@ -8,14 +8,9 @@ import tao.test.flipaccounting.data.local.entity.AiRule as DbAiRule
 internal fun buildAccountingSystemPrompt(
     ctx: Context,
     promptContext: AIAccountingPromptContext,
-    isMultiMode: Boolean,
-    matchedPromptRules: List<DbAiRule>,
-    localPrefill: AILocalRulePrefill?
+    matchedPromptRules: List<DbAiRule>
 ): String {
-    var prompt = if (isMultiMode) Prefs.getMultiBillPrompt(ctx) else Prefs.getAiPrompt(ctx)
-    if (prompt.isEmpty()) {
-        prompt = if (isMultiMode) AIService.getDefaultMultiBillPrompt(ctx) else AIService.getDefaultSingleBillPrompt(ctx)
-    }
+    var prompt = AIService.MULTI_BILL_PROMPT_DEFAULT
     prompt = adaptPromptForCategoryDepth(
         prompt = prompt,
         hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
@@ -29,53 +24,36 @@ internal fun buildAccountingSystemPrompt(
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
 
-    if (isMultiMode) {
-        prompt += AIPrompts.buildReceiptSemanticRule()
-        val isFastMode = Prefs.isMultiBillFastMode(ctx)
-        prompt += if (isFastMode) {
-            AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
-        } else {
-            AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
-        }
-        if (!isFastMode) {
-            prompt += AIPrompts.buildMultiTwoStageRule()
-        }
+    prompt += AIPrompts.buildReceiptSemanticRule()
+    val isFastMode = Prefs.isMultiBillFastMode(ctx)
+    prompt += if (isFastMode) {
+        AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+    } else {
+        AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+    }
+    if (!isFastMode) {
+        prompt += AIPrompts.buildMultiTwoStageRule()
     }
 
     if (matchedPromptRules.isNotEmpty()) {
-        prompt += buildPromptCorrectionBlock(matchedPromptRules, includeCategory = !isMultiMode)
-    }
-    if (!isMultiMode && localPrefill != null) {
-        prompt += AIPrompts.buildLocalRulePrefillHint()
+        prompt += buildPromptCorrectionBlock(matchedPromptRules, includeCategory = true)
     }
     prompt += AIPrompts.buildOutputJsonRuleWithTargetFields()
-
-    val promptExpenseCats = if (!isMultiMode && !localPrefill?.category.isNullOrBlank()) emptyList() else promptContext.expenseCats
-    val promptIncomeCats = if (!isMultiMode && !localPrefill?.category.isNullOrBlank()) emptyList() else promptContext.incomeCats
-    val promptAssets = if (!isMultiMode && (!localPrefill?.assetName.isNullOrBlank() || !localPrefill?.toAssetName.isNullOrBlank())) {
-        emptyList()
-    } else {
-        promptContext.assetInfoList
-    }
 
     return renderPromptTemplate(
         prompt = prompt,
         promptContext = promptContext,
-        assets = promptAssets,
-        expenseCats = promptExpenseCats,
-        incomeCats = promptIncomeCats
+        assets = promptContext.assetInfoList,
+        expenseCats = promptContext.expenseCats,
+        incomeCats = promptContext.incomeCats
     )
 }
 
 internal fun buildAudioAccountingSystemPrompt(
     ctx: Context,
-    promptContext: AIAccountingPromptContext,
-    isMultiMode: Boolean
+    promptContext: AIAccountingPromptContext
 ): String {
-    var prompt = if (isMultiMode) Prefs.getMultiBillPrompt(ctx) else Prefs.getAiPrompt(ctx)
-    if (prompt.isEmpty()) {
-        prompt = if (isMultiMode) AIService.getDefaultMultiBillPrompt(ctx) else AIService.getDefaultSingleBillPrompt(ctx)
-    }
+    var prompt = AIService.MULTI_BILL_PROMPT_DEFAULT
     prompt = adaptPromptForCategoryDepth(
         prompt = prompt,
         hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
@@ -90,15 +68,13 @@ internal fun buildAudioAccountingSystemPrompt(
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
 
-    if (isMultiMode) {
-        prompt += AIPrompts.buildReceiptSemanticRule()
-        val isFastMode = Prefs.isMultiBillFastMode(ctx)
-        prompt += if (isFastMode) {
-            AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
-        } else {
-            AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats) +
-                AIPrompts.buildMultiTwoStageRule()
-        }
+    prompt += AIPrompts.buildReceiptSemanticRule()
+    val isFastMode = Prefs.isMultiBillFastMode(ctx)
+    prompt += if (isFastMode) {
+        AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+    } else {
+        AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats) +
+            AIPrompts.buildMultiTwoStageRule()
     }
     prompt += AIPrompts.buildOutputJsonRuleWithBookField()
 
@@ -113,8 +89,7 @@ internal fun buildAudioAccountingSystemPrompt(
 
 internal fun buildScreenAccountingSystemPrompt(
     ctx: Context,
-    promptContext: AIAccountingPromptContext,
-    isMultiMode: Boolean
+    promptContext: AIAccountingPromptContext
 ): String {
     var prompt = Prefs.getScreenAccountingPrompt(ctx).ifBlank { AIService.SCREEN_ACCOUNTING_PROMPT_DEFAULT }
     prompt = adaptPromptForCategoryDepth(
@@ -126,7 +101,7 @@ internal fun buildScreenAccountingSystemPrompt(
     prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildScreenModeRule(isMultiMode, promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+    prompt += AIPrompts.buildScreenModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     prompt += AIPrompts.buildScreenUnifiedOutputRule()
 
     return renderPromptTemplate(

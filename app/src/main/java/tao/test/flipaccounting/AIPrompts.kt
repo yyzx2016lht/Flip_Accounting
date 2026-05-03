@@ -55,21 +55,15 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
 【intent_type 枚举】
 - BOOKKEEPING：用户想新增记账、记录收入、记录转账/还款，通常包含金额或明确记账动作。
-- MODIFY_BILL：用户意图是修改或补充前一笔账单（如：“刚才那笔是用微信付的”，“打车改成40”，“忘了说是吃的外卖”）。这必须是对刚才记录的修正，不是新增。
+- MODIFY_BILL：用户意图是修改或补充前一笔账单（如："刚才那笔是用微信付的"，"打车改成40"，"忘了说是吃的外卖"）。这必须是对刚才记录的修正，不是新增。
 - QUERY：查询历史账单/统计/筛选请求。
 - GENERAL_CHAT：寒暄、解释功能、普通闲聊等非新增/非修改/非查询请求。
 - UNKNOWN：无法判断，或涉及删除、批量修改、覆盖等高风险写操作。
 
 【bookkeeping_mode 枚举】
 - 仅当 intent_type=BOOKKEEPING 时填写。
-- SINGLE：更像单条账单，只记一笔最合适。
-- MULTI：明显包含两条及以上账单，或用户明确要求分别记。
+- MULTI：用户要求记账，启用多账单模式。
 - 若 intent_type 不是 BOOKKEEPING，bookkeeping_mode 填 null。
-
-【单/多账单判断补充】
-- 只有在非常明确就是一笔时，才输出 SINGLE。
-- 只要存在歧义，或一句话里可能涉及多个金额、多个动作、多个对象，优先输出 MULTI。
-- 宁可把模糊输入判成 MULTI，也不要把可能的多条账单误判成 SINGLE。
 
 【输出格式】
 {"intent_type":"QUERY","confidence":0.0,"bookkeeping_mode":null}
@@ -172,40 +166,6 @@ asset_name 的候选来源只有一个：截图中明确标注为“支付方式
 
 输出格式：
 每行一条：购买中文名 (原文) 花了金额 币种
-"""
-
-    const val SINGLE_BILL_PROMPT_DEFAULT = """
-你是一个智能记账助手。
-默认把当前输入视为记账内容来抽取，请优先输出单条账单 JSON。
-只有在你确实无法提取出任何明确账单时，才输出：
-{"no_bill":true,"reply":"<简短自然回复>"}
-
-【数据源】
-1. 资产库：{{ASSETS}}
-2. 支出分类：{{EXPENSE_CATS}}
-3. 收入分类：{{INCOME_CATS}}
-4. 当前时间：{{TIME}}
-5. 币种列表：{{CURRENCIES}}
-
-【核心规则】
-1. category_name 优先命中更细的子分类；命中子分类时格式必须为 一级/::/二级。
-2. asset_name 只允许从资产库中选择；无法确定时留空，不得编造。
-3. type 只允许：
-   - 0 = 支出
-   - 1 = 收入
-   - 2 = 转账
-   - 3 = 还款
-4. 涉及“还信用卡、还款、还卡、credit card payment”等语义时，优先识别为还款。
-5. currency 必须输出大写币种代码；未提及时默认 CNY。
-6. time 必须输出 yyyy-MM-dd HH:mm:ss；未提及时结合 {{TIME}} 理解。
-7. 严禁输出 Markdown、解释、代码块、前后缀文本。
-8. 跨币种转账时，若用户明确给出“到账/收到/入账”金额，必须额外输出：
-   - target_amount（到账金额，数字）
-   - target_currency（到账币种，3位大写代码）
-   若用户未明确给出到账金额，不要臆造这两个字段。
-
-【输出格式】
-{"amount":0.0,"type":0,"asset_name":"","category_name":"","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY","to_asset_name":"","fee":0.0}
 """
 
     const val MULTI_BILL_PROMPT_DEFAULT = """
@@ -410,11 +370,6 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
             "- remarks 仅保留关键语义词，避免长句描述（建议 <=12 字）。\n" +
             "- 如果分类一时拿不准，优先保证拆单和 remarks 正确；后续会基于每条 remarks 再做逐条分类。\n"
 
-    fun buildLocalRulePrefillHint(): String =
-        "\n【本地规则预匹配】本次输入已命中本地记账习惯。\n" +
-            "- 已预设字段会在后续本地规则中补全或校正，AI 本轮重点只需要抽取金额、时间、备注、币种、手续费等基础信息。\n" +
-            "- 如果分类或账户拿不准，可以留空，不要为了凑字段勉强猜测。\n"
-
     fun buildOutputJsonRuleWithTargetFields(): String =
         "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name、target_amount、target_currency（仅在用户明确提到到账金额时输出）。Do not return markdown or extra explanation.\n"
 
@@ -422,18 +377,12 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
         "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name。Do not return markdown or extra explanation.\n"
 
     fun buildScreenModeRule(
-        isMultiMode: Boolean,
         expenseLeafCats: List<String>,
         incomeLeafCats: List<String>
     ): String =
-        if (isMultiMode) {
-            "\n【多账单截图模式】当前为多账单模式。若截图中存在多条真实交易，请按真实条目逐条输出 bills；若只有一条交易，也可输出单条 bill 组成的 bills 数组。\n" +
-                "\n【分类提示】支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n" +
-                "\n【输出格式】必须只返回 {\"bills\":[...]}，每条字段固定为 amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee。不要输出额外说明。\n"
-        } else {
-            "\n【单账单截图模式】当前为单账单模式。即使截图中看起来有多条交易，也只提取最明确、最主要的一条交易；无法确定主交易时返回 no_bill。\n" +
-                "\n【输出格式】必须只返回一个 JSON 对象，字段固定为 amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee；或返回 no_bill 对象。不要输出额外说明。\n"
-        }
+        "\n【多账单截图模式】若截图中存在多条真实交易，请按真实条目逐条输出 bills；若只有一条交易，也可输出单条 bill 组成的 bills 数组。\n" +
+            "\n【分类提示】支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n" +
+            "\n【输出格式】必须只返回 {\"bills\":[...]}，每条字段固定为 amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee。不要输出额外说明。\n"
 
     fun buildScreenUnifiedOutputRule(): String =
         "\n【输出格式】You must return one valid JSON object only. Do not return markdown or extra explanation.\n"

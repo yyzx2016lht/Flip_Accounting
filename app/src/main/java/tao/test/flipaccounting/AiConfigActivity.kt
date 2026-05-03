@@ -28,7 +28,6 @@ import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 
 class AiConfigActivity : AppCompatActivity() {
     private enum class ThinkingBinding {
-        SINGLE,
         MULTI,
         VISION,
         CATEGORY_REFINE,
@@ -73,7 +72,6 @@ class AiConfigActivity : AppCompatActivity() {
         val tvSelectedModel = findViewById<TextView>(R.id.tv_selected_model)
         val layoutModelSelector = findViewById<View>(R.id.layout_model_selector)
 
-        val btnSingle = findViewById<Chip>(R.id.btn_single_prompt)
         val btnMulti = findViewById<Chip>(R.id.btn_multi_prompt)
         val btnModify = findViewById<Chip>(R.id.btn_modify_prompt)
         val btnCategoryRefine = findViewById<Chip>(R.id.btn_category_refine_prompt)
@@ -113,10 +111,9 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setReceiptOcrRefineEnabled(this, isChecked)
         }
 
-        var currentMode = "single"
+        var currentMode = "multi"
         var updatingThinkingUi = false
         val modeModels = mutableMapOf(
-            "single" to Prefs.getAiSingleModel(this),
             "multi" to Prefs.getAiMultiModel(this),
             "modify" to Prefs.getAiModifyModel(this),
             "category_refine" to Prefs.getAiCategoryRefineModel(this),
@@ -135,7 +132,7 @@ class AiConfigActivity : AppCompatActivity() {
 
         btnScreenAccounting.visibility = if (canShowScreenAccounting) View.VISIBLE else View.GONE
         if (!canShowScreenAccounting && currentMode == "screen_accounting") {
-            currentMode = "single"
+            currentMode = "multi"
         }
         if (!canShowScreenAccounting) {
             modeModels["screen_accounting"] = ""
@@ -143,20 +140,7 @@ class AiConfigActivity : AppCompatActivity() {
             promptModeGrid.removeView(btnScreenAccounting)
         }
 
-        tvEditPrompt.setOnClickListener {
-            startActivity(Intent(this, AiPromptEditorActivity::class.java))
-        }
-        tvEditPrompt.text = "编辑提示词"
-        tvEditPrompt.setTextColor(Color.parseColor("#1A73E8"))
-        tvToggleExpand.visibility = View.GONE
-        findViewById<View>(R.id.btn_reset_prompt).visibility = View.GONE
-        findViewById<View>(R.id.et_custom_prompt).visibility = View.GONE
-        findViewById<View>(R.id.et_multi_prompt).visibility = View.GONE
-        findViewById<View>(R.id.et_rule_prompt).visibility = View.GONE
-        findViewById<View>(R.id.et_receipt_prompt).visibility = View.GONE
-        findViewById<View>(R.id.et_receipt_vision_prompt).visibility = View.GONE
-        findViewById<View>(R.id.et_screen_accounting_prompt).visibility = View.GONE
-        findViewById<View>(R.id.et_receipt_ocr_refine_prompt).visibility = View.GONE
+        tvEditPrompt.visibility = View.GONE
 
         val cachedModels = Prefs.getAiModelsCache(this).map { it.trim() }.filter { it.isNotEmpty() }
         if (cachedModels.isNotEmpty()) {
@@ -168,7 +152,6 @@ class AiConfigActivity : AppCompatActivity() {
         }
 
         fun thinkingBindingForMode(mode: String): ThinkingBinding = when (mode) {
-            "single" -> ThinkingBinding.SINGLE
             "multi" -> ThinkingBinding.MULTI
             "category_refine" -> ThinkingBinding.CATEGORY_REFINE
             "receipt", "receipt_vision", "screen_accounting", "ocr_refine" -> ThinkingBinding.VISION
@@ -176,7 +159,6 @@ class AiConfigActivity : AppCompatActivity() {
         }
 
         fun isThinkingEnabled(binding: ThinkingBinding): Boolean = when (binding) {
-            ThinkingBinding.SINGLE -> Prefs.isAiThinkingSingleBillEnabled(this)
             ThinkingBinding.MULTI -> Prefs.isAiThinkingMultiBillEnabled(this)
             ThinkingBinding.VISION -> Prefs.isAiThinkingVisionEnabled(this)
             ThinkingBinding.CATEGORY_REFINE -> Prefs.isAiThinkingCategoryRefineEnabled(this)
@@ -185,7 +167,6 @@ class AiConfigActivity : AppCompatActivity() {
 
         fun setThinkingEnabled(binding: ThinkingBinding, enabled: Boolean) {
             when (binding) {
-                ThinkingBinding.SINGLE -> Prefs.setAiThinkingSingleBillEnabled(this, enabled)
                 ThinkingBinding.MULTI -> Prefs.setAiThinkingMultiBillEnabled(this, enabled)
                 ThinkingBinding.VISION -> Prefs.setAiThinkingVisionEnabled(this, enabled)
                 ThinkingBinding.CATEGORY_REFINE -> Prefs.setAiThinkingCategoryRefineEnabled(this, enabled)
@@ -196,7 +177,6 @@ class AiConfigActivity : AppCompatActivity() {
         fun updateThinkingUi() {
             val binding = thinkingBindingForMode(currentMode)
             val modeTitle = when (currentMode) {
-                "single" -> "单笔记账"
                 "multi" -> "多账单"
                 "modify" -> "修改账单"
                 "category_refine" -> "二段分类"
@@ -308,7 +288,6 @@ class AiConfigActivity : AppCompatActivity() {
         updateModelDisplay()
 
         fun updateUI() {
-            btnSingle.isChecked = currentMode == "single"
             btnMulti.isChecked = currentMode == "multi"
             btnModify.isChecked = currentMode == "modify"
             btnCategoryRefine.isChecked = currentMode == "category_refine"
@@ -334,7 +313,6 @@ class AiConfigActivity : AppCompatActivity() {
             updateUI()
         }
 
-        btnSingle.setOnClickListener { switchMode("single") }
         btnMulti.setOnClickListener { switchMode("multi") }
         btnModify.setOnClickListener { switchMode("modify") }
         btnCategoryRefine.setOnClickListener { switchMode("category_refine") }
@@ -436,8 +414,6 @@ class AiConfigActivity : AppCompatActivity() {
             Prefs.setAiUrl(this, newUrl)
             Prefs.setAiKey(this, etKey.text.toString().trim())
 
-            Prefs.setAiModel(this, modeModels["single"] ?: "")
-            Prefs.setAiSingleModel(this, modeModels["single"] ?: "")
             Prefs.setAiMultiModel(this, modeModels["multi"] ?: "")
             Prefs.setAiModifyModel(this, modeModels["modify"] ?: "")
             Prefs.setAiCategoryRefineModel(this, modeModels["category_refine"] ?: "")

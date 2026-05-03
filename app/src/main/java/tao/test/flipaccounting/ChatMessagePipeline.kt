@@ -1134,13 +1134,7 @@ class ChatMessagePipeline(
         job.start()
     }
 
-    private fun resolveMultiMode(bookkeepingMode: AiBookkeepingMode, userText: String): Boolean {
-        return when (bookkeepingMode) {
-            AiBookkeepingMode.MULTI -> true
-            AiBookkeepingMode.SINGLE -> false
-            AiBookkeepingMode.UNSPECIFIED -> AiIntentRouter.detectBookkeepingMode(userText) == AiBookkeepingMode.MULTI
-        }
-    }
+    private fun resolveMultiMode(bookkeepingMode: AiBookkeepingMode, userText: String): Boolean = true
 
     private suspend fun appendAssistantCompanionReply(
         userText: String,

@@ -13,20 +13,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-internal data class AILocalRulePrefill(
-    val type: Int? = null,
-    val category: String? = null,
-    val assetName: String? = null,
-    val toAssetName: String? = null
-)
-
-internal data class AILocalRuleApplyResult(
-    val applied: Boolean,
-    val corrected: Boolean,
-    val correctedFields: List<String>,
-    val changedFields: List<String>
-)
-
 internal data class AIAccountingPromptContext(
     val dbAssets: List<Asset>,
     val assetInfoList: List<Map<String, String>>,
@@ -159,63 +145,6 @@ internal fun normalizeAccountingResult(
     } else {
         enforceNoAssetMode(root)
     }
-}
-
-internal fun applyLocalPrefillToResult(root: JSONObject, prefill: AILocalRulePrefill): AILocalRuleApplyResult {
-    val changedFields = linkedSetOf<String>()
-    val correctedFields = linkedSetOf<String>()
-
-    prefill.type?.let { type ->
-        val normalizedType = normalizeBillType(type)
-        val hadValue = root.has("type")
-        val oldValue = root.optInt("type", Int.MIN_VALUE)
-        if (!hadValue || oldValue != normalizedType) {
-            changedFields += "type"
-            if (hadValue && oldValue != normalizedType) correctedFields += "type"
-        }
-        root.put("type", normalizedType)
-        if (normalizedType == DbBill.TYPE_TRANSFER && prefill.category == "还款") {
-            val hadSubType = root.has("subType")
-            val oldSubType = root.optInt("subType", Int.MIN_VALUE)
-            if (!hadSubType || oldSubType != DbBill.SUBTYPE_REPAYMENT) {
-                changedFields += "subType"
-                if (hadSubType && oldSubType != DbBill.SUBTYPE_REPAYMENT) correctedFields += "subType"
-            }
-            root.put("subType", DbBill.SUBTYPE_REPAYMENT)
-        }
-    }
-
-    prefill.category?.takeIf { it.isNotBlank() }?.let { category ->
-        val oldValue = root.optString("category_name", "")
-        if (!root.has("category_name") || oldValue != category) {
-            changedFields += "category_name"
-            if (oldValue.isNotBlank() && oldValue != category) correctedFields += "category_name"
-        }
-        root.put("category_name", category)
-    }
-    prefill.assetName?.takeIf { it.isNotBlank() }?.let { assetName ->
-        val oldValue = root.optString("asset_name", "")
-        if (!root.has("asset_name") || oldValue != assetName) {
-            changedFields += "asset_name"
-            if (oldValue.isNotBlank() && oldValue != assetName) correctedFields += "asset_name"
-        }
-        root.put("asset_name", assetName)
-    }
-    prefill.toAssetName?.takeIf { it.isNotBlank() }?.let { toAssetName ->
-        val oldValue = root.optString("to_asset_name", "")
-        if (!root.has("to_asset_name") || oldValue != toAssetName) {
-            changedFields += "to_asset_name"
-            if (oldValue.isNotBlank() && oldValue != toAssetName) correctedFields += "to_asset_name"
-        }
-        root.put("to_asset_name", toAssetName)
-    }
-
-    return AILocalRuleApplyResult(
-        applied = changedFields.isNotEmpty(),
-        corrected = correctedFields.isNotEmpty(),
-        correctedFields = correctedFields.toList(),
-        changedFields = changedFields.toList()
-    )
 }
 
 internal fun summarizeLocalRuleSensitiveFields(json: JSONObject): String {

@@ -27,7 +27,6 @@ object AddBillEntrySheetLauncher {
         val view = activity.layoutInflater.inflate(R.layout.layout_floating_window, null)
 
         val aiAssistant = AiAssistant(activity)
-        var sheetMultiBillMode = false
 
         val formController = AccountingFormController(
             ctx = activity,
@@ -37,8 +36,7 @@ object AddBillEntrySheetLauncher {
         prefillData?.let { formController.fillDataToUi(it, showToast = false) }
 
         val handleAiResult: (JSONObject) -> Unit = { resultJson ->
-            val isMulti = sheetMultiBillMode
-            if (isMulti && resultJson.has("bills")) {
+            if (resultJson.has("bills")) {
                 formController.fillDataToUi(resultJson, showToast = true, forceMultiMode = true)
                 val firstBill = resultJson.getJSONArray("bills").optJSONObject(0)
                 if (firstBill != null) formController.setCurrency(firstBill.optString("currency", "CNY"))
@@ -48,12 +46,7 @@ object AddBillEntrySheetLauncher {
             }
         }
 
-        val rgBillMode = view.findViewById<RadioGroup?>(R.id.rg_bill_mode)
-        rgBillMode?.setOnCheckedChangeListener { _, checkedId ->
-            sheetMultiBillMode = checkedId == R.id.rb_multi
-        }
-
-        val voiceHandler = VoiceInputHandler(activity, aiAssistant, { sheetMultiBillMode }, handleAiResult)
+        val voiceHandler = VoiceInputHandler(activity, aiAssistant, handleAiResult)
         aiAssistant.voiceInputBtnSetup = { btn ->
             voiceHandler.setupVoiceButton(btn)
         }
@@ -63,9 +56,6 @@ object AddBillEntrySheetLauncher {
         if (Prefs.isShowAiImage(activity)) {
             btnAiImage?.visibility = android.view.View.VISIBLE
             btnAiImage?.setOnClickListener {
-                sheetMultiBillMode = true
-                view.findViewById<RadioButton?>(R.id.rb_multi)?.isChecked = true
-
                 ImagePickerActivity.onImagePicked = { uri ->
                     ImagePickerActivity.onImagePicked = null
                     ImagePickerActivity.onPickCancelled = null
@@ -82,10 +72,7 @@ object AddBillEntrySheetLauncher {
         }
 
         formController.layoutAiTextEntry.setOnClickListener {
-            aiAssistant.showInputPanel(
-                isMultiMode = sheetMultiBillMode,
-                onResult = handleAiResult
-            )
+            aiAssistant.showInputPanel(onResult = handleAiResult)
         }
 
         bottomSheet.setOnShowListener { onShow?.invoke() }

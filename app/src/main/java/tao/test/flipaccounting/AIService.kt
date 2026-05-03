@@ -35,12 +35,8 @@ const val OCR_MODE_MULTIMODAL = 1   // 直接多模态 AI（发送图片）
 
 object AIService {
     private const val MAX_AUDIO_INLINE_BYTES = 8L * 1024L * 1024L
-    private const val LOCAL_RULE_APPLIED_FLAG = "_local_rule_applied"
-    private const val LOCAL_RULE_CORRECTED_FLAG = "_local_rule_corrected"
     private const val MODIFY_BILL_LOG_TAG = "ModifyBill"
-    private const val ACCOUNTING_SINGLE_LOG_TAG = "AccountingSingle"
     private const val ACCOUNTING_MULTI_LOG_TAG = "AccountingMulti"
-    private const val ACCOUNTING_AUDIO_SINGLE_LOG_TAG = "AccountingAudioSingle"
     private const val ACCOUNTING_AUDIO_MULTI_LOG_TAG = "AccountingAudioMulti"
     private const val RECEIPT_OCR_LOG_TAG = "ReceiptOcr"
     private const val RECEIPT_OCR_REFINE_LOG_TAG = "ReceiptOcrRefine"
@@ -52,11 +48,7 @@ object AIService {
     private const val SIMPLE_CHAT_LOG_TAG = "SimpleChat"
     private const val ROUTER_LOG_TAG = "IntentRouter"
 
-    // 兼容旧版配置页引用（AiConfigActivity 等地方直接用 AIService.XXX 引用这些常量）
-    const val DEFAULT_PROMPT                     = AIPrompts.SINGLE_BILL_PROMPT_DEFAULT
-    const val MULTI_BILL_PROMPT                  = AIPrompts.MULTI_BILL_PROMPT_DEFAULT
-    const val SINGLE_BILL_PROMPT_DEFAULT         = AIPrompts.SINGLE_BILL_PROMPT_DEFAULT
-    const val MULTI_BILL_PROMPT_DEFAULT          = AIPrompts.MULTI_BILL_PROMPT_DEFAULT
+    const val MULTI_BILL_PROMPT_DEFAULT = AIPrompts.MULTI_BILL_PROMPT_DEFAULT
     const val MODIFY_BILL_PROMPT_DEFAULT          = AIPrompts.MODIFY_BILL_PROMPT_DEFAULT
     val RULE_EXTRACT_PROMPT_DEFAULT              get() = tao.test.flipaccounting.logic.RuleDialogHelper.DEFAULT_RULE_PROMPT
     const val RECEIPT_BILL_PROMPT                = AIPrompts.RECEIPT_BILL_PROMPT
@@ -82,16 +74,8 @@ object AIService {
     private const val CONFIDENCE_MID_THRESHOLD = 0.65
     private const val DEFAULT_CUSTOM_REPLY_STYLE_GUIDE =
         "回复风格：按用户自定义要求回复。请直接对用户说自然的人话，不要输出场景标签、英文状态词、JSON 或内部指令。"
-    private fun enableThinkingForAccounting(ctx: Context, isMultiMode: Boolean): Boolean =
-        if (isMultiMode) Prefs.isAiThinkingMultiBillEnabled(ctx) else Prefs.isAiThinkingSingleBillEnabled(ctx)
+    private fun enableThinkingForAccounting(ctx: Context): Boolean = Prefs.isAiThinkingMultiBillEnabled(ctx)
     private fun enableThinkingForVision(ctx: Context): Boolean = Prefs.isAiThinkingVisionEnabled(ctx)
-
-    fun getDefaultSingleBillPrompt(ctx: Context): String =
-        if (Prefs.isAssetFeatureEnabled(ctx)) {
-            AIPrompts.SINGLE_BILL_PROMPT_DEFAULT
-        } else {
-            AIPromptsWithoutAccount.SINGLE_BILL_PROMPT_DEFAULT
-        }
 
     fun getDefaultMultiBillPrompt(ctx: Context): String =
         if (Prefs.isAssetFeatureEnabled(ctx)) {
@@ -185,9 +169,8 @@ object AIService {
         val safeUserInput = shortenForModel(userInput, MAX_ACCOUNTING_INPUT_CHARS)
         Logger.d(ctx, "AIService", "Accounting analyze request: inputLen=${safeUserInput.length}, multiOverride=$isMultiModeOverride")
         val apiKey = Prefs.getAiKey(ctx)
-        val isMultiMode = isMultiModeOverride ?: Prefs.isMultiBillEnabled(ctx)
-        val enableThinking = enableThinkingForAccounting(ctx, isMultiMode)
-        val model = if (isMultiMode) Prefs.getAiMultiModel(ctx) else Prefs.getAiSingleModel(ctx)
+        val enableThinking = enableThinkingForAccounting(ctx)
+        val model = Prefs.getAiMultiModel(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
         val promptContext = buildAccountingPromptContext(ctx)
 
@@ -197,18 +180,11 @@ object AIService {
         } else {
             emptyList()
         }
-        val localPrefill = if (!isMultiMode) {
-            resolveLocalRulePrefill(matchedPromptRules)
-        } else {
-            null
-        }
 
         val systemPrompt = buildAccountingSystemPrompt(
             ctx = ctx,
             promptContext = promptContext,
-            isMultiMode = isMultiMode,
-            matchedPromptRules = matchedPromptRules,
-            localPrefill = localPrefill
+            matchedPromptRules = matchedPromptRules
         )
 
         return try {
@@ -219,11 +195,8 @@ object AIService {
                 userText = safeUserInput,
                 enableThinking = enableThinking
             )
-            if (!isMultiMode && matchedPromptRules.isNotEmpty()) {
-                onProgress?.invoke("本地规则匹配中...")
-            }
             onProgress?.invoke("智能分析中...")
-            val useDetailedStream = isMultiMode && !Prefs.isMultiBillFastMode(ctx)
+            val useDetailedStream = !Prefs.isMultiBillFastMode(ctx)
             val useTextPreviewStream = !useDetailedStream
             val content = requestAccountingContentStreamed(
                 ctx = ctx,
@@ -232,12 +205,11 @@ object AIService {
                 onProgress = onProgress,
                 emitTextDelta = useTextPreviewStream,
                 logReasoning = enableThinking,
-                reasoningLogTag = if (isMultiMode) ACCOUNTING_MULTI_LOG_TAG else ACCOUNTING_SINGLE_LOG_TAG
+                reasoningLogTag = ACCOUNTING_MULTI_LOG_TAG
             )
             Logger.d(ctx, "AIService", "Accounting response received: len=${content.length}")
 
-            // 直接解析，不再对原始 JSON 字符串做规则覆盖
-            val result = parseAnalyzeResult(content, isMultiMode)
+            val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
                 if (shouldTreatAsNoBillChatter(safeUserInput, root)) {
@@ -246,24 +218,9 @@ object AIService {
                         put("reply", "这句更像是在聊天，不像记账内容，我就先不帮你生成账单啦。")
                     }
                 }
-                // ── 第1步：小票强制支出 ──
                 enforceExpenseForReceiptSummaries(root, safeUserInput)
-                if (!isMultiMode && localPrefill != null) {
-                        val applyResult = applyLocalPrefillToResult(root, localPrefill)
-                        if (applyResult.applied) {
-                        root.put(LOCAL_RULE_APPLIED_FLAG, true)
-                        if (applyResult.corrected) {
-                            root.put(LOCAL_RULE_CORRECTED_FLAG, true)
-                        }
-                        Logger.d(
-                            ctx,
-                            "AIService",
-                            "Local rule override applied; corrected=${applyResult.corrected}; correctedFieldCount=${applyResult.correctedFields.size}; changedFieldCount=${applyResult.changedFields.size}"
-                        )
-                    }
-                }
 
-                if (isMultiMode && root.has("bills") && !Prefs.isMultiBillFastMode(ctx)) {
+                if (root.has("bills") && !Prefs.isMultiBillFastMode(ctx)) {
                     scoreMultiBillsConfidence(
                         root = root,
                         expenseCats = promptContext.expenseCats,
@@ -311,17 +268,15 @@ object AIService {
         require(audioFile.length() <= MAX_AUDIO_INLINE_BYTES) { "语音文件过大，请缩短后再试" }
 
         val apiKey = Prefs.getAiKey(ctx)
-        val isMultiMode = isMultiModeOverride ?: Prefs.isMultiBillEnabled(ctx)
-        val enableThinking = enableThinkingForAccounting(ctx, isMultiMode)
-        val model = if (isMultiMode) Prefs.getAiMultiModel(ctx) else Prefs.getAiSingleModel(ctx)
+        val enableThinking = enableThinkingForAccounting(ctx)
+        val model = Prefs.getAiMultiModel(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
         val promptContext = buildAccountingPromptContext(ctx)
         val promptRules = loadActivePromptRules(ctx)
 
         val systemPrompt = buildAudioAccountingSystemPrompt(
             ctx = ctx,
-            promptContext = promptContext,
-            isMultiMode = isMultiMode
+            promptContext = promptContext
         )
 
         val audioBase64 = withContext(Dispatchers.IO) {
@@ -345,7 +300,7 @@ object AIService {
                 apiKey = apiKey,
                 requestJson = requestJson,
                 logReasoning = enableThinking,
-                reasoningLogTag = if (isMultiMode) ACCOUNTING_AUDIO_MULTI_LOG_TAG else ACCOUNTING_AUDIO_SINGLE_LOG_TAG,
+                reasoningLogTag = ACCOUNTING_AUDIO_MULTI_LOG_TAG,
                 onProgressChars = { currentLen -> onProgress?.invoke("智能分析中...（已接收 $currentLen 字）") }
             )
             if (!streamed.completed) {
@@ -353,7 +308,7 @@ object AIService {
             }
             val content = streamed.content
             Logger.d(ctx, "AIService", "AI audio response received, len=${content.length}")
-            val result = parseAnalyzeResult(content, isMultiMode)
+            val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
                 if (shouldTreatAsNoBillChatter("[语音输入]", root)) {
@@ -362,7 +317,7 @@ object AIService {
                         put("reply", "这段语音更像是在聊天，不像需要落账的内容，我先按聊天回复你。")
                     }
                 }
-                if (isMultiMode && root.has("bills") && !Prefs.isMultiBillFastMode(ctx)) {
+                if (root.has("bills") && !Prefs.isMultiBillFastMode(ctx)) {
                     refineMultiBillCategories(
                         ctx = ctx,
                         root = root,
@@ -471,15 +426,13 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
-        val isMultiMode = isMultiModeOverride ?: Prefs.isMultiBillEnabled(ctx)
         val model = Prefs.getAiScreenModel(ctx).trim()
         if (model.isBlank()) throw IllegalArgumentException("请先在智能配置中选择屏幕识别模型")
 
         val promptContext = buildAccountingPromptContext(ctx)
         val systemPrompt = buildScreenAccountingSystemPrompt(
             ctx = ctx,
-            promptContext = promptContext,
-            isMultiMode = isMultiMode
+            promptContext = promptContext
         )
 
         val dataUrl = "data:$mimeType;base64,$imageBase64"
@@ -488,11 +441,7 @@ object AIService {
             temperature = 0.2,
             systemPrompt = systemPrompt,
             dataUrl = dataUrl,
-            userText = if (isMultiMode) {
-                "这是一张手机屏幕截图。请忽略界面装饰，只提取真实交易信息，并直接返回 {\"bills\":[...]}。"
-            } else {
-                "这是一张手机屏幕截图。请忽略界面装饰，只提取最明确的一条真实交易，并直接返回单个 JSON 对象。"
-            },
+            userText = "这是一张手机屏幕截图。请忽略界面装饰，只提取真实交易信息，并直接返回 {\"bills\":[...]}。",
             enableThinking = enableThinkingForVision(ctx)
         )
 
@@ -509,7 +458,7 @@ object AIService {
             }
             val content = streamed.content
             Logger.d(ctx, "AIService", "Screen accounting multimodal response: $content")
-            val result = parseAnalyzeResult(content, isMultiMode)
+            val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
                 normalizeAccountingResult(
@@ -760,7 +709,7 @@ object AIService {
         val model = Prefs.getAiQueryModel(ctx)
             .ifBlank { Prefs.getAiRouterModel(ctx) }
             .ifBlank { Prefs.getAiChatModel(ctx) }
-            .ifBlank { Prefs.getAiSingleModel(ctx) }
+            .ifBlank { Prefs.getAiMultiModel(ctx) }
             .trim()
         if (model.isEmpty()) return null
 
@@ -897,7 +846,7 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
-        val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiSingleModel(ctx) }
+        val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val safeBillSummary = shortenForModel(billSummary, MAX_ASSISTANT_SUMMARY_CHARS)
         val safeReplyHint = shortenForModel(extractorReplyHint, MAX_ASSISTANT_INPUT_CHARS, preserveTail = false)
@@ -942,7 +891,7 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
-        val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiSingleModel(ctx) }
+        val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val baseSystemPrompt = buildAssistantSystemPrompt(
             ctx = ctx,
@@ -990,7 +939,7 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
-        val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiSingleModel(ctx) }
+        val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val safeBillSummary = shortenForModel(billSummary, MAX_ASSISTANT_SUMMARY_CHARS)
         val safeReplyHint = shortenForModel(extractorReplyHint, MAX_ASSISTANT_INPUT_CHARS, preserveTail = false)
@@ -1035,7 +984,7 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) return false
         val model = modelName?.takeIf { it.isNotBlank() }
-            ?: Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiSingleModel(ctx) }
+            ?: Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
         return runCatching {
             val requestJson = buildAudioChatRequest(
                 model = model,
@@ -1113,21 +1062,13 @@ object AIService {
         } catch (e: Exception) {
             throw IllegalArgumentException("AI响应非JSON: ${cleaned.take(50)}...")
         }
-        // 无可记账信息：AI 返回 {"no_bill":true,"reply":"..."}
         if (json.optBoolean("no_bill", false)) {
-            return json // 透传给 ChatActivity 识别
+            return json
         }
-        return if (isMultiMode) {
-            when {
-                json.has("bills")  -> json
-                json.has("amount") -> JSONObject().apply { put("bills", JSONArray().put(json)) }
-                else -> throw IllegalArgumentException("多账单模式下 AI 返回的数据缺少关键字段 'bills' 或 'amount'")
-            }
-        } else {
-            if (json.has("bills")) {
-                val bills = json.getJSONArray("bills")
-                if (bills.length() > 0) bills.getJSONObject(0) else null
-            } else json
+        return when {
+            json.has("bills")  -> json
+            json.has("amount") -> JSONObject().apply { put("bills", JSONArray().put(json)) }
+            else -> throw IllegalArgumentException("AI 返回的数据缺少关键字段 'bills' 或 'amount'")
         }
     }
 
@@ -1404,7 +1345,7 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) return null
 
-        val model = Prefs.getAiSingleModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
+        val model = Prefs.getAiMultiModel(ctx)
         Logger.d(
             ctx,
             "AIService",
@@ -1436,7 +1377,7 @@ object AIService {
         )
         if (!streamed.completed) return null
         val content = streamed.content
-        val parsed = runCatching { parseAnalyzeResult(content, isMultiMode = false) }
+        val parsed = runCatching { parseAnalyzeResult(content, isMultiMode = true) }
             .getOrElse {
                 Logger.d(
                     ctx,
@@ -1474,21 +1415,6 @@ object AIService {
                 if (!matched.isNullOrBlank()) return matched
         }
         return null
-    }
-
-    private fun resolveLocalRulePrefill(matchedRules: List<DbAiRule>): AILocalRulePrefill? {
-        if (matchedRules.isEmpty()) return null
-        var type: Int? = null
-        var category: String? = null
-        var assetName: String? = null
-        var toAssetName: String? = null
-        matchedRules.forEach { rule ->
-            rule.targetType?.takeIf { it in 0..3 }?.let { type = if (it == 3) 2 else it }
-            rule.targetCategory?.takeIf { it.isNotBlank() }?.let { category = it }
-            rule.targetAccount1?.takeIf { it.isNotBlank() }?.let { assetName = it }
-            rule.targetAccount2?.takeIf { it.isNotBlank() }?.let { toAssetName = it }
-        }
-        return AILocalRulePrefill(type, category, assetName, toAssetName)
     }
 
     private fun findBestCategoryBySemanticHint(input: String, candidates: List<String>): String? {
