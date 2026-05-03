@@ -315,7 +315,7 @@ object YearMonthPickerDialog {
             fun bind(month: Int, selected: Boolean) {
                 tvMonth.text = "${month}月"
                 tvMonth.setTextColor(
-                    if (selected) 0xFF4F83CA.toInt() else 0xFF1F2937.toInt()
+                    if (selected) 0xFF5C6BC0.toInt() else 0xFF1F2937.toInt()
                 )
                 itemView.setOnClickListener {
                     if (selectedValue != month) {

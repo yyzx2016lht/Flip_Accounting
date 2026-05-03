@@ -121,8 +121,8 @@ object OverlayDialogs {
             panelView.animate()
                 .alpha(1f)
                 .translationY(0f)
-                .setDuration(220L)
-                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .setDuration(tao.test.flipaccounting.ui.common.UiMotion.NORMAL)
+                .setInterpolator(tao.test.flipaccounting.ui.common.UiMotion.STANDARD_EASING)
                 .start()
             contentViews.filterNotNull().forEach { content ->
                 content.animate()
@@ -336,8 +336,8 @@ object OverlayDialogs {
         val dbType = if (type == Prefs.TYPE_INCOME) 1 else 0
         val normalIconColor = if (dbType == 1) Color.parseColor("#43A047") else Color.parseColor("#E53935")
         val normalBgColor   = if (dbType == 1) Color.parseColor("#E8F5E9") else Color.parseColor("#FFEBEE")
-        val selectedIconColor = Color.parseColor("#2196F3")
-        val selectedBgColor   = Color.parseColor("#E3F2FD")
+        val selectedIconColor = Color.parseColor("#5C6BC0")
+        val selectedBgColor   = Color.parseColor("#E8EAF6")
         val categoryRepository = CategoryRepository(AppDatabase.getDatabase(ctx).categoryDao())
         fun applyIconStyle(itemView: View, isSelected: Boolean) {
             val ivIcon = itemView.findViewById<ImageView>(R.id.iv_category_icon)
@@ -361,7 +361,7 @@ object OverlayDialogs {
                     val isSelected = cat.name == parent?.name
                     itemView.findViewById<TextView>(R.id.tv_category_name).apply {
                         text = cat.name
-                        setTextColor(if (isSelected) Color.parseColor("#2196F3") else Color.parseColor("#333333"))
+                        setTextColor(if (isSelected) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
                     }
                     applyIconStyle(itemView, isSelected)
                     loadSafeCategoryIcon(ctx, cat.icon, itemView.findViewById(R.id.iv_category_icon))
@@ -424,8 +424,8 @@ object OverlayDialogs {
     ): View {
         val normalIconColor   = if (dbType == 1) Color.parseColor("#43A047") else Color.parseColor("#E53935")
         val normalBgColor     = if (dbType == 1) Color.parseColor("#E8F5E9") else Color.parseColor("#FFEBEE")
-        val selectedIconColor = Color.parseColor("#2196F3")
-        val selectedBgColor   = Color.parseColor("#E3F2FD")
+        val selectedIconColor = Color.parseColor("#5C6BC0")
+        val selectedBgColor   = Color.parseColor("#E8EAF6")
         val wrapper = FrameLayout(ctx)
         val panel = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -455,7 +455,7 @@ object OverlayDialogs {
                 val isSelected = sub.name == selected
                 item.findViewById<TextView>(R.id.tv_category_name).apply {
                     text = sub.name
-                    setTextColor(if (isSelected) Color.parseColor("#2196F3") else Color.parseColor("#333333"))
+                    setTextColor(if (isSelected) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
                 }
                 val ivIcon = item.findViewById<ImageView>(R.id.iv_category_icon)
                 ivIcon.setColorFilter(if (isSelected) selectedIconColor else normalIconColor)
@@ -726,8 +726,8 @@ object OverlayDialogs {
             container.removeAllViews()
             val normalIconColor   = if (dbType == 1) Color.parseColor("#43A047") else Color.parseColor("#E53935")
             val normalBgColor     = if (dbType == 1) Color.parseColor("#E8F5E9") else Color.parseColor("#FFEBEE")
-            val selectedIconColor = Color.parseColor("#2196F3")
-            val selectedBgColor   = Color.parseColor("#E3F2FD")
+            val selectedIconColor = Color.parseColor("#5C6BC0")
+            val selectedBgColor   = Color.parseColor("#E8EAF6")
 
             categories.chunked(5).forEach { row ->
                 val rowLayout = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
@@ -736,7 +736,7 @@ object OverlayDialogs {
                     val isSelected = cat.name == selectedParent?.name
                     itemView.findViewById<TextView>(R.id.tv_category_name).apply {
                         text = cat.name
-                        setTextColor(if (isSelected) Color.parseColor("#2196F3") else Color.parseColor("#333333"))
+                        setTextColor(if (isSelected) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
                     }
                     val ivIcon = itemView.findViewById<ImageView>(R.id.iv_category_icon)
                     ivIcon.setColorFilter(if (isSelected) selectedIconColor else normalIconColor)
@@ -846,7 +846,7 @@ object OverlayDialogs {
                 val ivIcon = itemView.findViewById<ImageView>(R.id.iv_book_icon)
                 val isSelected = book == currentSelection
                 tvName.text = book
-                tvName.setTextColor(if (isSelected) Color.parseColor("#1A73E8") else Color.parseColor("#333333"))
+                tvName.setTextColor(if (isSelected) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
                 ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
                 ivIcon.alpha = if (isSelected) 1f else 0.75f
                 itemView.background = androidx.core.content.ContextCompat.getDrawable(
@@ -1112,7 +1112,7 @@ object OverlayDialogs {
                 tv.text = asset.name
                 tvType?.text = ""   // 清空复用残留，选择器不显示类型
                 tvType?.visibility = View.GONE
-                tv.setTextColor(if (asset.name == currentSelection) Color.parseColor("#2196F3") else Color.parseColor("#333333"))
+                tv.setTextColor(if (asset.name == currentSelection) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
                 holder.itemView.alpha = if (asset.name == currentSelection) 1f else 0.85f
 
                 if (asset.icon.isNotEmpty()) {

@@ -8,7 +8,6 @@ import android.content.Intent
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
-import android.view.View
 import android.view.VelocityTracker
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
@@ -22,9 +21,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
 import tao.test.flipaccounting.ui.common.AddBillEntrySheetLauncher
 import tao.test.flipaccounting.ui.common.UiMotion
-import tao.test.flipaccounting.ui.common.UiMotion.hideAnimated
-import tao.test.flipaccounting.ui.common.UiMotion.showAnimated
-import tao.test.flipaccounting.ui.common.UiMotion.pressFeedback
 import tao.test.flipaccounting.ui.main.home.HomeFragment
 import tao.test.flipaccounting.ui.main.stats.StatsFragment
 import tao.test.flipaccounting.ui.main.assets.AssetsFragment
@@ -378,7 +374,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         fabApp?.setOnClickListener {
-            it.pressFeedback()
             if (Prefs.getAiEntryMode(this) == Prefs.AI_ENTRY_MODE_CHAT) {
                 startActivity(
                     Intent(this, ChatActivity::class.java)
@@ -435,9 +430,9 @@ class MainActivity : AppCompatActivity() {
     private fun updateFabVisibility() {
         val fab = fabApp ?: return
         if (currentTabIndex == 0) {
-            fab.showAnimated()
+            fab.show()
         } else {
-            fab.hideAnimated()
+            fab.hide()
         }
     }
 
@@ -830,10 +825,7 @@ class MainActivity : AppCompatActivity() {
     private fun showAddBillBottomSheet() {
         AddBillEntrySheetLauncher.show(
             activity = this,
-            onShow = {
-                fabApp?.animate()?.cancel()
-                fabApp?.visibility = View.GONE
-            },
+            onShow = { fabApp?.hide() },
             onDismiss = { updateFabVisibility() }
         )
     }

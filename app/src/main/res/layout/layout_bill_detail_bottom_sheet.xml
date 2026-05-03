@@ -8,6 +8,13 @@
     android:paddingTop="14dp"
     android:paddingBottom="22dp">
 
+    <View
+        android:layout_width="42dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_stats_sheet_handle" />
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -19,8 +26,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="详情"
-            android:textColor="#1A1A1A"
-            android:textSize="@dimen/text_size_20"
+            android:textColor="@color/dialog_title"
+            android:textSize="@dimen/dialog_title_size"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -38,11 +45,11 @@
                 android:id="@+id/btn_copy"
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
-                android:background="@drawable/shape_button_outline"
+                android:background="@drawable/bg_dialog_button_outline"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
                 android:text="复制"
-                android:textColor="#666666"
+                android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_13" />
 
             <TextView
@@ -50,11 +57,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/shape_button_outline"
+                android:background="@drawable/bg_dialog_button_outline"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
                 android:text="退款"
-                android:textColor="#666666"
+                android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_13" />
 
             <TextView
@@ -62,11 +69,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/shape_button_outline"
+                android:background="@drawable/bg_dialog_button_outline"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
                 android:text="修改"
-                android:textColor="#666666"
+                android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_13" />
 
             <TextView
@@ -74,11 +81,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/shape_button_outline_red"
+                android:background="@drawable/bg_dialog_button_danger"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
                 android:text="删除"
-                android:textColor="#FF3B30"
+                android:textColor="@color/dialog_button_danger_text"
                 android:textSize="@dimen/text_size_13" />
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -86,7 +93,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="0.5dp"
-        android:background="#EEF1F4" />
+        android:background="@color/dialog_divider" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -113,7 +120,7 @@
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
                     android:text="金额"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <LinearLayout
@@ -128,7 +135,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="-¥0.00"
-                        android:textColor="#FF3B30"
+                        android:textColor="@color/danger_color"
                         android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
 
@@ -138,21 +145,19 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
                         android:text="退款¥0.00，实际支出¥0.00"
-                        android:textColor="#A0A7B1"
+                        android:textColor="@color/text_tertiary"
                         android:textSize="@dimen/text_size_12"
                         android:visibility="gone" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 多币种转账：转入金额中间的分割线 -->
             <View
                 android:id="@+id/line_incoming"
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#F4F6F8"
+                android:background="@color/dialog_divider"
                 android:visibility="gone" />
 
-            <!-- 多币种转账：转入金额独立行，默认隐藏 -->
             <LinearLayout
                 android:id="@+id/layout_detail_incoming"
                 android:layout_width="match_parent"
@@ -168,7 +173,7 @@
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
                     android:text="转入金额"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <TextView
@@ -178,7 +183,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="$0.00"
-                    android:textColor="#22252B"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_16"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -187,7 +192,7 @@
                 android:id="@+id/line_amount"
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#F4F6F8" />
+                android:background="@color/dialog_divider" />
 
             <LinearLayout
                 android:id="@+id/layout_detail_fee"
@@ -203,7 +208,7 @@
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
                     android:text="手续费"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <TextView
@@ -212,7 +217,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="end"
-                    android:textColor="#FF9500"
+                    android:textColor="@color/warning_color"
                     android:textSize="@dimen/text_size_14" />
             </LinearLayout>
 
@@ -220,7 +225,7 @@
                 android:id="@+id/line_fee_detail"
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#F4F6F8"
+                android:background="@color/dialog_divider"
                 android:visibility="gone" />
 
             <LinearLayout
@@ -236,7 +241,7 @@
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
                     android:text="分类"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <TextView
@@ -246,7 +251,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text=""
-                    android:textColor="#1A1A1A"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14" />
             </LinearLayout>
 
@@ -254,7 +259,7 @@
                 android:id="@+id/line_category"
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#F4F6F8" />
+                android:background="@color/dialog_divider" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -269,7 +274,7 @@
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
                     android:text="账户"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <TextView
@@ -279,14 +284,14 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text=""
-                    android:textColor="#1A1A1A"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14" />
             </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#F0F0F0" />
+                android:background="@color/dialog_divider" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -301,7 +306,7 @@
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
                     android:text="时间"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <LinearLayout
@@ -316,7 +321,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text=""
-                        android:textColor="#1A1A1A"
+                        android:textColor="@color/text_primary"
                         android:textSize="@dimen/text_size_14" />
 
                     <TextView
@@ -325,7 +330,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
                         android:text=""
-                        android:textColor="#8A8A8E"
+                        android:textColor="@color/text_tertiary"
                         android:textSize="@dimen/text_size_12" />
                 </LinearLayout>
             </LinearLayout>
@@ -333,7 +338,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#F4F6F8" />
+                android:background="@color/dialog_divider" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -347,7 +352,7 @@
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
                     android:text="备注"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <TextView
@@ -357,14 +362,14 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text=""
-                    android:textColor="#1A1A1A"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14" />
             </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#F4F6F8" />
+                android:background="@color/dialog_divider" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -377,7 +382,7 @@
                     android:layout_width="80dp"
                     android:layout_height="wrap_content"
                     android:text="账本"
-                    android:textColor="#8A8A8E"
+                    android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
                 <TextView
@@ -387,7 +392,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text=""
-                    android:textColor="#1A1A1A"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_15" />
             </LinearLayout>
 
@@ -405,7 +410,7 @@
                     android:background="#F2F4F7"
                     android:padding="12dp"
                     android:text="退款记录"
-                    android:textColor="#1A1A1A"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_16"
                     android:textStyle="bold" />
 
@@ -438,7 +443,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="原账单"
-                        android:textColor="#5A6880"
+                        android:textColor="@color/text_primary"
                         android:textSize="@dimen/text_size_13"
                         android:textStyle="bold" />
 
@@ -447,7 +452,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:text="退款来源"
-                        android:textColor="#8A93A0"
+                        android:textColor="@color/text_secondary"
                         android:textSize="@dimen/text_size_12" />
                 </LinearLayout>
 

@@ -106,44 +106,14 @@ class AssetsFragment : Fragment() {
         if (!isAdded || !::fabAddAsset.isInitialized) return
         fabHiddenByScroll = false
         fabScrollAccumulator = 0
-        fabAddAsset.animate().cancel()
-        if (fabAddAsset.visibility != View.VISIBLE) {
-            fabAddAsset.alpha = 0f
-            fabAddAsset.scaleX = 0.5f
-            fabAddAsset.scaleY = 0.5f
-            fabAddAsset.show()
-        }
-        fabAddAsset.animate()
-            .alpha(1f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .setDuration(UiMotion.NORMAL)
-            .setInterpolator(UiMotion.STANDARD_EASING)
-            .withLayer()
-            .start()
+        fabAddAsset.show()
     }
 
     fun hideAssetFab() {
         if (!::fabAddAsset.isInitialized) return
         fabHiddenByScroll = true
         fabScrollAccumulator = 0
-        fabAddAsset.animate().cancel()
-        fabAddAsset.animate()
-            .alpha(0f)
-            .scaleX(0.5f)
-            .scaleY(0.5f)
-            .setDuration(UiMotion.NORMAL)
-            .setInterpolator(UiMotion.EXIT_EASING)
-            .withLayer()
-            .withEndAction {
-                if (isAdded) {
-                    fabAddAsset.hide()
-                    fabAddAsset.alpha = 1f
-                    fabAddAsset.scaleX = 1f
-                    fabAddAsset.scaleY = 1f
-                }
-            }
-            .start()
+        fabAddAsset.hide()
     }
 
     private fun applyFabScrollBehavior(dy: Int, scrollY: Int) {
@@ -153,12 +123,11 @@ class AssetsFragment : Fragment() {
             return
         }
 
-        fabScrollAccumulator += dy
-        if (!fabHiddenByScroll && fabScrollAccumulator > 20) {
+        if (dy > 8 && !fabHiddenByScroll) {
             hideAssetFab()
             return
         }
-        if (fabHiddenByScroll && fabScrollAccumulator < -8) {
+        if (dy < -2 && fabHiddenByScroll) {
             showAssetFab()
         }
     }

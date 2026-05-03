@@ -44,7 +44,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:text="✓"
-        android:textColor="#1762C5"
+        android:textColor="@color/brand_primary"
         android:textSize="16sp"
         android:textStyle="bold"
         android:visibility="invisible" />

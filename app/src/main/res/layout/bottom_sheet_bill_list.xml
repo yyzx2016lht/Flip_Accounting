@@ -4,9 +4,16 @@
     android:layout_height="wrap_content"
     android:background="@drawable/bg_bottom_sheet"
     android:orientation="vertical"
-    android:paddingHorizontal="16dp"
+    android:paddingHorizontal="@dimen/dialog_content_padding"
     android:paddingTop="12dp"
     android:paddingBottom="12dp">
+
+    <View
+        android:layout_width="42dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_stats_sheet_handle" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,9 +26,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="&#36134;&#21333;&#21015;&#34920;"
-            android:textColor="#222222"
-            android:textSize="@dimen/text_size_15"
+            android:text="账单列表"
+            android:textColor="@color/dialog_title"
+            android:textSize="@dimen/dialog_title_size"
             android:textStyle="bold" />
 
         <TextView
@@ -32,16 +39,16 @@
             android:gravity="center"
             android:minWidth="72dp"
             android:paddingHorizontal="12dp"
-            android:text="&#26102;&#38388; &#8595;"
-            android:textColor="#6B7280"
-            android:textSize="@dimen/text_size_15" />
+            android:text="时间 ↓"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/dialog_title_size" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="10dp"
-        android:background="#EEF1F4" />
+        android:background="@color/dialog_divider" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_sheet_bills"

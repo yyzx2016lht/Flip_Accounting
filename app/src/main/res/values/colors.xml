@@ -148,4 +148,20 @@
     <color name="stats_header_label">#9CA3AF</color>
     <color name="stats_daily_header_bg">#F8FAFC</color>
     <color name="stats_daily_header_text">#64748B</color>
+
+    <!-- ==================== Dialog / BottomSheet / Picker ==================== -->
+    <color name="dialog_title">@color/text_primary</color>
+    <color name="dialog_subtitle">@color/text_secondary</color>
+    <color name="dialog_divider">@color/divider_soft</color>
+    <color name="dialog_button_primary_bg">@color/brand_primary</color>
+    <color name="dialog_button_primary_text">#FFFFFF</color>
+    <color name="dialog_button_cancel_bg">#F0F2F5</color>
+    <color name="dialog_button_cancel_text">#61000000</color>
+    <color name="dialog_button_danger_bg">@color/danger_color</color>
+    <color name="dialog_button_danger_text">#FFFFFF</color>
+    <color name="dialog_picker_selected_bg">@color/brand_primary</color>
+    <color name="dialog_picker_selected_text">#FFFFFF</color>
+    <color name="dialog_picker_normal_text">#333333</color>
+    <color name="dialog_picker_item_bg">#F5F7FA</color>
+    <color name="dialog_picker_item_selected_stroke">@color/brand_primary</color>
 </resources>

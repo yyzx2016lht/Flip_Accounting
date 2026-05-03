@@ -259,10 +259,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="@dimen/asset_fab_margin_end"
-        android:layout_marginBottom="@dimen/asset_fab_margin_bottom"
+        android:layout_margin="24dp"
+        android:layout_marginBottom="80dp"
         android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/asset_fab_tint"
+        app:backgroundTint="#2196F3"
         app:borderWidth="0dp"
         app:elevation="4dp"
         app:tint="@android:color/white" />

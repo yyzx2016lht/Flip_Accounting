@@ -29,8 +29,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:text="添加记账习惯"
-            android:textColor="#24344A"
-            android:textSize="19sp"
+            android:textColor="@color/dialog_title"
+            android:textSize="@dimen/dialog_title_size"
             android:textStyle="bold" />
 
         <TextView
@@ -40,8 +40,8 @@
             android:layout_marginTop="6dp"
             android:lineSpacingExtra="2dp"
             android:text="把一句常见口语固定成你的记账偏好，下次命中时就能更准确。"
-            android:textColor="#8A98AD"
-            android:textSize="12sp" />
+            android:textColor="@color/dialog_subtitle"
+            android:textSize="@dimen/dialog_subtitle_size" />
 
         <LinearLayout
             android:id="@+id/layout_reference_card"
@@ -284,12 +284,12 @@
             <TextView
                 android:id="@+id/btn_delete_rule"
                 android:layout_width="wrap_content"
-                android:layout_height="46dp"
+                android:layout_height="@dimen/dialog_button_height"
                 android:background="@drawable/bg_dialog_action_item_danger"
                 android:gravity="center"
                 android:paddingHorizontal="16dp"
                 android:text="删除"
-                android:textColor="#B3261E"
+                android:textColor="@color/danger_color"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
@@ -301,12 +301,12 @@
             <TextView
                 android:id="@+id/btn_cancel_rule"
                 android:layout_width="0dp"
-                android:layout_height="46dp"
+                android:layout_height="@dimen/dialog_button_height"
                 android:layout_weight="1"
-                android:background="@drawable/bg_dialog_action_item"
+                android:background="@drawable/bg_dialog_button_cancel"
                 android:gravity="center"
                 android:text="取消"
-                android:textColor="#72819A"
+                android:textColor="@color/dialog_button_cancel_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -317,12 +317,12 @@
             <TextView
                 android:id="@+id/btn_save_rule"
                 android:layout_width="0dp"
-                android:layout_height="46dp"
+                android:layout_height="@dimen/dialog_button_height"
                 android:layout_weight="1"
-                android:background="@drawable/bg_rule_primary_action"
+                android:background="@drawable/bg_dialog_button_primary"
                 android:gravity="center"
                 android:text="保存"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/dialog_button_primary_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
         </LinearLayout>

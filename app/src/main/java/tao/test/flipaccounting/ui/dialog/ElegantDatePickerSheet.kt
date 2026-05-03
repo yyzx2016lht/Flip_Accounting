@@ -99,7 +99,7 @@ object ElegantDatePickerSheet {
                         container.dayText.setBackgroundResource(R.drawable.bg_elegant_calendar_day_selected)
                     }
                     date == today -> {
-                        container.dayText.setTextColor(Color.parseColor("#2C74FF"))
+                        container.dayText.setTextColor(Color.parseColor("#5C6BC0"))
                         container.dayText.setBackgroundResource(R.drawable.bg_elegant_calendar_day_today)
                     }
                     else -> {

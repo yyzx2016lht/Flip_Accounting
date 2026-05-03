@@ -122,6 +122,17 @@
     <dimen name="stats_segmented_radius">10dp</dimen>
     <dimen name="stats_segmented_tab_radius">8dp</dimen>
 
+    <!-- ==================== Dialog / BottomSheet / Picker ==================== -->
+    <dimen name="dialog_corner_radius">20dp</dimen>
+    <dimen name="dialog_bottom_sheet_top_radius">20dp</dimen>
+    <dimen name="dialog_title_size">16sp</dimen>
+    <dimen name="dialog_subtitle_size">12sp</dimen>
+    <dimen name="dialog_button_height">44dp</dimen>
+    <dimen name="dialog_button_corner_radius">22dp</dimen>
+    <dimen name="dialog_content_padding">16dp</dimen>
+    <dimen name="dialog_picker_item_min_height">52dp</dimen>
+    <dimen name="dialog_picker_check_size">18dp</dimen>
+
     <!-- ==================== Settings Page ==================== -->
     <dimen name="settings_card_radius">16dp</dimen>
     <dimen name="settings_card_margin_bottom">16dp</dimen>

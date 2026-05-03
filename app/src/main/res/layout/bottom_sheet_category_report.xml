@@ -6,14 +6,21 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <View
+        android:layout_width="42dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_stats_sheet_handle" />
+
     <TextView
         android:id="@+id/tv_sheet_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:text="详情"
-        android:textColor="#333333"
-        android:textSize="@dimen/text_size_18"
+        android:textColor="@color/dialog_title"
+        android:textSize="@dimen/dialog_title_size"
         android:textStyle="bold" />
 
     <com.github.mikephil.charting.charts.PieChart

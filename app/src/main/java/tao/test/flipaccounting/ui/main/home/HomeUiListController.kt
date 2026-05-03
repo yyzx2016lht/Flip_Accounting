@@ -124,20 +124,22 @@ internal class HomeUiListController(
     fun updateHomeFabVisibilityByDrawerState() {
         val fab = (fragment.activity as? MainActivity)
             ?.findViewById<FloatingActionButton>(R.id.fab_add) ?: return
-        if (isBookDrawerOpen() || getIsMultiSelectModeActive()) {
+        if (!fragment.isAdded || !fragment.isVisible || isBookDrawerOpen() || getIsMultiSelectModeActive()) {
             fab.hide()
             return
         }
-        fab.show()
-        fab.alpha = 1f
-        fab.scaleX = 1f
-        fab.scaleY = 1f
+        if (fab.visibility != View.VISIBLE) {
+            fab.show()
+        }
     }
 
     fun applyHomeFabDrawerProgress(slideOffset: Float) {
         val fab = (fragment.activity as? MainActivity)
             ?.findViewById<FloatingActionButton>(R.id.fab_add) ?: return
-        if (getIsMultiSelectModeActive()) return
+        if (!fragment.isAdded || !fragment.isVisible || getIsMultiSelectModeActive()) {
+            fab.hide()
+            return
+        }
         val clamped = slideOffset.coerceIn(0f, 1f)
         if (clamped <= 0f) {
             if (layoutEmptyView.visibility != View.VISIBLE) {
