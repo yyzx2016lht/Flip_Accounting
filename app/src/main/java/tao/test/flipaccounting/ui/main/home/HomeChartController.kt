@@ -194,8 +194,10 @@ internal class HomeChartController(
 
     private fun buildHeadlineAmount(amount: Double): SpannableString {
         val raw = "¥${AmountFormatHelper.formatAmount(amount)}"
+        val symbolEnd = raw.indexOfFirst { it.isDigit() || it == ',' || it == '.' }
+            .coerceAtLeast(1)
         return SpannableString(raw).apply {
-            setSpan(RelativeSizeSpan(0.56f), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(RelativeSizeSpan(0.6f), 0, symbolEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             setSpan(StyleSpan(Typeface.BOLD), 0, raw.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }

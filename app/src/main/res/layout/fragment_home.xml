@@ -72,6 +72,7 @@
                                 android:id="@+id/layoutHeadlineBlock"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
                                 android:orientation="vertical"
                                 app:layout_constraintStart_toStartOf="parent"
                                 app:layout_constraintTop_toTopOf="parent">
@@ -81,21 +82,22 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="&#x672C;&#x6708;&#x603B;&#x652F;&#x51FA;"
-                                    android:textColor="#B3FFFFFF"
-                                    android:textSize="13sp"
+                                    android:textColor="#CCFFFFFF"
+                                    android:textSize="15sp"
                                     android:textStyle="normal"
                                     android:fontFamily="sans-serif"
-                                    android:includeFontPadding="false"
-                                    android:letterSpacing="0.04" />
+                                    android:includeFontPadding="false" />
 
                                 <TextView
                                     android:id="@+id/tvMonthExpense"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginTop="12dp"
+                                    android:layout_marginTop="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
                                     android:text="&#xA5;0.00"
                                     android:textColor="#FFFFFF"
-                                    android:textSize="40sp"
+                                    android:textSize="30sp"
                                     android:textStyle="bold"
                                     android:fontFamily="sans-serif-medium"
                                     android:includeFontPadding="false"
@@ -105,83 +107,66 @@
 
                             <LinearLayout
                                 android:id="@+id/layoutSummaryFooter"
-                                android:layout_width="0dp"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:baselineAligned="false"
                                 android:gravity="bottom"
                                 android:orientation="horizontal"
                                 app:layout_constraintBottom_toBottomOf="parent"
-                                app:layout_constraintEnd_toEndOf="parent"
                                 app:layout_constraintStart_toStartOf="parent">
-
-                                <LinearLayout
-                                    android:layout_width="0dp"
-                                    android:layout_height="wrap_content"
-                                    android:layout_weight="1"
-                                    android:orientation="vertical">
 
                                     <TextView
                                         android:id="@+id/tvMonthIncomeLabel"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="&#x672C;&#x6708;&#x6536;&#x5165;"
-                                        android:textColor="#B3FFFFFF"
-                                        android:textSize="12sp"
+                                        android:textColor="#CCFFFFFF"
+                                        android:textSize="15sp"
                                         android:textStyle="normal"
                                         android:fontFamily="sans-serif"
-                                        android:includeFontPadding="false"
-                                        android:letterSpacing="0.04" />
+                                        android:includeFontPadding="false" />
 
                                     <TextView
                                         android:id="@+id/tvMonthIncome"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:layout_marginTop="6dp"
+                                        android:layout_marginStart="6dp"
+                                        android:layout_marginEnd="16dp"
                                         android:ellipsize="end"
                                         android:fontFamily="sans-serif-medium"
                                         android:includeFontPadding="false"
                                         android:maxLines="1"
                                         android:text="&#xA5;0.00"
                                         android:textColor="#FFFFFF"
-                                        android:textSize="16sp"
+                                        android:textSize="17sp"
                                         android:textStyle="normal"
                                         android:letterSpacing="0" />
-                                </LinearLayout>
-
-                                <LinearLayout
-                                    android:layout_width="0dp"
-                                    android:layout_height="wrap_content"
-                                    android:layout_weight="1"
-                                    android:gravity="end"
-                                    android:orientation="vertical">
 
                                     <TextView
                                         android:id="@+id/tvMonthBalanceLabel"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="&#x672C;&#x6708;&#x7ED3;&#x4F59;"
-                                        android:textColor="#B3FFFFFF"
-                                        android:textSize="12sp"
+                                        android:textColor="#CCFFFFFF"
+                                        android:textSize="15sp"
                                         android:textStyle="normal"
                                         android:fontFamily="sans-serif"
-                                        android:includeFontPadding="false"
-                                        android:letterSpacing="0.04" />
+                                        android:includeFontPadding="false" />
 
                                     <TextView
                                         android:id="@+id/tvMonthBalance"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:layout_marginTop="6dp"
+                                        android:layout_marginStart="6dp"
                                         android:ellipsize="end"
                                         android:fontFamily="sans-serif-medium"
                                         android:includeFontPadding="false"
                                         android:maxLines="1"
                                         android:text="&#xA5;0.00"
                                         android:textColor="#FFFFFF"
-                                        android:textSize="16sp"
+                                        android:textSize="17sp"
                                         android:textStyle="normal"
                                         android:letterSpacing="0" />
-                                </LinearLayout>
                             </LinearLayout>
                         </androidx.constraintlayout.widget.ConstraintLayout>
 

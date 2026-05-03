@@ -827,13 +827,6 @@ class HomeFragment : Fragment() {
     }
 
     /**
-     * 让摘要区底部留白始终等于“月收入金额”文字高度，避免写死 dp。
-     */
-    private fun applyHeaderSummaryBottomInsetByIncomeHeight() {
-        // Header 摘要区现在由 XML 内部约束自洽控制间距，不再动态改 padding。
-    }
-
-    /**
      * 统一设置 header 区域内所有文字和图标的颜色。
      * [useLightText] = true → 白色（适合深色/图片背景）
      * [useLightText] = false → 深灰（适合浅色主题色背景）
