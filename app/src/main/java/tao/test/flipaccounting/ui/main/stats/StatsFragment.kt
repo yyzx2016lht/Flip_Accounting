@@ -37,6 +37,7 @@ import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
@@ -1002,15 +1003,16 @@ class StatsFragment : Fragment() {
         val dialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.layout_stats_filter_sheet, null)
 
-        val chipToday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_today)
-        val chipYesterday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_yesterday)
-        val chipThisWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_week)
-        val chipLastWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_week)
-        val chipThisMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_month)
-        val chipLastMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_month)
-        val chipThisYear = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_year)
-        val chipLastYear = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_year)
-        val chipAll = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_all)
+        val chipToday = view.findViewById<MaterialButton>(R.id.chip_filter_today)
+        val chipYesterday = view.findViewById<MaterialButton>(R.id.chip_filter_yesterday)
+        val chipDayBeforeYesterday = view.findViewById<MaterialButton>(R.id.chip_filter_day_before_yesterday)
+        val chipThisWeek = view.findViewById<MaterialButton>(R.id.chip_filter_this_week)
+        val chipLastWeek = view.findViewById<MaterialButton>(R.id.chip_filter_last_week)
+        val chipThisMonth = view.findViewById<MaterialButton>(R.id.chip_filter_this_month)
+        val chipLastMonth = view.findViewById<MaterialButton>(R.id.chip_filter_last_month)
+        val chipThisYear = view.findViewById<MaterialButton>(R.id.chip_filter_this_year)
+        val chipLastYear = view.findViewById<MaterialButton>(R.id.chip_filter_last_year)
+        val chipAll = view.findViewById<MaterialButton>(R.id.chip_filter_all)
 
         val cardStart = view.findViewById<View>(R.id.tv_filter_start_date)
         val cardEnd = view.findViewById<View>(R.id.tv_filter_end_date)
@@ -1032,19 +1034,26 @@ class StatsFragment : Fragment() {
         var availableCurrencies: List<String> = emptyList()
         var suppressQuickSync = false
         var currencyPopup: PopupWindow? = null
+        var selectedQuickLabel: String? = null
+        val quickChipLabelPairs = listOf(
+            chipToday to "\u4eca\u5929",
+            chipYesterday to "\u6628\u5929",
+            chipDayBeforeYesterday to "\u524d\u5929",
+            chipThisWeek to "\u672c\u5468",
+            chipLastWeek to "\u4e0a\u5468",
+            chipThisMonth to "\u672c\u6708",
+            chipLastMonth to "\u4e0a\u6708",
+            chipThisYear to "\u4eca\u5e74",
+            chipLastYear to "\u53bb\u5e74",
+            chipAll to "\u5168\u90e8"
+        )
+        val quickChips = quickChipLabelPairs.map { it.first }
 
         fun clearQuickChips() {
             suppressQuickSync = true
-            chipToday.isChecked = false
-            chipYesterday.isChecked = false
-            chipThisWeek.isChecked = false
-            chipLastWeek.isChecked = false
-            chipThisMonth.isChecked = false
-            chipLastMonth.isChecked = false
-            chipThisYear.isChecked = false
-            chipLastYear.isChecked = false
-            chipAll.isChecked = false
+            quickChips.forEach { it.isChecked = false }
             suppressQuickSync = false
+            selectedQuickLabel = null
         }
 
         fun updateDateField(view: TextView, value: Long?, placeholder: String) {
@@ -1081,6 +1090,7 @@ class StatsFragment : Fragment() {
         fun isQuickLabel(label: String?): Boolean {
             return label == "\u4eca\u5929" ||
                 label == "\u6628\u5929" ||
+                label == "\u524d\u5929" ||
                 label == "\u672c\u5468" ||
                 label == "\u4e0a\u5468" ||
                 label == "\u672c\u6708" ||
@@ -1101,6 +1111,13 @@ class StatsFragment : Fragment() {
                 }
                 "\u6628\u5929" -> {
                     val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "\u524d\u5929" -> {
+                    val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -2) }
                     setDayStart(cal)
                     customStart = cal.timeInMillis
                     setDayEnd(cal)
@@ -1181,19 +1198,28 @@ class StatsFragment : Fragment() {
             resetDateLabels()
         }
 
+        fun selectQuickChip(target: MaterialButton, label: String) {
+            suppressQuickSync = true
+            quickChips.forEach { it.isChecked = it == target }
+            suppressQuickSync = false
+            selectedQuickLabel = label
+            updateCustomRangeByQuick(label)
+        }
+
         tvCurrency.text = selectedCurrency ?: "全部币种"
         resetDateLabels()
 
         when (state.forcedLabel) {
-            "\u4eca\u5929" -> chipToday.isChecked = true
-            "\u6628\u5929" -> chipYesterday.isChecked = true
-            "\u672c\u5468" -> chipThisWeek.isChecked = true
-            "\u4e0a\u5468" -> chipLastWeek.isChecked = true
-            "\u672c\u6708" -> chipThisMonth.isChecked = true
-            "\u4e0a\u6708" -> chipLastMonth.isChecked = true
-            "\u4eca\u5e74" -> chipThisYear.isChecked = true
-            "\u53bb\u5e74" -> chipLastYear.isChecked = true
-            "\u5168\u90e8" -> chipAll.isChecked = true
+            "\u4eca\u5929" -> selectQuickChip(chipToday, "\u4eca\u5929")
+            "\u6628\u5929" -> selectQuickChip(chipYesterday, "\u6628\u5929")
+            "\u524d\u5929" -> selectQuickChip(chipDayBeforeYesterday, "\u524d\u5929")
+            "\u672c\u5468" -> selectQuickChip(chipThisWeek, "\u672c\u5468")
+            "\u4e0a\u5468" -> selectQuickChip(chipLastWeek, "\u4e0a\u5468")
+            "\u672c\u6708" -> selectQuickChip(chipThisMonth, "\u672c\u6708")
+            "\u4e0a\u6708" -> selectQuickChip(chipLastMonth, "\u4e0a\u6708")
+            "\u4eca\u5e74" -> selectQuickChip(chipThisYear, "\u4eca\u5e74")
+            "\u53bb\u5e74" -> selectQuickChip(chipLastYear, "\u53bb\u5e74")
+            "\u5168\u90e8" -> selectQuickChip(chipAll, "\u5168\u90e8")
         }
 
         if (state.forcedStartTime != null && state.forcedEndTime != null && state.forcedEndTime != Long.MAX_VALUE) {
@@ -1205,20 +1231,10 @@ class StatsFragment : Fragment() {
             resetDateLabels()
         }
 
-        listOf(
-            chipToday to "\u4eca\u5929",
-            chipYesterday to "\u6628\u5929",
-            chipThisWeek to "\u672c\u5468",
-            chipLastWeek to "\u4e0a\u5468",
-            chipThisMonth to "\u672c\u6708",
-            chipLastMonth to "\u4e0a\u6708",
-            chipThisYear to "\u4eca\u5e74",
-            chipLastYear to "\u53bb\u5e74",
-            chipAll to "\u5168\u90e8"
-        ).forEach { (chip, label) ->
-            chip.setOnCheckedChangeListener { _, isChecked ->
-                if (!isChecked || suppressQuickSync) return@setOnCheckedChangeListener
-                updateCustomRangeByQuick(label)
+        quickChipLabelPairs.forEach { (chip, label) ->
+            chip.setOnClickListener {
+                if (suppressQuickSync) return@setOnClickListener
+                selectQuickChip(chip, label)
             }
         }
 
@@ -1294,8 +1310,7 @@ class StatsFragment : Fragment() {
             clearQuickChips()
             customStart = null
             customEnd = null
-            chipThisMonth.isChecked = true
-            updateCustomRangeByQuick("本月")
+            selectQuickChip(chipThisMonth, "本月")
             selectedCurrency = null
             resetDateLabels()
             tvCurrency.text = "全部币种"
@@ -1303,23 +1318,30 @@ class StatsFragment : Fragment() {
             currencyPopup = null
             currencyExpandIcon.rotation = 0f
         }
-
         btnConfirm.setOnClickListener {
             when {
-                chipToday.isChecked -> viewModel.applyTodayFilter()
-                chipYesterday.isChecked -> viewModel.applyYesterdayFilter()
-                chipThisWeek.isChecked -> viewModel.applyThisWeekFilter()
-                chipLastWeek.isChecked -> viewModel.applyLastWeekFilter()
-                chipThisMonth.isChecked -> viewModel.applyThisMonthFilter()
-                chipLastMonth.isChecked -> viewModel.applyLastMonthFilter()
-                chipThisYear.isChecked -> viewModel.applyThisYearFilter()
-                chipLastYear.isChecked -> viewModel.applyLastYearFilter()
-                chipAll.isChecked -> viewModel.applyAllTimeFilter()
+                selectedQuickLabel == "今天" -> viewModel.applyTodayFilter()
+                selectedQuickLabel == "昨天" -> viewModel.applyYesterdayFilter()
+                selectedQuickLabel == "前天" -> customStart?.let { start -> customEnd?.let { end -> viewModel.applyCustomDateFilter(start, end) } }
+                selectedQuickLabel == "本周" -> viewModel.applyThisWeekFilter()
+                selectedQuickLabel == "上周" -> viewModel.applyLastWeekFilter()
+                selectedQuickLabel == "本月" -> viewModel.applyThisMonthFilter()
+                selectedQuickLabel == "上月" -> viewModel.applyLastMonthFilter()
+                selectedQuickLabel == "今年" -> {
+                    viewModel.setMode(false)
+                    viewModel.applyThisYearFilter()
+                }
+                selectedQuickLabel == "去年" -> {
+                    viewModel.setMode(false)
+                    viewModel.applyLastYearFilter()
+                }
+                selectedQuickLabel == "全部" -> viewModel.applyAllTimeFilter()
                 customStart != null && customEnd != null -> viewModel.applyCustomDateFilter(customStart!!, customEnd!!)
                 customStart != null || customEnd != null -> {
                     Toast.makeText(requireContext(), "\u8bf7\u5148\u9009\u62e9\u5b8c\u6574\u7684\u5f00\u59cb\u548c\u7ed3\u675f\u65e5\u671f", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
+                else -> viewModel.applyAllTimeFilter()
             }
 
             viewModel.setCurrencyFilter(selectedCurrency)
@@ -1337,7 +1359,7 @@ class StatsFragment : Fragment() {
             if (bottomSheetId == 0) return@setOnShowListener
             val bottomSheet = dialog.findViewById<View>(bottomSheetId) ?: return@setOnShowListener
             bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
-                height = (resources.displayMetrics.heightPixels * 0.82f).toInt()
+                height = ViewGroup.LayoutParams.MATCH_PARENT
             }
             BottomSheetBehavior.from(bottomSheet).apply {
                 skipCollapsed = true

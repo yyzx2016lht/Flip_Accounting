@@ -3,321 +3,232 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F3F6FB"
+    android:background="#F0F2F6"
     android:orientation="vertical">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_horizontal"
-        android:orientation="vertical"
-        android:paddingTop="8dp"
-        android:paddingBottom="4dp">
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="6dp">
 
         <View
-            android:layout_width="42dp"
+            android:id="@+id/drag_handle"
+            android:layout_width="34dp"
             android:layout_height="4dp"
-            android:background="@drawable/bg_stats_sheet_handle" />
-    </LinearLayout>
+            android:background="@drawable/bg_stats_sheet_handle"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:paddingHorizontal="14dp">
+        <TextView
+            android:id="@+id/tv_filter_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="筛选条件"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/drag_handle" />
 
         <ImageView
             android:id="@+id/btn_close_filter_sheet"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:layout_centerVertical="true"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="8dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            app:tint="#26364E" />
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="筛选"
-                android:textColor="#13253F"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="快捷范围与日期"
-                android:textColor="#708197"
-                android:textSize="11sp" />
-        </LinearLayout>
-    </RelativeLayout>
+            android:padding="6dp"
+            android:src="@drawable/ic_close"
+            app:layout_constraintBottom_toBottomOf="@id/tv_filter_title"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tv_filter_title"
+            app:tint="@color/text_secondary" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <ScrollView
+        android:id="@+id/scroll_filter_content"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:clipToPadding="false"
         android:fillViewport="true"
-        android:overScrollMode="never">
+        android:overScrollMode="never"
+        android:paddingStart="14dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="6dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingBottom="8dp">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_stats_filter_section_rect"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_stats_filter_section"
                 android:orientation="vertical"
-                android:paddingHorizontal="12dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="12dp">
+                android:padding="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="快捷范围"
-                    android:textColor="#1A2C46"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:fontFamily="sans-serif-medium"
+                    android:text="快捷时间"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp" />
 
-                <com.google.android.material.chip.ChipGroup
+                <GridLayout
+                    android:id="@+id/chipGroupQuickRange"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:isScrollContainer="false"
-                    app:chipSpacingHorizontal="10dp"
-                    app:chipSpacingVertical="10dp"
-                    app:singleLine="false"
-                    app:singleSelection="true">
+                    android:alignmentMode="alignMargins"
+                    android:columnCount="5"
+                    android:orientation="horizontal"
+                    android:rowCount="2"
+                    android:useDefaultMargins="false">
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_today"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="今天"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="今天" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_yesterday"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="昨天"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="昨天" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/chip_filter_day_before_yesterday"
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="前天" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_this_week"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="本周"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="本周" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_last_week"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="上周"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="上周" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_this_month"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="本月"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="本月" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_last_month"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="上月"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="上月" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_this_year"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="今年"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="今年" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_last_year"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="去年"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="去年" />
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_all"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="全部"
-                        android:textColor="@color/stats_filter_chip_text_selector"
-                        android:textSize="14sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipCornerRadius="12dp"
-                        app:chipStrokeColor="@color/stats_filter_chip_stroke_selector"
-                        app:chipStrokeWidth="1dp"
-                        app:checkedIconVisible="false" />
-                </com.google.android.material.chip.ChipGroup>
+                        style="@style/StatsFilterQuickButton" android:checkable="true"
+                        android:text="全部" />
+                </GridLayout>
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_stats_filter_section_rect"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_stats_filter_section"
                 android:orientation="vertical"
-                android:paddingHorizontal="12dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="12dp">
+                android:padding="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
                     android:text="自定义日期"
-                    android:textColor="#1A2C46"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="10dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <LinearLayout
                         android:id="@+id/tv_filter_start_date"
                         android:layout_width="0dp"
-                        android:layout_height="48dp"
+                        android:layout_height="42dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_stats_filter_field_rect"
                         android:gravity="center_vertical"
-                        android:orientation="vertical"
-                        android:paddingHorizontal="12dp">
+                        android:orientation="horizontal"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_home_calendar"
+                            app:tint="@color/text_tertiary" />
 
                         <TextView
                             android:id="@+id/tv_filter_start_date_text"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="开始"
-                            android:textColor="#8A97A8"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
+                            android:layout_marginStart="8dp"
+                            android:text="开始日期"
+                            android:textColor="@color/text_tertiary"
+                            android:textSize="13sp" />
                     </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="8dp"
-                        android:text="至"
-                        android:textColor="#95A0AF"
-                        android:textSize="12sp" />
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:text="—"
+                        android:textColor="@color/text_tertiary"
+                        android:textSize="14sp" />
 
                     <LinearLayout
                         android:id="@+id/tv_filter_end_date"
                         android:layout_width="0dp"
-                        android:layout_height="48dp"
+                        android:layout_height="42dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_stats_filter_field_rect"
                         android:gravity="center_vertical"
-                        android:orientation="vertical"
-                        android:paddingHorizontal="12dp">
+                        android:orientation="horizontal"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_home_calendar"
+                            app:tint="@color/text_tertiary" />
 
                         <TextView
                             android:id="@+id/tv_filter_end_date_text"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="结束"
-                            android:textColor="#8A97A8"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
+                            android:layout_marginStart="8dp"
+                            android:text="结束日期"
+                            android:textColor="@color/text_tertiary"
+                            android:textSize="13sp" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
@@ -326,96 +237,93 @@
                 android:id="@+id/layout_filter_currency_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_stats_filter_section_rect"
+                android:background="@drawable/bg_stats_filter_section"
                 android:orientation="vertical"
-                android:paddingHorizontal="12dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="12dp">
+                android:padding="14dp"
+                android:visibility="gone">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="币种范围"
-                    android:textColor="#1A2C46"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:fontFamily="sans-serif-medium"
+                    android:text="币种"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp" />
 
                 <LinearLayout
                     android:id="@+id/layout_filter_currency_selector"
                     android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="10dp"
                     android:background="@drawable/bg_stats_filter_field_rect"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="当前币种"
-                        android:textColor="#73839B"
-                        android:textSize="14sp" />
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
 
                     <TextView
                         android:id="@+id/tv_filter_currency_selector"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:ellipsize="end"
-                        android:singleLine="true"
+                        android:maxLines="1"
                         android:text="全部币种"
-                        android:textAlignment="viewEnd"
-                        android:textColor="#22324A"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp" />
 
                     <ImageView
                         android:id="@+id/iv_filter_currency_expand"
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
                         android:layout_marginStart="8dp"
                         android:src="@drawable/ic_chevron_down_small"
-                        app:tint="#7F90A6" />
+                        app:tint="@color/text_tertiary" />
                 </LinearLayout>
             </LinearLayout>
+
         </LinearLayout>
     </ScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@android:color/white"
+        android:elevation="8dp"
         android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
         android:paddingTop="8dp"
-        android:paddingBottom="10dp">
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp">
 
         <TextView
             android:id="@+id/btn_reset_filter_sheet"
             android:layout_width="0dp"
-            android:layout_height="42dp"
             android:layout_weight="1"
-            android:background="@drawable/bg_btn_outline_blue"
+            android:layout_height="42dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_stats_filter_reset"
+            android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:text="重置"
-            android:textColor="#2C74FF"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/btn_confirm_filter_sheet"
             android:layout_width="0dp"
-            android:layout_height="42dp"
-            android:layout_marginStart="8dp"
             android:layout_weight="1"
+            android:layout_height="42dp"
+            android:layout_marginStart="6dp"
             android:background="@drawable/bg_stats_filter_confirm"
+            android:fontFamily="sans-serif-medium"
             android:gravity="center"
-            android:text="应用"
+            android:text="应用筛选"
             android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textSize="15sp" />
     </LinearLayout>
 </LinearLayout>
+
+
+

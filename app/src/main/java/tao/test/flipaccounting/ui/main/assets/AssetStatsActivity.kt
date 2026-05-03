@@ -40,6 +40,7 @@ import com.github.mikephil.charting.listener.OnChartGestureListener
 import com.github.mikephil.charting.utils.MPPointD
 import com.github.mikephil.charting.utils.MPPointF
 import com.github.mikephil.charting.animation.Easing
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
@@ -715,15 +716,16 @@ class AssetStatsActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.layout_stats_filter_sheet, null)
 
-        val chipToday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_today)
-        val chipYesterday = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_yesterday)
-        val chipThisWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_week)
-        val chipLastWeek = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_week)
-        val chipThisMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_month)
-        val chipLastMonth = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_month)
-        val chipThisYear = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_this_year)
-        val chipLastYear = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_last_year)
-        val chipAll = view.findViewById<com.google.android.material.chip.Chip>(R.id.chip_filter_all)
+        val chipToday = view.findViewById<MaterialButton>(R.id.chip_filter_today)
+        val chipYesterday = view.findViewById<MaterialButton>(R.id.chip_filter_yesterday)
+        val chipDayBeforeYesterday = view.findViewById<MaterialButton>(R.id.chip_filter_day_before_yesterday)
+        val chipThisWeek = view.findViewById<MaterialButton>(R.id.chip_filter_this_week)
+        val chipLastWeek = view.findViewById<MaterialButton>(R.id.chip_filter_last_week)
+        val chipThisMonth = view.findViewById<MaterialButton>(R.id.chip_filter_this_month)
+        val chipLastMonth = view.findViewById<MaterialButton>(R.id.chip_filter_last_month)
+        val chipThisYear = view.findViewById<MaterialButton>(R.id.chip_filter_this_year)
+        val chipLastYear = view.findViewById<MaterialButton>(R.id.chip_filter_last_year)
+        val chipAll = view.findViewById<MaterialButton>(R.id.chip_filter_all)
 
         val cardStart = view.findViewById<View>(R.id.tv_filter_start_date)
         val cardEnd = view.findViewById<View>(R.id.tv_filter_end_date)
@@ -746,15 +748,18 @@ class AssetStatsActivity : AppCompatActivity() {
 
         fun clearQuickChips() {
             suppressQuickSync = true
-            chipToday.isChecked = false
-            chipYesterday.isChecked = false
-            chipThisWeek.isChecked = false
-            chipLastWeek.isChecked = false
-            chipThisMonth.isChecked = false
-            chipLastMonth.isChecked = false
-            chipThisYear.isChecked = false
-            chipLastYear.isChecked = false
-            chipAll.isChecked = false
+            listOf(
+                chipToday,
+                chipYesterday,
+                chipDayBeforeYesterday,
+                chipThisWeek,
+                chipLastWeek,
+                chipThisMonth,
+                chipLastMonth,
+                chipThisYear,
+                chipLastYear,
+                chipAll
+            ).forEach { it.isChecked = false }
             suppressQuickSync = false
             selectedQuickLabel = null
         }
@@ -802,6 +807,13 @@ class AssetStatsActivity : AppCompatActivity() {
                 }
                 "昨天" -> {
                     val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+                    setDayStart(cal)
+                    customStart = cal.timeInMillis
+                    setDayEnd(cal)
+                    customEnd = cal.timeInMillis
+                }
+                "前天" -> {
+                    val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -2) }
                     setDayStart(cal)
                     customStart = cal.timeInMillis
                     setDayEnd(cal)
@@ -882,10 +894,29 @@ class AssetStatsActivity : AppCompatActivity() {
             resetDateLabels()
         }
 
+        fun selectQuickChip(target: MaterialButton, label: String) {
+            suppressQuickSync = true
+            listOf(
+                chipToday,
+                chipYesterday,
+                chipDayBeforeYesterday,
+                chipThisWeek,
+                chipLastWeek,
+                chipThisMonth,
+                chipLastMonth,
+                chipThisYear,
+                chipLastYear,
+                chipAll
+            ).forEach { it.isChecked = it == target }
+            suppressQuickSync = false
+            updateCustomRangeByQuick(label)
+        }
+
         resetDateLabels()
         when (selectedQuickLabel) {
             "今天" -> chipToday.isChecked = true
             "昨天" -> chipYesterday.isChecked = true
+            "前天" -> chipDayBeforeYesterday.isChecked = true
             "本周" -> chipThisWeek.isChecked = true
             "上周" -> chipLastWeek.isChecked = true
             "本月" -> chipThisMonth.isChecked = true
@@ -898,6 +929,7 @@ class AssetStatsActivity : AppCompatActivity() {
         listOf(
             chipToday to "今天",
             chipYesterday to "昨天",
+            chipDayBeforeYesterday to "前天",
             chipThisWeek to "本周",
             chipLastWeek to "上周",
             chipThisMonth to "本月",
@@ -906,9 +938,9 @@ class AssetStatsActivity : AppCompatActivity() {
             chipLastYear to "去年",
             chipAll to "全部"
         ).forEach { (chip, label) ->
-            chip.setOnCheckedChangeListener { _, isChecked ->
-                if (!isChecked || suppressQuickSync) return@setOnCheckedChangeListener
-                updateCustomRangeByQuick(label)
+            chip.setOnClickListener {
+                if (suppressQuickSync) return@setOnClickListener
+                selectQuickChip(chip, label)
             }
         }
 
@@ -981,7 +1013,7 @@ class AssetStatsActivity : AppCompatActivity() {
             if (bottomSheetId == 0) return@setOnShowListener
             val bottomSheet = dialog.findViewById<View>(bottomSheetId) ?: return@setOnShowListener
             bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
-                height = (resources.displayMetrics.heightPixels * 0.82f).toInt()
+                height = ViewGroup.LayoutParams.MATCH_PARENT
             }
             BottomSheetBehavior.from(bottomSheet).apply {
                 skipCollapsed = true
@@ -1066,6 +1098,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private fun isQuickLabel(label: String?): Boolean {
         return label == "今天" ||
             label == "昨天" ||
+            label == "前天" ||
             label == "本周" ||
             label == "上周" ||
             label == "本月" ||
@@ -1082,10 +1115,12 @@ class AssetStatsActivity : AppCompatActivity() {
             val timePart = when {
                 label == "全部" -> "全部时间"
                 label == "自定义" && forcedStartTime != null && forcedEndTime != null ->
-                    "${dfDateLabel.format(Date(forcedStartTime!!))}至${dfDateLabel.format(Date(forcedEndTime!!))}"
+                    formatDateRangeLabel(forcedStartTime!!, forcedEndTime!!)
                 else -> label
             }
             parts += timePart
+        } else if (forcedStartTime != null && forcedEndTime != null) {
+            parts += formatDateRangeLabel(forcedStartTime!!, forcedEndTime!!)
         }
         val typePart = when (forcedBillType) {
             FilterBillType.EXPENSE -> "支出"
@@ -1097,6 +1132,40 @@ class AssetStatsActivity : AppCompatActivity() {
         }
         if (typePart.isNotBlank()) parts += typePart
         return parts.joinToString("｜")
+    }
+
+    private fun formatDateRangeLabel(start: Long, end: Long): String {
+        val safeStart = minOf(start, end)
+        val safeEnd = maxOf(start, end)
+        val startCal = Calendar.getInstance().apply { timeInMillis = safeStart }
+        val endCal = Calendar.getInstance().apply { timeInMillis = safeEnd }
+        val isSameDay =
+            startCal.get(Calendar.YEAR) == endCal.get(Calendar.YEAR) &&
+                startCal.get(Calendar.DAY_OF_YEAR) == endCal.get(Calendar.DAY_OF_YEAR)
+        if (isSameDay) return formatCompactDate(safeStart)
+        return "${formatCompactDate(safeStart)}~${formatCompactDate(safeEnd)}"
+    }
+
+    private fun formatCompactDate(timeMs: Long): String {
+        val target = Calendar.getInstance().apply { timeInMillis = timeMs }
+        val now = Calendar.getInstance()
+        val isCurrentYear = target.get(Calendar.YEAR) == now.get(Calendar.YEAR)
+        return if (isCurrentYear) {
+            String.format(
+                Locale.getDefault(),
+                "%02d-%02d",
+                target.get(Calendar.MONTH) + 1,
+                target.get(Calendar.DAY_OF_MONTH)
+            )
+        } else {
+            String.format(
+                Locale.getDefault(),
+                "%04d-%02d-%02d",
+                target.get(Calendar.YEAR),
+                target.get(Calendar.MONTH) + 1,
+                target.get(Calendar.DAY_OF_MONTH)
+            )
+        }
     }
 
     private fun applyExternalIntentFilter(intent: android.content.Intent?) {

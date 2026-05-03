@@ -19,7 +19,10 @@ class BackupHomeActivity : AppCompatActivity() {
         }
 
         findViewById<MaterialButton>(R.id.btn_open_cloud_backup).setOnClickListener {
-            startActivity(Intent(this, BackupActivity::class.java))
+            startActivity(
+                Intent(this, BackupActivity::class.java)
+                    .putExtra(BackupActivity.EXTRA_OPEN_SECTION, BackupActivity.SECTION_CLOUD)
+            )
         }
 
         findViewById<MaterialButton>(R.id.btn_quick_local).setOnClickListener {

@@ -196,6 +196,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
     }
 
     fun applyThisYearFilter() {
+        val targetYear = Calendar.getInstance().get(Calendar.YEAR)
         val cal = Calendar.getInstance()
         cal.set(Calendar.MONTH, Calendar.JANUARY)
         cal.set(Calendar.DAY_OF_MONTH, 1)
@@ -213,7 +214,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         cal.set(Calendar.MILLISECOND, 999)
         val end = cal.timeInMillis
 
-        applyDateRange(start, end, "今年")
+        applyDateRange(start, end, String.format(Locale.getDefault(), "%04d", targetYear))
     }
 
     fun applyLastYearFilter() {
@@ -236,7 +237,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         cal.set(Calendar.MILLISECOND, 999)
         val end = cal.timeInMillis
 
-        applyDateRange(start, end, "去年")
+        applyDateRange(start, end, String.format(Locale.getDefault(), "%04d", targetYear))
     }
 
     fun applyTodayFilter() {
@@ -314,7 +315,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
     fun applyCustomDateFilter(start: Long, end: Long) {
         val safeStart = minOf(start, end)
         val safeEnd = maxOf(start, end)
-        val label = "${dfDateLabel.format(Date(safeStart))}~${dfDateLabel.format(Date(safeEnd))}"
+        val label = formatSmartRangeLabel(safeStart, safeEnd)
         applyDateRange(safeStart, safeEnd, label)
     }
 
@@ -527,7 +528,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             val label = state.forcedLabel ?: if (forcedEnd == Long.MAX_VALUE) {
                 "全部"
             } else {
-                "${dfDateLabel.format(Date(forcedStart))}~${dfDateLabel.format(Date(forcedEnd))}"
+                inferRangeLabel(forcedStart, forcedEnd)
             }
             return Triple(forcedStart, forcedEnd, label)
         }
@@ -539,6 +540,82 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             String.format(Locale.getDefault(), "%04d", state.year)
         }
         return Triple(start, end, label)
+    }
+
+    private fun inferRangeLabel(start: Long, end: Long): String {
+        val safeStart = minOf(start, end)
+        val safeEnd = maxOf(start, end)
+        val startCal = Calendar.getInstance().apply { timeInMillis = safeStart }
+        val endCal = Calendar.getInstance().apply { timeInMillis = safeEnd }
+
+        val sameYear = startCal.get(Calendar.YEAR) == endCal.get(Calendar.YEAR)
+        val sameMonth = sameYear && startCal.get(Calendar.MONTH) == endCal.get(Calendar.MONTH)
+        if (sameMonth) {
+            val startIsMonthHead = startCal.get(Calendar.DAY_OF_MONTH) == 1 &&
+                startCal.get(Calendar.HOUR_OF_DAY) == 0 &&
+                startCal.get(Calendar.MINUTE) == 0 &&
+                startCal.get(Calendar.SECOND) == 0
+            val endIsMonthTail = endCal.get(Calendar.DAY_OF_MONTH) == endCal.getActualMaximum(Calendar.DAY_OF_MONTH) &&
+                endCal.get(Calendar.HOUR_OF_DAY) == 23 &&
+                endCal.get(Calendar.MINUTE) == 59 &&
+                endCal.get(Calendar.SECOND) == 59
+            if (startIsMonthHead && endIsMonthTail) {
+                return String.format(
+                    Locale.getDefault(),
+                    "%04d-%02d",
+                    startCal.get(Calendar.YEAR),
+                    startCal.get(Calendar.MONTH) + 1
+                )
+            }
+        }
+
+        if (sameYear) {
+            val startIsYearHead =
+                startCal.get(Calendar.MONTH) == Calendar.JANUARY &&
+                    startCal.get(Calendar.DAY_OF_MONTH) == 1 &&
+                    startCal.get(Calendar.HOUR_OF_DAY) == 0 &&
+                    startCal.get(Calendar.MINUTE) == 0 &&
+                    startCal.get(Calendar.SECOND) == 0
+            val endIsYearTail =
+                endCal.get(Calendar.MONTH) == Calendar.DECEMBER &&
+                    endCal.get(Calendar.DAY_OF_MONTH) == 31 &&
+                    endCal.get(Calendar.HOUR_OF_DAY) == 23 &&
+                    endCal.get(Calendar.MINUTE) == 59 &&
+                    endCal.get(Calendar.SECOND) == 59
+            if (startIsYearHead && endIsYearTail) {
+                return String.format(Locale.getDefault(), "%04d", startCal.get(Calendar.YEAR))
+            }
+        }
+
+        return formatSmartRangeLabel(safeStart, safeEnd)
+    }
+
+    private fun formatSmartRangeLabel(start: Long, end: Long): String {
+        val safeStart = minOf(start, end)
+        val safeEnd = maxOf(start, end)
+        val startCal = Calendar.getInstance().apply { timeInMillis = safeStart }
+        val endCal = Calendar.getInstance().apply { timeInMillis = safeEnd }
+        val isSameDay =
+            startCal.get(Calendar.YEAR) == endCal.get(Calendar.YEAR) &&
+                startCal.get(Calendar.DAY_OF_YEAR) == endCal.get(Calendar.DAY_OF_YEAR)
+        if (isSameDay) return formatCompactDate(safeStart)
+        return "${formatCompactDate(safeStart)}~${formatCompactDate(safeEnd)}"
+    }
+
+    private fun formatCompactDate(timeMs: Long): String {
+        val target = Calendar.getInstance().apply { timeInMillis = timeMs }
+        val now = Calendar.getInstance()
+        val isCurrentYear = target.get(Calendar.YEAR) == now.get(Calendar.YEAR)
+        return if (isCurrentYear) {
+            String.format(
+                Locale.getDefault(),
+                "%02d-%02d",
+                target.get(Calendar.MONTH) + 1,
+                target.get(Calendar.DAY_OF_MONTH)
+            )
+        } else {
+            dfDateLabel.format(Date(timeMs))
+        }
     }
 
     private fun resolvePreviousRange(start: Long, end: Long): Pair<Long, Long> {
@@ -711,8 +788,24 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         val activeDays = if (rangeEnd == Long.MAX_VALUE) {
             maxOf(1, dayMap.size)
         } else {
-            val days = ((rangeEnd - rangeStart) / (24L * 60L * 60L * 1000L) + 1L).coerceAtLeast(1L)
-            days.toInt()
+            val dayMs = 24L * 60L * 60L * 1000L
+            val defaultDays = ((rangeEnd - rangeStart) / dayMs + 1L).coerceAtLeast(1L).toInt()
+            val now = Calendar.getInstance()
+            val startCal = Calendar.getInstance().apply { timeInMillis = rangeStart }
+            val endCal = Calendar.getInstance().apply { timeInMillis = rangeEnd }
+            val isCurrentMonthRange =
+                startCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                    startCal.get(Calendar.MONTH) == now.get(Calendar.MONTH) &&
+                    endCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                    endCal.get(Calendar.MONTH) == now.get(Calendar.MONTH) &&
+                    startCal.get(Calendar.DAY_OF_MONTH) == 1 &&
+                    endCal.get(Calendar.DAY_OF_MONTH) == endCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+            if (isCurrentMonthRange) {
+                now.get(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
+            } else {
+                defaultDays
+            }
         }
 
         return state.copy(

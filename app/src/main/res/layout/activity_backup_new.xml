@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/page_background"
+    android:background="@color/settings_page_bg"
     android:orientation="vertical">
 
     <tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
@@ -13,6 +13,7 @@
         app:headerTitle="备份与恢复" />
 
     <ScrollView
+        android:id="@+id/backup_scroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
@@ -30,11 +31,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="14dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/settings_card_bg"
                 app:cardCornerRadius="@dimen/settings_card_radius"
-                app:cardElevation="1dp"
+                app:cardElevation="0dp"
                 app:strokeColor="#DEE6F2"
-                app:strokeWidth="1dp">
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -578,11 +579,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="14dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/settings_card_bg"
                 app:cardCornerRadius="@dimen/settings_card_radius"
-                app:cardElevation="1dp"
+                app:cardElevation="0dp"
                 app:strokeColor="#DEE6F2"
-                app:strokeWidth="1dp">
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -630,12 +631,13 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:id="@+id/card_cloud_backup"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/settings_card_bg"
                 app:cardCornerRadius="@dimen/settings_card_radius"
-                app:cardElevation="1dp"
+                app:cardElevation="0dp"
                 app:strokeColor="#DEE6F2"
-                app:strokeWidth="1dp">
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -782,7 +784,7 @@
                             android:layout_weight="1"
                             android:text="手动上传"
                             android:textSize="13sp"
-                            app:backgroundTint="#2E9F72"
+                            app:backgroundTint="@color/brand_primary"
                             app:cornerRadius="10dp"
                             app:icon="@drawable/ic_cloud_upload_action"
                             app:iconGravity="textStart"
@@ -797,14 +799,14 @@
                             android:layout_marginStart="6dp"
                             android:layout_weight="1"
                             android:text="手动下载"
-                            android:textColor="#2E9F72"
+                            android:textColor="@color/brand_primary"
                             android:textSize="13sp"
                             app:cornerRadius="10dp"
                             app:icon="@drawable/ic_cloud_download_action"
                             app:iconGravity="textStart"
                             app:iconPadding="8dp"
-                            app:iconTint="#2E9F72"
-                            app:strokeColor="#8ED3B7"
+                            app:iconTint="@color/brand_primary"
+                            app:strokeColor="#AFC1F4"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
 
@@ -831,11 +833,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/settings_card_bg"
                 app:cardCornerRadius="@dimen/settings_card_radius"
-                app:cardElevation="1dp"
+                app:cardElevation="0dp"
                 app:strokeColor="#DEE6F2"
-                app:strokeWidth="1dp">
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"

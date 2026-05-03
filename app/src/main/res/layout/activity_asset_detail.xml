@@ -17,6 +17,8 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            app:contentInsetStart="0dp"
+            app:contentInsetStartWithNavigation="0dp"
             app:navigationIcon="@drawable/ic_chevron_left"
             app:navigationIconTint="@color/text_primary">
 

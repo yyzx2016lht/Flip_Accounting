@@ -65,14 +65,15 @@ object BackupManager {
     fun restoreBanners(zipFile: File, targetDir: File): List<String> {
         val restored = mutableListOf<String>()
         targetDir.mkdirs()
+        val targetRoot = targetDir.canonicalFile
         ZipInputStream(FileInputStream(zipFile)).use { zis ->
             var entry = zis.nextEntry
             while (entry != null) {
                 val name = entry.name
                 if (name.startsWith(BANNER_ZIP_PREFIX) && !entry.isDirectory) {
                     val fileName = name.removePrefix(BANNER_ZIP_PREFIX)
-                    if (fileName.isNotEmpty()) {
-                        val outFile = File(targetDir, fileName)
+                    val outFile = safeZipOutputFile(targetRoot, fileName)
+                    if (outFile != null) {
                         FileOutputStream(outFile).use { fos ->
                             val buf = ByteArray(8192)
                             var len: Int
@@ -114,14 +115,15 @@ object BackupManager {
     fun restoreChatMedia(zipFile: File, targetRootDir: File): List<String> {
         val restored = mutableListOf<String>()
         targetRootDir.mkdirs()
+        val targetRoot = targetRootDir.canonicalFile
         ZipInputStream(FileInputStream(zipFile)).use { zis ->
             var entry = zis.nextEntry
             while (entry != null) {
                 val name = entry.name
                 if (name.startsWith(CHAT_MEDIA_ZIP_PREFIX) && !entry.isDirectory) {
                     val relativePath = name.removePrefix(CHAT_MEDIA_ZIP_PREFIX)
-                    if (relativePath.isNotEmpty()) {
-                        val outFile = File(targetRootDir, relativePath)
+                    val outFile = safeZipOutputFile(targetRoot, relativePath)
+                    if (outFile != null) {
                         outFile.parentFile?.mkdirs()
                         FileOutputStream(outFile).use { fos ->
                             val buf = ByteArray(8192)
@@ -137,6 +139,16 @@ object BackupManager {
             }
         }
         return restored
+    }
+
+    private fun safeZipOutputFile(targetRoot: File, relativePath: String): File? {
+        if (relativePath.isBlank()) return null
+        if (relativePath.contains('\\')) return null
+        val candidate = File(relativePath)
+        if (candidate.isAbsolute) return null
+        val outFile = File(targetRoot, relativePath).canonicalFile
+        val rootPath = targetRoot.path + File.separator
+        return if (outFile.path == targetRoot.path || outFile.path.startsWith(rootPath)) outFile else null
     }
 }
 

@@ -557,6 +557,8 @@ class AssetDetailActivity : AppCompatActivity() {
         private val rows = mutableListOf<Any>()
         private val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
         private val monthLabelFormat = SimpleDateFormat("yyyy.MM\u6708", Locale.getDefault())
+        private val currentYearMonthLabelFormat = SimpleDateFormat("MM\u6708", Locale.getDefault())
+        private val yearFormat = SimpleDateFormat("yyyy", Locale.getDefault())
         private val dateFormat = SimpleDateFormat("MM-dd", Locale.getDefault())
         private var balanceHeaderRow = BalanceHeaderRow("¥0.00", "")
         var isMultiSelectMode: Boolean = false
@@ -608,7 +610,7 @@ class AssetDetailActivity : AppCompatActivity() {
                         }
                     }
 
-                    val monthLabel = monthLabelFormat.format(Date(monthBills.first().time))
+                    val monthLabel = formatMonthHeaderLabel(Date(monthBills.first().time))
                     rows.add(MonthHeaderRow(monthLabel, monthlyInflow, monthlyOutflow))
                     monthBills.forEach { rows.add(BillRow(it)) }
                 }
@@ -620,6 +622,14 @@ class AssetDetailActivity : AppCompatActivity() {
             }
             onSelectionChanged?.invoke(selectedBills.size)
             notifyDataSetChanged()
+        }
+
+        private fun formatMonthHeaderLabel(monthDate: Date): String {
+            return if (yearFormat.format(monthDate) == yearFormat.format(Date())) {
+                currentYearMonthLabelFormat.format(monthDate)
+            } else {
+                monthLabelFormat.format(monthDate)
+            }
         }
 
         fun getSelectableBills(): List<Bill> = rows.mapNotNull { (it as? BillRow)?.bill }

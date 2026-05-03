@@ -208,7 +208,7 @@
                         android:layout_height="48dp"
                         android:layout_marginTop="12dp"
                         android:text="手动上传到云端"
-                        app:backgroundTint="#2E9F72"
+                        app:backgroundTint="@color/brand_primary"
                         app:cornerRadius="10dp"
                         app:icon="@android:drawable/ic_menu_upload"
                         app:iconGravity="textStart" />
@@ -220,12 +220,12 @@
                         android:layout_height="48dp"
                         android:layout_marginTop="8dp"
                         android:text="手动从云端下载"
-                        android:textColor="#2E9F72"
+                        android:textColor="@color/brand_primary"
                         app:cornerRadius="10dp"
                         app:icon="@android:drawable/ic_menu_save"
                         app:iconGravity="textStart"
-                        app:iconTint="#2E9F72"
-                        app:strokeColor="#8ED3B7"
+                        app:iconTint="@color/brand_primary"
+                        app:strokeColor="#AFC1F4"
                         app:strokeWidth="1dp" />
 
                     <com.google.android.material.button.MaterialButton

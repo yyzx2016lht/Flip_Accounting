@@ -12,6 +12,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioGroup
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -54,6 +55,7 @@ class BackupActivity : AppCompatActivity() {
         const val SECTION_RESTORE = "restore"
         const val SECTION_SAVE_AS = "save_as"
         const val SECTION_CSV = "csv"
+        const val SECTION_CLOUD = "cloud"
 
         private const val BACKUP_PREFS = "flip_backup_prefs"
         private const val KEY_BACKUP_TREE_URI = "backup_tree_uri_v1"
@@ -279,11 +281,18 @@ class BackupActivity : AppCompatActivity() {
                     showCsvQuickActionDialog()
                 }
             }
+            SECTION_CLOUD -> scrollToSection(R.id.card_cloud_backup)
         }
     }
 
     private fun isQuickOneShot(): Boolean =
         intent?.getBooleanExtra(EXTRA_QUICK_ONESHOT, false) == true
+
+    private fun scrollToSection(sectionId: Int) {
+        val scroll = findViewById<ScrollView>(R.id.backup_scroll)
+        val target = findViewById<View>(sectionId)
+        scroll.post { scroll.smoothScrollTo(0, target.top) }
+    }
 
     private fun setupCloudSettingsUi() {
         loadCloudSettings()
