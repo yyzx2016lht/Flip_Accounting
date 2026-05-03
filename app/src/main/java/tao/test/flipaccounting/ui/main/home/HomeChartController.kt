@@ -1,6 +1,10 @@
 package tao.test.flipaccounting.ui.main.home
 
 import android.graphics.Color
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.widget.TextView
@@ -15,6 +19,7 @@ import tao.test.flipaccounting.AmountFormatHelper
 import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.entity.Bill
+import android.graphics.Typeface
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -182,9 +187,17 @@ internal class HomeChartController(
             else if (it.type == Bill.TYPE_INCOME) income += amountCny
         }
 
-        tvMonthExpense.text = "¥${AmountFormatHelper.formatAmount(expense)}"
+        tvMonthExpense.text = buildHeadlineAmount(expense)
         tvMonthIncome.text = "¥${AmountFormatHelper.formatAmount(income)}"
         tvMonthBalance.text = "¥${AmountFormatHelper.formatAmount(income - expense)}"
+    }
+
+    private fun buildHeadlineAmount(amount: Double): SpannableString {
+        val raw = "¥${AmountFormatHelper.formatAmount(amount)}"
+        return SpannableString(raw).apply {
+            setSpan(RelativeSizeSpan(0.56f), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(StyleSpan(Typeface.BOLD), 0, raw.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
     }
 
     private fun getStartTimeFromRange(rangeOpt: Int): Long {

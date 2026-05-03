@@ -364,7 +364,6 @@ class HomeFragment : Fragment() {
         ivHeaderBanner = view.findViewById(R.id.ivHeaderBanner)
         layoutHeaderSummary = view.findViewById(R.id.layoutHeaderSummary)
         layoutStickyTopBar = view.findViewById(R.id.layoutStickyTopBar)
-        applyHeaderSummaryBottomInsetByIncomeHeight()
         bannerController = HomeBannerController(
             fragment = this,
             headerBannerLayout = headerBannerLayout,
@@ -831,24 +830,7 @@ class HomeFragment : Fragment() {
      * 让摘要区底部留白始终等于“月收入金额”文字高度，避免写死 dp。
      */
     private fun applyHeaderSummaryBottomInsetByIncomeHeight() {
-        if (!::layoutHeaderSummary.isInitialized || !::tvMonthIncome.isInitialized) return
-        tvMonthIncome.post {
-            val measuredIncomeHeight = if (tvMonthIncome.height > 0) {
-                tvMonthIncome.height
-            } else {
-                val fm = tvMonthIncome.paint.fontMetrics
-                kotlin.math.ceil((fm.descent - fm.ascent).toDouble()).toInt()
-            }
-            if (measuredIncomeHeight <= 0) return@post
-            val maxBottomInset = (8f * resources.displayMetrics.density).toInt()
-            val targetBottomInset = measuredIncomeHeight.coerceAtMost(maxBottomInset)
-            layoutHeaderSummary.setPadding(
-                layoutHeaderSummary.paddingLeft,
-                layoutHeaderSummary.paddingTop,
-                layoutHeaderSummary.paddingRight,
-                targetBottomInset
-            )
-        }
+        // Header 摘要区现在由 XML 内部约束自洽控制间距，不再动态改 padding。
     }
 
     /**
