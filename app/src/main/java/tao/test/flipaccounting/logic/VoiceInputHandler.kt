@@ -177,11 +177,17 @@ class VoiceInputHandler(
                                         LocalAsrService.finishStreaming()
                                         if (file != null) LocalAsrService.speechToText(ctx, file) else null
                                     } else {
-                                        if (file != null) AIService.speechToText(ctx, file) else null
+                                        if (Prefs.getAiKey(ctx).isBlank()) {
+                                            "API_KEY_NOT_SETUP"
+                                        } else if (file != null) {
+                                            AIService.speechToText(ctx, file)
+                                        } else {
+                                            null
+                                        }
                                     }
 
                                     withContext(Dispatchers.Main) {
-                                        if (!text.isNullOrEmpty() && text != "WHISPER_NOT_SETUP" && text != "MODEL_DOWNLOADING") {
+                                        if (!text.isNullOrEmpty() && text != "WHISPER_NOT_SETUP" && text != "MODEL_DOWNLOADING" && text != "API_KEY_NOT_SETUP") {
                                             val finalText = if (baseText.isNotEmpty()) "$baseText $text" else text
                                             aiAssistant.showInputPanel(
                                                 defaultText = finalText,
@@ -192,16 +198,13 @@ class VoiceInputHandler(
                                             }
                                         } else if (text == "MODEL_DOWNLOADING") {
                                             aiAssistant.dismiss()
-                                            Utils.toast(ctx, "系统正在后台下载离线语音模型，请稍后重试")
+                                            Utils.toast(ctx, "离线语音模型正在下载，请下载完成后再试")
                                         } else if (text == "WHISPER_NOT_SETUP") {
                                             aiAssistant.dismiss()
-                                            val reason = LocalAsrService.getLastInitError()
-                                            val msg = if (reason.isNullOrBlank()) {
-                                                "离线语音模型尚未准备完成，请检查模型状态"
-                                            } else {
-                                                "离线语音模型未就绪: $reason"
-                                            }
-                                            Utils.toast(ctx, msg)
+                                            Utils.toast(ctx, "需要先下载离线语音模型，才能使用本地语音识别")
+                                        } else if (text == "API_KEY_NOT_SETUP") {
+                                            aiAssistant.dismiss()
+                                            Utils.toast(ctx, "需要先配置 API Key，才能使用云端语音识别")
                                         } else {
                                             aiAssistant.dismiss()
                                             Utils.toast(ctx, "未检测到清晰语音或解析失败")

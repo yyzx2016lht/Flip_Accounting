@@ -786,6 +786,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_before_show_book_entry"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="50dp"
@@ -793,6 +794,7 @@
 
                     <!-- 显示表单账本入口（与翻转手势同级） -->
                     <LinearLayout
+                        android:id="@+id/layout_show_book_entry_container"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
@@ -820,7 +822,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="显示表单账本入口"
+                                android:text="显示账本入口"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />

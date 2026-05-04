@@ -10,6 +10,7 @@ import tao.test.flipaccounting.data.repository.AssetRepository
 import tao.test.flipaccounting.data.repository.BillRepository
 import tao.test.flipaccounting.data.repository.CategoryRepository
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.logic.InvestmentInterestService
 import tao.test.flipaccounting.ui.main.SharedYearMonthSession
 
 class FlipApplication : Application() {
@@ -38,6 +39,7 @@ class FlipApplication : Application() {
         // 启动时在后台协程检查并执行数据迁移
         CoroutineScope(Dispatchers.IO).launch {
             MigrationManager.migrateIfNecessary(this@FlipApplication, database)
+            InvestmentInterestService.settleDueInterest(database)
         }
 
         // 后台预热分类图标缓存，确保断网时也能显示

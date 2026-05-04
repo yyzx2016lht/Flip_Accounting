@@ -430,7 +430,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateFabVisibility() {
         val fab = fabApp ?: return
         if (currentTabIndex == 0) {
-            fab.show()
+            val homeVisible = (tabFragments.getOrNull(0) as? HomeFragment)?.shouldShowMainFab() ?: true
+            if (homeVisible) fab.show() else fab.hide()
         } else {
             fab.hide()
         }

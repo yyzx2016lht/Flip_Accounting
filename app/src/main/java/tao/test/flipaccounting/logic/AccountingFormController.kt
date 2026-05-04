@@ -105,6 +105,7 @@ class AccountingFormController(
 
     private var customTransferRate: Double? = null
     private var customTargetAmount: Double? = null
+    private var savedTransferRateForEdit: Double? = null
     private var isSpinnersInitialized = false
     /** 转账模式下用户是否已打开过汇率窗口并确认 */
     private var hasConfirmedExchangeRate: Boolean = false
@@ -118,6 +119,8 @@ class AccountingFormController(
     private var customCurrencyRate: Double? = null
     /** 程序自动调用 setCurrency() 时置 true，避免触发用户切换逻辑 */
     private var isProgrammaticCurrencyChange: Boolean = false
+    private var pendingInvestmentSchedule: InvestmentInterestService.InvestmentSchedule? = null
+    private var hasCheckedInvestmentSchedulePrompt: Boolean = false
 
     init {
         CurrencyManager.init(ctx)
@@ -542,6 +545,7 @@ class AccountingFormController(
 
         customTransferRate = null
         customTargetAmount = null
+        savedTransferRateForEdit = null
         hasConfirmedExchangeRate = false
 
         val newFromName = tvAccount.text?.toString().orEmpty().takeUnless { isAccountPlaceholder(it) }.orEmpty()
@@ -585,10 +589,22 @@ class AccountingFormController(
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             if (assets.isNotEmpty()) {
-                                val title = if (spType.selectedItemPosition == 2 || spType.selectedItemPosition == 3) "选择转出账户" else "选择资产"
-                                OverlayDialogs.showGridAssetPicker(ctx, tvAccount.text.toString(), title) { selectedName ->
+                                val isRepaymentMode = spType.selectedItemPosition == 3
+                                val title = if (spType.selectedItemPosition == 2 || isRepaymentMode) "选择转出账户" else "选择资产"
+                                val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
+                                    { asset -> asset.assetCategory != Asset.CATEGORY_CREDIT_CARD }
+                                } else {
+                                    null
+                                }
+                                OverlayDialogs.showGridAssetPicker(ctx, tvAccount.text.toString(), title, assetFilter) { selectedName ->
                                     tvAccount.text = selectedName
                                     refreshAccountIconForName(selectedName)
+                                    customTransferRate = null
+                                    customTargetAmount = null
+                                    savedTransferRateForEdit = null
+                                    hasConfirmedExchangeRate = false
+                                    pendingInvestmentSchedule = null
+                                    hasCheckedInvestmentSchedulePrompt = false
                                     // 自动将 spCurrency 同步为转出账户（账户1）的货币
                                     if (Prefs.isShowMultiCurrency(ctx)) {
                                         scope.launch(Dispatchers.IO) {
@@ -618,10 +634,22 @@ class AccountingFormController(
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             if (assets.isNotEmpty()) {
-                                val title = "选择转入账户"
-                                OverlayDialogs.showGridAssetPicker(ctx, tvAccount2.text.toString(), title) { selectedName ->
+                                val isRepaymentMode = spType.selectedItemPosition == 3
+                                val title = if (isRepaymentMode) "选择还款入账信用卡" else "选择转入账户"
+                                val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
+                                    { asset -> asset.assetCategory == Asset.CATEGORY_CREDIT_CARD }
+                                } else {
+                                    null
+                                }
+                                OverlayDialogs.showGridAssetPicker(ctx, tvAccount2.text.toString(), title, assetFilter) { selectedName ->
                                     tvAccount2.text = selectedName
                                     refreshAccount2IconForName(selectedName)
+                                    customTransferRate = null
+                                    customTargetAmount = null
+                                    savedTransferRateForEdit = null
+                                    hasConfirmedExchangeRate = false
+                                    pendingInvestmentSchedule = null
+                                    hasCheckedInvestmentSchedulePrompt = false
                                     adjustTypeByToAccount(selectedName)
                                 }
                             } else Utils.toast(ctx, "请先添加资产")
@@ -1072,7 +1100,7 @@ class AccountingFormController(
                         money,
                         sourceCurrency,
                         targetCurrency,
-                        customTransferRate
+                        customTransferRate ?: savedTransferRateForEdit
                     ) { src, tgt, rate ->
                         etMoney.setText(String.format("%.2f", src))
                         customTargetAmount = tgt
@@ -1115,6 +1143,271 @@ class AccountingFormController(
                 }
             }
         }
+    }
+
+    private fun showInvestmentScheduleDialog(
+        transferTime: Long,
+        targetName: String,
+        onConfirm: (InvestmentInterestService.InvestmentSchedule) -> Unit
+    ) {
+        val safeContext = ctx
+        if (safeContext is Activity && safeContext.isFinishing) return
+
+        val themeContext = ContextThemeWrapper(safeContext, R.style.Theme_FlipAccounting)
+        val content = LinearLayout(themeContext).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(10), dp(22), dp(4))
+        }
+        content.addView(TextView(themeContext).apply {
+            text = "转入 $targetName 后，这笔本金会按下面日期单独计算收益。"
+            setTextColor(Color.parseColor("#667085"))
+            textSize = 14f
+        })
+
+        var startEarningAt = InvestmentInterestService.plusDays(
+            InvestmentInterestService.startOfDay(transferTime),
+            1
+        )
+        var firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
+
+        lateinit var startRow: TextView
+        lateinit var payoutRow: TextView
+
+        fun bindRow(row: TextView, label: String, value: Long) {
+            row.text = "$label    ${formatDateForSchedule(value)}"
+        }
+
+        startRow = TextView(themeContext).apply {
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2A38"))
+            setPadding(0, dp(16), 0, dp(8))
+            bindRow(this, "开始计算收益", startEarningAt)
+            setOnClickListener {
+                showOverlayFriendlyDatePicker(
+                    initialTimeMillis = startEarningAt,
+                    minTimeMillis = InvestmentInterestService.startOfDay(transferTime)
+                ) { selected ->
+                    startEarningAt = InvestmentInterestService.startOfDay(selected)
+                    firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
+                    bindRow(startRow, "开始计算收益", startEarningAt)
+                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                }
+            }
+        }
+        payoutRow = TextView(themeContext).apply {
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2A38"))
+            setPadding(0, dp(16), 0, dp(8))
+            bindRow(this, "收益到账", firstPayoutAt)
+            setOnClickListener {
+                showOverlayFriendlyDatePicker(
+                    initialTimeMillis = firstPayoutAt,
+                    minTimeMillis = InvestmentInterestService.plusDays(startEarningAt, 1)
+                ) { selected ->
+                    firstPayoutAt = InvestmentInterestService.startOfDay(selected)
+                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                }
+            }
+        }
+        content.addView(startRow)
+        content.addView(payoutRow)
+        content.addView(TextView(themeContext).apply {
+            text = "默认收益到账为开始计算收益的后一天，也可以手动调整。自动收益为估算值，以实际盈利为准。"
+            setTextColor(Color.parseColor("#8A9099"))
+            textSize = 12f
+            setPadding(0, dp(10), 0, 0)
+        })
+
+        val dialog = AlertDialog.Builder(themeContext)
+            .setTitle("设置理财收益时间")
+            .setView(content)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("确定") { _, _ ->
+                hasCheckedInvestmentSchedulePrompt = true
+                onConfirm(
+                    InvestmentInterestService.InvestmentSchedule(
+                        startEarningAt = startEarningAt,
+                        firstPayoutAt = firstPayoutAt
+                    )
+                )
+            }
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = safeContext,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun formatDateForSchedule(timeMillis: Long): String {
+        return SimpleDateFormat("yyyy-MM-dd E", Locale.getDefault()).format(Date(timeMillis))
+    }
+
+    private fun showOverlayFriendlyDatePicker(
+        initialTimeMillis: Long,
+        minTimeMillis: Long? = null,
+        onDateSelected: (Long) -> Unit
+    ) {
+        val safeContext = ctx
+        if (safeContext is Activity && safeContext.isFinishing) return
+
+        val themeContext = ContextThemeWrapper(safeContext, R.style.Theme_FlipAccounting)
+        val minDay = minTimeMillis?.let { InvestmentInterestService.startOfDay(it) }
+        var selectedDay = InvestmentInterestService.startOfDay(initialTimeMillis)
+        if (minDay != null && selectedDay < minDay) selectedDay = minDay
+
+        val visibleMonth = Calendar.getInstance().apply { timeInMillis = selectedDay }
+        visibleMonth.set(Calendar.DAY_OF_MONTH, 1)
+
+        val root = LinearLayout(themeContext).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(6))
+        }
+        val header = LinearLayout(themeContext).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val btnPrev = TextView(themeContext).apply {
+            text = "<"
+            textSize = 22f
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#324860"))
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        val title = TextView(themeContext).apply {
+            gravity = Gravity.CENTER
+            textSize = 17f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(Color.parseColor("#24374F"))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val btnNext = TextView(themeContext).apply {
+            text = ">"
+            textSize = 22f
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#324860"))
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        header.addView(btnPrev)
+        header.addView(title)
+        header.addView(btnNext)
+        root.addView(header)
+
+        val weekRow = GridLayout(themeContext).apply {
+            columnCount = 7
+            setPadding(0, dp(8), 0, dp(4))
+        }
+        listOf("一", "二", "三", "四", "五", "六", "日").forEach { label ->
+            weekRow.addView(TextView(themeContext).apply {
+                text = label
+                gravity = Gravity.CENTER
+                textSize = 12f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTextColor(Color.parseColor("#98A2B3"))
+                layoutParams = GridLayout.LayoutParams().apply {
+                    width = 0
+                    height = dp(28)
+                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                }
+            })
+        }
+        root.addView(weekRow)
+
+        val daysGrid = GridLayout(themeContext).apply {
+            columnCount = 7
+            rowCount = 6
+        }
+        root.addView(daysGrid)
+
+        fun refreshCalendar() {
+            title.text = SimpleDateFormat("yyyy年MM月", Locale.CHINA).format(visibleMonth.time)
+            daysGrid.removeAllViews()
+
+            val monthStart = visibleMonth.clone() as Calendar
+            val firstDayOfWeek = monthStart.get(Calendar.DAY_OF_WEEK)
+            val leadingBlanks = (firstDayOfWeek + 5) % 7
+            val daysInMonth = monthStart.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val todayStart = InvestmentInterestService.startOfDay(System.currentTimeMillis())
+
+            repeat(42) { index ->
+                val dayNumber = index - leadingBlanks + 1
+                val cell = TextView(themeContext).apply {
+                    gravity = Gravity.CENTER
+                    textSize = 15f
+                    layoutParams = GridLayout.LayoutParams().apply {
+                        width = 0
+                        height = dp(42)
+                        columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                    }
+                }
+                if (dayNumber !in 1..daysInMonth) {
+                    cell.text = ""
+                    cell.isEnabled = false
+                } else {
+                    val cellDay = (visibleMonth.clone() as Calendar).apply {
+                        set(Calendar.DAY_OF_MONTH, dayNumber)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }.timeInMillis
+                    val enabled = minDay == null || cellDay >= minDay
+                    cell.text = dayNumber.toString()
+                    cell.isEnabled = enabled
+                    cell.alpha = if (enabled) 1f else 0.35f
+                    when {
+                        cellDay == selectedDay -> {
+                            cell.setTextColor(Color.WHITE)
+                            cell.setBackgroundResource(R.drawable.bg_elegant_calendar_day_selected)
+                        }
+                        cellDay == todayStart -> {
+                            cell.setTextColor(Color.parseColor("#5C6BC0"))
+                            cell.setBackgroundResource(R.drawable.bg_elegant_calendar_day_today)
+                        }
+                        else -> {
+                            cell.setTextColor(Color.parseColor("#24374F"))
+                            cell.background = null
+                        }
+                    }
+                    cell.setOnClickListener {
+                        if (!enabled) return@setOnClickListener
+                        selectedDay = cellDay
+                        refreshCalendar()
+                    }
+                }
+                daysGrid.addView(cell)
+            }
+        }
+
+        btnPrev.setOnClickListener {
+            visibleMonth.add(Calendar.MONTH, -1)
+            refreshCalendar()
+        }
+        btnNext.setOnClickListener {
+            visibleMonth.add(Calendar.MONTH, 1)
+            refreshCalendar()
+        }
+        refreshCalendar()
+
+        val dialog = AlertDialog.Builder(themeContext)
+            .setTitle("选择日期")
+            .setView(root)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("确定") { _, _ -> onDateSelected(selectedDay) }
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = safeContext,
+            widthRatio = 0.9f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * rootView.resources.displayMetrics.density).toInt()
     }
 
     private fun handleSave() {
@@ -1194,6 +1487,35 @@ class AccountingFormController(
         val accountName1 = if (isAssetFeatureEnabled) tvAccount.text.toString() else ""
         val accountName2 = if (isAssetFeatureEnabled) tvAccount2.text.toString() else ""
 
+        if (editingBillId == null &&
+            isAssetFeatureEnabled &&
+            type == Bill.TYPE_TRANSFER &&
+            !isRepayment &&
+            !hasCheckedInvestmentSchedulePrompt &&
+            pendingInvestmentSchedule == null
+        ) {
+            scope.launch(Dispatchers.IO) {
+                val targetAsset = accountName2.takeIf { it.isNotBlank() }
+                    ?.let { AppDatabase.getDatabase(ctx).assetDao().getAssetByName(it) }
+                if (targetAsset?.assetCategory == Asset.CATEGORY_INVESTMENT) {
+                    val transferTime = parseUiTimeToMillis(tvTime.text?.toString().orEmpty()) ?: System.currentTimeMillis()
+                    withContext(Dispatchers.Main) {
+                        showInvestmentScheduleDialog(
+                            transferTime = transferTime,
+                            targetName = targetAsset.name
+                        ) { schedule ->
+                            pendingInvestmentSchedule = schedule
+                            handleSave()
+                        }
+                    }
+                    return@launch
+                }
+                hasCheckedInvestmentSchedulePrompt = true
+                withContext(Dispatchers.Main) { handleSave() }
+            }
+            return
+        }
+
         scope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(ctx)
             val writableBook = BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
@@ -1208,6 +1530,29 @@ class AccountingFormController(
 
             val asset1 = accountName1.takeIf { it.isNotBlank() }?.let { db.assetDao().getAssetByName(it) }
             val asset2 = if (type == 2) accountName2.takeIf { it.isNotBlank() }?.let { db.assetDao().getAssetByName(it) } else null
+
+            if (isRepayment) {
+                when {
+                    asset1 == null || asset2 == null -> {
+                        withContext(Dispatchers.Main) {
+                            Utils.toast(ctx, "还款要求转出和转入账户都为现有资产，请检查账户")
+                        }
+                        return@launch
+                    }
+                    asset1.assetCategory == Asset.CATEGORY_CREDIT_CARD -> {
+                        withContext(Dispatchers.Main) {
+                            Utils.toast(ctx, "还款的转出账户不能选择信用卡")
+                        }
+                        return@launch
+                    }
+                    asset2.assetCategory != Asset.CATEGORY_CREDIT_CARD -> {
+                        withContext(Dispatchers.Main) {
+                            Utils.toast(ctx, "还款的转入账户只能选择信用卡")
+                        }
+                        return@launch
+                    }
+                }
+            }
 
             if (type == Bill.TYPE_TRANSFER && !isRepayment && (asset1 == null || asset2 == null)) {
                 withContext(Dispatchers.Main) {
@@ -1326,17 +1671,6 @@ class AccountingFormController(
                 }
             }
 
-            // 手续费换算到目标账户货币并从 targetDelta 扣除
-            // 示例：微信转支付宝 100，手续费 1（均为 CNY），targetDelta = 100 - 1 = 99
-            var feeInTargetCurrency = 0.0
-            if (type == 2 && feeVal > 0.0) {
-                val rateTransMapVal = CurrencyManager.getRate(effectiveCurrency) ?: 1.0
-                val rateTargetMapVal = CurrencyManager.getRate(asset2?.currency ?: "CNY") ?: 1.0
-                feeInTargetCurrency = if (rateTransMapVal != 0.0)
-                    (feeVal / rateTransMapVal) * rateTargetMapVal else feeVal
-                targetDelta -= feeInTargetCurrency
-            }
-
             var rBill = Bill(
                 id = editingBillId ?: 0,
                 amount = money,
@@ -1431,6 +1765,21 @@ class AccountingFormController(
                 BillAssetImpactService.applyBillBalanceImpact(db, rBill)
             }
 
+            val scheduleForInvestment = pendingInvestmentSchedule
+            if (editingBillId == null &&
+                latestRefundSource == null &&
+                scheduleForInvestment != null &&
+                rBill.type == Bill.TYPE_TRANSFER &&
+                asset2?.assetCategory == Asset.CATEGORY_INVESTMENT
+            ) {
+                InvestmentInterestService.createOrReplaceLotForTransfer(
+                    db = db,
+                    bill = rBill,
+                    targetAsset = asset2,
+                    schedule = scheduleForInvestment
+                )
+            }
+
             withContext(Dispatchers.Main) {
                 Utils.toast(ctx, "记账成功")
                 if (Prefs.isSaveVibrateEnabled(ctx)) {
@@ -1439,7 +1788,10 @@ class AccountingFormController(
                 // Reset custom transfer data
                 customTransferRate = null
                 customTargetAmount = null
+                savedTransferRateForEdit = null
                 hasConfirmedExchangeRate = false
+                pendingInvestmentSchedule = null
+                hasCheckedInvestmentSchedulePrompt = false
                 // Reset custom currency rate data
                 customCurrencyTargetAmount = null
                 customCurrencyRate = null
@@ -2072,6 +2424,10 @@ class AccountingFormController(
         tvCategory.text = categoryText
         refreshCategoryIconForSelection(categoryText)
         etRemark.setText(json.optString("remarks", json.optString("remark", "")))
+        if (json.has("fee")) {
+            val fee = json.optDouble("fee", 0.0).coerceAtLeast(0.0)
+            etFee.setText(if (fee > 0.0) fee.toString() else "")
+        }
         val time = json.optString("time", "")
         if (time.isNotEmpty()) tvTime.text = time
 
@@ -2099,6 +2455,7 @@ class AccountingFormController(
                 val isTransferEdit = isAssetFeatureEnabled && currentType == 2
                 val isRepaymentEdit = isAssetFeatureEnabled && currentType == 3
                 if (isTransferEdit && !isRepaymentEdit) {
+                    savedTransferRateForEdit = savedExchangeRate
                     customTransferRate = savedExchangeRate
                     customTargetAmount = null
                     hasConfirmedExchangeRate = true

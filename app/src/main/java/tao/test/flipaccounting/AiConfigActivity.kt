@@ -35,28 +35,11 @@ class AiConfigActivity : AppCompatActivity() {
     }
 
     private val providers = listOf(
-        "硅基流动",
-        "DeepSeek",
-        "ChatGPT",
-        "Gemini",
-        "Kimi",
-        "智谱清言",
-        "OpenRouter",
-        "通义千问",
-        "小米MiMo",
-        "自定义"
+        "硅基流动"
     )
 
     private val providerUrls = mapOf(
-        "硅基流动" to "https://api.siliconflow.cn",
-        "DeepSeek" to "https://api.deepseek.com",
-        "ChatGPT" to "https://api.openai.com",
-        "Gemini" to "https://generativelanguage.googleapis.com/v1beta/openai",
-        "Kimi" to "https://api.moonshot.cn",
-        "智谱清言" to "https://open.bigmodel.cn/api",
-        "OpenRouter" to "https://openrouter.ai/api",
-        "通义千问" to "https://dashscope.aliyuncs.com/compatible-mode",
-        "小米MiMo" to "https://api.xiaomimimo.com"
+        "硅基流动" to "https://api.siliconflow.cn"
     )
 
     @SuppressLint("ClickableViewAccessibility")
@@ -72,6 +55,7 @@ class AiConfigActivity : AppCompatActivity() {
         val tvSelectedModel = findViewById<TextView>(R.id.tv_selected_model)
         val layoutModelSelector = findViewById<View>(R.id.layout_model_selector)
 
+        val btnSingle = findViewById<Chip>(R.id.btn_single_prompt)
         val btnMulti = findViewById<Chip>(R.id.btn_multi_prompt)
         val btnModify = findViewById<Chip>(R.id.btn_modify_prompt)
         val btnCategoryRefine = findViewById<Chip>(R.id.btn_category_refine_prompt)
@@ -98,13 +82,12 @@ class AiConfigActivity : AppCompatActivity() {
         spinnerProviders.adapter = providerAdapter
         spinnerProviders.setSelection(providers.indexOf(Prefs.getAiProvider(this)).coerceAtLeast(0))
 
-        etUrl.setText(Prefs.getAiUrl(this))
+        etUrl.setText(providerUrls.getValue("硅基流动"))
+        etUrl.isEnabled = false
         etKey.setText(Prefs.getAiKey(this))
 
-        switchEnableQuery.isChecked = Prefs.isAiQueryEnabled(this)
-        switchEnableQuery.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiQueryEnabled(this, isChecked)
-        }
+        Prefs.setAiQueryEnabled(this, false)
+        switchEnableQuery.isChecked = false
 
         switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)
         switchEnableReceiptOcrRefine.setOnCheckedChangeListener { _, isChecked ->
@@ -130,7 +113,12 @@ class AiConfigActivity : AppCompatActivity() {
         val allModelsList = mutableListOf<String>()
         val canShowScreenAccounting = Prefs.isShizukuModeEnabled(this) && ShizukuSafe.isReady(this)
 
+        promptModeGrid.removeView(btnSingle)
+        promptModeGrid.removeView(btnModify)
         btnScreenAccounting.visibility = if (canShowScreenAccounting) View.VISIBLE else View.GONE
+        promptModeGrid.removeView(btnRouter)
+        promptModeGrid.removeView(btnQuery)
+        promptModeGrid.removeView(btnSpeech)
         if (!canShowScreenAccounting && currentMode == "screen_accounting") {
             currentMode = "multi"
         }
@@ -327,9 +315,7 @@ class AiConfigActivity : AppCompatActivity() {
 
         spinnerProviders.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (providers[position] != "自定义") {
-                    providerUrls[providers[position]]?.let { etUrl.setText(it) }
-                }
+                etUrl.setText(providerUrls.getValue("硅基流动"))
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -388,8 +374,8 @@ class AiConfigActivity : AppCompatActivity() {
 
             val oldProvider = Prefs.getAiProvider(this)
             val oldUrl = Prefs.getAiUrl(this)
-            val newProvider = spinnerProviders.selectedItem?.toString() ?: "自定义"
-            val newUrl = etUrl.text.toString().trim()
+            val newProvider = "硅基流动"
+            val newUrl = providerUrls.getValue("硅基流动")
             val providerChanged = oldProvider != newProvider || oldUrl != newUrl
 
             if (providerChanged) {
@@ -429,7 +415,7 @@ class AiConfigActivity : AppCompatActivity() {
             if (currentThinkingBinding != ThinkingBinding.FIXED_OFF) {
                 setThinkingEnabled(currentThinkingBinding, switchEnableThinkingCurrent.isChecked)
             }
-            Prefs.setAiQueryEnabled(this, switchEnableQuery.isChecked)
+            Prefs.setAiQueryEnabled(this, false)
             Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
 
             Utils.toast(this, "所有 AI 配置已保存")

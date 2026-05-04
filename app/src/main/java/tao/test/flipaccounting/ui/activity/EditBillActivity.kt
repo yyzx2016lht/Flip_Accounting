@@ -81,6 +81,7 @@ class EditBillActivity : AppCompatActivity() {
                 json.put("remark", bill.remark)
                 json.put("currency", bill.currency)
                 json.put("exchange_rate", bill.exchangeRate)
+                json.put("fee", bill.fee)
                 json.put("subType", bill.subType)
                 json.put("bookName", bill.bookName)
                 

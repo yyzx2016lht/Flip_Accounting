@@ -15,15 +15,17 @@ import tao.test.flipaccounting.data.local.dao.AssetDao
 import tao.test.flipaccounting.data.local.dao.BillDao
 import tao.test.flipaccounting.data.local.dao.CategoryDao
 import tao.test.flipaccounting.data.local.dao.ChatMessageDao
+import tao.test.flipaccounting.data.local.dao.InvestmentLotDao
 import tao.test.flipaccounting.data.local.entity.AiRule
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.local.entity.ChatMessage
+import tao.test.flipaccounting.data.local.entity.InvestmentLot
 
 @Database(
-    entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class],
-    version = 12,
+    entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class],
+    version = 15,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,6 +34,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun aiRuleDao(): AiRuleDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun investmentLotDao(): InvestmentLotDao
 
     companion object {
         @Volatile
@@ -123,6 +126,73 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                val now = System.currentTimeMillis()
+                database.execSQL("ALTER TABLE assets ADD COLUMN annualInterestRate REAL NOT NULL DEFAULT 0.0")
+                database.execSQL("ALTER TABLE assets ADD COLUMN interestLastSettledAt INTEGER NOT NULL DEFAULT $now")
+            }
+        }
+
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `investment_lots` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `assetId` INTEGER NOT NULL,
+                        `sourceBillId` INTEGER,
+                        `principalAmount` REAL NOT NULL,
+                        `remainingPrincipal` REAL NOT NULL,
+                        `currency` TEXT NOT NULL,
+                        `startEarningAt` INTEGER NOT NULL,
+                        `firstPayoutAt` INTEGER NOT NULL,
+                        `lastSettledAt` INTEGER NOT NULL,
+                        `createTime` INTEGER NOT NULL,
+                        FOREIGN KEY(`assetId`) REFERENCES `assets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`sourceBillId`) REFERENCES `bills`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )"""
+                )
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_investment_lots_assetId` ON `investment_lots` (`assetId`)")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_investment_lots_sourceBillId` ON `investment_lots` (`sourceBillId`)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_investment_lots_lastSettledAt` ON `investment_lots` (`lastSettledAt`)")
+            }
+        }
+
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("DROP INDEX IF EXISTS `index_investment_lots_assetId`")
+                database.execSQL("DROP INDEX IF EXISTS `index_investment_lots_sourceBillId`")
+                database.execSQL("DROP INDEX IF EXISTS `index_investment_lots_lastSettledAt`")
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `investment_lots_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `assetId` INTEGER NOT NULL,
+                        `sourceBillId` INTEGER,
+                        `principalAmount` REAL NOT NULL,
+                        `remainingPrincipal` REAL NOT NULL,
+                        `currency` TEXT NOT NULL,
+                        `startEarningAt` INTEGER NOT NULL,
+                        `firstPayoutAt` INTEGER NOT NULL,
+                        `lastSettledAt` INTEGER NOT NULL,
+                        `createTime` INTEGER NOT NULL,
+                        FOREIGN KEY(`assetId`) REFERENCES `assets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`sourceBillId`) REFERENCES `bills`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )"""
+                )
+                database.execSQL(
+                    """INSERT INTO `investment_lots_new`
+                       (`id`,`assetId`,`sourceBillId`,`principalAmount`,`remainingPrincipal`,`currency`,`startEarningAt`,`firstPayoutAt`,`lastSettledAt`,`createTime`)
+                       SELECT `id`,`assetId`,`sourceBillId`,`principalAmount`,`remainingPrincipal`,`currency`,`startEarningAt`,`firstPayoutAt`,`lastSettledAt`,`createTime`
+                       FROM `investment_lots`"""
+                )
+                database.execSQL("DROP TABLE `investment_lots`")
+                database.execSQL("ALTER TABLE `investment_lots_new` RENAME TO `investment_lots`")
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_investment_lots_assetId` ON `investment_lots` (`assetId`)")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_investment_lots_sourceBillId` ON `investment_lots` (`sourceBillId`)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_investment_lots_lastSettledAt` ON `investment_lots` (`lastSettledAt`)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -152,7 +222,10 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_8_9,
                         MIGRATION_9_10,
                         MIGRATION_10_11,
-                        MIGRATION_11_12
+                        MIGRATION_11_12,
+                        MIGRATION_12_13,
+                        MIGRATION_13_14,
+                        MIGRATION_14_15
                     )
                     .build()
                 INSTANCE = instance

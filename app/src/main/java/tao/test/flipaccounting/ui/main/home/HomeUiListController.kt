@@ -124,7 +124,12 @@ internal class HomeUiListController(
     fun updateHomeFabVisibilityByDrawerState() {
         val fab = (fragment.activity as? MainActivity)
             ?.findViewById<FloatingActionButton>(R.id.fab_add) ?: return
-        if (!fragment.isAdded || !fragment.isVisible || isBookDrawerOpen() || getIsMultiSelectModeActive()) {
+        if (!fragment.isAdded ||
+            !fragment.isVisible ||
+            layoutEmptyView.visibility == View.VISIBLE ||
+            isBookDrawerOpen() ||
+            getIsMultiSelectModeActive()
+        ) {
             fab.hide()
             return
         }

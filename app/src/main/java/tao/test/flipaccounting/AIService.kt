@@ -123,15 +123,6 @@ object AIService {
         val mimeType = detectSpeechAudioMimeType(audioFile)
         val modelName = Prefs.getAiSpeechModel(ctx).trim()
         if (modelName.isEmpty()) return null
-        val availableModels = Prefs.getAiModelsCache(ctx)
-        if (availableModels.isEmpty()) {
-            Logger.d(ctx, "AIService", "Cloud ASR skipped: no verified model cache for current provider")
-            return null
-        }
-        if (!availableModels.contains(modelName)) {
-            Logger.d(ctx, "AIService", "Cloud ASR skipped: model=$modelName not in current provider model cache")
-            return null
-        }
 
         return try {
             val requestFile = audioFile.asRequestBody(mimeType.toMediaTypeOrNull())

@@ -62,7 +62,7 @@ object PrefsDisplaySupport {
         prefs(ctx).edit().putBoolean(KEY_MULTI_BILL_NOT_SYNC, enabled).apply()
 
     fun isMultiBillFastMode(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_MULTI_BILL_FAST_MODE, false)
+        prefs(ctx).getBoolean(KEY_MULTI_BILL_FAST_MODE, true)
     fun setMultiBillFastMode(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_MULTI_BILL_FAST_MODE, enabled).apply()
 

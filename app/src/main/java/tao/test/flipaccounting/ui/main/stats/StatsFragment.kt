@@ -1035,6 +1035,7 @@ class StatsFragment : Fragment() {
         var suppressQuickSync = false
         var currencyPopup: PopupWindow? = null
         var selectedQuickLabel: String? = null
+        var timeFilterTouched = false
         val quickChipLabelPairs = listOf(
             chipToday to "\u4eca\u5929",
             chipYesterday to "\u6628\u5929",
@@ -1234,12 +1235,14 @@ class StatsFragment : Fragment() {
         quickChipLabelPairs.forEach { (chip, label) ->
             chip.setOnClickListener {
                 if (suppressQuickSync) return@setOnClickListener
+                timeFilterTouched = true
                 selectQuickChip(chip, label)
             }
         }
 
         cardStart.setOnClickListener {
             showDatePicker { ts ->
+                timeFilterTouched = true
                 customStart = ts
                 resetDateLabels()
                 clearQuickChips()
@@ -1248,6 +1251,7 @@ class StatsFragment : Fragment() {
 
         cardEnd.setOnClickListener {
             showDatePicker { ts ->
+                timeFilterTouched = true
                 customEnd = ts
                 resetDateLabels()
                 clearQuickChips()
@@ -1307,6 +1311,7 @@ class StatsFragment : Fragment() {
         }
 
         btnReset.setOnClickListener {
+            timeFilterTouched = true
             clearQuickChips()
             customStart = null
             customEnd = null
@@ -1319,29 +1324,39 @@ class StatsFragment : Fragment() {
             currencyExpandIcon.rotation = 0f
         }
         btnConfirm.setOnClickListener {
-            when {
-                selectedQuickLabel == "今天" -> viewModel.applyTodayFilter()
-                selectedQuickLabel == "昨天" -> viewModel.applyYesterdayFilter()
-                selectedQuickLabel == "前天" -> customStart?.let { start -> customEnd?.let { end -> viewModel.applyCustomDateFilter(start, end) } }
-                selectedQuickLabel == "本周" -> viewModel.applyThisWeekFilter()
-                selectedQuickLabel == "上周" -> viewModel.applyLastWeekFilter()
-                selectedQuickLabel == "本月" -> viewModel.applyThisMonthFilter()
-                selectedQuickLabel == "上月" -> viewModel.applyLastMonthFilter()
-                selectedQuickLabel == "今年" -> {
-                    viewModel.setMode(false)
-                    viewModel.applyThisYearFilter()
+            if (timeFilterTouched) {
+                when {
+                    selectedQuickLabel == "今天" -> viewModel.applyTodayFilter()
+                    selectedQuickLabel == "昨天" -> viewModel.applyYesterdayFilter()
+                    selectedQuickLabel == "前天" -> customStart?.let { start -> customEnd?.let { end -> viewModel.applyCustomDateFilter(start, end) } }
+                    selectedQuickLabel == "本周" -> viewModel.applyThisWeekFilter()
+                    selectedQuickLabel == "上周" -> viewModel.applyLastWeekFilter()
+                    selectedQuickLabel == "本月" -> {
+                        val now = Calendar.getInstance()
+                        viewModel.setMode(true)
+                        viewModel.setYearMonth(now.get(Calendar.YEAR), now.get(Calendar.MONTH))
+                    }
+                    selectedQuickLabel == "上月" -> {
+                        val cal = Calendar.getInstance().apply { add(Calendar.MONTH, -1) }
+                        viewModel.setMode(true)
+                        viewModel.setYearMonth(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH))
+                    }
+                    selectedQuickLabel == "今年" -> {
+                        viewModel.setMode(false)
+                        viewModel.applyThisYearFilter()
+                    }
+                    selectedQuickLabel == "去年" -> {
+                        viewModel.setMode(false)
+                        viewModel.applyLastYearFilter()
+                    }
+                    selectedQuickLabel == "全部" -> viewModel.applyAllTimeFilter()
+                    customStart != null && customEnd != null -> viewModel.applyCustomDateFilter(customStart!!, customEnd!!)
+                    customStart != null || customEnd != null -> {
+                        Toast.makeText(requireContext(), "\u8bf7\u5148\u9009\u62e9\u5b8c\u6574\u7684\u5f00\u59cb\u548c\u7ed3\u675f\u65e5\u671f", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    else -> viewModel.applyThisMonthFilter()
                 }
-                selectedQuickLabel == "去年" -> {
-                    viewModel.setMode(false)
-                    viewModel.applyLastYearFilter()
-                }
-                selectedQuickLabel == "全部" -> viewModel.applyAllTimeFilter()
-                customStart != null && customEnd != null -> viewModel.applyCustomDateFilter(customStart!!, customEnd!!)
-                customStart != null || customEnd != null -> {
-                    Toast.makeText(requireContext(), "\u8bf7\u5148\u9009\u62e9\u5b8c\u6574\u7684\u5f00\u59cb\u548c\u7ed3\u675f\u65e5\u671f", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                else -> viewModel.applyAllTimeFilter()
             }
 
             viewModel.setCurrencyFilter(selectedCurrency)

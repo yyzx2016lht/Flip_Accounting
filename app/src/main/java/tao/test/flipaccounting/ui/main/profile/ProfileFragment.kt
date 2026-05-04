@@ -88,6 +88,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             Prefs.isShowScreenAccounting(requireContext())
         rootRef?.findViewById<CompoundButton>(R.id.switch_quick_gesture)?.isChecked =
             Prefs.isQuickGestureEnabled(requireContext())
+        rootRef?.let { updateShowBookEntrySettingVisibility(it) }
         rootRef?.let { refreshUserAvatarCard(it) }
         rootRef?.let { refreshHomeTrendCardSwitch(it) }
         // ── 诊断：记录 onResume 时刻的 appbar 状态 ──
@@ -373,6 +374,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val dividerAfterCurrencies = view.findViewById<View>(R.id.divider_after_currencies)
         val dividerAfterSensitivity = view.findViewById<View>(R.id.divider_after_sensitivity)
         val switchShowBookEntry = view.findViewById<CompoundButton>(R.id.switch_show_book_entry)
+        val layoutShowBookEntryContainer = view.findViewById<View>(R.id.layout_show_book_entry_container)
+        val dividerBeforeShowBookEntry = view.findViewById<View>(R.id.divider_before_show_book_entry)
         val switchShizukuMode = view.findViewById<CompoundButton>(R.id.switch_shizuku_mode)
         val layoutWhitelist = view.findViewById<View>(R.id.layout_whitelist_container)
         val layoutScreenAccounting = view.findViewById<View>(R.id.layout_screen_accounting_container)
@@ -430,11 +433,13 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             isChecked = Prefs.isQuickGestureEnabled(requireContext())
             updateDataEntriesUi(isChecked, switchShowMultiCur.isChecked)
             refreshOverlayReminder(view, isChecked)
+            updateShowBookEntrySettingVisibility(view)
             setOnCheckedChangeListener { _, isChecked ->
                 Prefs.setQuickGestureEnabled(requireContext(), isChecked)
                 updateDataEntriesUi(isChecked, switchShowMultiCur.isChecked)
                 updateWhitelistUi()
                 refreshOverlayReminder(view, isChecked)
+                updateShowBookEntrySettingVisibility(view)
                 if (isChecked) {
                     val flipEnabled = Prefs.isFlipEnabled(requireContext())
                     val tapEnabled = Prefs.isDoubleTapEnabled(requireContext())
@@ -466,6 +471,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 Prefs.setShowBookEntry(requireContext(), isChecked)
             }
         }
+        val showBookEntrySetting = shouldShowBookEntrySetting(requireContext())
+        layoutShowBookEntryContainer.visibility = if (showBookEntrySetting) View.VISIBLE else View.GONE
+        dividerBeforeShowBookEntry.visibility = if (showBookEntrySetting) View.VISIBLE else View.GONE
         switchShizukuMode.apply {
             isChecked = Prefs.isShizukuModeEnabled(requireContext())
             setOnCheckedChangeListener { _, isChecked ->
@@ -625,6 +633,22 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         } finally {
             suppressHomeTrendCardSwitchCallback = false
         }
+    }
+
+    private fun updateShowBookEntrySettingVisibility(root: View) {
+        val show = shouldShowBookEntrySetting(requireContext())
+        root.findViewById<View>(R.id.layout_show_book_entry_container)?.visibility =
+            if (show) View.VISIBLE else View.GONE
+        root.findViewById<View>(R.id.divider_before_show_book_entry)?.visibility =
+            if (show) View.VISIBLE else View.GONE
+    }
+
+    private fun shouldShowBookEntrySetting(context: Context): Boolean {
+        val hasMultipleBooks = BookAccountManager.getBookAccounts(context).size > 1
+        if (!hasMultipleBooks) return false
+        val usingTraditionalEntry = Prefs.getAiEntryMode(context) == Prefs.AI_ENTRY_MODE_TRADITIONAL
+        val quickOverlayEnabled = Prefs.isQuickGestureEnabled(context)
+        return usingTraditionalEntry || quickOverlayEnabled
     }
 
     private fun refreshOverlayReminder(view: View, quickGestureEnabled: Boolean) {

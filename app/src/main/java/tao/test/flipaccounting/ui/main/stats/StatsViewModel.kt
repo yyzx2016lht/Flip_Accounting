@@ -551,14 +551,8 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         val sameYear = startCal.get(Calendar.YEAR) == endCal.get(Calendar.YEAR)
         val sameMonth = sameYear && startCal.get(Calendar.MONTH) == endCal.get(Calendar.MONTH)
         if (sameMonth) {
-            val startIsMonthHead = startCal.get(Calendar.DAY_OF_MONTH) == 1 &&
-                startCal.get(Calendar.HOUR_OF_DAY) == 0 &&
-                startCal.get(Calendar.MINUTE) == 0 &&
-                startCal.get(Calendar.SECOND) == 0
-            val endIsMonthTail = endCal.get(Calendar.DAY_OF_MONTH) == endCal.getActualMaximum(Calendar.DAY_OF_MONTH) &&
-                endCal.get(Calendar.HOUR_OF_DAY) == 23 &&
-                endCal.get(Calendar.MINUTE) == 59 &&
-                endCal.get(Calendar.SECOND) == 59
+            val startIsMonthHead = startCal.get(Calendar.DAY_OF_MONTH) == 1
+            val endIsMonthTail = endCal.get(Calendar.DAY_OF_MONTH) == endCal.getActualMaximum(Calendar.DAY_OF_MONTH)
             if (startIsMonthHead && endIsMonthTail) {
                 return String.format(
                     Locale.getDefault(),
@@ -572,16 +566,10 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         if (sameYear) {
             val startIsYearHead =
                 startCal.get(Calendar.MONTH) == Calendar.JANUARY &&
-                    startCal.get(Calendar.DAY_OF_MONTH) == 1 &&
-                    startCal.get(Calendar.HOUR_OF_DAY) == 0 &&
-                    startCal.get(Calendar.MINUTE) == 0 &&
-                    startCal.get(Calendar.SECOND) == 0
+                    startCal.get(Calendar.DAY_OF_MONTH) == 1
             val endIsYearTail =
                 endCal.get(Calendar.MONTH) == Calendar.DECEMBER &&
-                    endCal.get(Calendar.DAY_OF_MONTH) == 31 &&
-                    endCal.get(Calendar.HOUR_OF_DAY) == 23 &&
-                    endCal.get(Calendar.MINUTE) == 59 &&
-                    endCal.get(Calendar.SECOND) == 59
+                    endCal.get(Calendar.DAY_OF_MONTH) == 31
             if (startIsYearHead && endIsYearTail) {
                 return String.format(Locale.getDefault(), "%04d", startCal.get(Calendar.YEAR))
             }

@@ -59,6 +59,12 @@ interface AssetDao {
     @Query("UPDATE assets SET balance = :newBalance WHERE id = :assetId")
     suspend fun updateBalance(assetId: Long, newBalance: Double)
 
+    @Query("UPDATE assets SET balance = :newBalance, interestLastSettledAt = :settledAt WHERE id = :assetId")
+    suspend fun updateBalanceAfterInterest(assetId: Long, newBalance: Double, settledAt: Long)
+
+    @Query("UPDATE assets SET interestLastSettledAt = :settledAt WHERE id = :assetId")
+    suspend fun updateInterestLastSettledAt(assetId: Long, settledAt: Long)
+
     @Query("UPDATE assets SET balance = balance + :delta WHERE id = :assetId")
     suspend fun addBalanceDelta(assetId: Long, delta: Double)
 

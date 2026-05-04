@@ -1079,7 +1079,13 @@ object OverlayDialogs {
         )
     }
 
-    fun showGridAssetPicker(ctx: Context, currentSelectionText: String, title: String, onConfirm: (String) -> Unit) {
+    fun showGridAssetPicker(
+        ctx: Context,
+        currentSelectionText: String,
+        title: String,
+        assetFilter: ((tao.test.flipaccounting.data.local.entity.Asset) -> Boolean)? = null,
+        onConfirm: (String) -> Unit
+    ) {
         val themeContext = ContextThemeWrapper(ctx, R.style.Theme_FlipAccounting)
         val view = LayoutInflater.from(themeContext).inflate(R.layout.dialog_asset_picker, null)
         view.findViewById<TextView>(R.id.tv_asset_picker_title).text = title
@@ -1188,7 +1194,7 @@ object OverlayDialogs {
         CoroutineScope(Dispatchers.Main).launch {
             val assets = withContext(Dispatchers.IO) { AppDatabase.getDatabase(ctx).assetDao().getAllAssetsListForPicker() }
             assetList.clear()
-            assetList.addAll(assets)
+            assetList.addAll(if (assetFilter == null) assets else assets.filter(assetFilter))
             adapter.notifyDataSetChanged()
             applyBottomPickerEnterAnimation(dialog, view, rv)
             showStyledDialog(

@@ -65,7 +65,7 @@ object PrefsAiSupport {
     fun setAiKey(ctx: Context, key: String) = prefs(ctx).edit().putString(KEY_AI_KEY, key).apply()
 
     fun getAiModel(ctx: Context): String =
-        prefs(ctx).getString(KEY_AI_MODEL, "Qwen/Qwen2.5-7B-Instruct") ?: "Qwen/Qwen2.5-7B-Instruct"
+        prefs(ctx).getString(KEY_AI_MODEL, "") ?: ""
     fun setAiModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_MODEL, value).apply()
 
@@ -172,7 +172,7 @@ object PrefsAiSupport {
         prefs(ctx).edit().putBoolean(KEY_AI_THINKING_CATEGORY_REFINE, enabled).apply()
 
     fun isAiQueryEnabled(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_AI_QUERY_ENABLED, true)
+        prefs(ctx).getBoolean(KEY_AI_QUERY_ENABLED, false)
     fun setAiQueryEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_QUERY_ENABLED, enabled).apply()
 
@@ -242,14 +242,14 @@ object PrefsAiSupport {
         }
     }
 
-    fun getAiProvider(ctx: Context): String = prefs(ctx).getString(KEY_AI_PROVIDER, "") ?: ""
+    fun getAiProvider(ctx: Context): String = "硅基流动"
     fun setAiProvider(ctx: Context, value: String) =
-        prefs(ctx).edit().putString(KEY_AI_PROVIDER, value).apply()
+        prefs(ctx).edit().putString(KEY_AI_PROVIDER, "硅基流动").apply()
 
     fun getAiUrl(ctx: Context): String =
-        prefs(ctx).getString(KEY_AI_URL, "https://api.siliconflow.cn") ?: "https://api.siliconflow.cn"
+        "https://api.siliconflow.cn"
     fun setAiUrl(ctx: Context, url: String) =
-        prefs(ctx).edit().putString(KEY_AI_URL, url).apply()
+        prefs(ctx).edit().putString(KEY_AI_URL, "https://api.siliconflow.cn").apply()
 
     fun getAiPrompt(ctx: Context): String = prefs(ctx).getString(KEY_AI_PROMPT, "") ?: ""
     fun setAiPrompt(ctx: Context, prompt: String) =

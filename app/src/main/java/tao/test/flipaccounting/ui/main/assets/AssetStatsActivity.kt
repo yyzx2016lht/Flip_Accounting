@@ -1903,13 +1903,7 @@ class AssetStatsActivity : AppCompatActivity() {
                 BillAssetImpactService.convertAmountBetweenCurrencies(baseExpenseAmount, bill.currency, assetCurrency)
             }
             bill.type == Bill.TYPE_TRANSFER && isInflow && bill.toAccountId == ownerAssetId -> {
-                val grossTarget = bill.amount * bill.exchangeRate
-                val feeInTarget = if (bill.fee > 0.0) {
-                    BillAssetImpactService.convertAmountBetweenCurrencies(bill.fee, bill.currency, assetCurrency)
-                } else {
-                    0.0
-                }
-                grossTarget - feeInTarget
+                bill.amount * bill.exchangeRate
             }
             bill.type == Bill.TYPE_TRANSFER && !isInflow && bill.accountId == ownerAssetId -> {
                 val sourceAmount = BillAssetImpactService.convertAmountBetweenCurrencies(bill.amount, bill.currency, assetCurrency)

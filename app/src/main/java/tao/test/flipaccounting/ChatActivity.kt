@@ -835,6 +835,21 @@ class ChatActivity : AppCompatActivity() {
             val transcript = withContext(Dispatchers.IO) {
                 transcribeVoiceToTextWithFallback(copiedFile)
             }.trim()
+            if (transcript == "API_KEY_NOT_SETUP") {
+                removeLoadingMessage(loadingIdx)
+                appendAiTextMessage("需要先配置 API Key，才能使用云端语音识别。", isLoading = false)
+                return@launch
+            }
+            if (transcript == "MODEL_DOWNLOADING") {
+                removeLoadingMessage(loadingIdx)
+                appendAiTextMessage("离线语音模型正在下载，请下载完成后再试。", isLoading = false)
+                return@launch
+            }
+            if (transcript == "WHISPER_NOT_SETUP") {
+                removeLoadingMessage(loadingIdx)
+                appendAiTextMessage("需要先下载离线语音模型，才能使用本地语音识别。", isLoading = false)
+                return@launch
+            }
             if (transcript.isBlank()) {
                 removeLoadingMessage(loadingIdx)
                 appendAiTextMessage("这段语音没有识别清楚，你可以再说一遍，我会继续按“语音转文字”方式发送。", isLoading = false)
@@ -858,16 +873,13 @@ class ChatActivity : AppCompatActivity() {
     private suspend fun transcribeVoiceToTextWithFallback(audioFile: File): String {
         fun normalize(raw: String?): String {
             val text = raw.orEmpty().trim()
-            return if (
-                text.isBlank() ||
-                text == "WHISPER_NOT_SETUP" ||
-                text == "MODEL_DOWNLOADING"
-            ) "" else text
+            return text
         }
         val asrMode = Prefs.getAsrMode(this)
         return if (asrMode == Prefs.ASR_MODE_WHISPER) {
             normalize(LocalAsrService.speechToText(this@ChatActivity, audioFile))
         } else {
+            if (Prefs.getAiKey(this@ChatActivity).isBlank()) return "API_KEY_NOT_SETUP"
             normalize(AIService.speechToText(this@ChatActivity, audioFile))
         }
     }

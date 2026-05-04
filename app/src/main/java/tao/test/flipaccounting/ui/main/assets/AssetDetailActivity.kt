@@ -474,6 +474,9 @@ class AssetDetailActivity : AppCompatActivity() {
         tvToolbarAssetName.text = asset.name
         val balanceText = CurrencyUtils.formatAmount(asset.balance, asset.currency)
         val noteParts = mutableListOf<String>()
+        if (asset.assetCategory == Asset.CATEGORY_INVESTMENT && asset.annualInterestRate != 0.0) {
+            noteParts += "年利率 ${formatCompactDecimal(asset.annualInterestRate)}%"
+        }
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
         if (!asset.includeInNetAsset) noteParts += "不计入总资产"
         val remarkText = noteParts.joinToString(" · ")
@@ -976,6 +979,12 @@ class AssetDetailActivity : AppCompatActivity() {
     private fun formatMoney(amount: Double, currency: String): String =
         BillDisplayFormatter.formatMoney(amount, currency)
 
+    private fun formatCompactDecimal(value: Double): String {
+        return String.format(Locale.getDefault(), "%.4f", value)
+            .trimEnd('0')
+            .trimEnd('.')
+    }
+
     private fun amountInAssetCurrency(bill: Bill, ownerAssetId: Long, isInflow: Boolean): Double {
         val assetCurrency = currentAsset?.currency ?: bill.currency
         return when {
@@ -985,13 +994,7 @@ class AssetDetailActivity : AppCompatActivity() {
             }
 
             bill.type == Bill.TYPE_TRANSFER && isInflow && bill.toAccountId == ownerAssetId -> {
-                val grossTarget = bill.amount * bill.exchangeRate
-                val feeInTarget = if (bill.fee > 0.0) {
-                    BillAssetImpactService.convertAmountBetweenCurrencies(bill.fee, bill.currency, assetCurrency)
-                } else {
-                    0.0
-                }
-                grossTarget - feeInTarget
+                bill.amount * bill.exchangeRate
             }
 
             bill.type == Bill.TYPE_TRANSFER && !isInflow && bill.accountId == ownerAssetId -> {

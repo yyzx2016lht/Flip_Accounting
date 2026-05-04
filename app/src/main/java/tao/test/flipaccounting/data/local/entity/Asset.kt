@@ -19,7 +19,9 @@ data class Asset(
     val createTime: Long = System.currentTimeMillis(),
     val assetCategory: String = CATEGORY_FUND, // 资产类别：资金(FUND) 或 信用卡(CREDIT_CARD)
     val creditLimit: Double = 0.0,  // 信用卡额度（0=未设置）
-    val billingDay: Int = 0          // 信用卡还款日（保留字段，暂不使用）
+    val billingDay: Int = 0,         // 信用卡还款日（保留字段，暂不使用）
+    val annualInterestRate: Double = 0.0, // 投资理财年化利率百分比，如 1.8 表示 1.8%
+    val interestLastSettledAt: Long = System.currentTimeMillis() // 最近一次自动结息时间
 ) {
     companion object {
         const val CATEGORY_FUND = "FUND"

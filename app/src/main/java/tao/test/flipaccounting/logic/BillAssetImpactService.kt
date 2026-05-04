@@ -61,7 +61,7 @@ object BillAssetImpactService {
                 ensureRatesForImpact(bill, sourceAsset = sourceAsset, targetAsset = targetAsset)
 
                 if (sourceAsset != null) {
-                    val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, sourceAsset.currency)
+                    val sourceDelta = sourceDeltaInCurrency(bill, sourceAsset.currency)
                     logAssetDelta(sourceAsset, -sourceDelta, "apply_transfer_source", bill.id)
                     db.assetDao().addBalanceDelta(sourceAsset.id, -sourceDelta)
                     impactedAssets += 1
@@ -132,7 +132,7 @@ object BillAssetImpactService {
                 ensureRatesForImpact(bill, sourceAsset = sourceAsset, targetAsset = targetAsset)
 
                 if (sourceAsset != null) {
-                    val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, sourceAsset.currency)
+                    val sourceDelta = sourceDeltaInCurrency(bill, sourceAsset.currency)
                     logAssetDelta(sourceAsset, sourceDelta, "revert_transfer_source", bill.id)
                     db.assetDao().addBalanceDelta(sourceAsset.id, sourceDelta)
                     impactedAssets += 1
@@ -246,9 +246,17 @@ object BillAssetImpactService {
             .replace("\\s+".toRegex(), "")
     }
 
-    private fun targetDeltaInCurrency(bill: Bill, targetCurrency: String): Double {
-        val rawTargetDelta = bill.amount * bill.exchangeRate
-        val feeInTarget = if (bill.fee > 0.0) convertAmountBetweenCurrencies(bill.fee, bill.currency, targetCurrency) else 0.0
-        return rawTargetDelta - feeInTarget
+    private fun targetDeltaInCurrency(bill: Bill, _targetCurrency: String): Double {
+        return bill.amount * bill.exchangeRate
+    }
+
+    private fun sourceDeltaInCurrency(bill: Bill, sourceCurrency: String): Double {
+        val principal = convertAmountBetweenCurrencies(bill.amount, bill.currency, sourceCurrency)
+        val fee = if (bill.fee > 0.0) {
+            convertAmountBetweenCurrencies(bill.fee, bill.currency, sourceCurrency)
+        } else {
+            0.0
+        }
+        return principal + fee
     }
 }

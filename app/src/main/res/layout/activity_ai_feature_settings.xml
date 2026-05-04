@@ -288,6 +288,7 @@
 
 
                     <LinearLayout
+                        android:id="@+id/layout_ai_llm_router"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
@@ -326,6 +327,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_ai_llm_router"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginVertical="4dp"
@@ -352,6 +354,14 @@
                                 android:textColor="#1F2A3D"
                                 android:textSize="@dimen/text_size_14"
                                 android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="会多轮次使用模型进行分类，使用 token 更多。"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
 
                         <com.google.android.material.switchmaterial.SwitchMaterial

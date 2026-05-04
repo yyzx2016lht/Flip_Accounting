@@ -314,7 +314,8 @@ internal class AssetBillDetailSheetController(
             if (!isRepayment && bill.fee > 0.0) {
                 layoutFeeDetail.visibility = View.VISIBLE
                 lineFeeDetail.visibility = View.VISIBLE
-                tvFeeDetail.text = "-$symbol${String.format(Locale.getDefault(), "%.2f", bill.fee)}"
+                val feeSymbol = CurrencyManager.getSymbol(bill.currency)
+                tvFeeDetail.text = "-$feeSymbol${String.format(Locale.getDefault(), "%.2f", bill.fee)}"
             } else {
                 layoutFeeDetail.visibility = View.GONE
                 lineFeeDetail.visibility = View.GONE

@@ -162,6 +162,66 @@
                             android:textSize="@dimen/text_size_16"/>
                     </LinearLayout>
 
+                    <!-- Annual Interest Rate -->
+                    <LinearLayout
+                        android:id="@+id/layout_annual_interest_rate"
+                        android:layout_width="match_parent"
+                        android:layout_height="64dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:visibility="gone">
+                        <TextView
+                            android:layout_width="100dp"
+                            android:layout_height="wrap_content"
+                            android:text="年利率"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/text_size_16"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="20dp"
+                            android:gravity="center_vertical|end"
+                            android:orientation="vertical">
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="end|center_vertical"
+                                android:orientation="horizontal">
+                                <EditText
+                                    android:id="@+id/et_annual_interest_rate"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:minWidth="96dp"
+                                    android:background="@null"
+                                    android:hint="选填"
+                                    android:inputType="numberDecimal|numberSigned"
+                                    android:textColor="@color/brand_primary"
+                                    android:textColorHint="@color/text_secondary"
+                                    android:gravity="end|center_vertical"
+                                    android:textSize="@dimen/text_size_16"/>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:text="%"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="@dimen/text_size_16"/>
+                            </LinearLayout>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:gravity="end"
+                                android:text="留空不结息，自动收益仅作估算"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_12"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                        </LinearLayout>
+                    </LinearLayout>
+
                     <!-- Asset Category -->
                     <LinearLayout
                         android:id="@+id/layout_select_asset_category"

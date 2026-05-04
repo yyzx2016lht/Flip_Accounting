@@ -27,6 +27,7 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.logic.CurrencyUtils
+import tao.test.flipaccounting.logic.InvestmentInterestService
 import tao.test.flipaccounting.ui.common.UiMotion
 import tao.test.flipaccounting.ui.common.UiMotion.fadeIn
 import tao.test.flipaccounting.ui.common.UiMotion.applyItemPressFeedback
@@ -68,6 +69,13 @@ class AssetsFragment : Fragment() {
         initViews(view)
         observeData()
         return view
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewLifecycleOwner.lifecycleScope.launch {
+            InvestmentInterestService.settleDueInterest(db)
+        }
     }
 
     private fun initViews(view: View) {

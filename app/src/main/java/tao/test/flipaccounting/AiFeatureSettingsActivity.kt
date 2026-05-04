@@ -34,6 +34,8 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val layoutOpenAiChatPage = findViewById<View>(R.id.layout_open_ai_chat_page)
         val layoutMultiBillFastMode = findViewById<View>(R.id.layout_multi_bill_fast_mode)
         val switchAiLlmRouter = findViewById<CompoundButton>(R.id.switch_ai_llm_router)
+        val layoutAiLlmRouter = findViewById<View>(R.id.layout_ai_llm_router)
+        val dividerAiLlmRouter = findViewById<View>(R.id.divider_ai_llm_router)
         val isFlipOverlayEnabled = Prefs.isFlipEnabled(this)
 
         // AI 总开关由设置中心控制，这里只展示具体能力配置。
@@ -66,6 +68,8 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         }
 
         updateMultiBillUiVisibility()
+        layoutAiLlmRouter.visibility = View.GONE
+        dividerAiLlmRouter.visibility = View.GONE
         switchAiLlmRouter.apply {
             isChecked = Prefs.isAiLlmRouterEnabled(this@AiFeatureSettingsActivity)
             setOnCheckedChangeListener { _, isChecked ->

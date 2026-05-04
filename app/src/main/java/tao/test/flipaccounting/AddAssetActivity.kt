@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -36,6 +37,8 @@ import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillAssetImpactService
 import tao.test.flipaccounting.logic.BillMutationService
 import tao.test.flipaccounting.logic.CurrencyManager
+import tao.test.flipaccounting.logic.InvestmentInterestService
+import tao.test.flipaccounting.ui.dialog.ElegantDatePickerSheet
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -48,6 +51,7 @@ class AddAssetActivity : AppCompatActivity() {
 
     private lateinit var etName: EditText
     private lateinit var etBalance: EditText
+    private lateinit var etAnnualInterestRate: EditText
     private lateinit var etRemark: EditText
     private lateinit var tvTypeName: TextView
     private lateinit var ivTypeIcon: ImageView
@@ -56,6 +60,7 @@ class AddAssetActivity : AppCompatActivity() {
     private lateinit var layoutTypePicker: View
     private lateinit var etSearchType: EditText
     private lateinit var tvAssetCategory: TextView
+    private lateinit var layoutAnnualInterestRate: View
 
     private var selectedType: String = ""
     private var selectedIcon: String = ""
@@ -104,7 +109,8 @@ class AddAssetActivity : AppCompatActivity() {
         val oldName: String,
         val oldBalance: Double,
         val oldCurrency: String,
-        val isNew: Boolean
+        val isNew: Boolean,
+        val investmentSchedule: InvestmentInterestService.InvestmentSchedule? = null
     )
 
     private data class AdjustmentDraft(
@@ -139,6 +145,7 @@ class AddAssetActivity : AppCompatActivity() {
     private fun initViews() {
         etName = findViewById(R.id.et_name)
         etBalance = findViewById(R.id.et_balance)
+        etAnnualInterestRate = findViewById(R.id.et_annual_interest_rate)
         etRemark = findViewById(R.id.et_remark)
         tvTypeName = findViewById(R.id.tv_type_name)
         ivTypeIcon = findViewById(R.id.iv_type_icon)
@@ -147,6 +154,7 @@ class AddAssetActivity : AppCompatActivity() {
         layoutTypePicker = findViewById(R.id.layout_type_picker)
         etSearchType = findViewById(R.id.et_search_type)
         tvAssetCategory = findViewById(R.id.tv_asset_category)
+        layoutAnnualInterestRate = findViewById(R.id.layout_annual_interest_rate)
         refreshCurrencyDisplay()
 
         findViewById<View>(R.id.btn_back).setOnClickListener {
@@ -283,6 +291,9 @@ class AddAssetActivity : AppCompatActivity() {
                 }
 
                 etRemark.setText(it.remark)
+                etAnnualInterestRate.setText(
+                    if (it.annualInterestRate == 0.0) "" else formatCompactDecimal(it.annualInterestRate)
+                )
                 tvTypeName.text = it.type
                 tvTypeName.setTextColor(Color.parseColor("#2196F3"))
                 selectedType = it.type
@@ -306,9 +317,17 @@ class AddAssetActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveAsset(skipCurrencyConfirm: Boolean = false) {
+    private fun saveAsset(
+        skipCurrencyConfirm: Boolean = false,
+        investmentSchedule: InvestmentInterestService.InvestmentSchedule? = null
+    ) {
         val name = etName.text.toString().trim()
         val balance = BillAssetImpactService.roundMoney(parseLocalizedAmount(etBalance.text.toString()))
+        val annualInterestRate = if (selectedAssetCategory == Asset.CATEGORY_INVESTMENT) {
+            parseLocalizedAmount(etAnnualInterestRate.text.toString())
+        } else {
+            0.0
+        }
 
         if (name.isEmpty()) {
             Toast.makeText(this, "请输入账户名称", Toast.LENGTH_SHORT).show()
@@ -358,8 +377,37 @@ class AddAssetActivity : AppCompatActivity() {
                 return@launch
             }
 
+            if (selectedAssetCategory == Asset.CATEGORY_INVESTMENT) {
+                InvestmentInterestService.ensureInvestmentCategories(db)
+            }
+
             val currentBalance = BillAssetImpactService.roundMoney(balance)
             val previousBalance = BillAssetImpactService.roundMoney(oldBalance)
+            val shouldCreateOpeningLot = selectedAssetCategory == Asset.CATEGORY_INVESTMENT &&
+                currentBalance > 0.000001 &&
+                investmentSchedule == null &&
+                (assetId == -1L || existingAsset?.assetCategory != Asset.CATEGORY_INVESTMENT)
+            if (shouldCreateOpeningLot) {
+                withContext(Dispatchers.Main) {
+                    showInvestmentScheduleDialog(
+                        title = if (assetId == -1L) "设置初始本金收益时间" else "设置转为理财后的收益时间",
+                        message = "这笔当前余额会作为一笔理财本金单独计算收益。"
+                    ) { schedule ->
+                        saveAsset(
+                            skipCurrencyConfirm = skipCurrencyConfirm,
+                            investmentSchedule = schedule
+                        )
+                    }
+                }
+                return@launch
+            }
+
+            val existingLastSettledAt = existingAsset?.interestLastSettledAt ?: System.currentTimeMillis()
+            val interestLastSettledAt = when {
+                selectedAssetCategory != Asset.CATEGORY_INVESTMENT -> System.currentTimeMillis()
+                existingAsset?.assetCategory == Asset.CATEGORY_INVESTMENT -> existingLastSettledAt
+                else -> System.currentTimeMillis()
+            }
 
             val asset = Asset(
                 id = if (assetId == -1L) 0 else assetId,
@@ -372,6 +420,8 @@ class AddAssetActivity : AppCompatActivity() {
                 remark = etRemark.text.toString(),
                 includeInNetAsset = swIncludeNet.isChecked,
                 assetCategory = selectedAssetCategory,
+                annualInterestRate = annualInterestRate,
+                interestLastSettledAt = interestLastSettledAt,
                 sortOrder = if (assetId == -1L) 0 else originalSortOrder,
                 pickerSortOrder = if (assetId == -1L) 0 else originalPickerSortOrder
             )
@@ -383,7 +433,8 @@ class AddAssetActivity : AppCompatActivity() {
                         oldName = "",
                         oldBalance = 0.0,
                         oldCurrency = selectedCurrency,
-                        isNew = true
+                        isNew = true,
+                        investmentSchedule = investmentSchedule
                     ),
                     adjustment = null
                 )
@@ -395,7 +446,8 @@ class AddAssetActivity : AppCompatActivity() {
                         oldName = oldName,
                         oldBalance = previousBalance,
                         oldCurrency = oldCurrency,
-                        isNew = false
+                        isNew = false,
+                        investmentSchedule = investmentSchedule
                     )
                     val intent = Intent(this@AddAssetActivity, BalanceAdjustmentActivity::class.java)
                     intent.putExtra(BalanceAdjustmentActivity.EXTRA_ASSET_ID, assetId)
@@ -412,7 +464,8 @@ class AddAssetActivity : AppCompatActivity() {
                             oldName = oldName,
                             oldBalance = previousBalance,
                             oldCurrency = oldCurrency,
-                            isNew = false
+                            isNew = false,
+                            investmentSchedule = investmentSchedule
                         ),
                         adjustment = null
                     )
@@ -445,6 +498,15 @@ class AddAssetActivity : AppCompatActivity() {
                     db.billDao().syncToAccountNameByAssetId(pending.asset.id, pending.asset.name)
                 }
                 pending.asset.id
+            }
+
+            pending.investmentSchedule?.let { schedule ->
+                val savedAsset = pending.asset.copy(id = savedAssetId)
+                InvestmentInterestService.createLotForAssetBalance(
+                    db = db,
+                    asset = savedAsset,
+                    schedule = schedule
+                )
             }
 
             if (adjustment != null) {
@@ -549,6 +611,8 @@ class AddAssetActivity : AppCompatActivity() {
 
     private fun updateAssetCategoryUI() {
         tvAssetCategory.text = Asset.categoryLabel(selectedAssetCategory)
+        layoutAnnualInterestRate.visibility =
+            if (selectedAssetCategory == Asset.CATEGORY_INVESTMENT) View.VISIBLE else View.GONE
         tvAssetCategory.setTextColor(
             when (selectedAssetCategory) {
                 Asset.CATEGORY_CREDIT_CARD -> Color.parseColor("#F44336")
@@ -583,7 +647,7 @@ class AddAssetActivity : AppCompatActivity() {
     }
 
     private fun parseLocalizedAmount(raw: String): Double {
-        val value = raw.trim()
+        val value = raw.trim().removeSuffix("%").trim()
         if (value.isEmpty() || value == "-") return 0.0
 
         val localized = NumberFormat.getNumberInstance(Locale.getDefault())
@@ -597,6 +661,12 @@ class AddAssetActivity : AppCompatActivity() {
             .replace(',', '.')
 
         return normalized.toDoubleOrNull() ?: 0.0
+    }
+
+    private fun formatCompactDecimal(value: Double): String {
+        return String.format(Locale.getDefault(), "%.4f", value)
+            .trimEnd('0')
+            .trimEnd('.')
     }
 
     private fun showCurrencyChangeConfirmDialog(
@@ -621,6 +691,105 @@ class AddAssetActivity : AppCompatActivity() {
             cancelOnTouchOutside = true,
             useSolidPanelBackground = true
         )
+    }
+
+    private fun showInvestmentScheduleDialog(
+        title: String,
+        message: String,
+        onConfirm: (InvestmentInterestService.InvestmentSchedule) -> Unit
+    ) {
+        val themeContext = ContextThemeWrapper(this, R.style.Theme_FlipAccounting)
+        val content = LinearLayout(themeContext).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(10), dp(22), dp(4))
+        }
+        content.addView(TextView(themeContext).apply {
+            text = message
+            setTextColor(Color.parseColor("#667085"))
+            textSize = 14f
+        })
+
+        val todayStart = InvestmentInterestService.startOfDay(System.currentTimeMillis())
+        var startEarningAt = InvestmentInterestService.plusDays(todayStart, 1)
+        var firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
+
+        lateinit var startRow: TextView
+        lateinit var payoutRow: TextView
+        fun bindRow(row: TextView, label: String, value: Long) {
+            row.text = "$label    ${formatDateForSchedule(value)}"
+        }
+
+        startRow = TextView(themeContext).apply {
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2A38"))
+            setPadding(0, dp(16), 0, dp(8))
+            bindRow(this, "开始计算收益", startEarningAt)
+            setOnClickListener {
+                ElegantDatePickerSheet.show(
+                    context = this@AddAssetActivity,
+                    initialTimeMillis = startEarningAt,
+                    minTimeMillis = todayStart
+                ) { selected ->
+                    startEarningAt = InvestmentInterestService.startOfDay(selected)
+                    firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
+                    bindRow(startRow, "开始计算收益", startEarningAt)
+                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                }
+            }
+        }
+        payoutRow = TextView(themeContext).apply {
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2A38"))
+            setPadding(0, dp(16), 0, dp(8))
+            bindRow(this, "收益到账", firstPayoutAt)
+            setOnClickListener {
+                ElegantDatePickerSheet.show(
+                    context = this@AddAssetActivity,
+                    initialTimeMillis = firstPayoutAt,
+                    minTimeMillis = InvestmentInterestService.plusDays(startEarningAt, 1)
+                ) { selected ->
+                    firstPayoutAt = InvestmentInterestService.startOfDay(selected)
+                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                }
+            }
+        }
+        content.addView(startRow)
+        content.addView(payoutRow)
+        content.addView(TextView(themeContext).apply {
+            text = "默认收益到账为开始计算收益的后一天，也可以手动调整。"
+            setTextColor(Color.parseColor("#8A9099"))
+            textSize = 12f
+            setPadding(0, dp(10), 0, 0)
+        })
+
+        val dialog = AlertDialog.Builder(themeContext)
+            .setTitle(title)
+            .setView(content)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("确定") { _, _ ->
+                onConfirm(
+                    InvestmentInterestService.InvestmentSchedule(
+                        startEarningAt = startEarningAt,
+                        firstPayoutAt = firstPayoutAt
+                    )
+                )
+            }
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun formatDateForSchedule(timeMillis: Long): String {
+        return java.text.SimpleDateFormat("yyyy-MM-dd E", Locale.getDefault()).format(java.util.Date(timeMillis))
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 
     private data class DialogOption(

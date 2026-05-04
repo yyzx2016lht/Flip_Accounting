@@ -862,6 +862,12 @@ class HomeFragment : Fragment() {
         uiListController.applyHomeFabDrawerProgress(slideOffset)
     }
 
+    fun shouldShowMainFab(): Boolean {
+        if (!isAdded || !isVisible) return false
+        if (!::layoutEmptyView.isInitialized) return true
+        return layoutEmptyView.visibility != View.VISIBLE
+    }
+
     private fun syncDateFromSessionIfNeeded() {
         val (sessionYear, sessionMonth) = SharedYearMonthSession.getYearMonth()
         if (sessionYear != selectedYear || sessionMonth != selectedMonth) {
