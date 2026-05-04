@@ -72,6 +72,7 @@ internal class HomeBookDrawerController(
     private lateinit var bookAccountAdapter: BookAccountAdapter
     private var bookOrderTouchHelper: ItemTouchHelper? = null
     private var addBookSetDefaultEnabled: Boolean = false
+    private var isBookNameEditing: Boolean = false
 
     private enum class BookDeleteMode {
         MOVE_TO_OTHER_BOOK,
@@ -118,6 +119,9 @@ internal class HomeBookDrawerController(
             },
             onStartDrag = { viewHolder ->
                 bookOrderTouchHelper?.startDrag(viewHolder)
+            },
+            onEditingChanged = { editing ->
+                updateBookRenameEditingState(editing)
             }
         )
         rvBookAccounts.adapter = bookAccountAdapter
@@ -127,7 +131,11 @@ internal class HomeBookDrawerController(
         }
         rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
 
-        btnAddBookAccount.setOnClickListener { showInlineAddBookInput() }
+        btnAddBookAccount.setOnClickListener {
+            if (!bookAccountAdapter.commitActiveRename()) {
+                showInlineAddBookInput()
+            }
+        }
         btnConfirmAddBook.setOnClickListener { commitInlineAddBook() }
         btnCancelAddBook.setOnClickListener { hideInlineAddBookInput(clearText = true) }
         btnAddBookSetDefaultToggle.setOnClickListener {
@@ -404,6 +412,7 @@ internal class HomeBookDrawerController(
     }
 
     private fun showInlineAddBookInput() {
+        if (isBookNameEditing) return
         btnAddBookAccount.visibility = View.GONE
         layoutAddBookInput.visibility = View.VISIBLE
         etAddBookAccountName.setText("")
@@ -424,6 +433,34 @@ internal class HomeBookDrawerController(
         addBookSetDefaultEnabled = false
         btnAddBookSetDefaultToggle.visibility = View.GONE
         btnAddBookAccount.visibility = View.VISIBLE
+        updateBookRenameActionButton()
+    }
+
+    private fun updateBookRenameEditingState(editing: Boolean) {
+        isBookNameEditing = editing
+        drawerBooks.setDrawerLockMode(
+            if (editing) DrawerLayout.LOCK_MODE_LOCKED_OPEN else DrawerLayout.LOCK_MODE_UNLOCKED,
+            GravityCompat.START
+        )
+        if (editing) {
+            layoutAddBookInput.visibility = View.GONE
+            addBookSetDefaultEnabled = false
+            btnAddBookSetDefaultToggle.visibility = View.GONE
+            btnAddBookAccount.visibility = View.VISIBLE
+        }
+        updateBookRenameActionButton()
+    }
+
+    private fun updateBookRenameActionButton() {
+        (btnAddBookAccount as? TextView)?.apply {
+            if (isBookNameEditing) {
+                text = "保存名字"
+                setTextColor(android.graphics.Color.parseColor("#2FA36B"))
+            } else {
+                text = "+ 新增账本"
+                setTextColor(android.graphics.Color.parseColor("#3D67DA"))
+            }
+        }
     }
 
     private fun updateAddBookSetDefaultToggleUi() {
@@ -648,9 +685,9 @@ internal class HomeBookDrawerController(
         OverlayDialogs.showPageCenterDialog(
             dialog = popupDialog,
             ctx = fragment.requireContext(),
-            widthRatio = 0.92f,
+            widthRatio = 0.86f,
             cancelOnTouchOutside = true,
-            useSolidPanelBackground = false
+            useSolidPanelBackground = true
         )
     }
 

@@ -54,7 +54,10 @@ data class Bill(
     // Link for related bills, e.g. refund bill -> original expense bill
     val relatedBillId: Long? = null,
 
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+
+    // 是否不计入统计
+    val excludeFromStats: Boolean = false
 ) {
     companion object {
         const val TYPE_EXPENSE = 0

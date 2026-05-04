@@ -379,7 +379,7 @@ internal class AssetBillDetailSheetController(
             if (isRefund) {
                 tvAccount.text = bill.accountName
                 scope.launch(Dispatchers.IO) {
-                    val original = bill.relatedBillId?.let { db.billDao().getBillById(it) }
+                    val original = tao.test.flipaccounting.logic.BillMutationService.resolveRefundSourceBill(db, bill)
                     withContext(Dispatchers.Main) {
                         if (original != null) {
                             linkedOriginalForRefund = original
@@ -450,7 +450,7 @@ internal class AssetBillDetailSheetController(
                     return@setOnClickListener
                 }
                 scope.launch(Dispatchers.IO) {
-                    val source = bill.relatedBillId?.let { db.billDao().getBillById(it) }
+                    val source = tao.test.flipaccounting.logic.BillMutationService.resolveRefundSourceBill(db, bill)
                     withContext(Dispatchers.Main) {
                         if (source != null) {
                             showRefundSheet(source, bill)

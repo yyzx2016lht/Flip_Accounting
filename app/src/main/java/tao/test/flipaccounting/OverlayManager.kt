@@ -106,7 +106,7 @@ class OverlayManager(private val ctx: Context) {
                 if (overlayView != null) removeOverlay()
             } else {
                 if (overlayView != null && formController != null) {
-                    formController?.fillDataToUi(resultJson, showToast = true)
+                    formController?.fillDataToUi(resultJson, showToast = true, forceMultiMode = true)
                 } else {
                     showOverlay(resultJson, showSaveOnly = true)
                 }

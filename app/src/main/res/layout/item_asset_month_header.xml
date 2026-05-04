@@ -10,6 +10,16 @@
     android:paddingTop="9dp"
     android:paddingBottom="9dp">
 
+    <CheckBox
+        android:id="@+id/cb_select_section"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="6dp"
+        android:buttonTint="#4080FF"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/tv_month_title"
         android:layout_width="0dp"

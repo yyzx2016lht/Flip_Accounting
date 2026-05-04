@@ -72,7 +72,7 @@ object AddBillEntrySheetLauncher {
         }
 
         formController.layoutAiTextEntry.setOnClickListener {
-            aiAssistant.showInputPanel(onResult = handleAiResult)
+            aiAssistant.showInputPanel(hideStreamText = true, onResult = handleAiResult)
         }
 
         bottomSheet.setOnShowListener { onShow?.invoke() }

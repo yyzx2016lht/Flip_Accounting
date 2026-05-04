@@ -777,7 +777,7 @@ class AccountingFormController(
         }
         layoutAiTextEntry.setOnClickListener {
             hideAmountKeypad()
-            aiAssistant.showInputPanel(isMultiMode = isCurrentUiMultiMode()) { fillDataToUi(it) }
+            aiAssistant.showInputPanel(hideStreamText = true, isMultiMode = isCurrentUiMultiMode()) { fillDataToUi(it) }
         }
         // btnVoice 的触摸逻辑由 VoiceInputHandler.setupVoiceButton 接管，此处不设置 OnClickListener
 
@@ -1731,25 +1731,22 @@ class AccountingFormController(
 
             if (editingBillId == null) {
                 if (latestRefundSource != null) {
-                    // 退款路径：insert + 更新原账单 + 余额影响在同一事务内
-                    require(money <= latestRefundSource.amount + 1e-9) {
-                        "退款金额超过可退余额"
-                    }
-                    rBill = db.withTransaction {
-                        val savedBill = BillMutationService.insertBillWithinActiveTransaction(
+                    try {
+                        rBill = BillMutationService.saveRefundBill(
                             db = db,
-                            bill = rBill,
-                            applyAssetImpact = true
+                            originalBill = latestRefundSource,
+                            refundBill = rBill
                         )
-                        val sourceBaseOriginal = if (latestRefundSource.originalAmount > 0.0)
-                            kotlin.math.max(latestRefundSource.originalAmount, latestRefundSource.amount)
-                        else latestRefundSource.amount
-                        val newActualExpense = (latestRefundSource.amount - money).coerceIn(0.0, sourceBaseOriginal)
-                        db.billDao().updateBill(latestRefundSource.copy(
-                            amount = newActualExpense,
-                            originalAmount = sourceBaseOriginal
-                        ))
-                        savedBill
+                    } catch (e: IllegalArgumentException) {
+                        withContext(Dispatchers.Main) {
+                            Utils.toast(ctx, e.message ?: "退款金额超过可退余额")
+                        }
+                        return@launch
+                    } catch (e: IllegalStateException) {
+                        withContext(Dispatchers.Main) {
+                            Utils.toast(ctx, e.message ?: "原账单不存在或不可退款")
+                        }
+                        return@launch
                     }
                 } else {
                     rBill = BillMutationService.upsertBillAndApplyImpact(

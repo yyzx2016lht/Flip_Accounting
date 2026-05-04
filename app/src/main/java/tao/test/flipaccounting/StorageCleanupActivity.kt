@@ -12,6 +12,7 @@ import com.google.android.material.checkbox.MaterialCheckBox
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.util.Locale
@@ -60,7 +61,23 @@ class StorageCleanupActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_cleanup_do).setOnClickListener { confirmAndCleanup() }
         cbOlder30.setOnCheckedChangeListener { _, _ -> refreshStats() }
 
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.card_history_bills).setOnClickListener {
+            startActivity(Intent(this, tao.test.flipaccounting.ui.activity.HistoryBillActivity::class.java))
+        }
+
         refreshStats()
+        loadHistoryBillsCount()
+    }
+
+    private fun loadHistoryBillsCount() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@StorageCleanupActivity)
+            val count = db.deletedBillDao().getCount()
+            withContext(Dispatchers.Main) {
+                val tvCount = findViewById<TextView>(R.id.tv_history_bills_count)
+                tvCount.text = if (count > 0) "已删除 $count 条账单" else "查看已删除的账单"
+            }
+        }
     }
 
     private fun refreshStats() {

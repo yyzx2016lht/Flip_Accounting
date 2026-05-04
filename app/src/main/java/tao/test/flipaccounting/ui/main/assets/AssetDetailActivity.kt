@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -553,6 +554,7 @@ class AssetDetailActivity : AppCompatActivity() {
         private val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
         private val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
         private val PAYLOAD_BALANCE_CHANGE = "PAYLOAD_BALANCE_CHANGE"
+        private val PAYLOAD_HEADER_SELECTION_CHANGE = "PAYLOAD_HEADER_SELECTION_CHANGE"
         private val typeBalanceHeader = 0
         private val typeMonthHeader = 1
         private val typeBillItem = 2
@@ -654,6 +656,43 @@ class AssetDetailActivity : AppCompatActivity() {
             notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
         }
 
+        private fun selectableBillsForSection(headerPosition: Int): List<Bill> {
+            return rows.asSequence()
+                .drop(headerPosition + 1)
+                .takeWhile { it !is MonthHeaderRow && it !is BalanceHeaderRow }
+                .mapNotNull { (it as? BillRow)?.bill }
+                .toList()
+        }
+
+        private fun sectionSelectionState(headerPosition: Int): Pair<Boolean, Boolean> {
+            val bills = selectableBillsForSection(headerPosition)
+            if (bills.isEmpty()) return false to false
+            val selectedCount = bills.count { selectedBills.contains(it) }
+            return (selectedCount == bills.size) to (selectedCount in 1 until bills.size)
+        }
+
+        private fun updateSectionHeaderNear(position: Int) {
+            val headerPosition = (position downTo 0).firstOrNull { rows.getOrNull(it) is MonthHeaderRow } ?: return
+            notifyItemChanged(headerPosition, PAYLOAD_HEADER_SELECTION_CHANGE)
+        }
+
+        private fun setSectionSelection(headerPosition: Int, checked: Boolean) {
+            val bills = selectableBillsForSection(headerPosition)
+            if (bills.isEmpty()) return
+            if (checked) {
+                selectedBills.addAll(bills)
+            } else {
+                selectedBills.removeAll(bills.toSet())
+            }
+            isMultiSelectMode = selectedBills.isNotEmpty()
+            onSelectionChanged?.invoke(selectedBills.size)
+            val nextHeader = ((headerPosition + 1) until rows.size)
+                .firstOrNull { rows[it] is MonthHeaderRow || rows[it] is BalanceHeaderRow }
+                ?: rows.size
+            notifyItemRangeChanged(headerPosition, nextHeader - headerPosition, PAYLOAD_SELECTION_CHANGE)
+            if (!isMultiSelectMode) notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+        }
+
         override fun getItemViewType(position: Int): Int {
             return when (rows[position]) {
                 is BalanceHeaderRow -> typeBalanceHeader
@@ -679,7 +718,7 @@ class AssetDetailActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val row = rows[position]) {
                 is BalanceHeaderRow -> (holder as BalanceHeaderViewHolder).bind(row)
-                is MonthHeaderRow -> (holder as MonthHeaderViewHolder).bind(row)
+                is MonthHeaderRow -> (holder as MonthHeaderViewHolder).bind(row, position)
                 is BillRow -> (holder as BillViewHolder).bind(row.bill, position)
             }
         }
@@ -709,6 +748,16 @@ class AssetDetailActivity : AppCompatActivity() {
                     }
                 }
             }
+            if (payloads.isNotEmpty() && holder is MonthHeaderViewHolder) {
+                if (payloads.contains(PAYLOAD_MODE_CHANGE)) {
+                    holder.updateMode(position)
+                    return
+                }
+                if (payloads.contains(PAYLOAD_SELECTION_CHANGE) || payloads.contains(PAYLOAD_HEADER_SELECTION_CHANGE)) {
+                    holder.updateSelection(position)
+                    return
+                }
+            }
             super.onBindViewHolder(holder, position, payloads)
         }
 
@@ -730,13 +779,35 @@ class AssetDetailActivity : AppCompatActivity() {
         }
 
         inner class MonthHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+            private val cbSelect = v.findViewById<CheckBox>(R.id.cb_select_section)
             private val tvMonth = v.findViewById<TextView>(R.id.tv_month_title)
             private val tvSummary = v.findViewById<TextView>(R.id.tv_month_summary)
 
-            fun bind(header: MonthHeaderRow) {
+            init {
+                itemView.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION || !isMultiSelectMode) return@setOnClickListener
+                    val (allSelected, _) = sectionSelectionState(pos)
+                    setSectionSelection(pos, checked = !allSelected)
+                }
+            }
+
+            fun bind(header: MonthHeaderRow, position: Int) {
                 val symbol = CurrencyManager.getSymbol(currentAsset?.currency ?: "CNY")
                 tvMonth.text = header.monthLabel
                 tvSummary.text = "\u6D41\u5165:${symbol}${String.format(Locale.getDefault(), "%.2f", header.inflow)}\n\u6D41\u51FA:${symbol}${String.format(Locale.getDefault(), "%.2f", header.outflow)}"
+                updateMode(position)
+            }
+
+            fun updateMode(position: Int) {
+                cbSelect.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
+                updateSelection(position)
+            }
+
+            fun updateSelection(position: Int) {
+                val (allSelected, partiallySelected) = sectionSelectionState(position)
+                cbSelect.isChecked = allSelected
+                cbSelect.alpha = if (partiallySelected) 0.55f else 1f
             }
         }
 
@@ -942,6 +1013,7 @@ class AssetDetailActivity : AppCompatActivity() {
                             val pos = adapterPosition
                             if (pos != RecyclerView.NO_POSITION) {
                                 notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                                updateSectionHeaderNear(pos)
                             }
                         }
                         onSelectionChanged?.invoke(selectedBills.size)
@@ -960,6 +1032,7 @@ class AssetDetailActivity : AppCompatActivity() {
                         val pos = adapterPosition
                         if (pos != RecyclerView.NO_POSITION) {
                             notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                            updateSectionHeaderNear(pos)
                         }
                     }
                     onSelectionChanged?.invoke(selectedBills.size)
@@ -1067,5 +1140,4 @@ class AssetDetailActivity : AppCompatActivity() {
     private fun buildCrossCurrencyDetailFormula(bill: Bill, targetCurrency: String = "CNY"): String? =
         BillDisplayFormatter.buildCrossCurrencyDetailFormula(bill, targetCurrency)
 }
-
 

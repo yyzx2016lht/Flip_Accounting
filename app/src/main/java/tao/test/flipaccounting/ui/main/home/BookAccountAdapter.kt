@@ -7,6 +7,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewConfiguration
+import android.view.ViewParent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -23,7 +24,8 @@ class BookAccountAdapter(
     private val onSetDefaultClick: (name: String) -> Unit,
     private val onDeleteClick: (name: String) -> Unit,
     private val onOrderChanged: (newOrder: List<String>) -> Unit,
-    private val onStartDrag: (RecyclerView.ViewHolder) -> Unit
+    private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
+    private val onEditingChanged: (Boolean) -> Unit = {}
 ) : RecyclerView.Adapter<BookAccountAdapter.BookViewHolder>() {
 
     private val items = mutableListOf<String>()
@@ -31,6 +33,19 @@ class BookAccountAdapter(
     private var defaultBook: String = BookAccountManager.DEFAULT_BOOK
     private var openedPosition: Int = RecyclerView.NO_POSITION
     private var editingPosition: Int = RecyclerView.NO_POSITION
+    private var recyclerView: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerView = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        if (this.recyclerView == recyclerView) {
+            this.recyclerView = null
+        }
+        super.onDetachedFromRecyclerView(recyclerView)
+    }
 
     fun submitList(books: List<String>, selected: String, defaultBookName: String) {
         val openedName = items.getOrNull(openedPosition)
@@ -79,6 +94,22 @@ class BookAccountAdapter(
             openedPosition = RecyclerView.NO_POSITION
             notifyItemChanged(old)
         }
+    }
+
+    fun commitActiveRename(): Boolean {
+        val pos = editingPosition
+        if (pos == RecyclerView.NO_POSITION) return false
+
+        val holder = recyclerView?.findViewHolderForAdapterPosition(pos) as? BookViewHolder
+        if (holder != null) {
+            holder.commitInlineRename()
+            return true
+        }
+
+        editingPosition = RecyclerView.NO_POSITION
+        notifyItemChanged(pos)
+        onEditingChanged(false)
+        return true
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookViewHolder {
@@ -165,6 +196,14 @@ class BookAccountAdapter(
                 }
             }
 
+            etName.setOnTouchListener { _, event ->
+                requestAncestorsDisallowIntercept(true)
+                if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                    itemView.post { requestAncestorsDisallowIntercept(true) }
+                }
+                false
+            }
+
             etName.setOnFocusChangeListener { _, hasFocus ->
                 val pos = adapterPosition
                 if (!hasFocus && pos != RecyclerView.NO_POSITION && editingPosition == pos) {
@@ -206,7 +245,7 @@ class BookAccountAdapter(
                         foreground.postDelayed(runnable, ViewConfiguration.getLongPressTimeout().toLong())
                     }
                     // 提前告知父容器不要拦截，确保 MOVE 能持续送达
-                    itemView.parent?.requestDisallowInterceptTouchEvent(true)
+                    requestAncestorsDisallowIntercept(true)
                     return true
                 }
 
@@ -222,7 +261,7 @@ class BookAccountAdapter(
                     }
                     if (dragStartedByLongPress) {
                         // 长按进入排序后，事件交还给 RecyclerView + ItemTouchHelper 处理拖拽
-                        itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                        requestAncestorsDisallowIntercept(false)
                         return false
                     }
                     if (!dragging) {
@@ -234,7 +273,7 @@ class BookAccountAdapter(
                             abs(dy) > slop -> {
                                 // 确认纵向滚动，释放拦截权，让 RecyclerView/NestedScrollView 接管
                                 dragging = false
-                                itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                                requestAncestorsDisallowIntercept(false)
                                 return false
                             }
                         }
@@ -253,7 +292,7 @@ class BookAccountAdapter(
                         foreground.removeCallbacks(it)
                         longPressRunnable = null
                     }
-                    itemView.parent?.requestDisallowInterceptTouchEvent(false)
+                    requestAncestorsDisallowIntercept(false)
                     if (dragStartedByLongPress) {
                         dragStartedByLongPress = false
                         return false
@@ -277,6 +316,14 @@ class BookAccountAdapter(
             return false
         }
 
+        private fun requestAncestorsDisallowIntercept(disallow: Boolean) {
+            var parent: ViewParent? = itemView.parent
+            while (parent != null) {
+                parent.requestDisallowInterceptTouchEvent(disallow)
+                parent = (parent as? View)?.parent
+            }
+        }
+
         private fun settleSwipe(pos: Int) {
             // 向左滑超过40%则弹出，否则回弹；向右滑时关闭
             val shouldOpen = foreground.translationX < -actionsWidthPx * 0.4f
@@ -296,18 +343,20 @@ class BookAccountAdapter(
         private fun startInlineEdit(pos: Int) {
             val old = editingPosition
             editingPosition = pos
+            onEditingChanged(true)
             if (old != RecyclerView.NO_POSITION && old != pos) {
                 notifyItemChanged(old)
             }
             notifyItemChanged(pos)
         }
 
-        private fun commitInlineRename() {
+        fun commitInlineRename() {
             val pos = adapterPosition
             if (pos == RecyclerView.NO_POSITION) return
             val oldName = items.getOrNull(pos) ?: return
             val newName = etName.text?.toString()?.trim().orEmpty()
             editingPosition = RecyclerView.NO_POSITION
+            onEditingChanged(false)
             hideKeyboard(etName)
             // Focus changes may happen while RecyclerView is in layout/scroll.
             // Post notify to next frame to avoid "Cannot call this method while RecyclerView is computing a layout".

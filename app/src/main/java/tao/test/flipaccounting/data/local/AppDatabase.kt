@@ -6,26 +6,24 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import java.util.Locale
-import java.util.concurrent.Executors
-import tao.test.flipaccounting.Logger
-import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.dao.AiRuleDao
 import tao.test.flipaccounting.data.local.dao.AssetDao
 import tao.test.flipaccounting.data.local.dao.BillDao
 import tao.test.flipaccounting.data.local.dao.CategoryDao
 import tao.test.flipaccounting.data.local.dao.ChatMessageDao
+import tao.test.flipaccounting.data.local.dao.DeletedBillDao
 import tao.test.flipaccounting.data.local.dao.InvestmentLotDao
 import tao.test.flipaccounting.data.local.entity.AiRule
 import tao.test.flipaccounting.data.local.entity.Asset
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.Category
 import tao.test.flipaccounting.data.local.entity.ChatMessage
+import tao.test.flipaccounting.data.local.entity.DeletedBill
 import tao.test.flipaccounting.data.local.entity.InvestmentLot
 
 @Database(
-    entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class],
-    version = 15,
+    entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class, DeletedBill::class],
+    version = 17,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,11 +33,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun aiRuleDao(): AiRuleDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun investmentLotDao(): InvestmentLotDao
+    abstract fun deletedBillDao(): DeletedBillDao
 
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
-        private val ROOM_LOG_EXECUTOR = Executors.newSingleThreadExecutor()
 
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -193,6 +191,42 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE bills ADD COLUMN excludeFromStats INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `deleted_bills` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `originalBillId` INTEGER NOT NULL,
+                        `type` INTEGER NOT NULL,
+                        `subType` INTEGER NOT NULL DEFAULT 0,
+                        `amount` REAL NOT NULL,
+                        `originalAmount` REAL NOT NULL,
+                        `currency` TEXT NOT NULL DEFAULT 'CNY',
+                        `exchangeRate` REAL NOT NULL DEFAULT 1.0,
+                        `categoryId` INTEGER,
+                        `accountId` INTEGER,
+                        `toAccountId` INTEGER,
+                        `categoryName` TEXT NOT NULL DEFAULT '',
+                        `accountName` TEXT NOT NULL DEFAULT '',
+                        `toAccountName` TEXT NOT NULL DEFAULT '',
+                        `time` INTEGER NOT NULL,
+                        `remark` TEXT NOT NULL DEFAULT '',
+                        `fee` REAL NOT NULL DEFAULT 0.0,
+                        `bookName` TEXT NOT NULL DEFAULT '日常账本',
+                        `relatedBillId` INTEGER,
+                        `excludeFromStats` INTEGER NOT NULL DEFAULT 0,
+                        `deletedAt` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -201,20 +235,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flipaccounting_database"
                 )
-                    .setQueryCallback({ sql, args ->
-                        if (!Prefs.isDeveloperFullLoggingEnabled(appCtx)) return@setQueryCallback
-                        val normalized = sql.trim().uppercase(Locale.US)
-                        val isWrite = normalized.startsWith("INSERT") ||
-                            normalized.startsWith("UPDATE") ||
-                            normalized.startsWith("DELETE") ||
-                            normalized.startsWith("REPLACE")
-                        if (!isWrite) return@setQueryCallback
-                        Logger.d(
-                            appCtx,
-                            "DB_SQL",
-                            "sql=${sql.replace("\n", " ").take(600)}; args=${args.joinToString(prefix = "[", postfix = "]").take(400)}"
-                        )
-                    }, ROOM_LOG_EXECUTOR)
                     .addMigrations(
                         MIGRATION_5_6,
                         MIGRATION_6_7,
@@ -225,7 +245,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_11_12,
                         MIGRATION_12_13,
                         MIGRATION_13_14,
-                        MIGRATION_14_15
+                        MIGRATION_14_15,
+                        MIGRATION_15_16,
+                        MIGRATION_16_17
                     )
                     .build()
                 INSTANCE = instance

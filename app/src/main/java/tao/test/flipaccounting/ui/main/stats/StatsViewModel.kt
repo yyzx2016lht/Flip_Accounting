@@ -681,6 +681,9 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             topLevelCache.getOrPut(name) { topLevelCategory(name) }
 
         bills.forEach { bill ->
+            // 跳过不计入统计的账单
+            if (bill.excludeFromStats) return@forEach
+
             val amount = statsAmountOf(bill, state.selectedCurrency)
             val isRefund = bill.subType == Bill.SUBTYPE_REFUND
             val isRepayment = bill.type == Bill.TYPE_TRANSFER && bill.subType == Bill.SUBTYPE_REPAYMENT

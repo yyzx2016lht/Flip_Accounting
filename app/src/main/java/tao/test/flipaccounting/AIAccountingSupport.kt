@@ -10,6 +10,7 @@ import tao.test.flipaccounting.data.local.entity.Bill as DbBill
 import tao.test.flipaccounting.data.repository.CategoryRepository
 import tao.test.flipaccounting.logic.CurrencyManager
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -99,12 +100,15 @@ internal fun normalizeAccountingResult(
     expenseCats: List<String>,
     incomeCats: List<String>,
     assetNames: List<String>,
-    assetFeatureEnabled: Boolean
+    assetFeatureEnabled: Boolean,
+    referenceText: String = "",
+    nowMillis: Long = System.currentTimeMillis()
 ) {
-    fun normalizeBillJson(bill: JSONObject) {
+    fun normalizeBillJson(bill: JSONObject, index: Int) {
         val rawType = bill.optInt("type", 0)
         val type = normalizeBillType(rawType)
         bill.put("type", type)
+        normalizeBillTime(bill, referenceText, nowMillis, index)
         if (type == DbBill.TYPE_TRANSFER) {
             if (rawType == 3 || bill.optInt("subType", 0) == DbBill.SUBTYPE_REPAYMENT || bill.optString("category_name") == "还款") {
                 bill.put("subType", DbBill.SUBTYPE_REPAYMENT)
@@ -133,10 +137,10 @@ internal fun normalizeAccountingResult(
     if (root.has("bills")) {
         val bills = root.getJSONArray("bills")
         for (i in 0 until bills.length()) {
-            normalizeBillJson(bills.getJSONObject(i))
+            normalizeBillJson(bills.getJSONObject(i), i)
         }
     } else if (root.has("amount")) {
-        normalizeBillJson(root)
+        normalizeBillJson(root, 0)
     }
 
     if (assetFeatureEnabled) {
@@ -145,6 +149,103 @@ internal fun normalizeAccountingResult(
     } else {
         enforceNoAssetMode(root)
     }
+}
+
+private val accountingDateTimeFormat: SimpleDateFormat
+    get() = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply { isLenient = false }
+
+private fun normalizeBillTime(
+    bill: JSONObject,
+    referenceText: String,
+    nowMillis: Long,
+    index: Int
+) {
+    val explicitDate = extractAccountingDate(referenceText, nowMillis)
+    val rawTime = bill.optString("time", "").trim()
+    val parsedExisting = parseAccountingDateTime(rawTime)
+    val normalizedTime = when {
+        explicitDate != null -> mergeDateWithTime(explicitDate, parsedExisting ?: Date(nowMillis), index)
+        parsedExisting != null -> parsedExisting
+        else -> Date(nowMillis + index * 1000L)
+    }
+    bill.put("time", accountingDateTimeFormat.format(normalizedTime))
+}
+
+private fun parseAccountingDateTime(value: String): Date? =
+    runCatching { accountingDateTimeFormat.parse(value) }.getOrNull()
+
+private fun mergeDateWithTime(dateOnly: Calendar, timeSource: Date, index: Int): Date {
+    val time = Calendar.getInstance().apply { time = timeSource }
+    return (dateOnly.clone() as Calendar).apply {
+        set(Calendar.HOUR_OF_DAY, time.get(Calendar.HOUR_OF_DAY))
+        set(Calendar.MINUTE, time.get(Calendar.MINUTE))
+        set(Calendar.SECOND, time.get(Calendar.SECOND) + index)
+        set(Calendar.MILLISECOND, 0)
+    }.time
+}
+
+private fun extractAccountingDate(text: String, nowMillis: Long): Calendar? {
+    if (text.isBlank()) return null
+    val now = Calendar.getInstance().apply { timeInMillis = nowMillis }
+    val normalized = text.trim()
+
+    when {
+        normalized.contains("前天") -> return dayOffset(now, -2)
+        normalized.contains("昨天") -> return dayOffset(now, -1)
+        normalized.contains("今天") || normalized.contains("刚刚") || normalized.contains("现在") -> return dayOffset(now, 0)
+    }
+
+    val withYear = Regex("""(?<!\d)((?:19|20)\d{2})\s*(?:年|[./-])\s*(\d{1,2})\s*(?:月|[./-])\s*(\d{1,2})\s*(?:日|号)?""")
+        .find(normalized)
+    if (withYear != null) {
+        val year = withYear.groupValues[1].toIntOrNull()
+        val month = withYear.groupValues[2].toIntOrNull()
+        val day = withYear.groupValues[3].toIntOrNull()
+        buildValidDate(year, month, day)?.let { return it }
+    }
+
+    val withoutYearPatterns = listOf(
+        Regex("""(?<!\d)(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)?"""),
+        Regex("""(?<!\d)(\d{1,2})\s*[./-]\s*(\d{1,2})\s*(?:日|号)"""),
+        Regex("""(?<!\d)(\d{1,2})\s*-\s*(\d{1,2})(?!\d)""")
+    )
+    withoutYearPatterns.forEach { pattern ->
+        val match = pattern.find(normalized) ?: return@forEach
+        if (looksLikeAmountSuffix(normalized, match.range.last + 1)) return@forEach
+        val month = match.groupValues[1].toIntOrNull()
+        val day = match.groupValues[2].toIntOrNull()
+        buildValidDate(now.get(Calendar.YEAR), month, day)?.let { return it }
+    }
+    return null
+}
+
+private fun dayOffset(base: Calendar, offset: Int): Calendar =
+    (base.clone() as Calendar).apply {
+        add(Calendar.DAY_OF_YEAR, offset)
+        set(Calendar.MILLISECOND, 0)
+    }
+
+private fun buildValidDate(year: Int?, month: Int?, day: Int?): Calendar? {
+    if (year == null || month == null || day == null) return null
+    if (month !in 1..12 || day !in 1..31) return null
+    return runCatching {
+        Calendar.getInstance().apply {
+            isLenient = false
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month - 1)
+            set(Calendar.DAY_OF_MONTH, day)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            time
+        }
+    }.getOrNull()
+}
+
+private fun looksLikeAmountSuffix(text: String, index: Int): Boolean {
+    if (index !in text.indices) return false
+    return text[index] in setOf('元', '块', '毛', '角', '￥', '¥', '$', '€')
 }
 
 internal fun summarizeLocalRuleSensitiveFields(json: JSONObject): String {

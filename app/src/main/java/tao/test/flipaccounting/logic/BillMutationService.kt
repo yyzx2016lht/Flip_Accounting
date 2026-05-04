@@ -252,6 +252,25 @@ object BillMutationService {
         }
     }
 
+    suspend fun resolveRefundSourceBill(db: AppDatabase, refundBill: Bill): Bill? {
+        refundBill.relatedBillId?.let { id ->
+            db.billDao().getBillById(id)?.let { return it }
+        }
+        if (refundBill.subType != Bill.SUBTYPE_REFUND) return null
+        val sourceCategory = stripRefundPrefix(refundBill.categoryName).ifBlank { return null }
+        val source = db.billDao().findLikelyRefundSourceBill(
+            bookName = refundBill.bookName,
+            categoryName = sourceCategory,
+            refundAmount = refundBill.amount,
+            refundAccountName = refundBill.accountName,
+            refundTime = refundBill.time
+        ) ?: return null
+        if (refundBill.id > 0L && refundBill.relatedBillId == null) {
+            db.billDao().updateBill(refundBill.copy(relatedBillId = source.id))
+        }
+        return source
+    }
+
     private suspend fun validateRequiredRatesForBill(db: AppDatabase, bill: Bill) {
         val sourceAsset = bill.accountId?.let { db.assetDao().getAssetById(it) }
             ?: bill.accountName.takeIf { it.isNotBlank() }?.let { db.assetDao().getAssetByName(it) }

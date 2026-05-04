@@ -105,6 +105,10 @@
             android:label="存储清理"
             android:exported="false" />
         <activity
+            android:name=".ui.activity.HistoryBillActivity"
+            android:label="回收站"
+            android:exported="false" />
+        <activity
             android:name=".StoragePreviewActivity"
             android:label="预览待清理内容"
             android:exported="false" />

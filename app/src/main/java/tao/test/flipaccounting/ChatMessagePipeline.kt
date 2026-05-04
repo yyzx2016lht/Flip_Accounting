@@ -11,13 +11,6 @@ import org.json.JSONObject
 import tao.test.flipaccounting.chat.ai.AiBookkeepingMode
 import tao.test.flipaccounting.chat.ai.AiIntentRouter
 import tao.test.flipaccounting.chat.ai.AiIntentType
-import tao.test.flipaccounting.chat.query.QueryContextBuilder
-import tao.test.flipaccounting.chat.query.QueryExecutor
-import tao.test.flipaccounting.chat.query.QueryIntent
-import tao.test.flipaccounting.chat.query.QueryNavigator
-import tao.test.flipaccounting.chat.query.QueryPlanner
-import tao.test.flipaccounting.chat.query.QueryPlannerContextSerializer
-import tao.test.flipaccounting.chat.query.RoomQueryBillSource
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.ChatMessage
 import java.util.ArrayDeque
@@ -77,15 +70,6 @@ class ChatMessagePipeline(
     private var repeatInputTurns: Int = 0
     private var repeatInputExactMatches: Int = 0
     private var repeatInputHighSimilarityMatches: Int = 0
-    private val queryContextBuilder by lazy { QueryContextBuilder(db) }
-    private val queryNavigator by lazy { QueryNavigator(context) }
-    private val queryExecutor by lazy { QueryExecutor(RoomQueryBillSource(db)) }
-    private val queryPlanner by lazy {
-        QueryPlanner { queryText, queryContext ->
-            val plannerContext = QueryPlannerContextSerializer.toCompactJson(queryContext)
-            AIService.planQueryActionWithModel(context, queryText, plannerContext)
-        }
-    }
 
     private fun newRequestContext(loadingUiKey: String? = null): ChatRequestContext {
         return ChatRequestContext(
@@ -177,42 +161,10 @@ class ChatMessagePipeline(
                 if (!canWriteForRequest(requestContext)) return@launch
                 val historyCtx = buildChatHistoryContext(userText, requestContext)
                 val localRoute = AiIntentRouter.route(userText)
-                val llmRouterEnabled = Prefs.isAiLlmRouterEnabled(context)
-                if (!llmRouterEnabled) {
-                    if (!isActive || !canWriteForRequest(requestContext)) return@launch
-                    removeLoadingMessage(loadingKey)
-                    if (localRoute.intentType in setOf(AiIntentType.BOOKKEEPING_UPDATE, AiIntentType.BOOKKEEPING_DELETE, AiIntentType.MODIFY_BILL)) {
-                        val stats = Prefs.recordSimpleRouterBlockedWrite(context)
-                        logSimpleRouterStats(trigger = "blocked_write", stats = stats, force = true)
-                        appendAiTextMessage(
-                            "当前是简化路由模式，暂不支持修改/删除账单对话。开启“大模型路由”后可使用这类能力。",
-                            false,
-                            requestContext.bookName,
-                            requestContext.conversationId
-                        )
-                    } else {
-                        // 关闭大模型路由时，不再做本地“记账/闲聊”硬判断：
-                        // 统一交给多账单提示词，由模型返回 no_bill 决定闲聊回复。
-                        callAiAccounting(
-                            userText,
-                            appendUserBubble = false,
-                            bookkeepingMode = AiBookkeepingMode.MULTI,
-                            simpleRouterModelGateTracking = true,
-                            preferGeneralChatWhenNoBill = true
-                        )
-                    }
-                    return@launch
-                }
-                val rawRoute = try {
-                    withContext(Dispatchers.IO) {
-                        AIService.routeIntentWithModel(context, userText, historyCtx)
-                    } ?: localRoute
-                } catch (e: Exception) {
-                    Logger.d(context, "AiIntentRouter", "model route failed, fallback=local, err=${e.javaClass.simpleName}")
-                    localRoute
-                }
+                if (!isActive || !canWriteForRequest(requestContext)) return@launch
+                removeLoadingMessage(loadingKey)
                 val queryEnabled = Prefs.isAiQueryEnabled(context)
-                val routedType = when (rawRoute.intentType) {
+                val routedType = when (localRoute.intentType) {
                     AiIntentType.BOOKKEEPING_CREATE, AiIntentType.BOOKKEEPING -> AiIntentType.BOOKKEEPING_CREATE
                     AiIntentType.BOOKKEEPING_QUERY, AiIntentType.QUERY ->
                         if (queryEnabled) AiIntentType.BOOKKEEPING_QUERY else AiIntentType.GENERAL_CHAT
@@ -222,21 +174,14 @@ class ChatMessagePipeline(
                     AiIntentType.SESSION_UPDATE -> AiIntentType.SESSION_UPDATE
                     AiIntentType.MEDIA_ANALYZE -> AiIntentType.MEDIA_ANALYZE
                     AiIntentType.UNKNOWN -> AiIntentType.UNKNOWN
-                    AiIntentType.GENERAL_CHAT -> {
-                        if (queryEnabled && localRoute.intentType == AiIntentType.BOOKKEEPING_QUERY) {
-                            AiIntentType.BOOKKEEPING_QUERY
-                        } else {
-                            AiIntentType.GENERAL_CHAT
-                        }
-                    }
+                    AiIntentType.GENERAL_CHAT -> AiIntentType.GENERAL_CHAT
                 }
                 Logger.d(
                     context,
                     "AiIntentRouter",
-                    "requestId=${requestContext.requestId}, textLen=${userText.length}, intent=$routedType, rawIntent=${rawRoute.intentType}, confidence=${rawRoute.confidence}"
+                    "requestId=${requestContext.requestId}, textLen=${userText.length}, intent=$routedType"
                 )
                 if (!isActive || !canWriteForRequest(requestContext)) return@launch
-                removeLoadingMessage(loadingKey)
                 when (routedType) {
                     AiIntentType.BOOKKEEPING_CREATE -> callAiAccounting(
                         userText,
@@ -245,11 +190,7 @@ class ChatMessagePipeline(
                         preferGeneralChatWhenNoBill = true
                     )
                     AiIntentType.BOOKKEEPING_UPDATE -> callAiAccountingModify(userText)
-                    AiIntentType.BOOKKEEPING_QUERY -> handleQueryWithAgent(
-                        if (rawRoute.intentType == AiIntentType.GENERAL_CHAT) localRoute else rawRoute,
-                        userText,
-                        requestContext
-                    )
+                    AiIntentType.BOOKKEEPING_QUERY -> handleLocalQuery(localRoute, userText, requestContext)
                     AiIntentType.BOOKKEEPING_DELETE,
                     AiIntentType.SESSION_UPDATE -> appendUnknownIntentReply(userText, requestContext)
                     AiIntentType.SESSION_QUERY -> appendAiTextMessage(
@@ -266,13 +207,7 @@ class ChatMessagePipeline(
                             callGeneralChat(userText, historyCtx)
                         }
                     }
-                    AiIntentType.GENERAL_CHAT -> {
-                        if (rawRoute.confidence < 0.55 && localRoute.intentType != AiIntentType.GENERAL_CHAT) {
-                            appendUnknownIntentReply(userText, requestContext)
-                        } else {
-                            callGeneralChat(userText, historyCtx)
-                        }
-                    }
+                    AiIntentType.GENERAL_CHAT -> callGeneralChat(userText, historyCtx)
                     AiIntentType.BOOKKEEPING,
                     AiIntentType.MODIFY_BILL,
                     AiIntentType.QUERY -> appendUnknownIntentReply(userText, requestContext)
@@ -381,54 +316,6 @@ class ChatMessagePipeline(
         }
         if (!canWriteForRequest(requestContext)) return
         appendAiTextMessage(reply, false, requestContext.bookName, requestContext.conversationId)
-    }
-
-    private suspend fun handleQueryWithAgent(
-        route: tao.test.flipaccounting.chat.ai.AiRouteResult,
-        userText: String,
-        requestContext: ChatRequestContext
-    ) {
-        if (!Prefs.isAiQueryEnabled(context)) {
-            if (canWriteForRequest(requestContext)) {
-                callGeneralChat(userText, buildChatHistoryContext(userText, requestContext))
-            }
-            return
-        }
-        if (!canWriteForRequest(requestContext)) return
-        val result = runCatching {
-            val queryContext = withContext(Dispatchers.IO) {
-                queryContextBuilder.build(requestContext.bookName)
-            }
-            val action = withContext(Dispatchers.IO) {
-                queryPlanner.plan(userText, queryContext)
-            }
-            withContext(Dispatchers.IO) {
-                queryExecutor.execute(action, queryContext)
-            }
-        }.getOrElse { error ->
-            Logger.d(
-                context,
-                "QueryAgent",
-                "query agent failed, fallback local query, err=${error.javaClass.simpleName}"
-            )
-            handleLocalQuery(route, userText, requestContext)
-            return
-        }
-        if (!canWriteForRequest(requestContext)) return
-        var navMessage: String? = null
-        val navIntent = result.navigateIntent
-        val navSlots = result.navigateSlots
-        if (navIntent != null && navSlots != null) {
-            navMessage = when (navIntent) {
-                QueryIntent.OPEN_STATS_PAGE ->
-                    queryNavigator.openStatsPage(navSlots)
-                QueryIntent.OPEN_ASSET_STATS_PAGE ->
-                    queryNavigator.openAssetStatsPage(navSlots)
-                else -> null
-            }
-        }
-        val finalReply = if (navMessage.isNullOrBlank()) result.reply else "${result.reply}\n$navMessage"
-        appendAiTextMessage(finalReply, false, requestContext.bookName, requestContext.conversationId)
     }
 
     private suspend fun buildChatHistoryContext(userText: String, requestContext: ChatRequestContext? = null): String {

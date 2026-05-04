@@ -22,12 +22,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import tao.test.flipaccounting.chat.ai.AiIntentSlots
-import tao.test.flipaccounting.chat.ai.AiBookkeepingMode
-import tao.test.flipaccounting.chat.ai.AiIntentRouter
-import tao.test.flipaccounting.chat.ai.AiIntentType
-import tao.test.flipaccounting.chat.ai.AiRouteResult
-import tao.test.flipaccounting.chat.ai.AiTimeRangeParser
 
 // OCR 模式常量
 const val OCR_MODE_LOCAL      = 0   // 本地 ML Kit OCR + 文本 AI
@@ -46,7 +40,7 @@ object AIService {
     private const val GENERAL_CHAT_LOG_TAG = "GeneralChat"
     private const val CATEGORY_REFINE_LOG_TAG = "CategoryRefine"
     private const val SIMPLE_CHAT_LOG_TAG = "SimpleChat"
-    private const val ROUTER_LOG_TAG = "IntentRouter"
+    private const val AI_IO_LOG_TAG = "AI_IO"
 
     const val MULTI_BILL_PROMPT_DEFAULT = AIPrompts.MULTI_BILL_PROMPT_DEFAULT
     const val MODIFY_BILL_PROMPT_DEFAULT          = AIPrompts.MODIFY_BILL_PROMPT_DEFAULT
@@ -158,6 +152,7 @@ object AIService {
         onProgress: ((String) -> Unit)? = null
     ): JSONObject? {
         val safeUserInput = shortenForModel(userInput, MAX_ACCOUNTING_INPUT_CHARS)
+        Logger.d(ctx, AI_IO_LOG_TAG, "[记账] USER: ${safeUserInput.take(2000)}")
         Logger.d(ctx, "AIService", "Accounting analyze request: inputLen=${safeUserInput.length}, multiOverride=$isMultiModeOverride")
         val apiKey = Prefs.getAiKey(ctx)
         val enableThinking = enableThinkingForAccounting(ctx)
@@ -199,6 +194,7 @@ object AIService {
                 reasoningLogTag = ACCOUNTING_MULTI_LOG_TAG
             )
             Logger.d(ctx, "AIService", "Accounting response received: len=${content.length}")
+            Logger.d(ctx, AI_IO_LOG_TAG, "[记账] AI: ${content.take(3000)}")
 
             val result = parseAnalyzeResult(content, isMultiMode = true)
 
@@ -233,7 +229,8 @@ object AIService {
                     expenseCats = promptContext.expenseCats,
                     incomeCats = promptContext.incomeCats,
                     assetNames = promptContext.assetNames,
-                    assetFeatureEnabled = promptContext.assetFeatureEnabled
+                    assetFeatureEnabled = promptContext.assetFeatureEnabled,
+                    referenceText = safeUserInput
                 )
             }
             result
@@ -257,6 +254,7 @@ object AIService {
     ): JSONObject? {
         require(audioFile.exists() && audioFile.length() > 44L) { "语音文件无效" }
         require(audioFile.length() <= MAX_AUDIO_INLINE_BYTES) { "语音文件过大，请缩短后再试" }
+        Logger.d(ctx, AI_IO_LOG_TAG, "[语音记账] USER: [语音输入]")
 
         val apiKey = Prefs.getAiKey(ctx)
         val enableThinking = enableThinkingForAccounting(ctx)
@@ -299,6 +297,7 @@ object AIService {
             }
             val content = streamed.content
             Logger.d(ctx, "AIService", "AI audio response received, len=${content.length}")
+            Logger.d(ctx, AI_IO_LOG_TAG, "[语音记账] AI: ${content.take(3000)}")
             val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
@@ -342,6 +341,7 @@ object AIService {
 
     suspend fun analyzeReceiptByImage(ctx: Context, imageBase64: String, mimeType: String = "image/jpeg"): String {
         Logger.d(ctx, "AIService", "analyzeReceiptByImage: multimodal mode")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[票据图片] USER: [图片输入]")
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
@@ -371,6 +371,7 @@ object AIService {
             }
             val content = streamed.content
             Logger.d(ctx, "AIService", "Receipt multimodal response received: contentLen=${content.length}")
+            Logger.d(ctx, AI_IO_LOG_TAG, "[票据图片] AI: ${content.take(3000)}")
             content
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -414,6 +415,7 @@ object AIService {
         isMultiModeOverride: Boolean? = null
     ): JSONObject? {
         Logger.d(ctx, "AIService", "analyzeScreenAccountingByImage: multimodal accounting mode")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[截图记账] USER: [屏幕截图]")
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
@@ -449,6 +451,7 @@ object AIService {
             }
             val content = streamed.content
             Logger.d(ctx, "AIService", "Screen accounting multimodal response: $content")
+            Logger.d(ctx, AI_IO_LOG_TAG, "[截图记账] AI: ${content.take(3000)}")
             val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
@@ -475,6 +478,7 @@ object AIService {
 
     suspend fun analyzeReceiptByOcrText(ctx: Context, ocrText: String): String {
         Logger.d(ctx, "AIService", "analyzeReceiptByOcrText, text length=${ocrText.length}")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[票据OCR] USER: ${ocrText.take(2000)}")
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
@@ -655,83 +659,6 @@ object AIService {
         return streamed.content
     }
 
-    suspend fun routeIntentWithModel(
-        ctx: Context,
-        userInput: String,
-        chatHistoryContext: String = ""
-    ): AiRouteResult? {
-        val apiKey = Prefs.getAiKey(ctx)
-        val model = Prefs.getAiRouterModel(ctx).ifBlank { return null }
-        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
-
-        val safeUserInput = shortenForModel(userInput, 1200, preserveTail = false)
-        val contextBlock = if (chatHistoryContext.isNotBlank())
-            "\n\n【近期对话记录（仅供参考，帮助你判断用户意图）】\n${shortenForModel(chatHistoryContext, 600)}\n\n【用户当前输入】"
-        else ""
-        val routerPrompt = AIPrompts.buildIntentRouterPrompt(Prefs.isAiQueryEnabled(ctx))
-        val requestJson = buildTextChatRequest(
-            model = model,
-            temperature = 0.0,
-            systemPrompt = routerPrompt.trim() + contextBlock,
-            userText = safeUserInput,
-            jsonObjectResponse = true,
-            enableThinking = false
-        )
-
-        val streamed = requestChatContentStreamedWithReasoning(
-            ctx = ctx,
-            apiKey = apiKey,
-            requestJson = requestJson,
-            logReasoning = false,
-            reasoningLogTag = ROUTER_LOG_TAG
-        )
-        if (!streamed.completed) return null
-        val content = streamed.content
-        return parseRouterResult(content, userInput)
-    }
-
-    suspend fun planQueryActionWithModel(
-        ctx: Context,
-        userInput: String,
-        plannerContextJson: String
-    ): String? {
-        val apiKey = Prefs.getAiKey(ctx)
-        if (apiKey.isEmpty()) return null
-        val model = Prefs.getAiQueryModel(ctx)
-            .ifBlank { Prefs.getAiRouterModel(ctx) }
-            .ifBlank { Prefs.getAiChatModel(ctx) }
-            .ifBlank { Prefs.getAiMultiModel(ctx) }
-            .trim()
-        if (model.isEmpty()) return null
-
-        val safeInput = shortenForModel(userInput, 1000, preserveTail = false)
-        val safeContext = shortenForModel(plannerContextJson, 5500, preserveTail = false)
-        val systemPrompt = buildString {
-            append(AIPrompts.QUERY_PLANNER_PROMPT_DEFAULT.trim())
-            append("\n\n【Planner Context】\n")
-            append(safeContext)
-        }
-        val requestJson = buildTextChatRequest(
-            model = model,
-            temperature = 0.0,
-            systemPrompt = systemPrompt,
-            userText = safeInput,
-            jsonObjectResponse = true,
-            enableThinking = false
-        )
-        val streamed = runCatching {
-            requestChatContentStreamedWithReasoning(
-                ctx = ctx,
-                apiKey = apiKey,
-                requestJson = requestJson,
-                logReasoning = false,
-                reasoningLogTag = "QueryPlanner"
-            )
-        }.getOrNull() ?: return null
-        if (!streamed.completed) return null
-        return streamed.content
-    }
-
     suspend fun generateAccountingModifyReply(
         ctx: Context,
         userInput: String,
@@ -739,6 +666,7 @@ object AIService {
     ): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[修改] USER: ${userInput.take(1000)}")
         val model = Prefs.getAiModifyModel(ctx)
         val safeInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val promptContext = buildAccountingPromptContext(ctx)
@@ -775,6 +703,7 @@ object AIService {
         if (!streamResult.completed) {
             throw IllegalStateException("流式修改回复未完整结束")
         }
+        Logger.d(ctx, AI_IO_LOG_TAG, "[修改] AI: ${streamResult.content.take(3000)}")
         return streamResult.content
     }
 
@@ -784,37 +713,6 @@ object AIService {
             .replace("{{EXPENSE_CATS}}", Gson().toJson(promptContext.expenseCats))
             .replace("{{INCOME_CATS}}", Gson().toJson(promptContext.incomeCats))
             .replace("{{CURRENCIES}}", Gson().toJson(promptContext.currencies))
-    }
-
-    private fun parseRouterResult(content: String, userInput: String): AiRouteResult? {
-        val root = runCatching { JSONObject(cleanJsonString(content)) }.getOrNull() ?: return null
-        val type = runCatching {
-            AiIntentType.valueOf(root.optString("intent_type", "UNKNOWN").trim().uppercase(Locale.ROOT))
-        }.getOrDefault(AiIntentType.UNKNOWN)
-        val confidence = root.optDouble("confidence", 0.0).coerceIn(0.0, 1.0)
-        val slotsObj = root.optJSONObject("slots")
-        val localRoute = AiIntentRouter.route(userInput)
-        val bookkeepingMode = root.optNullableString("bookkeeping_mode")
-            ?.let { raw ->
-                runCatching { AiBookkeepingMode.valueOf(raw.trim().uppercase(Locale.ROOT)) }.getOrNull()
-            }
-            ?: localRoute.bookkeepingMode
-        val timePhrase = slotsObj?.optNullableString("timeRange")
-        val timeRange = timePhrase
-            ?.let { AiTimeRangeParser.parse(it) }
-            ?: localRoute.slots.timeRange
-            ?: AiTimeRangeParser.parse(userInput)
-        val accountSlot: String? = slotsObj?.optNullableString("account") ?: localRoute.slots.account
-        val categorySlot: String? = slotsObj?.optNullableString("category") ?: localRoute.slots.category
-        val keywordSlot: String? = slotsObj?.optNullableString("keyword") ?: localRoute.slots.keyword
-        val slots = AiIntentSlots(
-            timeRange = timeRange,
-            account = accountSlot,
-            category = categorySlot,
-            amount = slotsObj?.optNullableDouble("amount") ?: localRoute.slots.amount,
-            keyword = keywordSlot
-        )
-        return AiRouteResult(type, confidence, slots, bookkeepingMode)
     }
 
     private fun withReplyDiversityNonce(baseSystemPrompt: String, requestNonce: String): String {
@@ -836,6 +734,7 @@ object AIService {
     ): String {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[助手] USER: ${userInput.take(2000)}")
 
         val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
@@ -868,7 +767,9 @@ object AIService {
             logReasoning = false,
             reasoningLogTag = ACCOUNTING_ASSISTANT_LOG_TAG
         )
-        return if (streamed.completed) streamed.content.trim() else ""
+        val reply = if (streamed.completed) streamed.content.trim() else ""
+        if (reply.isNotBlank()) Logger.d(ctx, AI_IO_LOG_TAG, "[助手] AI: ${reply.take(3000)}")
+        return reply
     }
 
     suspend fun generateGeneralChatReply(
@@ -881,6 +782,7 @@ object AIService {
     ): StreamResult {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[聊天] USER: ${userInput.take(2000)}")
 
         val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
@@ -915,7 +817,11 @@ object AIService {
             reasoningLogTag = GENERAL_CHAT_LOG_TAG,
             onContentDelta = onDelta
         )
-        return streamed.copy(content = streamed.content.trim())
+        val result = streamed.copy(content = streamed.content.trim())
+        if (result.completed && result.content.isNotBlank()) {
+            Logger.d(ctx, AI_IO_LOG_TAG, "[聊天] AI: ${result.content.take(3000)}")
+        }
+        return result
     }
 
     suspend fun streamAccountingAssistantReply(
@@ -929,6 +835,7 @@ object AIService {
     ): Boolean {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[助手流] USER: ${userInput.take(2000)}")
 
         val model = Prefs.getAiChatModel(ctx).ifBlank { Prefs.getAiMultiModel(ctx) }
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)

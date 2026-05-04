@@ -54,6 +54,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         const val TYPE_ITEM = 1
         const val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
         const val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
+        const val PAYLOAD_HEADER_SELECTION_CHANGE = "PAYLOAD_HEADER_SELECTION_CHANGE"
         private const val COLOR_TEXT_REFUND = "#8E98A3"
         private const val COLOR_TEXT_DETAIL_REFUND = "#A1A8AF"
         private const val COLOR_TEXT_NORMAL = "#333333"
@@ -252,6 +253,44 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     fun getSelectedBills(): List<Bill> = selectedBills.toList()
 
+    private fun selectableBillsForHeader(headerPosition: Int): List<Bill> {
+        return items.asSequence()
+            .drop(headerPosition + 1)
+            .takeWhile { it !is ListItem.Header }
+            .mapNotNull { item ->
+                val displayBill = (item as? ListItem.Item)?.displayBill ?: return@mapNotNull null
+                if (displayBill.isDeprecated) null else displayBill.bill
+            }
+            .toList()
+    }
+
+    private fun headerSelectionState(headerPosition: Int): Pair<Boolean, Boolean> {
+        val bills = selectableBillsForHeader(headerPosition)
+        if (bills.isEmpty()) return false to false
+        val selectedCount = bills.count { selectedBills.contains(it) }
+        return (selectedCount == bills.size) to (selectedCount in 1 until bills.size)
+    }
+
+    private fun updateHeaderSelectionNear(position: Int) {
+        val headerPosition = (position downTo 0).firstOrNull { items.getOrNull(it) is ListItem.Header } ?: return
+        notifyItemChanged(headerPosition, PAYLOAD_HEADER_SELECTION_CHANGE)
+    }
+
+    private fun setDaySelection(headerPosition: Int, checked: Boolean) {
+        val bills = selectableBillsForHeader(headerPosition)
+        if (bills.isEmpty()) return
+        if (checked) {
+            selectedBills.addAll(bills)
+        } else {
+            selectedBills.removeAll(bills.toSet())
+        }
+        isMultiSelectMode = selectedBills.isNotEmpty()
+        onSelectionChanged?.invoke(selectedBills.size)
+        val nextHeader = ((headerPosition + 1) until items.size).firstOrNull { items[it] is ListItem.Header } ?: items.size
+        notifyItemRangeChanged(headerPosition, nextHeader - headerPosition, PAYLOAD_SELECTION_CHANGE)
+        if (!isMultiSelectMode) notifyItemRangeChanged(0, items.size, PAYLOAD_MODE_CHANGE)
+    }
+
     override fun getItemViewType(position: Int): Int {
         return when (items[position]) {
             is ListItem.Chart -> TYPE_CHART
@@ -282,12 +321,17 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         if (payloads.isEmpty()) {
             super.onBindViewHolder(holder, position, payloads)
         } else {
-            if (holder is ItemViewHolder && items[position] is ListItem.Item) {
-                val bill = (items[position] as ListItem.Item).displayBill.bill
-                if (payloads.contains(PAYLOAD_MODE_CHANGE)) {
-                    holder.updateMode(selectedBills.contains(bill), animate = true)
-                } else if (payloads.contains(PAYLOAD_SELECTION_CHANGE)) {
-                    holder.updateSelection(selectedBills.contains(bill))
+            val item = items[position]
+            if (holder is ItemViewHolder && item is ListItem.Item) {
+                val bill = item.displayBill.bill
+                when {
+                    payloads.contains(PAYLOAD_MODE_CHANGE) -> holder.updateMode(selectedBills.contains(bill), animate = true)
+                    payloads.contains(PAYLOAD_SELECTION_CHANGE) -> holder.updateSelection(selectedBills.contains(bill))
+                }
+            } else if (holder is HeaderViewHolder && item is ListItem.Header) {
+                when {
+                    payloads.contains(PAYLOAD_MODE_CHANGE) -> holder.updateMode(position)
+                    payloads.contains(PAYLOAD_SELECTION_CHANGE) || payloads.contains(PAYLOAD_HEADER_SELECTION_CHANGE) -> holder.updateSelection(position)
                 }
             }
         }
@@ -296,7 +340,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
             is ListItem.Chart -> (holder as ChartViewHolder).bind(chartView)
-            is ListItem.Header -> (holder as HeaderViewHolder).bind(item)
+            is ListItem.Header -> (holder as HeaderViewHolder).bind(item, position)
             is ListItem.Item -> (holder as ItemViewHolder).bind(item.displayBill, position)
         }
     }
@@ -357,12 +401,22 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     }
 
     inner class HeaderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val cbSelectDay: CheckBox = itemView.findViewById(R.id.cb_select_day)
         private val tvDate: TextView = itemView.findViewById(R.id.tv_header_date)
         private val tvSummary: TextView? = itemView.findViewById(
             itemView.context.resources.getIdentifier("tv_header_summary", "id", itemView.context.packageName)
         )
 
-        fun bind(header: ListItem.Header) {
+        init {
+            itemView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION || !isMultiSelectMode) return@setOnClickListener
+                val (allSelected, _) = headerSelectionState(pos)
+                setDaySelection(pos, checked = !allSelected)
+            }
+        }
+
+        fun bind(header: ListItem.Header, position: Int) {
             tvDate.text = "${header.dateStr} ${header.weekdayStr}"
 
             val summaryBuilder = StringBuilder()
@@ -378,6 +432,18 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             } else {
                 tvSummary?.visibility = View.VISIBLE
             }
+            updateMode(position)
+        }
+
+        fun updateMode(position: Int) {
+            cbSelectDay.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
+            updateSelection(position)
+        }
+
+        fun updateSelection(position: Int) {
+            val (allSelected, partiallySelected) = headerSelectionState(position)
+            cbSelectDay.isChecked = allSelected
+            cbSelectDay.alpha = if (partiallySelected) 0.55f else 1f
         }
     }
 
@@ -411,6 +477,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     val pos = adapterPosition
                     if (pos != RecyclerView.NO_POSITION) {
                         notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                        updateHeaderSelectionNear(pos)
                     }
                     onSelectionChanged?.invoke(selectedBills.size)
                 } else {
@@ -427,6 +494,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     val pos = adapterPosition
                     if (pos != RecyclerView.NO_POSITION) {
                         notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                        updateHeaderSelectionNear(pos)
                     }
                     onSelectionChanged?.invoke(selectedBills.size)
                 }
@@ -533,7 +601,11 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             }
 
             tvAmount.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {
-                "-${BillDisplayFormatter.formatMoney(BillDisplayFormatter.originalAmountOfExpenseBill(bill), bill.currency)}"
+                BillDisplayFormatter.buildRefundedExpenseAmountText(
+                    netAmount = bill.amount,
+                    originalAmount = BillDisplayFormatter.originalAmountOfExpenseBill(bill),
+                    currency = bill.currency
+                )
             } else {
                 val sign = when {
                     isRefund -> ""

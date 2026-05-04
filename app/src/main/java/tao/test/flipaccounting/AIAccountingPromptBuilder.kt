@@ -23,6 +23,7 @@ internal fun buildAccountingSystemPrompt(
     prompt += AIPrompts.buildBookFieldRule(promptContext.availableBooks)
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
+    prompt += AIPrompts.buildAccountingDateRule()
 
     prompt += AIPrompts.buildReceiptSemanticRule()
     val isFastMode = Prefs.isMultiBillFastMode(ctx)
@@ -67,6 +68,7 @@ internal fun buildAudioAccountingSystemPrompt(
     prompt += AIPrompts.buildBookFieldRule(promptContext.availableBooks)
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
+    prompt += AIPrompts.buildAccountingDateRule()
 
     prompt += AIPrompts.buildReceiptSemanticRule()
     val isFastMode = Prefs.isMultiBillFastMode(ctx)
@@ -101,6 +103,7 @@ internal fun buildScreenAccountingSystemPrompt(
     prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
+    prompt += AIPrompts.buildAccountingDateRule()
     prompt += AIPrompts.buildScreenModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     prompt += AIPrompts.buildScreenUnifiedOutputRule()
 

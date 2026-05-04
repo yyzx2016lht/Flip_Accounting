@@ -6,12 +6,38 @@ import tao.test.flipaccounting.Logger
 import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
+import tao.test.flipaccounting.data.local.entity.DeletedBill
 
 object BillDeleteHelper {
     private fun logFull(tag: String, message: String) {
         val ctx = runCatching { FlipApplication.app() }.getOrNull() ?: return
         if (!Prefs.isDeveloperFullLoggingEnabled(ctx)) return
         Logger.d(ctx, tag, message)
+    }
+
+    private fun billToDeletedBill(bill: Bill): DeletedBill {
+        return DeletedBill(
+            originalBillId = bill.id,
+            type = bill.type,
+            subType = bill.subType,
+            amount = bill.amount,
+            originalAmount = bill.originalAmount,
+            currency = bill.currency,
+            exchangeRate = bill.exchangeRate,
+            categoryId = bill.categoryId,
+            accountId = bill.accountId,
+            toAccountId = bill.toAccountId,
+            categoryName = bill.categoryName,
+            accountName = bill.accountName,
+            toAccountName = bill.toAccountName,
+            time = bill.time,
+            remark = bill.remark,
+            fee = bill.fee,
+            bookName = bill.bookName,
+            relatedBillId = bill.relatedBillId,
+            excludeFromStats = bill.excludeFromStats,
+            deletedAt = System.currentTimeMillis()
+        )
     }
 
     suspend fun deleteBillAndRevertBalance(db: AppDatabase, bill: Bill) {
@@ -73,10 +99,14 @@ object BillDeleteHelper {
     ) {
         db.withTransaction {
             val billDao = db.billDao()
+            val deletedBillDao = db.deletedBillDao()
             if (backfillLinks) {
                 billDao.backfillAssetLinksByName()
             }
             val latestBill = if (bill.id > 0L) billDao.getBillById(bill.id) ?: bill else bill
+
+            // 先保存到 deleted_bills 表
+            deletedBillDao.insert(billToDeletedBill(latestBill))
 
             when {
                 latestBill.subType == Bill.SUBTYPE_REFUND -> {
@@ -89,7 +119,6 @@ object BillDeleteHelper {
                             } else {
                                 original.amount
                             }
-                            // 使用 latestBill.amount（最新数据库值），避免传入快照金额不一致
                             val restored = (original.amount + latestBill.amount).coerceAtMost(baseOriginal)
                             billDao.updateBill(original.copy(amount = restored, originalAmount = baseOriginal))
                         }
@@ -118,6 +147,7 @@ object BillDeleteHelper {
                     }
                     if (refundsToDelete.isNotEmpty()) {
                         refundsToDelete.forEach { refund ->
+                            deletedBillDao.insert(billToDeletedBill(refund))
                             val impacted = BillAssetImpactService.revertBillBalanceImpact(db, refund)
                             if (impacted == 0) {
                                 logFull("BILL_GUARD", "（警告）delete_refund_linked 删除关联退款时资产未变化，billId=${refund.id}, asset=${refund.accountName}, toAsset=${refund.toAccountName}")

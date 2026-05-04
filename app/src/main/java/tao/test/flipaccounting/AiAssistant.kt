@@ -165,6 +165,14 @@ class AiAssistant(private val ctx: Context) {
         }
     }
 
+    private fun updateLoadingText(text: String) {
+        tvThinkingLog?.let { label ->
+            if (label.text?.toString() != text) {
+                label.text = text
+            }
+        }
+    }
+
     private fun startAnalysis(text: String, isMultiMode: Boolean?, onResult: (JSONObject) -> Unit) {
         analyzeJob?.cancel()
         val hideStream = currentHideStreamText
@@ -173,12 +181,12 @@ class AiAssistant(private val ctx: Context) {
                 val result = AIService.analyzeAccounting(ctx, text, isMultiMode) { status ->
                     Handler(Looper.getMainLooper()).post {
                         if (currentDialog?.isShowing == true) {
-                            val displayText = if (hideStream && status.startsWith("AI_STREAM_TEXT::")) {
-                                "正在分析账单..."
+                            if (hideStream && status.startsWith("AI_STREAM_TEXT::")) {
+                                // 流式输出时只显示加载动画，不显示JSON内容
+                                updateLoadingText("记账中...")
                             } else {
-                                status
+                                updateLoadingText(status)
                             }
-                            updatePanelState(MODE_LOADING, displayText)
                         }
                     }
                 }
@@ -194,10 +202,20 @@ class AiAssistant(private val ctx: Context) {
                         for (i in 0 until bills.length()) {
                             bills.getJSONObject(i).put("original_text_from_user", text)
                         }
+                        if (bills.length() == 1) {
+                            // 单条账单直接填入表单，无需确认
+                            dismiss()
+                            onResult(bills.getJSONObject(0))
+                        } else {
+                            // 多条账单需要用户确认
+                            showResult(result, onResult)
+                        }
                     } else {
                         result.put("original_text_from_user", text)
+                        // 单条账单直接填入表单，无需确认
+                        dismiss()
+                        onResult(result)
                     }
-                    showResult(result, onResult)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
@@ -318,9 +336,9 @@ class AiAssistant(private val ctx: Context) {
 
     private fun formatCategoryDisplay(raw: String): String {
         return raw
-            .replace("/::/", " > ")
-            .replace("/:::/", " > ")
-            .replace("::", " > ")
+            .replace("/::/", " - ")
+            .replace("/:::/", " - ")
+            .replace("::", " - ")
             .trim()
     }
 

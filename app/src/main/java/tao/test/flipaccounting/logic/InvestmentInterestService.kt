@@ -99,7 +99,7 @@ object InvestmentInterestService {
         val dailyRate = asset.annualInterestRate / 100.0 / DAYS_IN_YEAR
         val incomeCategory = ensureCategory(db, Bill.TYPE_INCOME)
         val expenseCategory = ensureCategory(db, Bill.TYPE_EXPENSE)
-        val bookName = BookAccountManager.getSelectedBook(FlipApplication.app())
+        val bookName = BookAccountManager.getDefaultBook(FlipApplication.app())
 
         var workingLot = lot
         var earningDay = startOfDay(workingLot.lastSettledAt).coerceAtLeast(startOfDay(workingLot.startEarningAt))

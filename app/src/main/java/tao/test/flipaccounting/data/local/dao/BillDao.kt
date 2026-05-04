@@ -134,6 +134,32 @@ interface BillDao {
     @Query("SELECT * FROM bills WHERE relatedBillId = :sourceBillId AND subType = :refundSubtype ORDER BY time DESC")
     suspend fun getRefundBillsBySourceId(sourceBillId: Long, refundSubtype: Int = Bill.SUBTYPE_REFUND): List<Bill>
 
+    @Query("""
+        SELECT * FROM bills
+        WHERE type = :expenseType
+          AND subType != :refundSubtype
+          AND bookName = :bookName
+          AND categoryName = :categoryName
+          AND amount + 0.000001 >= :refundAmount
+          AND time <= :refundTime
+        ORDER BY
+          CASE WHEN ABS(amount - :refundAmount) <= 0.01 THEN 0 ELSE 1 END,
+          time DESC,
+          CASE WHEN accountName = :refundAccountName THEN 0 ELSE 1 END,
+          ABS(amount - :refundAmount) ASC,
+          id DESC
+        LIMIT 1
+    """)
+    suspend fun findLikelyRefundSourceBill(
+        bookName: String,
+        categoryName: String,
+        refundAmount: Double,
+        refundAccountName: String,
+        refundTime: Long,
+        expenseType: Int = Bill.TYPE_EXPENSE,
+        refundSubtype: Int = Bill.SUBTYPE_REFUND
+    ): Bill?
+
     @Query("SELECT COALESCE(SUM(amount), 0.0) FROM bills WHERE relatedBillId = :sourceBillId AND subType = :refundSubtype")
     suspend fun getRefundTotalBySourceId(sourceBillId: Long, refundSubtype: Int = Bill.SUBTYPE_REFUND): Double
 
@@ -353,6 +379,14 @@ interface BillDao {
 
     @Query("DELETE FROM bills")
     suspend fun deleteAll()
+
+    /** 更新单条账单的不计入统计状态 */
+    @Query("UPDATE bills SET excludeFromStats = :exclude WHERE id = :billId")
+    suspend fun updateExcludeStats(billId: Long, exclude: Boolean)
+
+    /** 批量更新账单的不计入统计状态 */
+    @Query("UPDATE bills SET excludeFromStats = :exclude WHERE id IN (:billIds)")
+    suspend fun updateExcludeStatsForBills(billIds: List<Long>, exclude: Boolean)
 
     /** 删除指定账本下的所有账单 */
     @Query("DELETE FROM bills WHERE bookName = :bookName")

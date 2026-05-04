@@ -117,7 +117,7 @@ object BillDisplayFormatter {
         originalAmount: Double,
         currency: String
     ): CharSequence {
-        return "-${formatMoney(originalAmount, currency)}"
+        return "-${formatMoney(netAmount.coerceAtLeast(0.0), currency)}"
     }
 
     fun buildRefundFlowRemark(baseRemark: String, refunds: List<Bill>): String {

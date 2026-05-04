@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -35,6 +36,7 @@ import tao.test.flipaccounting.R
 import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.logic.BillDisplayFormatter
+import tao.test.flipaccounting.logic.BillMutationService
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.ui.activity.EditBillActivity
 import java.text.SimpleDateFormat
@@ -564,6 +566,18 @@ class BillDetailBottomSheet(
         root.findViewById<TextView>(R.id.tv_title).text = "详情"
         root.findViewById<TextView>(R.id.tv_detail_category).text =
             BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { "未分类" }
+
+        val tvAccountLabel = root.findViewById<TextView>(R.id.tv_detail_account_label)
+        val tvTimeLabel = root.findViewById<TextView>(R.id.tv_detail_time_label)
+
+        if (isRefund) {
+            tvAccountLabel.text = "入账账户"
+            tvTimeLabel.text = "入账时间"
+        } else {
+            tvAccountLabel.text = "账户"
+            tvTimeLabel.text = "时间"
+        }
+
         root.findViewById<TextView>(R.id.tv_detail_account).text =
             if (isTransfer && bill.toAccountName.isNotBlank()) {
                 "${bill.accountName} -> ${bill.toAccountName}"
@@ -626,6 +640,43 @@ class BillDetailBottomSheet(
             feeLine.visibility = View.GONE
         }
 
+        val refundRecordsSection = root.findViewById<LinearLayout>(R.id.layout_refund_records_section)
+        val originalBillSection = root.findViewById<LinearLayout>(R.id.layout_original_bill_section)
+        refundRecordsSection.visibility = View.GONE
+        originalBillSection.visibility = View.GONE
+
+        if (isRefund) {
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(requireContext())
+                val original = tao.test.flipaccounting.logic.BillMutationService.resolveRefundSourceBill(db, bill)
+                withContext(Dispatchers.Main) {
+                    if (original != null) {
+                        originalBillSection.visibility = View.VISIBLE
+                        val container = root.findViewById<LinearLayout>(R.id.layout_original_bill_container)
+                        container.removeAllViews()
+                        val row = createLinkedBillRow(original)
+                        container.addView(row)
+                    }
+                }
+            }
+        } else if (!isTransfer && bill.type == Bill.TYPE_EXPENSE) {
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(requireContext())
+                val refundBills = db.billDao().getRefundBillsBySourceId(bill.id)
+                withContext(Dispatchers.Main) {
+                    if (refundBills.isNotEmpty()) {
+                        refundRecordsSection.visibility = View.VISIBLE
+                        val container = root.findViewById<LinearLayout>(R.id.layout_refund_records_container)
+                        container.removeAllViews()
+                        refundBills.forEach { refundBill ->
+                            val row = createLinkedBillRow(refundBill, forceGrayStyle = true)
+                            container.addView(row)
+                        }
+                    }
+                }
+            }
+        }
+
         if (!isTransfer) {
             if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundedAmount > 0.0) {
                 amountFormula.visibility = View.VISIBLE
@@ -644,4 +695,45 @@ class BillDetailBottomSheet(
             }
         }
     }
+
+    private fun createLinkedBillRow(bill: Bill, forceGrayStyle: Boolean = false): View {
+        val context = requireContext()
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 8.dp, 0, 8.dp)
+            background = if (forceGrayStyle) {
+                androidx.core.content.ContextCompat.getDrawable(context, R.drawable.bg_bill_item_refund)
+            } else {
+                androidx.core.content.ContextCompat.getDrawable(context, R.drawable.bg_bill_item)
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = 4.dp
+            }
+        }
+
+        val categoryText = TextView(context).apply {
+            text = BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { "未分类" }
+            setTextColor(Color.parseColor("#5F6772"))
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val amountText = TextView(context).apply {
+            text = formatMoney(bill.amount, bill.currency)
+            setTextColor(Color.parseColor("#9AA1AA"))
+            textSize = 13f
+            gravity = android.view.Gravity.END
+        }
+
+        row.addView(categoryText)
+        row.addView(amountText)
+        return row
+    }
+
+    private val Int.dp: Int
+        get() = (this * resources.displayMetrics.density).toInt()
 }

@@ -2029,6 +2029,7 @@ class AssetStatsActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
         private val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
+        private val PAYLOAD_HEADER_SELECTION_CHANGE = "PAYLOAD_HEADER_SELECTION_CHANGE"
 
         private val typeHeader = 0
         private val typeBill = 1
@@ -2088,6 +2089,43 @@ class AssetStatsActivity : AppCompatActivity() {
             notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
         }
 
+        private fun selectableBillsForSection(headerPosition: Int): List<Bill> {
+            return rows.asSequence()
+                .drop(headerPosition + 1)
+                .takeWhile { it !is SectionHeaderRow }
+                .mapNotNull { (it as? BillRow)?.bill }
+                .toList()
+        }
+
+        private fun sectionSelectionState(headerPosition: Int): Pair<Boolean, Boolean> {
+            val bills = selectableBillsForSection(headerPosition)
+            if (bills.isEmpty()) return false to false
+            val selectedCount = bills.count { selectedBills.contains(it) }
+            return (selectedCount == bills.size) to (selectedCount in 1 until bills.size)
+        }
+
+        private fun updateSectionHeaderNear(position: Int) {
+            val headerPosition = (position downTo 0).firstOrNull { rows.getOrNull(it) is SectionHeaderRow } ?: return
+            notifyItemChanged(headerPosition, PAYLOAD_HEADER_SELECTION_CHANGE)
+        }
+
+        private fun setSectionSelection(headerPosition: Int, checked: Boolean) {
+            val bills = selectableBillsForSection(headerPosition)
+            if (bills.isEmpty()) return
+            if (checked) {
+                selectedBills.addAll(bills)
+            } else {
+                selectedBills.removeAll(bills.toSet())
+            }
+            isMultiSelectMode = selectedBills.isNotEmpty()
+            onSelectionChanged?.invoke(selectedBills.size)
+            val nextHeader = ((headerPosition + 1) until rows.size)
+                .firstOrNull { rows[it] is SectionHeaderRow }
+                ?: rows.size
+            notifyItemRangeChanged(headerPosition, nextHeader - headerPosition, PAYLOAD_SELECTION_CHANGE)
+            if (!isMultiSelectMode) notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+        }
+
         override fun getItemViewType(position: Int): Int {
             return if (rows[position] is SectionHeaderRow) typeHeader else typeBill
         }
@@ -2108,7 +2146,7 @@ class AssetStatsActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val row = rows[position]) {
-                is SectionHeaderRow -> (holder as HeaderVH).bind(row)
+                is SectionHeaderRow -> (holder as HeaderVH).bind(row, position)
                 is BillRow -> (holder as BillVH).bind(row.bill, position)
             }
         }
@@ -2131,6 +2169,16 @@ class AssetStatsActivity : AppCompatActivity() {
                     }
                 }
             }
+            if (payloads.isNotEmpty() && holder is HeaderVH) {
+                if (payloads.contains(PAYLOAD_MODE_CHANGE)) {
+                    holder.updateMode(position)
+                    return
+                }
+                if (payloads.contains(PAYLOAD_SELECTION_CHANGE) || payloads.contains(PAYLOAD_HEADER_SELECTION_CHANGE)) {
+                    holder.updateSelection(position)
+                    return
+                }
+            }
             super.onBindViewHolder(holder, position, payloads)
         }
 
@@ -2144,13 +2192,35 @@ class AssetStatsActivity : AppCompatActivity() {
         }
 
         inner class HeaderVH(v: View) : RecyclerView.ViewHolder(v) {
+            private val cbSelect = v.findViewById<CheckBox>(R.id.cb_select_section)
             private val tvTitle = v.findViewById<TextView>(R.id.tv_section_title)
             private val tvSummary = v.findViewById<TextView>(R.id.tv_section_summary)
 
-            fun bind(item: SectionHeaderRow) {
+            init {
+                itemView.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION || !isMultiSelectMode) return@setOnClickListener
+                    val (allSelected, _) = sectionSelectionState(pos)
+                    setSectionSelection(pos, checked = !allSelected)
+                }
+            }
+
+            fun bind(item: SectionHeaderRow, position: Int) {
                 val symbol = CurrencyManager.getSymbol(currencyProvider())
                 tvTitle.text = item.title
                 tvSummary.text = "收:${symbol}${String.format(Locale.getDefault(), "%.2f", item.income)} 支:${symbol}${String.format(Locale.getDefault(), "%.2f", item.expense)}"
+                updateMode(position)
+            }
+
+            fun updateMode(position: Int) {
+                cbSelect.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
+                updateSelection(position)
+            }
+
+            fun updateSelection(position: Int) {
+                val (allSelected, partiallySelected) = sectionSelectionState(position)
+                cbSelect.isChecked = allSelected
+                cbSelect.alpha = if (partiallySelected) 0.55f else 1f
             }
         }
 
@@ -2346,6 +2416,7 @@ class AssetStatsActivity : AppCompatActivity() {
                             val pos = adapterPosition
                             if (pos != RecyclerView.NO_POSITION) {
                                 notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                                updateSectionHeaderNear(pos)
                             }
                         }
                         onSelectionChanged?.invoke(selectedBills.size)
@@ -2365,6 +2436,7 @@ class AssetStatsActivity : AppCompatActivity() {
                         val pos = adapterPosition
                         if (pos != RecyclerView.NO_POSITION) {
                             notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                            updateSectionHeaderNear(pos)
                         }
                     }
                     onSelectionChanged?.invoke(selectedBills.size)
@@ -2374,4 +2446,3 @@ class AssetStatsActivity : AppCompatActivity() {
         }
     }
 }
-

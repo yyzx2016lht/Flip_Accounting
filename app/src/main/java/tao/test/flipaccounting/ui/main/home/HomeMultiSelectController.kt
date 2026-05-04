@@ -57,15 +57,22 @@ internal class HomeMultiSelectController(
             val billsToDelete = getHomeAdapter().selectedBills.toList()
             if (billsToDelete.isEmpty()) return@setOnClickListener
 
-            val db = AppDatabase.getDatabase(fragment.requireContext())
-            fragment.lifecycleScope.launch {
-                tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillsAndRevertBalance(db, billsToDelete)
-                getHomeAdapter().clearSelection()
-                Toast.makeText(
-                    fragment.context,
-                    "已删除 ${billsToDelete.size} 条账单",
-                    Toast.LENGTH_SHORT
-                ).show()
+            showConfirmDialog(
+                title = "确认删除",
+                message = "确定要删除选中的 ${billsToDelete.size} 条账单吗？删除后不可恢复。",
+                confirmText = "确认删除",
+                isDanger = true
+            ) {
+                val db = AppDatabase.getDatabase(fragment.requireContext())
+                fragment.lifecycleScope.launch {
+                    tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillsAndRevertBalance(db, billsToDelete)
+                    getHomeAdapter().clearSelection()
+                    Toast.makeText(
+                        fragment.context,
+                        "已删除 ${billsToDelete.size} 条账单",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -126,17 +133,24 @@ internal class HomeMultiSelectController(
                     return@setOnClickListener
                 }
                 dialog.dismiss()
-                val ids = bills.map { it.id }
-                fragment.lifecycleScope.launch(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(fragment.requireContext())
-                    db.billDao().moveBillsToBook(ids, targetBook)
-                    withContext(Dispatchers.Main) {
-                        getHomeAdapter().clearSelection()
-                        Toast.makeText(
-                            fragment.requireContext(),
-                            "已将 ${bills.size} 条账单移动到「$targetBook」",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                showConfirmDialog(
+                    title = "确认移动",
+                    message = "确定要将 ${bills.size} 条账单移动到「$targetBook」吗？",
+                    confirmText = "确认移动",
+                    isDanger = false
+                ) {
+                    val ids = bills.map { it.id }
+                    fragment.lifecycleScope.launch(Dispatchers.IO) {
+                        val db = AppDatabase.getDatabase(fragment.requireContext())
+                        db.billDao().moveBillsToBook(ids, targetBook)
+                        withContext(Dispatchers.Main) {
+                            getHomeAdapter().clearSelection()
+                            Toast.makeText(
+                                fragment.requireContext(),
+                                "已将 ${bills.size} 条账单移动到「$targetBook」",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 }
             }
@@ -155,6 +169,48 @@ internal class HomeMultiSelectController(
             widthRatio = 0.92f,
             cancelOnTouchOutside = true,
             useSolidPanelBackground = false
+        )
+    }
+
+    private fun showConfirmDialog(
+        title: String,
+        message: String,
+        confirmText: String = "确定",
+        isDanger: Boolean = false,
+        onConfirm: () -> Unit
+    ) {
+        val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_FlipAccounting)
+        val panel = LayoutInflater.from(fragment.requireContext())
+            .inflate(R.layout.dialog_delete_followup_confirm, null, false)
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = title
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = message
+
+        val dialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
+            text = confirmText
+            setBackgroundResource(
+                if (isDanger) R.drawable.bg_delete_followup_danger_btn
+                else R.drawable.bg_delete_followup_primary_btn
+            )
+            setOnClickListener {
+                dialog.dismiss()
+                onConfirm()
+            }
+        }
+
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.86f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
         )
     }
 }

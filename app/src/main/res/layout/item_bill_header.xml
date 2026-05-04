@@ -11,6 +11,16 @@
     android:paddingTop="10dp"
     android:paddingBottom="8dp">
 
+    <CheckBox
+        android:id="@+id/cb_select_day"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="6dp"
+        android:buttonTint="#4080FF"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/tv_header_date"
         android:layout_width="0dp"
@@ -28,16 +38,5 @@
         tools:text="收:¥46.07 支:¥214.23"
         android:textColor="@color/home_date_summary_text"
         android:textSize="@dimen/text_size_13" />
-
-    <TextView
-        android:id="@+id/btn_select_day"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:padding="4dp"
-        android:text="全选"
-        android:textColor="@color/brand_primary"
-        android:textSize="@dimen/text_size_13"
-        android:visibility="gone" />
 
 </LinearLayout>

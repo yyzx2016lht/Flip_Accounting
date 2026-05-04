@@ -377,7 +377,8 @@ internal class HomeBillSheetsController(
                 tvAccount.text = bill.accountName
 
                 fragment.lifecycleScope.launch(Dispatchers.IO) {
-                    val original = bill.relatedBillId?.let { AppDatabase.getDatabase(fragment.requireContext()).billDao().getBillById(it) }
+                    val db = AppDatabase.getDatabase(fragment.requireContext())
+                    val original = tao.test.flipaccounting.logic.BillMutationService.resolveRefundSourceBill(db, bill)
                     withContext(Dispatchers.Main) {
                         if (original != null) {
                             linkedOriginalForRefund = original
@@ -481,7 +482,8 @@ internal class HomeBillSheetsController(
                     return@setOnClickListener
                 }
                 fragment.lifecycleScope.launch(Dispatchers.IO) {
-                    val source = bill.relatedBillId?.let { AppDatabase.getDatabase(fragment.requireContext()).billDao().getBillById(it) }
+                    val db = AppDatabase.getDatabase(fragment.requireContext())
+                    val source = tao.test.flipaccounting.logic.BillMutationService.resolveRefundSourceBill(db, bill)
                     withContext(Dispatchers.Main) {
                         if (source != null) {
                             showRefundSheet(source, bill)
@@ -500,14 +502,7 @@ internal class HomeBillSheetsController(
         }
 
         btnDelete.setOnClickListener {
-            bottomSheet.dismiss()
-            fragment.lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(fragment.requireContext())
-                tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(fragment.context, "已删除", Toast.LENGTH_SHORT).show()
-                }
-            }
+            showDeleteConfirmDialog(bill, bottomSheet)
         }
 
         bottomSheet.setContentView(view)
@@ -518,6 +513,47 @@ internal class HomeBillSheetsController(
             }
         }
         bottomSheet.show()
+    }
+
+    private fun showDeleteConfirmDialog(bill: Bill, bottomSheet: BottomSheetDialog) {
+        val context = fragment.requireContext()
+        val panel = LayoutInflater.from(context).inflate(R.layout.dialog_delete_followup_confirm, null, false)
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = "确认删除"
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "删除后不可恢复，是否继续？"
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(
+            androidx.appcompat.view.ContextThemeWrapper(context, R.style.Theme_FlipAccounting)
+        )
+            .setView(panel)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
+            text = "确认删除"
+            setBackgroundResource(R.drawable.bg_delete_followup_danger_btn)
+            setOnClickListener {
+                dialog.dismiss()
+                bottomSheet.dismiss()
+                fragment.lifecycleScope.launch(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(context)
+                    tao.test.flipaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(fragment.context, "已删除", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = context,
+            widthRatio = 0.86f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun configureDetailBottomSheet(bottomSheet: BottomSheetDialog) {
