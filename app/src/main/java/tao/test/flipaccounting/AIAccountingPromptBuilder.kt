@@ -10,7 +10,7 @@ internal fun buildAccountingSystemPrompt(
     promptContext: AIAccountingPromptContext,
     matchedPromptRules: List<DbAiRule>
 ): String {
-    var prompt = AIService.MULTI_BILL_PROMPT_DEFAULT
+    var prompt = accountingBasePrompt(promptContext.assetFeatureEnabled)
     prompt = adaptPromptForCategoryDepth(
         prompt = prompt,
         hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
@@ -27,17 +27,23 @@ internal fun buildAccountingSystemPrompt(
 
     prompt += AIPrompts.buildReceiptSemanticRule()
     val isFastMode = Prefs.isMultiBillFastMode(ctx)
-    prompt += if (isFastMode) {
+    prompt += if (!promptContext.assetFeatureEnabled) {
+        AIPrompts.buildNoAssetAccountingRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+    } else if (isFastMode) {
         AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     } else {
         AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     }
-    if (!isFastMode) {
+    if (!isFastMode && promptContext.assetFeatureEnabled) {
         prompt += AIPrompts.buildMultiTwoStageRule()
     }
 
     if (matchedPromptRules.isNotEmpty()) {
-        prompt += buildPromptCorrectionBlock(matchedPromptRules, includeCategory = true)
+        prompt += buildPromptCorrectionBlock(
+            matchedPromptRules,
+            includeCategory = true,
+            includeAccount = promptContext.assetFeatureEnabled
+        )
     }
     prompt += AIPrompts.buildOutputJsonRuleWithTargetFields()
 
@@ -54,7 +60,7 @@ internal fun buildAudioAccountingSystemPrompt(
     ctx: Context,
     promptContext: AIAccountingPromptContext
 ): String {
-    var prompt = AIService.MULTI_BILL_PROMPT_DEFAULT
+    var prompt = accountingBasePrompt(promptContext.assetFeatureEnabled)
     prompt = adaptPromptForCategoryDepth(
         prompt = prompt,
         hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
@@ -72,7 +78,9 @@ internal fun buildAudioAccountingSystemPrompt(
 
     prompt += AIPrompts.buildReceiptSemanticRule()
     val isFastMode = Prefs.isMultiBillFastMode(ctx)
-    prompt += if (isFastMode) {
+    prompt += if (!promptContext.assetFeatureEnabled) {
+        AIPrompts.buildNoAssetAccountingRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+    } else if (isFastMode) {
         AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     } else {
         AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats) +
@@ -104,7 +112,11 @@ internal fun buildScreenAccountingSystemPrompt(
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAccountingDateRule()
-    prompt += AIPrompts.buildScreenModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+    prompt += AIPrompts.buildScreenModeRule(
+        promptContext.expenseLeafCats,
+        promptContext.incomeLeafCats,
+        promptContext.assetFeatureEnabled
+    )
     prompt += AIPrompts.buildScreenUnifiedOutputRule()
 
     return renderPromptTemplate(
@@ -116,7 +128,18 @@ internal fun buildScreenAccountingSystemPrompt(
     )
 }
 
-internal fun buildPromptCorrectionBlock(matchedRules: List<DbAiRule>, includeCategory: Boolean = true): String {
+private fun accountingBasePrompt(assetFeatureEnabled: Boolean): String =
+    if (assetFeatureEnabled) {
+        AIService.MULTI_BILL_PROMPT_DEFAULT
+    } else {
+        AIPromptsWithoutAccount.MULTI_BILL_PROMPT_DEFAULT
+    }
+
+internal fun buildPromptCorrectionBlock(
+    matchedRules: List<DbAiRule>,
+    includeCategory: Boolean = true,
+    includeAccount: Boolean = true
+): String {
     if (matchedRules.isEmpty()) return ""
     return buildString {
         appendLine("\n【本地记账习惯修正规则（高优先）】以下规则来自用户自定义，命中后优先遵守：")
@@ -124,11 +147,17 @@ internal fun buildPromptCorrectionBlock(matchedRules: List<DbAiRule>, includeCat
             append("${index + 1}. 关键词：${rule.keyword}")
             rule.targetType?.let { append("；type=$it") }
             if (includeCategory) rule.targetCategory?.takeIf { it.isNotBlank() }?.let { append("；category_name=$it") }
-            rule.targetAccount1?.takeIf { it.isNotBlank() }?.let { append("；asset_name=$it") }
-            rule.targetAccount2?.takeIf { it.isNotBlank() }?.let { append("；to_asset_name=$it") }
+            if (includeAccount) {
+                rule.targetAccount1?.takeIf { it.isNotBlank() }?.let { append("；asset_name=$it") }
+                rule.targetAccount2?.takeIf { it.isNotBlank() }?.let { append("；to_asset_name=$it") }
+            }
             appendLine()
         }
-        appendLine("命中规则时：优先按规则纠正类型、分类、账户；若规则未覆盖的字段拿不准，可留空，不要猜。")
+        if (includeAccount) {
+            appendLine("命中规则时：优先按规则纠正类型、分类、账户；若规则未覆盖的字段拿不准，可留空，不要猜。")
+        } else {
+            appendLine("命中规则时：优先按规则纠正类型、分类；当前为无资产模式，禁止要求用户补充账户。")
+        }
     }
 }
 

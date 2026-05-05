@@ -378,6 +378,14 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
             "- remarks 仅保留关键语义词，避免长句描述（建议 <=12 字）。\n" +
             "- 如果分类一时拿不准，优先保证拆单和 remarks 正确；后续会基于每条 remarks 再做逐条分类。\n"
 
+    fun buildNoAssetAccountingRule(expenseLeafCats: List<String>, incomeLeafCats: List<String>): String =
+        "\n【无资产记账执行规则】当前账本关闭资产功能，本轮只提取支出/收入账单。\n" +
+            "- 不要要求用户提供付款账户、收款账户、资产、信用卡或转账账户。\n" +
+            "- 每条 bill 只需要包含 amount、type、category_name、time、remarks、currency；不要输出 asset_name、to_asset_name、fee。\n" +
+            "- 如果模型为了兼容旧格式输出了 asset_name/to_asset_name，也必须留空字符串。\n" +
+            "- category_name 从可选分类中选择最合适的一条，支出参考：${expenseLeafCats.joinToString("、")}；收入参考：${incomeLeafCats.joinToString("、")}。\n" +
+            "- 若无法确定分类，输出空字符串，不要因为缺少账户而追问用户。\n"
+
     fun buildOutputJsonRuleWithTargetFields(): String =
         "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name、target_amount、target_currency（仅在用户明确提到到账金额时输出）。Do not return markdown or extra explanation.\n"
 
@@ -386,11 +394,19 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
 
     fun buildScreenModeRule(
         expenseLeafCats: List<String>,
-        incomeLeafCats: List<String>
+        incomeLeafCats: List<String>,
+        assetFeatureEnabled: Boolean = true
     ): String =
-        "\n【多账单截图模式】若截图中存在多条真实交易，请按真实条目逐条输出 bills；若只有一条交易，也可输出单条 bill 组成的 bills 数组。\n" +
-            "\n【分类提示】支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n" +
-            "\n【输出格式】必须只返回 {\"bills\":[...]}，每条字段固定为 amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee。不要输出额外说明。\n"
+        if (assetFeatureEnabled) {
+            "\n【多账单截图模式】若截图中存在多条真实交易，请按真实条目逐条输出 bills；若只有一条交易，也可输出单条 bill 组成的 bills 数组。\n" +
+                "\n【分类提示】支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n" +
+                "\n【输出格式】必须只返回 {\"bills\":[...]}，每条字段固定为 amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee。不要输出额外说明。\n"
+        } else {
+            "\n【多账单截图模式】若截图中存在多条真实交易，请按真实条目逐条输出 bills；若只有一条交易，也可输出单条 bill 组成的 bills 数组。\n" +
+                "\n【无资产截图模式】当前账本关闭资产功能，不要识别或追问付款账户、收款账户、资产、信用卡或转账账户。\n" +
+                "\n【分类提示】支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n" +
+                "\n【输出格式】必须只返回 {\"bills\":[...]}，每条字段固定为 amount,type,category_name,time,remarks,currency。不要输出额外说明。\n"
+        }
 
     fun buildScreenUnifiedOutputRule(): String =
         "\n【输出格式】You must return one valid JSON object only. Do not return markdown or extra explanation.\n"

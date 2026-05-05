@@ -71,6 +71,9 @@ object AIService {
     private fun enableThinkingForAccounting(ctx: Context): Boolean = Prefs.isAiThinkingMultiBillEnabled(ctx)
     private fun enableThinkingForVision(ctx: Context): Boolean = Prefs.isAiThinkingVisionEnabled(ctx)
 
+    fun getDefaultSingleBillPrompt(ctx: Context): String =
+        getDefaultMultiBillPrompt(ctx)
+
     fun getDefaultMultiBillPrompt(ctx: Context): String =
         if (Prefs.isAssetFeatureEnabled(ctx)) {
             AIPrompts.MULTI_BILL_PROMPT_DEFAULT
