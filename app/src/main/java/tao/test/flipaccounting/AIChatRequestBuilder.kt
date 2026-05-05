@@ -94,9 +94,10 @@ private fun buildChatRequest(
     return JsonObject().apply {
         addProperty("model", model)
         addProperty("temperature", temperature)
-        // Some providers treat a missing thinking flag as provider-default behavior.
-        // Always send the boolean explicitly so "off" really means off.
-        addProperty("enable_thinking", enableThinking)
+        // Only send enable_thinking when true to avoid API compatibility issues.
+        if (enableThinking) {
+            addProperty("enable_thinking", true)
+        }
         if (stream) addProperty("stream", true)
         add("messages", messages)
         if (jsonObjectResponse) {

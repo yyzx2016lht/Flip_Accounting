@@ -162,7 +162,7 @@ object PrefsAiSupport {
         prefs(ctx).edit().putBoolean(KEY_AI_THINKING_MODIFY_BILL, enabled).apply()
 
     fun isAiThinkingVisionEnabled(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_AI_THINKING_VISION, true)
+        prefs(ctx).getBoolean(KEY_AI_THINKING_VISION, false)
     fun setAiThinkingVisionEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_THINKING_VISION, enabled).apply()
 
