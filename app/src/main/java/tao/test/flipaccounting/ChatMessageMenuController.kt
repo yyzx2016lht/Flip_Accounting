@@ -45,14 +45,7 @@ class ChatMessageMenuController(
 
     fun showVoiceMessageMenu(anchor: View, item: ChatDisplayItem) {
         val popupView = LayoutInflater.from(context).inflate(R.layout.popup_msg_menu, null)
-        val popup = PopupWindow(
-            popupView,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        )
-        popup.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        popup.isOutsideTouchable = true
+        val popup = createMessagePopup(popupView)
 
         popupView.findViewById<View>(R.id.menu_item_copy).visibility = View.GONE
         popupView.findViewById<View>(R.id.menu_item_edit_resend).visibility = View.GONE
@@ -112,14 +105,7 @@ class ChatMessageMenuController(
 
     fun showTranscriptMenu(anchor: View, item: ChatDisplayItem) {
         val popupView = LayoutInflater.from(context).inflate(R.layout.popup_transcript_menu, null)
-        val popup = PopupWindow(
-            popupView,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        )
-        popup.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        popup.isOutsideTouchable = true
+        val popup = createMessagePopup(popupView)
 
         popupView.findViewById<View>(R.id.popup_transcript_menu_root).setOnClickListener {
             popup.dismiss()
@@ -130,14 +116,7 @@ class ChatMessageMenuController(
 
     fun showTextMessageMenu(anchor: View, item: ChatDisplayItem) {
         val popupView = LayoutInflater.from(context).inflate(R.layout.popup_msg_menu, null)
-        val popup = PopupWindow(
-            popupView,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        )
-        popup.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        popup.isOutsideTouchable = true
+        val popup = createMessagePopup(popupView)
 
         popupView.findViewById<View>(R.id.menu_item_copy).visibility = View.VISIBLE
         popupView.findViewById<View>(R.id.menu_item_edit_resend).visibility = View.VISIBLE
@@ -175,5 +154,18 @@ class ChatMessageMenuController(
             requestDeleteFromLongPressMenu(item)
         }
         safeShowAsDropDown(popup, anchor, -40, -anchor.height - 16)
+    }
+
+    private fun createMessagePopup(contentView: View): PopupWindow {
+        return PopupWindow(
+            contentView,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            false
+        ).apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            isOutsideTouchable = true
+            inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
+        }
     }
 }
