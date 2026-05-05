@@ -137,7 +137,8 @@ class ChatMediaController(
                 target = ivAiAvatarProvider(),
                 file = File(avatarPath),
                 placeholderRes = R.drawable.ic_ai_default_avatar,
-                circleCrop = true
+                circleCrop = true,
+                overrideSize = 128
             )
         } else {
             ivAiAvatarProvider().setImageResource(R.drawable.ic_ai_default_avatar)
@@ -377,7 +378,8 @@ class ChatMediaController(
                     target = iv,
                     file = destFile,
                     placeholderRes = R.drawable.ic_ai_default_avatar,
-                    circleCrop = true
+                    circleCrop = true,
+                    overrideSize = 128
                 )
             }
             refreshAiProfile()

@@ -95,7 +95,8 @@ class ChatUiHelperController(
                 target = iv,
                 file = file,
                 placeholderRes = R.drawable.ic_user_avatar_default,
-                circleCrop = true
+                circleCrop = true,
+                overrideSize = 128
             )
         } else {
             iv.setImageResource(R.drawable.ic_user_avatar_default)
@@ -110,7 +111,8 @@ class ChatUiHelperController(
                 target = iv,
                 file = file,
                 placeholderRes = R.drawable.ic_ai_default_avatar,
-                circleCrop = true
+                circleCrop = true,
+                overrideSize = 128
             )
         } else {
             iv.setImageResource(R.drawable.ic_ai_default_avatar)

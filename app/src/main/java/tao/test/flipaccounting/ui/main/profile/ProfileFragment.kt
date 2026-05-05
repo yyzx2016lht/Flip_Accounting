@@ -742,7 +742,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 target = ivAvatar,
                 file = file,
                 placeholderRes = R.drawable.ic_user_avatar_default,
-                circleCrop = true
+                circleCrop = true,
+                overrideSize = 128
             )
         } else {
             ivAvatar.setImageResource(R.drawable.ic_user_avatar_default)
@@ -771,7 +772,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 target = ivAvatar,
                 file = avatarFile,
                 placeholderRes = R.drawable.ic_user_avatar_default,
-                circleCrop = true
+                circleCrop = true,
+                overrideSize = 128
             )
         } else {
             ivAvatar.setImageResource(R.drawable.ic_user_avatar_default)
@@ -838,7 +840,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     target = it,
                     file = destFile,
                     placeholderRes = R.drawable.ic_user_avatar_default,
-                    circleCrop = true
+                    circleCrop = true,
+                    overrideSize = 128
                 )
             }
             rootRef?.let { refreshUserAvatarCard(it) }

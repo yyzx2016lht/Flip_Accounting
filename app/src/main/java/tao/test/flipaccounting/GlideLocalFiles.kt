@@ -27,7 +27,8 @@ object GlideLocalFiles {
         } else {
             DiskCacheStrategy.NONE
         },
-        skipMemoryCache: Boolean = diskCacheStrategy == DiskCacheStrategy.NONE
+        skipMemoryCache: Boolean = diskCacheStrategy == DiskCacheStrategy.NONE,
+        overrideSize: Int = 0
     ) {
         if (file == null || !file.exists()) {
             clear(target)
@@ -42,6 +43,7 @@ object GlideLocalFiles {
             .load(file)
             .diskCacheStrategy(diskCacheStrategy)
             .skipMemoryCache(skipMemoryCache)
+            .apply { if (overrideSize > 0) override(overrideSize) }
 
         if (!signatureKey.isNullOrBlank()) {
             request = request.signature(ObjectKey(signatureKey))
