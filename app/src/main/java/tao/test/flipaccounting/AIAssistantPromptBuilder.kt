@@ -36,6 +36,7 @@ internal fun buildAssistantSystemPrompt(
 ): String {
     val styleInstruction = buildAssistantStyleInstruction(ctx, defaultCustomReplyStyleGuide)
     val aiName = Prefs.getAiChatName(ctx).trim().ifBlank { "小记" }
+    val aiIdentity = shortenForModel(Prefs.getAiChatIdentity(ctx).trim(), 160, preserveTail = false)
     val userName = Prefs.getUserChatName(ctx).trim().ifBlank { "我" }
     val userProfile = shortenForModel(Prefs.getUserProfileDesc(ctx).trim(), 200, preserveTail = false)
     return buildString {
@@ -43,6 +44,9 @@ internal fun buildAssistantSystemPrompt(
         appendLine()
         appendLine("【身份设定】")
         appendLine("你的名字是「$aiName」。用户称呼是「$userName」。")
+        if (aiIdentity.isNotBlank()) {
+            appendLine("你的身份简介：$aiIdentity")
+        }
         appendLine("当用户问“你是谁/你叫什么”时，优先使用这个名字自我介绍，不要说自己不知道名字。")
         if (userProfile.isNotBlank() && userProfile != "点击设置名字和头像") {
             appendLine("用户档案参考：$userProfile")

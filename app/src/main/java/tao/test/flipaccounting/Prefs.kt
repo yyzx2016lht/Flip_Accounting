@@ -422,6 +422,10 @@ object Prefs {
     fun getAiChatName(ctx: Context): String = PrefsChatSupport.getAiChatName(ctx)
     fun setAiChatName(ctx: Context, name: String) = PrefsChatSupport.setAiChatName(ctx, name)
 
+    fun getAiChatIdentity(ctx: Context): String = PrefsChatSupport.getAiChatIdentity(ctx)
+    fun setAiChatIdentity(ctx: Context, identity: String) =
+        PrefsChatSupport.setAiChatIdentity(ctx, identity)
+
     fun getUserChatName(ctx: Context): String = PrefsChatSupport.getUserChatName(ctx)
     fun setUserChatName(ctx: Context, name: String) = PrefsChatSupport.setUserChatName(ctx, name)
     fun getUserProfileDesc(ctx: Context): String = PrefsChatSupport.getUserProfileDesc(ctx)

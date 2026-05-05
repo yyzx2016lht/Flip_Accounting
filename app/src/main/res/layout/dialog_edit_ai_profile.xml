@@ -7,10 +7,13 @@
 
     <!-- AI 头像 -->
     <FrameLayout
+        android:id="@+id/layout_ai_profile_avatar"
         android:layout_width="96dp"
         android:layout_height="96dp"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/iv_ai_profile_avatar"
@@ -58,6 +61,28 @@
         android:hint="输入 AI 助手名称"
         android:paddingHorizontal="14dp"
         android:singleLine="true"
+        android:textColor="#333333"
+        android:textSize="15sp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="6dp"
+        android:text="AI 身份简介"
+        android:textColor="#666666"
+        android:textSize="13sp" />
+
+    <EditText
+        android:id="@+id/et_ai_profile_identity"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:background="@drawable/bg_chat_input"
+        android:gravity="top"
+        android:hint="例如：擅长记账和陪伴聊天的助手"
+        android:inputType="textMultiLine"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="10dp"
         android:textColor="#333333"
         android:textSize="15sp" />
 

@@ -279,12 +279,7 @@ class ChatMessagePipeline(
             val recent = db.chatMessageDao().getRecentMessages(book, convId, 14).toMutableList()
             if (recent.isEmpty()) return@withContext ""
 
-            val currentUserNormalized = normalizeForRepeatComparison(userText)
-            val filteredRecent = recent.filterNot { msg ->
-                msg.msgType == ChatActivity.MSG_TYPE_USER_TEXT &&
-                    currentUserNormalized.isNotBlank() &&
-                    normalizeForRepeatComparison(msg.content) == currentUserNormalized
-            }
+            val filteredRecent = filterRepeatedInputTurnsFromHistory(recent, userText)
 
             val lines = filteredRecent
                 .takeLast(8)
@@ -297,6 +292,32 @@ class ChatMessagePipeline(
             if (lines.isEmpty()) return@withContext ""
             lines.joinToString("\n")
         }
+    }
+
+    private fun filterRepeatedInputTurnsFromHistory(
+        recent: List<ChatMessage>,
+        userText: String
+    ): List<ChatMessage> {
+        val currentUserNormalized = normalizeForRepeatComparison(userText)
+        if (currentUserNormalized.isBlank()) return recent
+
+        val skipIds = mutableSetOf<Long>()
+        var skippingDuplicateTurn = false
+        recent.forEach { msg ->
+            val isUserMessage = msg.msgType in 0..2
+            if (isUserMessage) {
+                skippingDuplicateTurn = msg.msgType == ChatActivity.MSG_TYPE_USER_TEXT &&
+                    normalizeForRepeatComparison(msg.content) == currentUserNormalized
+                if (skippingDuplicateTurn) skipIds.add(msg.id)
+                return@forEach
+            }
+
+            if (skippingDuplicateTurn && msg.msgType in setOf(ChatActivity.MSG_TYPE_AI_TEXT, ChatActivity.MSG_TYPE_AI_BILL)) {
+                skipIds.add(msg.id)
+            }
+        }
+
+        return recent.filterNot { it.id in skipIds }
     }
 
     private fun summarizeHistoryMessage(msg: ChatMessage): String {

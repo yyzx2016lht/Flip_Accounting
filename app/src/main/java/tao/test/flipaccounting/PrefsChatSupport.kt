@@ -8,6 +8,7 @@ object PrefsChatSupport {
     private const val KEY_SHOW_AI_CHAT_ENTRY = "show_ai_chat_entry"
     private const val KEY_AI_ENTRY_MODE = "ai_entry_mode"
     private const val KEY_AI_CHAT_NAME = "ai_chat_name"
+    private const val KEY_AI_CHAT_IDENTITY = "ai_chat_identity"
     private const val KEY_USER_CHAT_NAME = "user_chat_name"
     private const val KEY_USER_PROFILE_DESC = "user_profile_desc"
     private const val KEY_AI_CHAT_AVATAR_PATH = "ai_chat_avatar_path"
@@ -34,6 +35,11 @@ object PrefsChatSupport {
         prefs(ctx).getString(KEY_AI_CHAT_NAME, "小记") ?: "小记"
     fun setAiChatName(ctx: Context, name: String) =
         prefs(ctx).edit().putString(KEY_AI_CHAT_NAME, name.trim().ifBlank { "小记" }).apply()
+
+    fun getAiChatIdentity(ctx: Context): String =
+        prefs(ctx).getString(KEY_AI_CHAT_IDENTITY, "") ?: ""
+    fun setAiChatIdentity(ctx: Context, identity: String) =
+        prefs(ctx).edit().putString(KEY_AI_CHAT_IDENTITY, identity.trim()).apply()
 
     fun getUserChatName(ctx: Context): String =
         prefs(ctx).getString(KEY_USER_CHAT_NAME, "我") ?: "我"

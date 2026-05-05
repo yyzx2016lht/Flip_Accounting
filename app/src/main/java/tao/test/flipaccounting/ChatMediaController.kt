@@ -56,12 +56,15 @@ class ChatMediaController(
 
     fun showEditAiProfileDialog() {
         val view = android.view.LayoutInflater.from(context).inflate(R.layout.dialog_edit_ai_profile, null)
+        val avatarContainer = view.findViewById<android.view.View>(R.id.layout_ai_profile_avatar)
         val ivAvatar = view.findViewById<ImageView>(R.id.iv_ai_profile_avatar)
         val etName = view.findViewById<android.widget.EditText>(R.id.et_ai_profile_name)
+        val etIdentity = view.findViewById<android.widget.EditText>(R.id.et_ai_profile_identity)
 
         val currentName = Prefs.getAiChatName(context).ifBlank { "小计" }
         etName.setText(currentName)
         etName.setSelection(currentName.length)
+        etIdentity.setText(Prefs.getAiChatIdentity(context))
 
         val avatarPath = Prefs.getAiChatAvatarPath(context)
         if (avatarPath.isNotBlank()) {
@@ -82,15 +85,18 @@ class ChatMediaController(
             .setNegativeButton("取消", null)
             .setPositiveButton("保存") { _, _ ->
                 Prefs.setAiChatName(context, etName.text?.toString()?.trim().orEmpty().ifBlank { "小计" })
+                Prefs.setAiChatIdentity(context, etIdentity.text?.toString()?.trim().orEmpty())
                 refreshAiProfile()
             }
             .create()
 
-        ivAvatar.setOnClickListener {
+        val pickAiAvatar = android.view.View.OnClickListener {
             pendingEditAiAvatarView = ivAvatar
             dialog.dismiss()
             openImagePicker(reqPickAiAvatar, "选择 AI 头像")
         }
+        avatarContainer.setOnClickListener(pickAiAvatar)
+        ivAvatar.setOnClickListener(pickAiAvatar)
 
         showPageCenterDialog(dialog, 0.88f)
     }
