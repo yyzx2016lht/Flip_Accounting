@@ -171,6 +171,8 @@
             android:name=".ImagePickerActivity"
             android:label="图片选择"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
             android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"

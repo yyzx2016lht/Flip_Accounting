@@ -254,7 +254,9 @@ class OverlayManager(private val ctx: Context) {
                     overlayView?.visibility = View.VISIBLE
                 }
                 val intent = android.content.Intent(ctx, ImagePickerActivity::class.java).apply {
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                        android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
+                        android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                 }
                 ctx.startActivity(intent)
             }
