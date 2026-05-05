@@ -130,6 +130,12 @@ object CurrencyManager {
         return rate
     }
 
+    fun hasRate(currency: String): Boolean {
+        val normalized = normalizeCurrency(currency)
+        if (normalized == "CNY") return true
+        return rates[normalized] != null
+    }
+
     fun getLastUpdateTime(context: Context): Long {
         return getPrefs(context).getLong(PREF_KEY_LAST_UPDATE, 0L)
     }

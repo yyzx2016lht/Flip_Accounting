@@ -156,16 +156,10 @@ class AssetsFragment : Fragment() {
         val hasForeignIncludedAsset = assets.any {
             it.includeInNetAsset && !it.currency.equals("CNY", ignoreCase = true)
         }
-        val includedForeignCurrencies = assets
-            .asSequence()
-            .filter { it.includeInNetAsset }
-            .map { it.currency.trim().uppercase() }
-            .filter { it.isNotEmpty() && it != "CNY" }
-            .toSet()
-        val hasSyncedRates = CurrencyManager.getLastUpdateTime(requireContext()) > 0L
-        val hasMissingIncludedRates = includedForeignCurrencies.any {
-            CurrencyManager.getMissingRateCurrencies().contains(it)
+        val hasMissingIncludedRates = assets.any { asset ->
+            asset.includeInNetAsset && !CurrencyManager.hasRate(asset.currency)
         }
+        val hasSyncedRates = CurrencyManager.getLastUpdateTime(requireContext()) > 0L
 
         if (hasForeignIncludedAsset && !hasSyncedRates) {
             if (!hasTriggeredInitialRateRefresh) {
@@ -180,6 +174,13 @@ class AssetsFragment : Fragment() {
                     }
                 }
             }
+        }
+
+        if (hasMissingIncludedRates) {
+            tvNetAsset.text = "需要网络更新"
+            tvTotalAsset.text = "需要网络更新"
+            tvTotalDebt.text = "需要网络更新"
+            return
         }
 
         var netAssetCny = 0.0
@@ -200,22 +201,21 @@ class AssetsFragment : Fragment() {
 
         val netText = CurrencyUtils.formatAmount(netAssetCny, "CNY")
         val totalText = CurrencyUtils.formatAmount(totalAssetCny, "CNY")
-        val shouldMarkEstimated = (hasForeignIncludedAsset && !hasSyncedRates) || hasMissingIncludedRates
-        val netDisplay = if (shouldMarkEstimated) "${netText}（估算）" else netText
-        val totalDisplay = if (shouldMarkEstimated) "${totalText}（估算）" else totalText
         val debtDisplay = if (creditCardDebtCny == 0.0) "暂无"
         else CurrencyUtils.formatAmount(creditCardDebtCny, "CNY")
 
-        tvNetAsset.crossfadeText(netDisplay)
-        tvTotalAsset.crossfadeText(totalDisplay)
+        tvNetAsset.crossfadeText(netText)
+        tvTotalAsset.crossfadeText(totalText)
         tvTotalDebt.crossfadeText(debtDisplay)
 
         // Rate status chip
         if (hasForeignIncludedAsset) {
-            if (hasSyncedRates && !hasMissingIncludedRates) {
+            if (hasMissingIncludedRates) {
+                tvRateStatus.text = "需要网络更新汇率"
+            } else if (hasSyncedRates) {
                 tvRateStatus.text = "汇率已同步"
             } else {
-                tvRateStatus.text = "部分汇率缺失（估算中）"
+                tvRateStatus.text = "汇率同步中..."
             }
             tvRateStatus.visibility = View.VISIBLE
         } else {
@@ -284,10 +284,15 @@ class AssetsFragment : Fragment() {
         val ctx = requireContext()
         val density = resources.displayMetrics.density
 
-        val total = group
+        // ── 汇率检测 ──
+        val hasMissingRate = group.any { asset ->
+            asset.includeInNetAsset && !CurrencyManager.hasRate(asset.currency)
+        }
+
+        val total = if (hasMissingRate) 0.0 else group
             .filter { it.includeInNetAsset }
             .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
-        val excludedTotal = group
+        val excludedTotal = if (hasMissingRate) 0.0 else group
             .filterNot { it.includeInNetAsset }
             .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
 
@@ -326,8 +331,8 @@ class AssetsFragment : Fragment() {
         }
 
         val tvTotal = TextView(ctx).apply {
-            text = CurrencyUtils.formatAmount(total, "CNY")
-            setTextColor(ctx.getColor(R.color.asset_category_header_total))
+            text = if (hasMissingRate) "需要网络更新" else CurrencyUtils.formatAmount(total, "CNY")
+            setTextColor(if (hasMissingRate) android.graphics.Color.parseColor("#E65100") else ctx.getColor(R.color.asset_category_header_total))
             textSize = resources.getDimension(R.dimen.asset_category_total_size) / density
             setTypeface(null, android.graphics.Typeface.BOLD)
             maxLines = 1
@@ -456,7 +461,8 @@ class AssetsFragment : Fragment() {
         cardContent.addView(divider)
         cardContent.addView(assetsRecycler)
         val tvExcludedSummary = TextView(ctx).apply {
-            text = "不计入总资产：${CurrencyUtils.formatAmount(excludedTotal, "CNY")}"
+            text = if (hasMissingRate) "不计入总资产：汇率未加载"
+            else "不计入总资产：${CurrencyUtils.formatAmount(excludedTotal, "CNY")}"
             setTextColor(ctx.getColor(R.color.asset_excluded_text))
             textSize = resources.getDimension(R.dimen.text_size_12) / density
             setPadding(

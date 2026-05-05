@@ -159,59 +159,13 @@ class ChatMessagePipeline(
         val job = aiWorkScope.launch(start = CoroutineStart.LAZY) {
             try {
                 if (!canWriteForRequest(requestContext)) return@launch
-                val historyCtx = buildChatHistoryContext(userText, requestContext)
-                val localRoute = AiIntentRouter.route(userText)
-                if (!isActive || !canWriteForRequest(requestContext)) return@launch
                 removeLoadingMessage(loadingKey)
-                val queryEnabled = Prefs.isAiQueryEnabled(context)
-                val routedType = when (localRoute.intentType) {
-                    AiIntentType.BOOKKEEPING_CREATE, AiIntentType.BOOKKEEPING -> AiIntentType.BOOKKEEPING_CREATE
-                    AiIntentType.BOOKKEEPING_QUERY, AiIntentType.QUERY ->
-                        if (queryEnabled) AiIntentType.BOOKKEEPING_QUERY else AiIntentType.GENERAL_CHAT
-                    AiIntentType.BOOKKEEPING_UPDATE, AiIntentType.MODIFY_BILL -> AiIntentType.BOOKKEEPING_UPDATE
-                    AiIntentType.BOOKKEEPING_DELETE -> AiIntentType.BOOKKEEPING_DELETE
-                    AiIntentType.SESSION_QUERY -> AiIntentType.SESSION_QUERY
-                    AiIntentType.SESSION_UPDATE -> AiIntentType.SESSION_UPDATE
-                    AiIntentType.MEDIA_ANALYZE -> AiIntentType.MEDIA_ANALYZE
-                    AiIntentType.UNKNOWN -> AiIntentType.UNKNOWN
-                    AiIntentType.GENERAL_CHAT -> AiIntentType.GENERAL_CHAT
-                }
-                Logger.d(
-                    context,
-                    "AiIntentRouter",
-                    "requestId=${requestContext.requestId}, textLen=${userText.length}, intent=$routedType"
+                callAiAccounting(
+                    userText,
+                    appendUserBubble = false,
+                    bookkeepingMode = AiBookkeepingMode.MULTI,
+                    preferGeneralChatWhenNoBill = true
                 )
-                if (!isActive || !canWriteForRequest(requestContext)) return@launch
-                when (routedType) {
-                    AiIntentType.BOOKKEEPING_CREATE -> callAiAccounting(
-                        userText,
-                        appendUserBubble = false,
-                        bookkeepingMode = AiBookkeepingMode.MULTI,
-                        preferGeneralChatWhenNoBill = true
-                    )
-                    AiIntentType.BOOKKEEPING_UPDATE -> callAiAccountingModify(userText)
-                    AiIntentType.BOOKKEEPING_QUERY -> handleLocalQuery(localRoute, userText, requestContext)
-                    AiIntentType.BOOKKEEPING_DELETE,
-                    AiIntentType.SESSION_UPDATE -> appendUnknownIntentReply(userText, requestContext)
-                    AiIntentType.SESSION_QUERY -> appendAiTextMessage(
-                        "会话历史可以在右侧历史面板里查询。为了安全，我不会把本地历史交给模型直接改写。",
-                        false,
-                        requestContext.bookName,
-                        requestContext.conversationId
-                    )
-                    AiIntentType.MEDIA_ANALYZE -> appendUnknownIntentReply(userText, requestContext)
-                    AiIntentType.UNKNOWN -> {
-                        if (AiIntentRouter.isHighRiskWrite(userText)) {
-                            appendUnknownIntentReply(userText, requestContext)
-                        } else {
-                            callGeneralChat(userText, historyCtx)
-                        }
-                    }
-                    AiIntentType.GENERAL_CHAT -> callGeneralChat(userText, historyCtx)
-                    AiIntentType.BOOKKEEPING,
-                    AiIntentType.MODIFY_BILL,
-                    AiIntentType.QUERY -> appendUnknownIntentReply(userText, requestContext)
-                }
             } finally {
                 isUserTextDispatching = false
                 clearActiveRequestIfMatch(requestContext)
