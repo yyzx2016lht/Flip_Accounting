@@ -70,7 +70,7 @@ object PrefsDisplaySupport {
     fun setShowBookEntry(ctx: Context, show: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_SHOW_BOOK_ENTRY, show).apply()
 
-    fun getOcrMode(ctx: Context): Int = prefs(ctx).getInt(KEY_OCR_MODE, Prefs.OCR_MODE_LOCAL)
+    fun getOcrMode(ctx: Context): Int = prefs(ctx).getInt(KEY_OCR_MODE, Prefs.OCR_MODE_MULTIMODAL)
     fun setOcrMode(ctx: Context, mode: Int) =
         prefs(ctx).edit().putInt(KEY_OCR_MODE, mode).apply()
 

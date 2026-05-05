@@ -36,13 +36,7 @@ object ReceiptOcrHelper {
         imageUri: Uri,
         onProgress: (String) -> Unit = {}
     ): String {
-        val ocrMode = Prefs.getOcrMode(ctx)
-
-        return if (ocrMode == Prefs.OCR_MODE_LOCAL) {
-            analyzeByLocalOcr(ctx, imageUri, onProgress)
-        } else {
-            analyzeByMultimodal(ctx, imageUri, onProgress)
-        }
+        return analyzeByMultimodal(ctx, imageUri, onProgress)
     }
 
     suspend fun analyzeImageByMultimodal(

@@ -387,55 +387,7 @@ class AiAssistant(private val ctx: Context) {
         if (!ensureOverlayPermission()) return
         lastReceiptImageUri = imageUri
 
-        val ocrMode = Prefs.getOcrMode(ctx)
-        if (ocrMode == Prefs.OCR_MODE_MULTIMODAL) {
-            analyzeImageMultimodal(imageUri, onResult)
-            return
-        }
-
-        val (dialog, view) = createDialog(cancelable = false)
-        currentDialog = dialog
-
-        val etInput = view.findViewById<EditText>(R.id.et_ai_input)
-        disableSelectionActionModeIfService(etInput)
-        view.findViewById<View>(R.id.btn_dialog_voice)?.let { voiceInputBtnSetup?.invoke(it) }
-
-        tvThinkingLog = view.findViewById(R.id.tv_thinking_log)
-        tvRecordedTextPreview = view.findViewById(R.id.tv_recorded_text_preview)
-
-        view.findViewById<View>(R.id.layout_input)?.visibility = View.GONE
-        view.findViewById<View>(R.id.layout_loading)?.visibility = View.VISIBLE
-        view.findViewById<View>(R.id.layout_result)?.visibility = View.GONE
-        view.findViewById<View>(R.id.btn_close)?.visibility = View.GONE
-        tvRecordedTextPreview?.visibility = View.GONE
-        tvThinkingLog?.text = "正在识别图片文字..."
-        tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
-
-        view.findViewById<View>(R.id.btn_close)?.setOnClickListener {
-            analyzeJob?.cancel()
-            dismiss()
-        }
-
-        analyzeJob = CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val summary = ReceiptOcrHelper.analyzeImage(ctx, imageUri) { progressMsg ->
-                    Handler(Looper.getMainLooper()).post {
-                        tvThinkingLog?.text = progressMsg
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    showReceiptSummary(summary, onResult)
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                withContext(Dispatchers.Main) { dismiss() }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    dismiss()
-                    Utils.toast(ctx, "解析失败: ${e.message ?: "未知错误"}")
-                }
-            }
-        }
+        analyzeImageMultimodal(imageUri, onResult)
     }
 
     private fun analyzeImageMultimodal(imageUri: Uri, onResult: (JSONObject) -> Unit) {
@@ -550,18 +502,7 @@ class AiAssistant(private val ctx: Context) {
             startAnalysis(text, true, onResult)
         }
 
-        val canRetryWithVision = lastReceiptImageUri != null && Prefs.getOcrMode(ctx) == Prefs.OCR_MODE_LOCAL
-        if (btnRetryVision != null) {
-            btnRetryVision.visibility = if (canRetryWithVision) View.VISIBLE else View.GONE
-            btnRetryVision.setOnClickListener {
-                val imageUri = lastReceiptImageUri
-                if (imageUri == null) {
-                    Utils.toast(ctx, "未找到原始图片，无法重试")
-                    return@setOnClickListener
-                }
-                retryReceiptWithVision(imageUri, onResult)
-            }
-        }
+        btnRetryVision?.visibility = View.GONE
     }
 
     private fun retryReceiptWithVision(imageUri: Uri, onResult: (JSONObject) -> Unit) {

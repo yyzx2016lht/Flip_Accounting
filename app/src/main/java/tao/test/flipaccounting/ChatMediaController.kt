@@ -429,19 +429,7 @@ class ChatMediaController(
                 if (base64.isBlank()) return@launch
                 appendUserMessage("", msgTypeUserImage, storedUri.toString())
 
-                val text = if (Prefs.getOcrMode(context) == Prefs.OCR_MODE_LOCAL) {
-                    val ocr = withContext(Dispatchers.IO) {
-                        try {
-                            ReceiptOcrHelper.runOcrOnly(context, storedUri)
-                        } catch (_: Exception) {
-                            ""
-                        }
-                    }
-                    if (ocr.isBlank()) "[MULTIMODAL_IMAGE]$base64|$mime" else "[图片OCR文本]: $ocr"
-                        .take(maxOcrCharsForRouting + "[图片OCR文本]: ".length)
-                } else {
-                    "[MULTIMODAL_IMAGE]$base64|$mime"
-                }
+                val text = "[MULTIMODAL_IMAGE]$base64|$mime"
                 callAiAccounting(text, false)
             } catch (e: Exception) {
                 appendAiTextMessage("图片处理失败，请稍后重试或换一张更清晰的图片。", false)
