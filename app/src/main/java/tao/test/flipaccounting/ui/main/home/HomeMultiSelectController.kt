@@ -43,7 +43,7 @@ internal class HomeMultiSelectController(
             val adapter = getHomeAdapter()
             val allCount = adapter.items.count { it is HomeAdapter.ListItem.Item }
             if (adapter.selectedBills.size >= allCount && allCount > 0) {
-                adapter.clearSelection()
+                adapter.deselectAll()
             } else {
                 adapter.selectAll()
             }

@@ -243,6 +243,13 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         notifyItemRangeChanged(0, items.size, PAYLOAD_MODE_CHANGE)
     }
 
+    fun deselectAll() {
+        selectedBills.clear()
+        isMultiSelectMode = true
+        onSelectionChanged?.invoke(0)
+        notifyItemRangeChanged(0, items.size, PAYLOAD_MODE_CHANGE)
+    }
+
     fun selectAll() {
         isMultiSelectMode = true
         selectedBills.clear()
@@ -284,7 +291,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         } else {
             selectedBills.removeAll(bills.toSet())
         }
-        isMultiSelectMode = selectedBills.isNotEmpty()
+        isMultiSelectMode = true
         onSelectionChanged?.invoke(selectedBills.size)
         val nextHeader = ((headerPosition + 1) until items.size).firstOrNull { items[it] is ListItem.Header } ?: items.size
         notifyItemRangeChanged(headerPosition, nextHeader - headerPosition, PAYLOAD_SELECTION_CHANGE)

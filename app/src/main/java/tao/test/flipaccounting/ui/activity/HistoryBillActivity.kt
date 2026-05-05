@@ -25,6 +25,7 @@ import tao.test.flipaccounting.data.local.AppDatabase
 import tao.test.flipaccounting.data.local.entity.Bill
 import tao.test.flipaccounting.data.local.entity.DeletedBill
 import tao.test.flipaccounting.logic.BillDisplayFormatter
+import tao.test.flipaccounting.logic.BillRestoreHelper
 import tao.test.flipaccounting.logic.CurrencyManager
 import tao.test.flipaccounting.ui.dialog.OverlayDialogs
 import tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
@@ -37,15 +38,17 @@ class HistoryBillActivity : AppCompatActivity() {
 
     private lateinit var rvDeletedBills: RecyclerView
     private lateinit var tvEmpty: TextView
+    private lateinit var header: SecondaryPageHeaderView
+    private lateinit var btnHeaderActionText: TextView
     private lateinit var layoutBottomActions: View
     private lateinit var btnRestore: TextView
     private lateinit var btnPermanentDelete: TextView
 
     private val adapter = HistoryBillAdapter()
-    private val selectedBills = mutableSetOf<DeletedBill>()
+    private val selectedDeletedBillIds = mutableSetOf<Long>()
+    private var currentDeletedBills = listOf<DeletedBill>()
     private var isSelectMode = false
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     private val headerDateFormat = SimpleDateFormat("MM.dd", Locale.getDefault())
     private val weekdayFormat = SimpleDateFormat("EEEE", Locale.CHINA)
 
@@ -59,8 +62,12 @@ class HistoryBillActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        val header: SecondaryPageHeaderView = findViewById(R.id.secondary_header)
-        header.findViewById<View>(R.id.btn_back)?.setOnClickListener { finish() }
+        header = findViewById(R.id.secondary_header)
+        btnHeaderActionText = header.findViewById(R.id.btn_header_action_text)
+        btnHeaderActionText.setOnClickListener { onHeaderActionClicked() }
+        header.findViewById<View>(R.id.btn_back)?.setOnClickListener {
+            if (hasActiveSelection()) exitSelectMode() else finish()
+        }
 
         rvDeletedBills = findViewById(R.id.rv_deleted_bills)
         tvEmpty = findViewById(R.id.tv_empty)
@@ -73,7 +80,7 @@ class HistoryBillActivity : AppCompatActivity() {
 
         adapter.onItemClick = { bill ->
             if (isSelectMode) {
-                toggleSelection(bill)
+                toggleSelection(bill.id)
             } else {
                 showBillActionDialog(bill)
             }
@@ -81,17 +88,15 @@ class HistoryBillActivity : AppCompatActivity() {
 
         adapter.onItemLongClick = { bill ->
             if (!isSelectMode) {
-                isSelectMode = true
-                selectedBills.clear()
-                selectedBills.add(bill)
-                updateUI()
+                selectedDeletedBillIds.clear()
+                enterSelectMode(bill.id)
             }
         }
     }
 
     private fun setupListeners() {
         btnRestore.setOnClickListener {
-            val billsToRestore = selectedBills.toList()
+            val billsToRestore = selectedDeletedBills()
             if (billsToRestore.isEmpty()) return@setOnClickListener
 
             showConfirmDialog(
@@ -100,27 +105,12 @@ class HistoryBillActivity : AppCompatActivity() {
                 confirmText = "确认恢复",
                 isDanger = false
             ) {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(this@HistoryBillActivity)
-                    val billDao = db.billDao()
-                    val deletedBillDao = db.deletedBillDao()
-
-                    billsToRestore.forEach { deletedBill ->
-                        billDao.insertBill(deletedBill.toBill())
-                        deletedBillDao.delete(deletedBill)
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        exitSelectMode()
-                        loadDeletedBills()
-                        Toast.makeText(this@HistoryBillActivity, "已恢复 ${billsToRestore.size} 条账单", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                restoreBills(billsToRestore)
             }
         }
 
         btnPermanentDelete.setOnClickListener {
-            val billsToDelete = selectedBills.toList()
+            val billsToDelete = selectedDeletedBills()
             if (billsToDelete.isEmpty()) return@setOnClickListener
 
             showConfirmDialog(
@@ -129,29 +119,67 @@ class HistoryBillActivity : AppCompatActivity() {
                 confirmText = "永久删除",
                 isDanger = true
             ) {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(this@HistoryBillActivity)
-                    db.deletedBillDao().delete(billsToDelete)
-                    withContext(Dispatchers.Main) {
-                        exitSelectMode()
-                        loadDeletedBills()
-                        Toast.makeText(this@HistoryBillActivity, "已永久删除 ${billsToDelete.size} 条账单", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                permanentlyDeleteBills(billsToDelete)
             }
         }
     }
 
-    private fun toggleSelection(bill: DeletedBill) {
-        if (selectedBills.contains(bill)) {
-            selectedBills.remove(bill)
-            if (selectedBills.isEmpty()) {
-                isSelectMode = false
-            }
+    private fun onHeaderActionClicked() {
+        if (!isSelectMode) {
+            enterSelectMode()
+            return
+        }
+        toggleSelectAll()
+    }
+
+    private fun selectedDeletedBills(): List<DeletedBill> {
+        return currentDeletedBills.filter { selectedDeletedBillIds.contains(it.id) }
+    }
+
+    private fun hasActiveSelection(): Boolean = isSelectMode
+
+    private fun enterSelectMode(initialBillId: Long? = null) {
+        isSelectMode = true
+        initialBillId?.let { selectedDeletedBillIds.add(it) }
+        updateUI()
+    }
+
+    private fun toggleSelection(deletedBillId: Long) {
+        if (selectedDeletedBillIds.contains(deletedBillId)) {
+            selectedDeletedBillIds.remove(deletedBillId)
         } else {
-            selectedBills.add(bill)
+            isSelectMode = true
+            selectedDeletedBillIds.add(deletedBillId)
         }
         updateUI()
+    }
+
+    private fun toggleDaySelection(dayBillIds: Set<Long>) {
+        if (dayBillIds.isEmpty()) return
+        val allSelected = dayBillIds.all { selectedDeletedBillIds.contains(it) }
+        isSelectMode = true
+        if (allSelected) {
+            selectedDeletedBillIds.removeAll(dayBillIds)
+        } else {
+            selectedDeletedBillIds.addAll(dayBillIds)
+        }
+        updateUI()
+    }
+
+    private fun toggleSelectAll() {
+        if (currentDeletedBills.isEmpty()) return
+        val allIds = currentDeletedBills.map { it.id }.toSet()
+        val allSelected = allIds.isNotEmpty() && allIds.all { selectedDeletedBillIds.contains(it) }
+        if (allSelected) {
+            selectedDeletedBillIds.clear()
+            isSelectMode = true
+            updateUI()
+        } else {
+            isSelectMode = true
+            selectedDeletedBillIds.clear()
+            selectedDeletedBillIds.addAll(allIds)
+            updateUI()
+        }
     }
 
     private fun showBillActionDialog(bill: DeletedBill) {
@@ -198,14 +226,19 @@ class HistoryBillActivity : AppCompatActivity() {
             confirmText = "确认恢复",
             isDanger = false
         ) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(this@HistoryBillActivity)
-                db.billDao().insertBill(bill.toBill())
-                db.deletedBillDao().delete(bill)
-                withContext(Dispatchers.Main) {
-                    loadDeletedBills()
-                    Toast.makeText(this@HistoryBillActivity, "已恢复账单", Toast.LENGTH_SHORT).show()
-                }
+            restoreBills(listOf(bill))
+        }
+    }
+
+    private fun restoreBills(bills: List<DeletedBill>) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@HistoryBillActivity)
+            BillRestoreHelper.restoreBills(db, bills)
+            withContext(Dispatchers.Main) {
+                exitSelectMode()
+                loadDeletedBills()
+                val tip = if (bills.size == 1) "已恢复账单" else "已恢复 ${bills.size} 条账单"
+                Toast.makeText(this@HistoryBillActivity, tip, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -217,13 +250,19 @@ class HistoryBillActivity : AppCompatActivity() {
             confirmText = "永久删除",
             isDanger = true
         ) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(this@HistoryBillActivity)
-                db.deletedBillDao().delete(bill)
-                withContext(Dispatchers.Main) {
-                    loadDeletedBills()
-                    Toast.makeText(this@HistoryBillActivity, "已永久删除账单", Toast.LENGTH_SHORT).show()
-                }
+            permanentlyDeleteBills(listOf(bill))
+        }
+    }
+
+    private fun permanentlyDeleteBills(bills: List<DeletedBill>) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@HistoryBillActivity)
+            db.deletedBillDao().delete(bills)
+            withContext(Dispatchers.Main) {
+                exitSelectMode()
+                loadDeletedBills()
+                val tip = if (bills.size == 1) "已永久删除账单" else "已永久删除 ${bills.size} 条账单"
+                Toast.makeText(this@HistoryBillActivity, tip, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -234,9 +273,14 @@ class HistoryBillActivity : AppCompatActivity() {
             val deletedBills = db.deletedBillDao().getAllDeletedBills()
             val grouped = buildGroupedItems(deletedBills)
             withContext(Dispatchers.Main) {
-                adapter.submitList(grouped, selectedBills)
-                tvEmpty.visibility = if (deletedBills.isEmpty()) View.VISIBLE else View.GONE
-                rvDeletedBills.visibility = if (deletedBills.isEmpty()) View.GONE else View.VISIBLE
+                currentDeletedBills = deletedBills
+                selectedDeletedBillIds.retainAll(deletedBills.map { it.id }.toSet())
+                if (selectedDeletedBillIds.isEmpty()) isSelectMode = false
+                adapter.submitList(grouped, selectedDeletedBillIds)
+                val isEmpty = deletedBills.isEmpty()
+                tvEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                rvDeletedBills.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                updateUI()
             }
         }
     }
@@ -244,24 +288,27 @@ class HistoryBillActivity : AppCompatActivity() {
     private fun buildGroupedItems(bills: List<DeletedBill>): List<ListItem> {
         val items = mutableListOf<ListItem>()
         val cal = Calendar.getInstance()
+        val grouped = linkedMapOf<String, MutableList<DeletedBill>>()
 
-        // 按日期分组
-        val grouped = bills.groupBy { bill ->
-            cal.timeInMillis = bill.time
-            "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}-${cal.get(Calendar.DAY_OF_MONTH)}"
+        bills.forEach { bill ->
+            cal.timeInMillis = bill.deletedAt
+            val key = "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}-${cal.get(Calendar.DAY_OF_MONTH)}"
+            grouped.getOrPut(key) { mutableListOf() }.add(bill)
         }
 
         grouped.forEach { (_, dayBills) ->
             if (dayBills.isEmpty()) return@forEach
             val firstBill = dayBills.first()
-            cal.timeInMillis = firstBill.time
-
-            val dateStr = headerDateFormat.format(Date(firstBill.time))
-            val weekdayStr = weekdayFormat.format(Date(firstBill.time))
-            val expense = dayBills.filter { it.type == Bill.TYPE_EXPENSE }.sumOf { it.amount }
-            val income = dayBills.filter { it.type == Bill.TYPE_INCOME }.sumOf { it.amount }
-
-            items.add(ListItem.Header(dateStr, weekdayStr, income, expense))
+            val deletedAt = firstBill.deletedAt
+            val dateStr = headerDateFormat.format(Date(deletedAt))
+            val weekdayStr = weekdayFormat.format(Date(deletedAt))
+            items.add(
+                ListItem.Header(
+                    dateStr = dateStr,
+                    weekdayStr = weekdayStr,
+                    billIds = dayBills.map { it.id }.toSet()
+                )
+            )
             dayBills.forEach { bill ->
                 items.add(ListItem.Item(bill))
             }
@@ -272,26 +319,53 @@ class HistoryBillActivity : AppCompatActivity() {
 
     private fun exitSelectMode() {
         isSelectMode = false
-        selectedBills.clear()
-        adapter.setSelectedBills(emptySet())
+        selectedDeletedBillIds.clear()
+        adapter.setSelectedBillIds(emptySet())
         adapter.setSelectMode(false)
-        layoutBottomActions.visibility = View.GONE
+        updateBottomActions()
+        updateHeaderUi()
     }
 
     private fun updateUI() {
-        adapter.setSelectedBills(selectedBills)
+        adapter.setSelectedBillIds(selectedDeletedBillIds)
         adapter.setSelectMode(isSelectMode)
         updateBottomActions()
+        updateHeaderUi()
     }
 
     private fun updateBottomActions() {
-        if (selectedBills.isEmpty()) {
+        if (!isSelectMode) {
             layoutBottomActions.visibility = View.GONE
         } else {
             layoutBottomActions.visibility = View.VISIBLE
-            btnRestore.text = "恢复(${selectedBills.size})"
-            btnPermanentDelete.text = "永久删除(${selectedBills.size})"
+            val hasSelection = selectedDeletedBillIds.isNotEmpty()
+            btnRestore.text = "恢复(${selectedDeletedBillIds.size})"
+            btnPermanentDelete.text = "永久删除(${selectedDeletedBillIds.size})"
+            btnRestore.isEnabled = hasSelection
+            btnPermanentDelete.isEnabled = hasSelection
+            btnRestore.alpha = if (hasSelection) 1f else 0.45f
+            btnPermanentDelete.alpha = if (hasSelection) 1f else 0.45f
         }
+    }
+
+    private fun updateHeaderUi() {
+        val hasBills = currentDeletedBills.isNotEmpty()
+        if (!hasBills) {
+            header.setTitle("回收站")
+            header.setActionText(null)
+            return
+        }
+
+        if (!isSelectMode) {
+            header.setTitle("回收站")
+            header.setActionText("选择")
+            return
+        }
+
+        val allIds = currentDeletedBills.map { it.id }.toSet()
+        val allSelected = allIds.isNotEmpty() && allIds.all { selectedDeletedBillIds.contains(it) }
+        header.setTitle("已选择 ${selectedDeletedBillIds.size} 项")
+        header.setActionText(if (allSelected) "取消全选" else "全选")
     }
 
     private fun showConfirmDialog(
@@ -334,54 +408,35 @@ class HistoryBillActivity : AppCompatActivity() {
         )
     }
 
-    // 扩展函数：DeletedBill -> Bill
-    private fun DeletedBill.toBill(): Bill {
-        return Bill(
-            type = type,
-            subType = subType,
-            amount = amount,
-            originalAmount = originalAmount,
-            currency = currency,
-            exchangeRate = exchangeRate,
-            categoryId = categoryId,
-            accountId = accountId,
-            toAccountId = toAccountId,
-            categoryName = categoryName,
-            accountName = accountName,
-            toAccountName = toAccountName,
-            time = time,
-            remark = remark,
-            fee = fee,
-            bookName = bookName,
-            relatedBillId = relatedBillId,
-            excludeFromStats = excludeFromStats
-        )
+    override fun onBackPressed() {
+        if (hasActiveSelection()) {
+            exitSelectMode()
+            return
+        }
+        super.onBackPressed()
     }
 
-    // 列表项类型
     sealed class ListItem {
         data class Header(
             val dateStr: String,
             val weekdayStr: String,
-            val income: Double,
-            val expense: Double
+            val billIds: Set<Long>
         ) : ListItem()
 
         data class Item(val bill: DeletedBill) : ListItem()
     }
 
-    // Adapter
     inner class HistoryBillAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var items = listOf<ListItem>()
         private var selectMode = false
-        private var selectedItems = setOf<DeletedBill>()
+        private var selectedIds = setOf<Long>()
 
         var onItemClick: ((DeletedBill) -> Unit)? = null
         var onItemLongClick: ((DeletedBill) -> Unit)? = null
 
-        fun submitList(newItems: List<ListItem>, selected: Set<DeletedBill>) {
+        fun submitList(newItems: List<ListItem>, selected: Set<Long>) {
             items = newItems
-            selectedItems = selected
+            selectedIds = selected.toSet()
             notifyDataSetChanged()
         }
 
@@ -390,8 +445,8 @@ class HistoryBillActivity : AppCompatActivity() {
             notifyDataSetChanged()
         }
 
-        fun setSelectedBills(selected: Set<DeletedBill>) {
-            selectedItems = selected
+        fun setSelectedBillIds(selected: Set<Long>) {
+            selectedIds = selected.toSet()
             notifyDataSetChanged()
         }
 
@@ -431,35 +486,16 @@ class HistoryBillActivity : AppCompatActivity() {
 
             fun bind(header: ListItem.Header) {
                 tvDate.text = "${header.dateStr} ${header.weekdayStr}"
-
-                val summary = buildString {
-                    if (header.income > 0) append("收:${CurrencyManager.getSymbol("CNY")}${String.format("%.2f", header.income)}")
-                    if (header.income > 0 && header.expense > 0) append(" ")
-                    if (header.expense > 0) append("支:${CurrencyManager.getSymbol("CNY")}${String.format("%.2f", header.expense)}")
-                }
-                tvSummary.text = summary
+                tvSummary.visibility = View.GONE
 
                 cbSelectDay.visibility = if (selectMode) View.VISIBLE else View.GONE
-                // 获取该日期下的所有账单
-                val headerPos = adapterPosition
-                val dayBills = mutableListOf<DeletedBill>()
-                for (i in (headerPos + 1) until items.size) {
-                    val item = items[i]
-                    if (item is ListItem.Item) {
-                        dayBills.add(item.bill)
-                    } else {
-                        break
-                    }
-                }
-                val allSelected = dayBills.isNotEmpty() && dayBills.all { selectedItems.contains(it) }
+                val allSelected = header.billIds.isNotEmpty() && header.billIds.all { selectedIds.contains(it) }
                 cbSelectDay.isChecked = allSelected
+                itemView.setOnClickListener {
+                    if (selectMode) toggleDaySelection(header.billIds)
+                }
                 cbSelectDay.setOnClickListener {
-                    if (allSelected) {
-                        selectedBills.removeAll(dayBills.toSet())
-                    } else {
-                        selectedBills.addAll(dayBills)
-                    }
-                    updateUI()
+                    toggleDaySelection(header.billIds)
                 }
             }
         }
@@ -477,10 +513,8 @@ class HistoryBillActivity : AppCompatActivity() {
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER
                 val isRefund = bill.subType == Bill.SUBTYPE_REFUND
 
-                // 设置无圆角背景
                 itemView.setBackgroundResource(R.drawable.bg_history_bill_item)
 
-                // 分类名
                 val categoryName = when {
                     isTransfer -> "转账"
                     bill.categoryName.isBlank() -> "未分类"
@@ -488,14 +522,12 @@ class HistoryBillActivity : AppCompatActivity() {
                 }
                 tvCategory.text = categoryName
 
-                // 详情
                 val detail = buildString {
                     append(bill.accountName)
                     if (bill.remark.isNotBlank()) append(" | ${bill.remark}")
                 }
                 tvDetail.text = detail
 
-                // 金额
                 val symbol = CurrencyManager.getSymbol(bill.currency)
                 val amountText = when {
                     isRefund -> "$symbol${String.format("%.2f", bill.amount)}"
@@ -513,11 +545,9 @@ class HistoryBillActivity : AppCompatActivity() {
                 }
                 tvAmount.setTextColor(amountColor)
 
-                // 资产信息
                 tvAsset.text = bill.accountName
                 tvAsset.visibility = View.VISIBLE
 
-                // 图标
                 val iconColor = when {
                     isRefund -> Color.parseColor("#9E9E9E")
                     bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#FF5252")
@@ -525,15 +555,8 @@ class HistoryBillActivity : AppCompatActivity() {
                     else -> Color.parseColor("#9E9E9E")
                 }
                 ivIcon.setColorFilter(iconColor)
-                layoutIcon.setBackgroundResource(
-                    when (bill.type) {
-                        Bill.TYPE_EXPENSE -> R.drawable.bg_home_transaction_icon_refined
-                        Bill.TYPE_INCOME -> R.drawable.bg_home_transaction_icon_refined
-                        else -> R.drawable.bg_home_transaction_icon_refined
-                    }
-                )
+                layoutIcon.setBackgroundResource(R.drawable.bg_home_transaction_icon_refined)
 
-                // 加载图标
                 val lookupName = if (isRefund) categoryName else bill.categoryName
                 val lookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
                 ivIcon.setImageResource(R.mipmap.ic_launcher)
@@ -551,11 +574,9 @@ class HistoryBillActivity : AppCompatActivity() {
                     }
                 }
 
-                // 选择模式
                 cbSelect.visibility = if (selectMode) View.VISIBLE else View.GONE
-                cbSelect.isChecked = selectedItems.contains(bill)
+                cbSelect.isChecked = selectedIds.contains(bill.id)
 
-                // 点击事件
                 itemView.setOnClickListener {
                     onItemClick?.invoke(bill)
                 }

@@ -143,7 +143,7 @@ class BillSearchActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_ms_select_all).setOnClickListener {
             val allCount = adapter.items.count { it is HomeAdapter.ListItem.Item }
             if (allCount > 0 && adapter.selectedBills.size >= allCount) {
-                adapter.clearSelection()
+                adapter.deselectAll()
             } else {
                 adapter.selectAll()
             }

@@ -268,7 +268,7 @@ class AssetDetailActivity : AppCompatActivity() {
         btnMsSelectAll.setOnClickListener {
             val allCount = adapter.getSelectableBills().size
             if (allCount > 0 && adapter.selectedBills.size >= allCount) {
-                adapter.clearSelection()
+                adapter.deselectAll()
             } else {
                 adapter.selectAll()
             }
@@ -326,10 +326,15 @@ class AssetDetailActivity : AppCompatActivity() {
     }
 
     private fun updateDetailMultiSelectUi(selectedCount: Int) {
-        val active = selectedCount > 0 && adapter.isMultiSelectMode
+        val active = adapter.isMultiSelectMode
         layoutMultiSelectActions.visibility = if (active) View.VISIBLE else View.GONE
+        val hasSelection = selectedCount > 0
         btnMsCancel.text = "退出多选"
         btnMsDelete.text = if (selectedCount > 0) "删除($selectedCount)" else "删除"
+        btnMsDelete.isEnabled = hasSelection
+        btnMsMove.isEnabled = hasSelection
+        btnMsDelete.alpha = if (hasSelection) 1f else 0.45f
+        btnMsMove.alpha = if (hasSelection) 1f else 0.45f
         if (active) {
             hideAssetDetailFab()
         } else {
@@ -622,7 +627,7 @@ class AssetDetailActivity : AppCompatActivity() {
             }
             val availableIds = rows.mapNotNull { (it as? BillRow)?.bill?.id }.toSet()
             selectedBills.removeAll { it.id !in availableIds }
-            if (selectedBills.isEmpty()) {
+            if (getSelectableBills().isEmpty()) {
                 isMultiSelectMode = false
             }
             onSelectionChanged?.invoke(selectedBills.size)
@@ -644,6 +649,13 @@ class AssetDetailActivity : AppCompatActivity() {
         fun clearSelection() {
             selectedBills.clear()
             isMultiSelectMode = false
+            onSelectionChanged?.invoke(0)
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
+        }
+
+        fun deselectAll() {
+            isMultiSelectMode = true
+            selectedBills.clear()
             onSelectionChanged?.invoke(0)
             notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
         }
@@ -684,13 +696,12 @@ class AssetDetailActivity : AppCompatActivity() {
             } else {
                 selectedBills.removeAll(bills.toSet())
             }
-            isMultiSelectMode = selectedBills.isNotEmpty()
+            isMultiSelectMode = true
             onSelectionChanged?.invoke(selectedBills.size)
             val nextHeader = ((headerPosition + 1) until rows.size)
                 .firstOrNull { rows[it] is MonthHeaderRow || rows[it] is BalanceHeaderRow }
                 ?: rows.size
             notifyItemRangeChanged(headerPosition, nextHeader - headerPosition, PAYLOAD_SELECTION_CHANGE)
-            if (!isMultiSelectMode) notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
         }
 
         override fun getItemViewType(position: Int): Int {
@@ -1006,15 +1017,10 @@ class AssetDetailActivity : AppCompatActivity() {
                         } else {
                             selectedBills.add(bill)
                         }
-                        if (selectedBills.isEmpty()) {
-                            isMultiSelectMode = false
-                            notifyItemRangeChanged(0, itemCount, PAYLOAD_MODE_CHANGE)
-                        } else {
-                            val pos = adapterPosition
-                            if (pos != RecyclerView.NO_POSITION) {
-                                notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
-                                updateSectionHeaderNear(pos)
-                            }
+                        val pos = adapterPosition
+                        if (pos != RecyclerView.NO_POSITION) {
+                            notifyItemChanged(pos, PAYLOAD_SELECTION_CHANGE)
+                            updateSectionHeaderNear(pos)
                         }
                         onSelectionChanged?.invoke(selectedBills.size)
                     } else {
@@ -1140,4 +1146,3 @@ class AssetDetailActivity : AppCompatActivity() {
     private fun buildCrossCurrencyDetailFormula(bill: Bill, targetCurrency: String = "CNY"): String? =
         BillDisplayFormatter.buildCrossCurrencyDetailFormula(bill, targetCurrency)
 }
-

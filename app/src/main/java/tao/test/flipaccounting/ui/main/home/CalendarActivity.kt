@@ -266,11 +266,9 @@ class CalendarActivity : AppCompatActivity() {
         btnMsSelectAll.setOnClickListener {
             val allItems = dailyAdapter.items.mapNotNull { if (it is HomeAdapter.ListItem.Item) it.displayBill.bill else null }.toSet()
             if (dailyAdapter.selectedBills.size == allItems.size) {
-                dailyAdapter.clearSelection()
+                dailyAdapter.deselectAll()
             } else {
-                dailyAdapter.selectedBills.addAll(allItems)
-                dailyAdapter.notifyDataSetChanged()
-                dailyAdapter.onSelectionChanged?.invoke(dailyAdapter.selectedBills.size)
+                dailyAdapter.selectAll()
             }
         }
         btnMsDelete.setOnClickListener {
