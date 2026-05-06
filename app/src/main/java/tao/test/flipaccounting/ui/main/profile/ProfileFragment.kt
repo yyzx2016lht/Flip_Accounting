@@ -35,6 +35,7 @@ import android.view.ViewTreeObserver
 import com.google.android.material.appbar.AppBarLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.core.widget.NestedScrollView
 import com.yalantis.ucrop.UCrop
 import java.io.File
@@ -69,9 +70,28 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         checkAndRequestPermissions()
         setupMainSettings(view)
+        setupProfileInsets(view)
 
         // ── 诊断日志：追踪 AppBarLayout 高度/padding 变化 ──
         startProfileLayoutDiagnostic(view)
+    }
+
+    private fun setupProfileInsets(root: View) {
+        val statusSpacer = root.findViewById<View>(R.id.view_profile_status_spacer)
+        val scroll = findProfileScrollContainer(root)
+        val baseScrollBottom = scroll?.paddingBottom ?: 0
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val statusTop = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            statusSpacer?.let { spacer ->
+                spacer.layoutParams = spacer.layoutParams.apply {
+                    height = statusTop.coerceAtLeast((24f * resources.displayMetrics.density).toInt())
+                }
+            }
+            scroll?.updatePadding(bottom = baseScrollBottom + navBottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
     }
 
     override fun onResume() {

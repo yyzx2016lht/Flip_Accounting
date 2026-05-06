@@ -127,6 +127,14 @@ class ChatAdapter(
                     layoutVoice.visibility = View.GONE
                     layoutVoiceTranscript.visibility = View.GONE
                     ivImage.visibility = View.VISIBLE
+                    val density = itemView.resources.displayMetrics.density
+                    val maxWidth = (200f * density).toInt()
+                    val adaptiveWidth = (itemView.resources.displayMetrics.widthPixels * 0.56f).toInt()
+                    val imageWidth = minOf(maxWidth, adaptiveWidth).coerceAtLeast((144f * density).toInt())
+                    ivImage.layoutParams = ivImage.layoutParams.apply {
+                        width = imageWidth
+                        height = (imageWidth * 0.75f).toInt()
+                    }
                     Glide.with(itemView.context)
                         .load(Uri.parse(item.imageUri))
                         .diskCacheStrategy(DiskCacheStrategy.NONE)

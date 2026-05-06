@@ -39,7 +39,7 @@ import java.util.Locale
 
 class OverlayManager(private val ctx: Context) {
     companion object {
-        private const val OVERLAY_FINAL_Y = 150
+        private const val OVERLAY_FINAL_Y_DP = 48f
         private const val OVERLAY_ENTER_DURATION_MS = 285L
         private const val OVERLAY_EXIT_DURATION_MS = 190L
         private const val OVERLAY_VISIBILITY_DURATION_MS = 170L
@@ -63,6 +63,16 @@ class OverlayManager(private val ctx: Context) {
     private var isRemovingOverlay = false
     private var currentAnimator: Animator? = null
     private var currentViewAnimator: ViewPropertyAnimator? = null
+
+    private fun navigationBarHeight(): Int {
+        val res = ctx.resources
+        val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (id > 0) res.getDimensionPixelSize(id) else 0
+    }
+
+    private fun overlayFinalY(): Int {
+        return (OVERLAY_FINAL_Y_DP * ctx.resources.displayMetrics.density).toInt() + navigationBarHeight()
+    }
 
     private var captureLoadingView: View? = null
     private var captureLoadingParams: WindowManager.LayoutParams? = null
@@ -163,7 +173,7 @@ class OverlayManager(private val ctx: Context) {
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             format = PixelFormat.TRANSLUCENT
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = OVERLAY_FINAL_Y
+            y = overlayFinalY()
             windowAnimations = 0
         }
 
@@ -173,7 +183,7 @@ class OverlayManager(private val ctx: Context) {
         val enterOffsetPx = OVERLAY_ENTER_TRANSLATION_DP * ctx.resources.displayMetrics.density
 
         // addView 前设置初始态，避免首帧闪烁
-        overlayParams!!.y = OVERLAY_FINAL_Y
+        overlayParams!!.y = overlayFinalY()
         view.translationY = enterOffsetPx
         view.alpha = 0f
         view.scaleX = OVERLAY_ENTER_SCALE
@@ -480,7 +490,7 @@ class OverlayManager(private val ctx: Context) {
         val view = overlayView ?: return
         cancelOverlayAnimations(view)
         if (visible) {
-            overlayParams?.y = OVERLAY_FINAL_Y
+            overlayParams?.y = overlayFinalY()
             runCatching { overlayParams?.let { windowManager?.updateViewLayout(view, it) } }
             view.visibility = View.VISIBLE
             if (view.alpha >= 0.98f && view.scaleX >= 0.995f) {

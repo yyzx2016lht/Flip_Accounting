@@ -579,7 +579,7 @@ class AiAssistant(private val ctx: Context) {
             setWindowAnimations(R.style.Animation_FlipAccounting_DialogSoft)
             setDimAmount(0.34f)
             setGravity(Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM)
-            attributes.y = (120 * ctx.resources.displayMetrics.density).toInt()
+            attributes.y = (72 * ctx.resources.displayMetrics.density).toInt() + navigationBarHeight()
             setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
@@ -598,6 +598,12 @@ class AiAssistant(private val ctx: Context) {
         }
 
         return dialog to view
+    }
+
+    private fun navigationBarHeight(): Int {
+        val res = ctx.resources
+        val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (id > 0) res.getDimensionPixelSize(id) else 0
     }
 
     private fun stopFlipIfNeeded() {

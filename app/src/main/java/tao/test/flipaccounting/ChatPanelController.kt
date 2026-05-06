@@ -91,6 +91,10 @@ class ChatPanelController(
         )
         rv.layoutManager = LinearLayoutManager(context)
         rv.adapter = modelAdapter
+        rv.layoutParams = rv.layoutParams.apply {
+            val maxHeight = (context.resources.displayMetrics.heightPixels * 0.42f).toInt()
+            height = if (height > 0) minOf(height, maxHeight) else maxHeight
+        }
 
         fun filter(kw: String) {
             val list = if (kw.isBlank()) allModels else allModels.filter { it.contains(kw, ignoreCase = true) }

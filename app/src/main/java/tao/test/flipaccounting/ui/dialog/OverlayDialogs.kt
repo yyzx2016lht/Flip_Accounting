@@ -43,11 +43,24 @@ object OverlayDialogs {
     private fun setExactVisibleRowsHeight(target: View, rowHeight: Int, rows: Int = 4) {
         if (rowHeight <= 0) return
         val lp = target.layoutParams ?: return
-        val desired = rowHeight * rows
+        val maxPickerHeight = (target.resources.displayMetrics.heightPixels * 0.46f).toInt()
+        val desired = (rowHeight * rows).coerceAtMost(maxPickerHeight)
         if (lp.height != desired) {
             lp.height = desired
             target.layoutParams = lp
         }
+    }
+
+    private fun navigationBarHeight(ctx: Context): Int {
+        val res = ctx.resources
+        val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (id > 0) res.getDimensionPixelSize(id) else 0
+    }
+
+    private fun bottomDialogYOffset(ctx: Context, legacyYOffset: Int): Int {
+        if (legacyYOffset <= 0) return legacyYOffset
+        val baseOffset = (48f * ctx.resources.displayMetrics.density).toInt()
+        return baseOffset + navigationBarHeight(ctx)
     }
 
     private fun loadSafeCategoryIcon(ctx: Context, icon: String, imageView: ImageView) {
@@ -160,10 +173,15 @@ object OverlayDialogs {
                 window.decorView.setPadding(0, 0, 0, 0)
             }
             val width = (ctx.resources.displayMetrics.widthPixels * widthRatio).toInt()
+            val resolvedY = if (gravity and Gravity.BOTTOM == Gravity.BOTTOM) {
+                bottomDialogYOffset(ctx, y)
+            } else {
+                y
+            }
             window.attributes = window.attributes.apply {
                 this.width = width
                 this.height = height
-                this.y = y
+                this.y = resolvedY
             }
         }
     }

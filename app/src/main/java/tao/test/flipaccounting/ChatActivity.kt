@@ -572,6 +572,7 @@ class ChatActivity : AppCompatActivity() {
         bottomBar = findViewById(R.id.layout_chat_bottom)
         drawerSessions = findViewById(R.id.drawer_chat_sessions)
         drawerContainer = findViewById(R.id.layout_session_drawer_container)
+        applySessionDrawerAdaptiveWidth()
         etSessionSearch = findViewById(R.id.et_session_search)
         btnNewSession = findViewById(R.id.btn_new_session)
         btnReplyStyle = findViewById(R.id.btn_reply_style)
@@ -589,6 +590,17 @@ class ChatActivity : AppCompatActivity() {
         tvVoiceSelectionCount = findViewById(R.id.tv_voice_selection_count)
         btnVoiceSelectionCancel = findViewById(R.id.btn_voice_selection_cancel)
         btnVoiceSelectionDelete = findViewById(R.id.btn_voice_selection_delete)
+    }
+
+    private fun applySessionDrawerAdaptiveWidth() {
+        val density = resources.displayMetrics.density
+        val maxWidth = (328f * density).roundToInt()
+        val screenWidth = resources.displayMetrics.widthPixels
+        val sideGap = (48f * density).roundToInt()
+        val targetWidth = minOf(maxWidth, screenWidth - sideGap).coerceAtLeast((272f * density).roundToInt())
+        drawerContainer.updateLayoutParams<ViewGroup.LayoutParams> {
+            width = targetWidth.coerceAtMost(screenWidth)
+        }
     }
 
     private fun setupToolbar() {

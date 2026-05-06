@@ -281,8 +281,9 @@ class HomeFragment : Fragment() {
         btnEmptyAddBill = view.findViewById(R.id.btnEmptyAddBill)
         swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout)
         drawerBooks = view.findViewById(R.id.drawerBooks)
-    layoutBookDrawer = view.findViewById(R.id.layoutBookDrawer)
-    bookDrawerBasePaddingBottom = layoutBookDrawer.paddingBottom
+        layoutBookDrawer = view.findViewById(R.id.layoutBookDrawer)
+        applyBookDrawerAdaptiveWidth()
+        bookDrawerBasePaddingBottom = layoutBookDrawer.paddingBottom
 
         tvMonthExpense = view.findViewById(R.id.tvMonthExpense)
         tvMonthExpenseLabel = view.findViewById(R.id.tvMonthExpenseLabel)
@@ -464,7 +465,7 @@ class HomeFragment : Fragment() {
         setupMultiSelectActions()
         setupMultiSelectActionsBottomOffset()
         setupBookDrawer()
-    setupBookDrawerImeInsets()
+        setupBookDrawerImeInsets()
         setupBannerLongPress()
 
         // 空状态"记一笔"按钮：复用 FAB 的添加账单入口
@@ -704,6 +705,27 @@ class HomeFragment : Fragment() {
         if (::drawerBooks.isInitialized && drawerBooks.isDrawerOpen(GravityCompat.START)) {
             drawerBooks.closeDrawer(GravityCompat.START)
         }
+    }
+
+    private fun applyBookDrawerAdaptiveWidth() {
+        val density = resources.displayMetrics.density
+        val screenWidth = resources.displayMetrics.widthPixels
+        val maxWidth = (312f * density).toInt()
+        val sideGap = (48f * density).toInt()
+        val minWidth = (272f * density).toInt()
+        val targetWidth = min(maxWidth, screenWidth - sideGap).coerceAtLeast(min(minWidth, screenWidth))
+        val lp = layoutBookDrawer.layoutParams ?: return
+        if (lp.width != targetWidth) {
+            lp.width = targetWidth
+            layoutBookDrawer.layoutParams = lp
+        }
+    }
+
+    fun shouldShowHomeFab(): Boolean {
+        return ::layoutEmptyView.isInitialized &&
+            layoutEmptyView.visibility != View.VISIBLE &&
+            !isBookDrawerOpen() &&
+            !isMultiSelectModeActive
     }
 
     private fun updateMonthSelectorText() {

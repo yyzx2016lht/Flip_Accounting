@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager.BadTokenException
 import android.widget.ImageView
 import android.widget.TextView
@@ -34,6 +35,13 @@ object ElegantDatePickerSheet {
     ) {
         val dialog = BottomSheetDialog(context)
         val view = LayoutInflater.from(context).inflate(R.layout.layout_elegant_date_picker, null)
+        val baseBottomPadding = view.paddingBottom
+        view.setPadding(
+            view.paddingLeft,
+            view.paddingTop,
+            view.paddingRight,
+            baseBottomPadding + navigationBarHeight(context)
+        )
         val calendarView = view.findViewById<com.kizitonwose.calendar.view.CalendarView>(R.id.calendar_picker_view)
         val tvMonthTitle = view.findViewById<TextView>(R.id.tv_calendar_month_title)
         val btnPrev = view.findViewById<ImageView>(R.id.btn_calendar_prev_month)
@@ -154,10 +162,22 @@ object ElegantDatePickerSheet {
             )
             if (bottomSheetId == 0) return@setOnShowListener
             val bottomSheet = dialog.findViewById<View>(bottomSheetId) ?: return@setOnShowListener
-            BottomSheetBehavior.from(bottomSheet).apply {
+            val behavior = BottomSheetBehavior.from(bottomSheet)
+            val maxHeight = (context.resources.displayMetrics.heightPixels * 0.88f).toInt()
+            behavior.apply {
                 skipCollapsed = true
                 isFitToContents = true
                 state = BottomSheetBehavior.STATE_EXPANDED
+            }
+            bottomSheet.post {
+                val contentHeight = (bottomSheet as? ViewGroup)?.getChildAt(0)?.measuredHeight
+                    ?: bottomSheet.measuredHeight
+                val desiredHeight = minOf(contentHeight, maxHeight).coerceAtLeast(1)
+                bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
+                    height = desiredHeight
+                }
+                bottomSheet.requestLayout()
+                behavior.peekHeight = desiredHeight
             }
         }
         try {
@@ -173,6 +193,12 @@ object ElegantDatePickerSheet {
 
     private fun LocalDate.toEpochMillis(zoneId: ZoneId): Long {
         return atStartOfDay(zoneId).toInstant().toEpochMilli()
+    }
+
+    private fun navigationBarHeight(context: Context): Int {
+        val res = context.resources
+        val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (id > 0) res.getDimensionPixelSize(id) else 0
     }
 
     private fun DayOfWeek.toCnWeekLabel(): String {

@@ -272,7 +272,7 @@ internal class HomeBookDrawerController(
             val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
             val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             val imeExtra = max(0, imeBottom - navBottom)
-            v.updatePadding(bottom = bookDrawerBasePaddingBottom + imeExtra)
+            v.updatePadding(bottom = bookDrawerBasePaddingBottom + navBottom + imeExtra)
             rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
             insets
         }

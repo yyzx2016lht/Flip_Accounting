@@ -93,6 +93,28 @@ class SubCategoryBottomSheet(
         return root
     }
 
+    override fun onStart() {
+        super.onStart()
+        val dialog = dialog as? BottomSheetDialog ?: return
+        val sheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet) ?: return
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.88f).toInt()
+        BottomSheetBehavior.from(sheet).apply {
+            peekHeight = maxHeight
+            skipCollapsed = true
+            isFitToContents = true
+            state = BottomSheetBehavior.STATE_EXPANDED
+        }
+        sheet.post {
+            val contentHeight = (sheet as? ViewGroup)?.getChildAt(0)?.measuredHeight
+                ?: sheet.measuredHeight
+            val desiredHeight = minOf(contentHeight, maxHeight).coerceAtLeast(1)
+            sheet.layoutParams = sheet.layoutParams.apply {
+                height = desiredHeight
+            }
+            sheet.requestLayout()
+        }
+    }
+
     private fun setupPieChart(pieChart: PieChart) {
         pieChart.description.isEnabled = false
         pieChart.legend.isEnabled = false

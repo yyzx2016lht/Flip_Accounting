@@ -8,6 +8,7 @@ import android.content.Intent
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.view.VelocityTracker
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
@@ -15,6 +16,9 @@ import android.view.animation.AccelerateInterpolator
 import android.widget.FrameLayout
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -175,6 +179,9 @@ class MainActivity : AppCompatActivity() {
     private var fabApp: FloatingActionButton? = null
     private var bottomNavigationView: BottomNavigationView? = null
     private lateinit var swipeContainer: SwipeFrameLayout
+    private var bottomNavBasePaddingBottom = 0
+    private var fabBaseBottomMargin = 0
+    private var navBarBottomInset = 0
 
     /**
      * 跨 HomeFragment 重建共享的 RecycledViewPool。
@@ -218,6 +225,10 @@ class MainActivity : AppCompatActivity() {
         bottomNavigationView = findViewById(R.id.bottom_navigation)
         fabApp = findViewById(R.id.fab_add)
         swipeContainer = findViewById(R.id.fragment_container)
+        bottomNavBasePaddingBottom = bottomNavigationView?.paddingBottom ?: 0
+        fabBaseBottomMargin =
+            (fabApp?.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin ?: 0
+        setupMainWindowInsets()
         refreshBottomNavigationTabs(ensureValidSelection = false)
 
         minFlingVelocity = ViewConfiguration.get(this).scaledMinimumFlingVelocity
@@ -434,6 +445,38 @@ class MainActivity : AppCompatActivity() {
             if (homeVisible) fab.show() else fab.hide()
         } else {
             fab.hide()
+        }
+    }
+
+    private fun setupMainWindowInsets() {
+        val bottomNav = bottomNavigationView ?: return
+        ViewCompat.setOnApplyWindowInsetsListener(bottomNav) { view, insets ->
+            navBarBottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            view.updatePadding(bottom = bottomNavBasePaddingBottom + navBarBottomInset)
+            updateMainBottomOffsets()
+            insets
+        }
+        bottomNav.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateMainBottomOffsets()
+        }
+        ViewCompat.requestApplyInsets(bottomNav)
+    }
+
+    private fun updateMainBottomOffsets() {
+        val bottomNav = bottomNavigationView ?: return
+        val bottomNavHeight = bottomNav.height.takeIf { it > 0 } ?: return
+        val containerLp = swipeContainer.layoutParams as? ViewGroup.MarginLayoutParams
+        if (containerLp != null && containerLp.bottomMargin != bottomNavHeight) {
+            containerLp.bottomMargin = bottomNavHeight
+            swipeContainer.layoutParams = containerLp
+        }
+        val fab = fabApp ?: return
+        val fabLp = fab.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+        val spacingAboveNav = (24f * resources.displayMetrics.density).toInt()
+        val desiredMargin = bottomNavHeight + spacingAboveNav
+        if (fabLp.bottomMargin != desiredMargin) {
+            fabLp.bottomMargin = desiredMargin.coerceAtLeast(fabBaseBottomMargin + navBarBottomInset)
+            fab.layoutParams = fabLp
         }
     }
 

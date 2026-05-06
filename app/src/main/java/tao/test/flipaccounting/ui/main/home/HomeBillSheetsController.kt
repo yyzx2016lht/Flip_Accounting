@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -563,6 +564,17 @@ internal class HomeBillSheetsController(
             val bottomSheetView =
                 bsDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet) ?: return@setOnShowListener
             val behavior = BottomSheetBehavior.from(bottomSheetView)
+            val maxHeight = (fragment.resources.displayMetrics.heightPixels * 0.88f).toInt()
+            bottomSheetView.post {
+                val contentHeight = (bottomSheetView as? ViewGroup)?.getChildAt(0)?.measuredHeight
+                    ?: bottomSheetView.measuredHeight
+                val desiredHeight = minOf(contentHeight, maxHeight).coerceAtLeast(1)
+                bottomSheetView.layoutParams = bottomSheetView.layoutParams.apply {
+                    height = desiredHeight
+                }
+                bottomSheetView.requestLayout()
+                behavior.peekHeight = desiredHeight
+            }
             behavior.isFitToContents = true
             behavior.skipCollapsed = true
             behavior.isHideable = true
