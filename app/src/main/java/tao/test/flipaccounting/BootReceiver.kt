@@ -29,10 +29,14 @@ class BootReceiver : BroadcastReceiver() {
 
             // 发一个 Intent，让 OverlayService 在 onCreate 中自行从 Prefs 恢复检测
             val serviceIntent = Intent(context, OverlayService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "start OverlayService failed: ${e.message}")
             }
         }
     }

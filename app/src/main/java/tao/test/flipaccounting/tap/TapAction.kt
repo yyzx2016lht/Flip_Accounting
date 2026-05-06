@@ -2,6 +2,7 @@ package tao.test.flipaccounting.tap
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import tao.test.flipaccounting.OverlayService
 
 interface TapAction {
@@ -34,7 +35,11 @@ class ShowOverlayAction : TapAction {
         val intent = Intent(context, OverlayService::class.java).apply {
             action = OverlayService.ACTION_SHOW_OVERLAY
         }
-        context.startService(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
     }
 }
 
@@ -46,7 +51,7 @@ class OpenAiChatAction : TapAction {
         val intent = Intent(context, OverlayService::class.java).apply {
             action = OverlayService.ACTION_SHOW_AI_INPUT
         }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)
         } else {
             context.startService(intent)

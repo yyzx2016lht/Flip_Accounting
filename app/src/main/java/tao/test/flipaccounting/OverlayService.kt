@@ -510,13 +510,22 @@ class OverlayService : Service() {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val pi = buildRestartIntent()
             val triggerAt = System.currentTimeMillis() + delayMs
-            // setExact 在 Doze 下可能延迟，但这正是我们想要的：
-            // 屏幕亮起系统退出 Doze 后自然触发，不打扰深度休眠
-            am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi)
-            Logger.d(this, "OverlayService", "Restart alarm set in ${delayMs / 1000}s")
+            if (canScheduleExactRestart(am)) {
+                // setExact 在 Doze 下可能延迟，但这正是我们想要的：
+                // 屏幕亮起系统退出 Doze 后自然触发，不打扰深度休眠
+                am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                Logger.d(this, "OverlayService", "Exact restart alarm set in ${delayMs / 1000}s")
+            } else {
+                am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                Logger.d(this, "OverlayService", "Inexact restart alarm set in ${delayMs / 1000}s")
+            }
         } catch (e: Exception) {
             Logger.d(this, "OverlayService", "scheduleRestart failed: ${e.message}")
         }
+    }
+
+    private fun canScheduleExactRestart(alarmManager: AlarmManager): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
     }
 
     private fun cancelRestart() {
