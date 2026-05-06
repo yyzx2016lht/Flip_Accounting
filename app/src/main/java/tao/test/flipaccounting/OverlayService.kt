@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.hardware.SensorManager
 import android.os.*
@@ -541,6 +542,39 @@ class OverlayService : Service() {
     private fun isScreenInteractive(): Boolean {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) pm.isInteractive else pm.isScreenOn
+    }
+
+    fun enterMicrophoneMode(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+
+        return try {
+            startForeground(
+                NOTIF_ID,
+                buildNotification("录音中..."),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+            Logger.d(this, "OverlayService", "enterMicrophoneMode: switched to MICROPHONE|SPECIAL_USE")
+            true
+        } catch (e: Exception) {
+            Logger.d(this, "OverlayService", "enterMicrophoneMode failed: ${e.message}")
+            false
+        }
+    }
+
+    fun exitMicrophoneMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            try {
+                startForeground(
+                    NOTIF_ID,
+                    buildNotification("记账助手正在后台运行"),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+                Logger.d(this, "OverlayService", "exitMicrophoneMode: reverted to SPECIAL_USE")
+            } catch (e: Exception) {
+                Logger.d(this, "OverlayService", "exitMicrophoneMode failed: ${e.message}")
+            }
+        }
     }
 
     private fun stopSelfIfIdle(reason: String) {

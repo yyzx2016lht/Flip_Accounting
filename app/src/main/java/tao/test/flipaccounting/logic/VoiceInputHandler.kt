@@ -2,6 +2,7 @@ package tao.test.flipaccounting.logic
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -19,6 +20,7 @@ import tao.test.flipaccounting.AIService
 import tao.test.flipaccounting.AiAssistant
 import tao.test.flipaccounting.LocalAsrService
 import tao.test.flipaccounting.Logger
+import tao.test.flipaccounting.PermissionRequestActivity
 import tao.test.flipaccounting.Prefs
 import tao.test.flipaccounting.Utils
 import java.io.File
@@ -28,7 +30,9 @@ import java.io.IOException
 class VoiceInputHandler(
     private val ctx: Context,
     private val aiAssistant: AiAssistant,
-    private val onResult: (JSONObject) -> Unit
+    private val onResult: (JSONObject) -> Unit,
+    private val onBeforeRecording: (() -> Boolean)? = null,
+    private val onAfterRecording: (() -> Unit)? = null
 ) {
     private var audioRecord: AudioRecord? = null
     private var audioFile: File? = null
@@ -49,6 +53,7 @@ class VoiceInputHandler(
     private var longPressTriggered = false
     private var isFingerDown = false
     private var audioSupportProbeInFlight = false
+    private var lastRecordingStartError: String? = null
 
     fun setupVoiceButton(btnVoice: View) {
         btnVoice.setOnTouchListener { v, event ->
@@ -59,10 +64,21 @@ class VoiceInputHandler(
                         ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
                         != android.content.pm.PackageManager.PERMISSION_GRANTED
                     ) {
-                        Utils.toast(ctx, "需要麦克风权限才能录音")
-                        if (ctx is android.app.Activity) {
-                            ctx.requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1001)
+                        PermissionRequestActivity.onPermissionResult = { granted ->
+                            if (granted) {
+                                clearPendingLongPress()
+                                isFingerDown = false
+                                longPressTriggered = false
+                                Utils.toast(ctx, "权限已授予，请重新按住麦克风说话")
+                            } else {
+                                Utils.toast(ctx, "需要麦克风权限才能录音")
+                            }
                         }
+                        ctx.startActivity(Intent(ctx, PermissionRequestActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
+                                Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        })
                         return@setOnTouchListener true
                     }
 
@@ -103,7 +119,7 @@ class VoiceInputHandler(
                             isRecording = false
                             clearPendingLongPress()
                             aiAssistant.dismiss()
-                            Utils.toast(ctx, "录音启动失败")
+                            Utils.toast(ctx, lastRecordingStartError ?: "录音启动失败")
                         }
                     }
 
@@ -270,6 +286,7 @@ class VoiceInputHandler(
     private fun startRecording(): Boolean {
         if (isRecording) return true
 
+        lastRecordingStartError = null
         audioFile = File(ctx.cacheDir, "voice_input.wav")
         val minBuf = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
         Logger.d(ctx, "VoiceInputHandler", "startRecording: sampleRate=$sampleRate bufferSize=$bufferSize minBufSize=$minBuf")
@@ -285,13 +302,28 @@ class VoiceInputHandler(
         Logger.d(ctx, "VoiceInputHandler", "AudioRecord state=${record.state} (1=INITIALIZED)")
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             Logger.d(ctx, "VoiceInputHandler", "AudioRecord init failed, state=${record.state}")
+            lastRecordingStartError = "麦克风初始化失败"
             record.release()
             return false
         }
 
         return try {
+            val microphoneModeReady = onBeforeRecording?.invoke() ?: true
+            if (!microphoneModeReady) {
+                Logger.d(ctx, "VoiceInputHandler", "startRecording aborted: microphone foreground service mode unavailable")
+                lastRecordingStartError = "麦克风服务启动失败，请稍后重试"
+                record.release()
+                return false
+            }
             record.startRecording()
-            Logger.d(ctx, "VoiceInputHandler", "AudioRecord.startRecording() called, recordingState=${record.recordingState} (3=RECORDING)")
+            if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                Logger.d(ctx, "VoiceInputHandler", "AudioRecord NOT in RECORDING state, state=${record.recordingState}")
+                lastRecordingStartError = "麦克风未能开始录音"
+                record.release()
+                onAfterRecording?.invoke()
+                return false
+            }
+            Logger.d(ctx, "VoiceInputHandler", "AudioRecord.startRecording() confirmed RECORDING, recordingState=${record.recordingState}")
             audioRecord = record
             isRecording = true
 
@@ -304,6 +336,8 @@ class VoiceInputHandler(
         } catch (e: Exception) {
             Logger.d(ctx, "VoiceInputHandler", "startRecording exception: ${e.message}")
             isRecording = false
+            lastRecordingStartError = "录音启动失败"
+            onAfterRecording?.invoke()
             try {
                 record.release()
             } catch (_: Exception) {
@@ -478,6 +512,8 @@ class VoiceInputHandler(
         } catch (_: Exception) {
         }
         recordingThread = null
+
+        onAfterRecording?.invoke()
 
         val readyFile = audioFile?.takeIf { it.exists() && it.length() > 44 }
         onFileReady(readyFile)

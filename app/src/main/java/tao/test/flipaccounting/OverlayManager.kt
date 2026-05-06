@@ -85,7 +85,11 @@ class OverlayManager(private val ctx: Context) {
     }
 
     fun showAiInputPanel() {
-        val tapVoiceHandler = VoiceInputHandler(ctx, aiAssistant, handleAiResult)
+        val tapVoiceHandler = VoiceInputHandler(
+            ctx, aiAssistant, handleAiResult,
+            onBeforeRecording = { (ctx as? OverlayService)?.enterMicrophoneMode() ?: true },
+            onAfterRecording = { (ctx as? OverlayService)?.exitMicrophoneMode() }
+        )
         aiAssistant.voiceInputBtnSetup = { btn ->
             tapVoiceHandler.setupVoiceButton(btn)
         }
@@ -217,7 +221,11 @@ class OverlayManager(private val ctx: Context) {
             formController?.fillDataToUi(prefill, showToast = false, forceMultiMode = forceMulti)
         }
 
-        voiceHandler = VoiceInputHandler(ctx, aiAssistant, handleAiResult)
+        voiceHandler = VoiceInputHandler(
+            ctx, aiAssistant, handleAiResult,
+            onBeforeRecording = { (ctx as? OverlayService)?.enterMicrophoneMode() ?: true },
+            onAfterRecording = { (ctx as? OverlayService)?.exitMicrophoneMode() }
+        )
         aiAssistant.voiceInputBtnSetup = { btn ->
             voiceHandler?.setupVoiceButton(btn)
         }
