@@ -59,7 +59,7 @@ internal class HomeMultiSelectController(
 
             showConfirmDialog(
                 title = "确认删除",
-                message = "确定要删除选中的 ${billsToDelete.size} 条账单吗？删除后不可恢复。",
+                message = "确定要删除选中的 ${billsToDelete.size} 条账单吗？删除后可在回收站恢复。",
                 confirmText = "确认删除",
                 isDanger = true
             ) {

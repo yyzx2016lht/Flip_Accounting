@@ -959,7 +959,7 @@ class ChatActivity : AppCompatActivity() {
     private fun requestDeleteFromLongPressMenu(item: ChatDisplayItem) {
         uiHelperController.showCustomConfirmDialog(
             "确认删除",
-            "删除后不可恢复，是否继续？\n删除聊天记录不会删除附带账单。",
+            "删除后可在回收站恢复，是否继续？\n删除聊天记录不会删除附带账单。",
             "继续删除",
             true
         ) {

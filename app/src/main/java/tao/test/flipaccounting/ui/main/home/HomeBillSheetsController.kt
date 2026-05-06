@@ -519,7 +519,7 @@ internal class HomeBillSheetsController(
         val context = fragment.requireContext()
         val panel = LayoutInflater.from(context).inflate(R.layout.dialog_delete_followup_confirm, null, false)
         panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = "确认删除"
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "删除后不可恢复，是否继续？"
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "删除后可在回收站恢复，是否继续？"
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(
             androidx.appcompat.view.ContextThemeWrapper(context, R.style.Theme_FlipAccounting)

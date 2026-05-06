@@ -537,7 +537,7 @@ class SettingsActivity : AppCompatActivity() {
                 },
                 OptionItem(
                     title = "连同账单一起删除",
-                    desc = "删除分类与其所属账单，不可恢复",
+                    desc = "删除分类与其所属账单，可在回收站恢复",
                     highRisk = true
                 ) {
                     showFinalDeleteConfirm(target, "连同账单一起删除") {
@@ -661,7 +661,7 @@ class SettingsActivity : AppCompatActivity() {
     ) {
         val panel = LayoutInflater.from(this).inflate(R.layout.dialog_delete_followup_confirm, null, false)
         panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = "确定删除“${target.name}”？"
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "处理方式：$handling\n删除后不可恢复。"
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "处理方式：$handling\n删除后可在回收站恢复。"
 
         if (relatedBills.isNotEmpty()) {
             val root = panel as LinearLayout
