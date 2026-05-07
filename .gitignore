@@ -1,7 +1,8 @@
 # ===== Android / IDE =====
 *.iml
 .gradle
-/local.properties
+.gradle-user/
+.kotlin/
 /.idea/
 .DS_Store
 /build
@@ -9,26 +10,51 @@
 .externalNativeBuild
 .cxx
 
-# ===== Ç©ÃûÃÜÔ¿ =====
+# ===== ç­¾åå¯†é’¥ =====
 release-keystore.jks
 key.properties
 
-# ===== Êı¾İ¿â£¨ÖØµã£¡£¡£¡£©=====
+# ===== æ•°æ®åº“ï¼ˆé‡ç‚¹ï¼ä¸æäº¤ï¼‰=====
 *.db
 *.sqlite
 *.sqlite3
 *-wal
 *-shm
 
-# ===== ±¾µØµ÷ÊÔÊı¾İ¿â =====
+# ===== æœ¬åœ°ä¸´æ—¶æ•°æ®åº“ =====
 tmp_device_db/
 tmp_device_db_live/
 tmp_device_db_live2/
 tmp_device_flipaccounting_database*
 
-# ===== ÈÕÖ¾ / µ÷ÊÔ =====
+# ===== æ—¥å¿— / é”™è¯¯ =====
 *.log
 build_errors.txt
 
-# ===== »·¾³±äÁ¿ =====
+# ===== ç¯å¢ƒå˜é‡ =====
 .env
+
+# ===== æ„å»ºäº§ç‰© =====
+app/release/
+release/
+app/build/
+build/
+server/build/
+*.apk
+*.aab
+
+# ===== IDE / ç¼–è¾‘å™¨ =====
+.claude/
+.idea/
+
+# ===== ä¸´æ—¶æ–‡ä»¶ =====
+.tmp_adb/
+.tmp_adb_db/
+.mode line
+
+# ===== é…ç½®æ–‡ä»¶ï¼ˆå«APIå¯†é’¥ï¼‰=====
+config.json
+
+# ===== æ‚é¡¹ =====
+codex_overlay_preview.png
+assets/dexopt/
