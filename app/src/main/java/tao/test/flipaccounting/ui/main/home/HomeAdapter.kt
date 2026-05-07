@@ -472,6 +472,9 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var boundDeprecated: Boolean = false
 
         init {
+            checkBox.isClickable = false
+            checkBox.isFocusable = false
+
             itemView.setOnClickListener {
                 val bill = boundBill ?: return@setOnClickListener
                 if (boundDeprecated) return@setOnClickListener
