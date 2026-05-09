@@ -7,7 +7,7 @@
     android:orientation="vertical">
 
     <!-- 顶部标题栏 -->
-    <tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
+    <tao.test.tapaccounting.ui.widget.SecondaryPageHeaderView
         android:id="@+id/secondary_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

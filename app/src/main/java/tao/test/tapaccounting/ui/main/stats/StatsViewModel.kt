@@ -682,7 +682,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
 
         bills.forEach { bill ->
             // 跳过不计入统计的账单
-            if (bill.excludeFromStats) return@forEach
+            if (bill.excludeFromStats || bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED) return@forEach
 
             val amount = statsAmountOf(bill, state.selectedCurrency)
             val isRefund = bill.subType == Bill.SUBTYPE_REFUND
@@ -862,6 +862,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             acc = (acc xor bill.categoryName.hashCode().toLong()).times(1099511628211L)
             acc = (acc xor bill.currency.hashCode().toLong()).times(1099511628211L)
             acc = (acc xor bill.bookName.hashCode().toLong()).times(1099511628211L)
+            acc = (acc xor (if (bill.excludeFromStats) 1L else 0L)).times(1099511628211L)
         }
         return acc xor bills.size.toLong()
     }
@@ -899,6 +900,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
 
     fun getBillsForCategory(categoryName: String, isExpense: Boolean): List<Bill> {
         return _uiState.value.bills.filter { bill ->
+            if (bill.excludeFromStats || bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED) return@filter false
             val isMatch = topLevelCategory(bill.categoryName) == categoryName
             if (isExpense) {
                 (bill.type == Bill.TYPE_EXPENSE &&

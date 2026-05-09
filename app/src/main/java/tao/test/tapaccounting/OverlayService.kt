@@ -25,7 +25,10 @@ class OverlayService : Service() {
         const val ACTION_STOP_DOUBLE_TAP = "ACTION_STOP_DOUBLE_TAP"
         const val ACTION_RESTART_DOUBLE_TAP = "ACTION_RESTART_DOUBLE_TAP"
 
-        // 服务被杀后，通过 AlarmManager setExact 快速重拉，无需精准穿透 Doze
+        @Volatile
+        var isServiceRunning = false
+            private set
+
         private const val RESTART_DELAY_MS = 3_000L
         private const val TAP_DEAD_EVENT_TIMEOUT_MS = 120_000L
         private const val TAP_DEAD_CONSECUTIVE_LIMIT = 3
@@ -50,7 +53,6 @@ class OverlayService : Service() {
 
         private var lastWatchdogRestartAtMs: Long = 0L
         private var consecutiveDeadChecks: Int = 0
-        private var boostUntilMs: Long = 0L
 
         // ── 亮/灭屏监听 ──────────────────────────────────────
         private val screenReceiver = object : BroadcastReceiver() {
@@ -60,18 +62,14 @@ class OverlayService : Service() {
                         Logger.d(this@OverlayService, "OverlayService", "Screen OFF: stopping detectors to save power")
                         restartDetectorJob?.cancel()
                         if (isDoubleTapEnabled) stopTapDetection()
-                        if (!Prefs.isAggressiveKeepAliveEnabled(this@OverlayService)) {
-                            stopWatchdog()
-                        }
+                        stopWatchdog()
                     }
                     Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
                         Logger.d(this@OverlayService, "OverlayService", "Screen ON: restarting detectors (${intent.action})")
                         if (!isDoubleTapEnabled) return
                         acquireWakeLockBriefly(5_000L)
                         restartDetector("screen-on")
-                        if (!Prefs.isAggressiveKeepAliveEnabled(this@OverlayService)) {
-                            startWatchdog()
-                        }
+                        startWatchdog()
                     }
                 }
             }
@@ -112,9 +110,6 @@ class OverlayService : Service() {
         }
 
         // ── WakeLock ──────────────────────────────────────────
-        /**
-         * 借用短时 WakeLock 确保传感器注册/重启期间 CPU 不睡眠。
-         */
         fun acquireWakeLockBriefly(durationMs: Long = 4_000L) {
             try {
                 if (wakeLock == null) {
@@ -122,15 +117,7 @@ class OverlayService : Service() {
                     wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TapAccount::BriefWL")
                     wakeLock?.setReferenceCounted(false)
                 }
-                if (wakeLock?.isHeld == true) {
-                    if (Prefs.isAggressiveKeepAliveEnabled(this@OverlayService)) {
-                        // 强制保活模式：先释放再重新计时，避免时间叠加
-                        wakeLock?.release()
-                    } else {
-                        // 省电模式：已持有则跳过，让当前持有自然到期
-                        return
-                    }
-                }
+                if (wakeLock?.isHeld == true) wakeLock?.release()
                 wakeLock?.acquire(durationMs)
             } catch (e: Exception) {
                 Logger.d(this@OverlayService, "OverlayService", "acquireWakeLockBriefly failed: ${e.message}")
@@ -228,6 +215,7 @@ class OverlayService : Service() {
     // ════════════════════════════════════════════════════════
     override fun onCreate() {
         super.onCreate()
+        isServiceRunning = true
         Logger.d(this, "OverlayService", "Service Created")
         try {
             overlayManager = OverlayManager(this)
@@ -237,7 +225,10 @@ class OverlayService : Service() {
             isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
             keepAliveManager.attach()
 
-            if (isDoubleTapEnabled) startTapDetection()
+            if (isDoubleTapEnabled) {
+                startTapDetection()
+                KeepAliveWorker.schedulePeriodic(this)
+            }
 
             keepAliveManager.syncWatchdogState()
             Logger.d(this, "OverlayService", "Service onCreate completed.")
@@ -284,18 +275,21 @@ class OverlayService : Service() {
                 if (isDoubleTapEnabled) {
                     cancelRestart()
                     startTapDetection()
+                    KeepAliveWorker.schedulePeriodic(this)
                 }
             }
             ACTION_START_DOUBLE_TAP -> {
                 isDoubleTapEnabled = true
                 cancelRestart()
                 startTapDetection()
+                KeepAliveWorker.schedulePeriodic(this)
             }
             ACTION_STOP_DOUBLE_TAP -> {
                 val userDisabledTap = !Prefs.isDoubleTapEnabled(this)
                 isDoubleTapEnabled = false
                 stopTapDetection()
                 if (userDisabledTap) {
+                    KeepAliveWorker.cancelPeriodic(this)
                     stopSelfIfIdle("double-tap-disabled")
                 } else {
                     Logger.d(this, "OverlayService", "Tap detection paused temporarily; service kept alive")
@@ -327,14 +321,16 @@ class OverlayService : Service() {
         keepAliveManager.detach()
         stopTapDetection()
         overlayManager.removeOverlay()
-        // START_STICKY 会自动重建，setExact 作为额外保险（部分 ROM 不遵循 START_STICKY）
-        if (Prefs.isDoubleTapEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
+        if (Prefs.isDoubleTapEnabled(this)) {
+            KeepAliveWorker.scheduleOneTime(this, RESTART_DELAY_MS)
+        }
+        isServiceRunning = false
         super.onDestroy()
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Logger.d(this, "OverlayService", "onTaskRemoved")
-        if (Prefs.isDoubleTapEnabled(this)) scheduleRestart(RESTART_DELAY_MS)
+        if (Prefs.isDoubleTapEnabled(this)) KeepAliveWorker.scheduleOneTime(this, RESTART_DELAY_MS)
         super.onTaskRemoved(rootIntent)
     }
 
@@ -391,52 +387,55 @@ class OverlayService : Service() {
     }
 
     // ════════════════════════════════════════════════════════
-    //  重拉保险：服务死亡时用 setExact 快速重建
+    //  重拉保险：服务死亡时用 AlarmClock 快速重建
     // ════════════════════════════════════════════════════════
 
     /**
-     * 通过 AlarmManager.setExact 在 [delayMs] 后触发 BootReceiver，
+     * 通过 AlarmManager.setAlarmClock 在 [delayMs] 后触发 BootReceiver，
      * 由 BootReceiver 调用 startForegroundService 重建服务。
+     *
+     * setAlarmClock 在 Doze 模式下有特殊豁免（等同前台应用闹钟），
+     * 比 WorkManager / setExact 更可靠。
      * 仅作为 START_STICKY 自动重建失败时的保险，不做周期性续约。
      */
     private fun scheduleRestart(delayMs: Long) {
         try {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val pi = buildRestartIntent()
             val triggerAt = System.currentTimeMillis() + delayMs
-            val clockType = if (Prefs.isAggressiveKeepAliveEnabled(this))
-                AlarmManager.RTC_WAKEUP else AlarmManager.RTC
-            if (canScheduleExactRestart(am)) {
-                am.setExact(clockType, triggerAt, pi)
-                Logger.d(this, "OverlayService", "Exact restart alarm set in ${delayMs / 1000}s (clockType=$clockType)")
-            } else {
-                am.set(clockType, triggerAt, pi)
-                Logger.d(this, "OverlayService", "Inexact restart alarm set in ${delayMs / 1000}s (clockType=$clockType)")
+            val showIntent = PendingIntent.getActivity(
+                this, 0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            val restartIntent = Intent("tao.test.tapaccounting.RESTART_SERVICE").apply {
+                setClass(this@OverlayService, BootReceiver::class.java)
             }
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            else PendingIntent.FLAG_UPDATE_CURRENT
+            val pi = PendingIntent.getBroadcast(this, 2002, restartIntent, flags)
+            am.setAlarmClock(
+                AlarmManager.AlarmClockInfo(triggerAt, showIntent),
+                pi
+            )
+            Logger.d(this, "OverlayService", "AlarmClock restart set in ${delayMs / 1000}s")
         } catch (e: Exception) {
             Logger.d(this, "OverlayService", "scheduleRestart failed: ${e.message}")
         }
     }
 
-    private fun canScheduleExactRestart(alarmManager: AlarmManager): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
-    }
-
     private fun cancelRestart() {
         try {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            am.cancel(buildRestartIntent())
+            val restartIntent = Intent("tao.test.tapaccounting.RESTART_SERVICE").apply {
+                setClass(this@OverlayService, BootReceiver::class.java)
+            }
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            else PendingIntent.FLAG_UPDATE_CURRENT
+            val pi = PendingIntent.getBroadcast(this, 2002, restartIntent, flags)
+            am.cancel(pi)
         } catch (_: Exception) {}
-    }
-
-    private fun buildRestartIntent(): PendingIntent {
-        val intent = Intent("tao.test.tapaccounting.RESTART_SERVICE").apply {
-            setClass(this@OverlayService, BootReceiver::class.java)
-        }
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        else PendingIntent.FLAG_UPDATE_CURRENT
-        return PendingIntent.getBroadcast(this, 2002, intent, flags)
     }
 
     // ════════════════════════════════════════════════════════
@@ -513,7 +512,7 @@ class OverlayService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("敲敲记账助手").setContentText(content)
             .setSmallIcon(android.R.drawable.ic_menu_edit).setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
             .setSilent(true)
             .setOngoing(true)
             .setShowWhen(false)
@@ -524,7 +523,7 @@ class OverlayService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            val ch = NotificationChannel(CHANNEL_ID, "记账助手服务", NotificationManager.IMPORTANCE_LOW).apply {
+            val ch = NotificationChannel(CHANNEL_ID, "记账助手服务", NotificationManager.IMPORTANCE_MIN).apply {
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)

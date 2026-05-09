@@ -308,7 +308,7 @@ internal class HomeBillSheetsController(
         val lineFeeDetail = view.findViewById<View>(R.id.line_fee_detail)
         val tvFeeDetail = view.findViewById<TextView>(R.id.tv_detail_fee)
 
-        val btnCopy = view.findViewById<View>(R.id.btn_copy)
+        val btnExcludeStats = view.findViewById<TextView>(R.id.btn_exclude_stats)
         val btnRefund = view.findViewById<View>(R.id.btn_refund)
         val btnEdit = view.findViewById<View>(R.id.btn_edit)
         val btnDelete = view.findViewById<View>(R.id.btn_delete)
@@ -317,6 +317,7 @@ internal class HomeBillSheetsController(
         val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
         val isRefund = isRefundBill(bill)
         var linkedOriginalForRefund: Bill? = null
+        var currentExcludeFromStats = bill.excludeFromStats
 
         tvAmountFormula.visibility = View.GONE
         layoutIncoming.visibility = View.GONE
@@ -457,7 +458,7 @@ internal class HomeBillSheetsController(
         }
 
         if (isRefund) {
-            btnCopy.visibility = View.GONE
+            btnExcludeStats.visibility = View.GONE
             btnRefund.visibility = View.GONE
         } else if (bill.type == Bill.TYPE_INCOME || bill.type == Bill.TYPE_TRANSFER || bill.amount <= 0.0) {
             btnRefund.visibility = View.GONE
@@ -465,12 +466,25 @@ internal class HomeBillSheetsController(
             btnRefund.visibility = View.VISIBLE
         }
 
-        btnCopy.setOnClickListener {
-            bottomSheet.dismiss()
-            val intent = Intent(fragment.requireContext(), EditBillActivity::class.java)
-            intent.putExtra("BILL_ID", bill.id)
-            intent.putExtra("IS_COPY", true)
-            fragment.startActivity(intent)
+        fun updateExcludeStatsButton() {
+            if (currentExcludeFromStats) {
+                btnExcludeStats.text = "不计入"
+                btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_outline)
+                btnExcludeStats.setTextColor(fragment.requireContext().getColor(R.color.text_secondary))
+            } else {
+                btnExcludeStats.text = "计入"
+                btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_primary)
+                btnExcludeStats.setTextColor(fragment.requireContext().getColor(R.color.dialog_button_primary_text))
+            }
+        }
+        updateExcludeStatsButton()
+
+        btnExcludeStats.setOnClickListener {
+            currentExcludeFromStats = !currentExcludeFromStats
+            updateExcludeStatsButton()
+            fragment.lifecycleScope.launch(Dispatchers.IO) {
+                AppDatabase.getDatabase(fragment.requireContext()).billDao().updateExcludeStats(bill.id, currentExcludeFromStats)
+            }
         }
 
         btnRefund.setOnClickListener {

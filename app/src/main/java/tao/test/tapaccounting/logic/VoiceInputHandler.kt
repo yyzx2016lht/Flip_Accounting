@@ -190,8 +190,12 @@ class VoiceInputHandler(
 
                                     val asrMode = Prefs.getAsrMode(ctx)
                                     val text = if (asrMode == Prefs.ASR_MODE_WHISPER) {
-                                        LocalAsrService.finishStreaming()
-                                        if (file != null) LocalAsrService.speechToText(ctx, file) else null
+                                        val finalResult = LocalAsrService.finishStreaming()
+                                        when {
+                                            !finalResult.isNullOrEmpty() -> finalResult
+                                            file != null -> LocalAsrService.speechToText(ctx, file)
+                                            else -> null
+                                        }
                                     } else {
                                         if (Prefs.getAiKey(ctx).isBlank()) {
                                             "API_KEY_NOT_SETUP"
@@ -217,7 +221,13 @@ class VoiceInputHandler(
                                             Utils.toast(ctx, "离线语音模型正在下载，请下载完成后再试")
                                         } else if (text == "WHISPER_NOT_SETUP") {
                                             aiAssistant.dismiss()
-                                            Utils.toast(ctx, "需要先下载离线语音模型，才能使用本地语音识别")
+                                            val reason = LocalAsrService.getLastInitError()
+                                            val msg = if (reason.isNullOrBlank()) {
+                                                "离线语音模型尚未准备完成，请检查模型状态"
+                                            } else {
+                                                "离线语音模型未就绪: $reason"
+                                            }
+                                            Utils.toast(ctx, msg)
                                         } else if (text == "API_KEY_NOT_SETUP") {
                                             aiAssistant.dismiss()
                                             Utils.toast(ctx, "需要先配置 API Key，才能使用云端语音识别")

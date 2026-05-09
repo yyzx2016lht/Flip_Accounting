@@ -82,43 +82,6 @@
                             android:textColor="#333333" />
                     </LinearLayout>
 
-                    <!-- 启用翻转手势 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="启用翻转手势"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="手机翻转至正面时弹出悬浮窗记账"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_flip_enable"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
@@ -192,7 +155,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="启用后，横屏时将忽略手势触发（翻转/敲击）"
+                                android:text="启用后，横屏时将忽略敲击手势触发"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -235,7 +198,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="识别完成时通过轻震动提示（翻转/敲击）"
+                                android:text="识别完成时通过轻震动提示（敲击）"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -290,262 +253,6 @@
                             app:thumbTint="@color/switch_thumb_tint"
                             app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- ═══════════ 翻转灵敏度卡片 ═══════════ -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/card_flip_sensitivity"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="#FFFFFF">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingHorizontal="16dp"
-                    android:paddingTop="14dp"
-                    android:paddingBottom="14dp">
-
-                    <!-- 标题栏 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
-                        <View
-                            android:layout_width="4dp"
-                            android:layout_height="18dp"
-                            android:background="@drawable/bg_section_indicator_blue" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="翻转灵敏度"
-                            android:textSize="@dimen/text_size_16"
-                            android:textStyle="bold"
-                            android:textColor="#333333" />
-                    </LinearLayout>
-
-                    <!-- 进阶模式开关 -->
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchAdvancedMode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="进阶自定义模式"
-                        android:textSize="@dimen/text_size_15"
-                        android:textStyle="bold"
-                        android:textColor="#333333" />
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginBottom="8dp"
-                        android:text="开启后可手动精确修改重力阈值和耗时参数"
-                        android:textSize="@dimen/text_size_12"
-                        android:textColor="#999999" />
-
-                    <!-- 标准模式 -->
-                    <LinearLayout
-                        android:id="@+id/layoutStandardMode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tvCurrentValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:layout_marginTop="8dp"
-                            android:layout_marginBottom="4dp"
-                            android:text="当前设定：标准 (50)"
-                            android:textColor="#2196F3"
-                            android:textSize="@dimen/text_size_15"
-                            android:textStyle="bold"
-                            android:background="#EFF6FF"
-                            android:paddingVertical="8dp"
-                            android:paddingHorizontal="12dp" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginTop="14dp">
-                            <TextView
-                                android:layout_width="32dp"
-                                android:layout_height="wrap_content"
-                                android:text="容易"
-                                android:textSize="@dimen/text_size_11"
-                                android:textColor="#999999"
-                                android:gravity="center" />
-                            <SeekBar
-                                android:id="@+id/seekBarSensitivity"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginHorizontal="4dp"
-                                android:max="100"
-                                android:progress="50" />
-                            <TextView
-                                android:layout_width="32dp"
-                                android:layout_height="wrap_content"
-                                android:text="严格"
-                                android:textSize="@dimen/text_size_11"
-                                android:textColor="#999999"
-                                android:gravity="center" />
-                        </LinearLayout>
-
-                        <!-- 参数显示 -->
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:background="#F0F0F0"
-                            android:layout_marginVertical="12dp" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="⚡"
-                                android:textSize="@dimen/text_size_20"
-                                android:layout_marginEnd="8dp" />
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="10"
-                                android:orientation="vertical">
-                                <TextView
-                                    android:id="@+id/tvParamG"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:text="重力阈值：7.25g"
-                                    android:textSize="@dimen/text_size_14"
-                                    android:textColor="#333333"
-                                    android:textStyle="bold" />
-                                <TextView
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="手机扣向桌面的平整度要求，数值越大要求越平。"
-                                    android:textSize="@dimen/text_size_12"
-                                    android:textColor="#999999" />
-                            </LinearLayout>
-                        </LinearLayout>
-
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:background="#F0F0F0"
-                            android:layout_marginVertical="12dp" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="⏱"
-                                android:textSize="@dimen/text_size_20"
-                                android:layout_marginEnd="8dp" />
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="10"
-                                android:orientation="vertical">
-                                <TextView
-                                    android:id="@+id/tvParamTime"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:text="最大耗时：550ms"
-                                    android:textSize="@dimen/text_size_14"
-                                    android:textColor="#333333"
-                                    android:textStyle="bold" />
-                                <TextView
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="从背面翻转到正面的最大允许时间，越小要求翻转越快。"
-                                    android:textSize="@dimen/text_size_12"
-                                    android:textColor="#999999" />
-                            </LinearLayout>
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <!-- 进阶模式 -->
-                    <LinearLayout
-                        android:id="@+id/layoutAdvancedInputs"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:visibility="gone">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="重力阈值 (g)"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                            app:helperText="建议范围 5.0 – 9.5">
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etCustomG"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="numberDecimal"
-                                android:text="7.25" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:hint="最大翻转允许耗时 (ms)"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                            app:helperText="建议范围 200 – 1000">
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etCustomTime"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:text="550" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSaveCustom"
-                            android:layout_width="match_parent"
-                            android:layout_height="48dp"
-                            android:layout_marginTop="16dp"
-                            android:text="保存自定义参数"
-                            android:textSize="@dimen/text_size_15"
-                            app:cornerRadius="24dp" />
-                    </LinearLayout>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnResetDefault"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:layout_marginTop="16dp"
-                        android:text="恢复默认设置"
-                        android:textSize="@dimen/text_size_15"
-                        android:textColor="#2196F3"
-                        app:cornerRadius="24dp"
-                        app:backgroundTint="@android:color/transparent"
-                        app:strokeColor="#2196F3"
-                        app:strokeWidth="1.5dp"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -820,7 +527,7 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_flip"
+                                android:src="@drawable/ic_profile_tap"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -974,3 +681,4 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>
+

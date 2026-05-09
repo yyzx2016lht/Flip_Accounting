@@ -512,9 +512,10 @@ class AddAssetActivity : AppCompatActivity() {
             if (adjustment != null) {
                 val currencyChanged = !pending.oldCurrency.equals(pending.asset.currency, ignoreCase = true)
                 val diff = BillAssetImpactService.roundMoney(pending.asset.balance - pending.oldBalance)
+                val excludeFromStats = currencyChanged || !adjustment.includeInStats
                 val bill = Bill(
                     type = if (currencyChanged) Bill.TYPE_EXPENSE else if (diff >= 0) Bill.TYPE_INCOME else Bill.TYPE_EXPENSE,
-                    subType = if (currencyChanged || !adjustment.includeInStats) {
+                    subType = if (excludeFromStats) {
                         Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED
                     } else {
                         Bill.SUBTYPE_BALANCE_ADJUSTMENT
@@ -529,6 +530,7 @@ class AddAssetActivity : AppCompatActivity() {
                     remark = adjustment.remark,
                     categoryName = adjustment.categoryName.ifBlank { "其它" },
                     bookName = BookAccountManager.getSelectedBook(this@AddAssetActivity),
+                    excludeFromStats = excludeFromStats,
                 )
                 BillMutationService.insertBillAndApplyImpact(
                     db = db,

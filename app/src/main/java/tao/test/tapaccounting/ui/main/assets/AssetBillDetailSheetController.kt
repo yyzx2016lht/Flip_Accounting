@@ -429,10 +429,24 @@ internal class AssetBillDetailSheetController(
 
         val btnRefund = view.findViewById<View>(R.id.btn_refund)
         val btnEdit = view.findViewById<View>(R.id.btn_edit)
-        val btnCopy = view.findViewById<View>(R.id.btn_copy)
+        val btnExcludeStats = view.findViewById<TextView>(R.id.btn_exclude_stats)
+        var currentExcludeFromStats = bill.excludeFromStats
+
+        fun updateExcludeStatsButton() {
+            if (currentExcludeFromStats) {
+                btnExcludeStats.text = "不计入"
+                btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_outline)
+                btnExcludeStats.setTextColor(activity.getColor(R.color.text_secondary))
+            } else {
+                btnExcludeStats.text = "计入"
+                btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_primary)
+                btnExcludeStats.setTextColor(activity.getColor(R.color.dialog_button_primary_text))
+            }
+        }
+        updateExcludeStatsButton()
 
         if (isRefund) {
-            btnCopy.visibility = View.GONE
+            btnExcludeStats.visibility = View.GONE
             btnRefund.visibility = View.GONE
         } else if (bill.type == Bill.TYPE_INCOME || bill.type == Bill.TYPE_TRANSFER || bill.amount <= 0.0) {
             btnRefund.visibility = View.GONE
@@ -440,44 +454,12 @@ internal class AssetBillDetailSheetController(
             btnRefund.visibility = View.VISIBLE
         }
 
-        btnRefund.setOnClickListener {
-            bottomSheet.dismiss()
-            showRefundSheet(bill)
-        }
-
-        btnEdit.setOnClickListener {
-            bottomSheet.dismiss()
-            if (isRefund) {
-                val cachedOriginal = linkedOriginalForRefund
-                if (cachedOriginal != null) {
-                    showRefundSheet(cachedOriginal, bill)
-                    return@setOnClickListener
-                }
-                scope.launch(Dispatchers.IO) {
-                    val source = tao.test.tapaccounting.logic.BillMutationService.resolveRefundSourceBill(db, bill)
-                    withContext(Dispatchers.Main) {
-                        if (source != null) {
-                            showRefundSheet(source, bill)
-                        } else {
-                            val intent = Intent(activity, EditBillActivity::class.java)
-                            intent.putExtra("BILL_ID", bill.id)
-                            activity.startActivity(intent)
-                        }
-                    }
-                }
-                return@setOnClickListener
+        btnExcludeStats.setOnClickListener {
+            currentExcludeFromStats = !currentExcludeFromStats
+            updateExcludeStatsButton()
+            scope.launch(Dispatchers.IO) {
+                db.billDao().updateExcludeStats(bill.id, currentExcludeFromStats)
             }
-            val intent = Intent(activity, EditBillActivity::class.java)
-            intent.putExtra("BILL_ID", bill.id)
-            activity.startActivity(intent)
-        }
-
-        btnCopy.setOnClickListener {
-            bottomSheet.dismiss()
-            val intent = Intent(activity, EditBillActivity::class.java)
-            intent.putExtra("BILL_ID", bill.id)
-            intent.putExtra("IS_COPY", true)
-            activity.startActivity(intent)
         }
 
         view.findViewById<View>(R.id.btn_delete).setOnClickListener {

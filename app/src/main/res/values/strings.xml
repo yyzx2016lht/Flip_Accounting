@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">翻转记账</string>
+    <string name="app_name">敲敲记账</string>
 
     <!-- 账单类型：用于悬浮窗 -->
     <string-array name="bill_types">

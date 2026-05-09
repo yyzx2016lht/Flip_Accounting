@@ -562,12 +562,77 @@
                     </LinearLayout>
 
                     <View
-                        android:id="@+id/divider_ai_feature_entry"
+                        android:id="@+id/divider_sync_remote_config"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="68dp"
                         android:background="@color/settings_divider"
                         android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/btn_sync_remote_config"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="18dp"
+                        android:visibility="gone">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_cyan">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_backup"
+                                android:tint="#FFFFFF"
+                                android:rotation="180" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="同步远程配置"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="从云端拉取最新API配置"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="›"
+                            android:textColor="#C0C8D4"
+                            android:textSize="22sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/divider_ai_feature_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="68dp"
+                        android:background="@color/settings_divider"
+                        android:visibility="visible" />
 
                     <LinearLayout
                         android:id="@+id/layout_ai_feature_entry"
@@ -579,7 +644,7 @@
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
-                        android:visibility="gone">
+                        android:visibility="visible">
 
                         <FrameLayout
                             android:layout_width="40dp"
@@ -629,8 +694,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="68dp"
-                        android:background="@color/settings_divider"
-                        android:visibility="gone" />
+                        android:background="@color/settings_divider" />
 
                     <LinearLayout
                         android:id="@+id/layout_storage_cleanup_entry"
@@ -641,8 +705,7 @@
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingHorizontal="18dp"
-                        android:visibility="gone">
+                        android:paddingHorizontal="18dp">
 
                         <FrameLayout
                             android:layout_width="40dp"
@@ -737,6 +800,7 @@
                     <!-- 使用快捷手势 -->
                     <LinearLayout
                         android:layout_width="match_parent"
+                        android:visibility="gone"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
@@ -750,7 +814,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_flip"
+                                android:src="@drawable/ic_profile_tap"
                                 android:tint="#FFFFFF" />
                         </FrameLayout>
 
@@ -1110,6 +1174,7 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
+                        android:visibility="gone"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
@@ -1309,7 +1374,9 @@
 
                     <!-- Shizuku 模式 -->
                     <LinearLayout
+                        android:id="@+id/layout_shizuku_mode_row"
                         android:layout_width="match_parent"
+                        android:visibility="gone"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
@@ -1370,11 +1437,11 @@
                     <LinearLayout
                         android:id="@+id/layout_shizuku_persistence"
                         android:layout_width="match_parent"
+                        android:visibility="gone"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:paddingVertical="10dp"
-                        android:visibility="gone">
+                        android:paddingVertical="10dp">
 
                         <FrameLayout
                             android:layout_width="40dp"
@@ -1471,6 +1538,62 @@
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switch_show_multi_cur"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingVertical="0dp"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="@color/settings_divider" />
+
+                    <!-- 强制保活 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_orange">
+                            <ImageView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_keep_alive" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="强制保活"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="开启后使用更强的后台策略，保持服务不间断运行"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_aggressive_keep_alive"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:paddingVertical="0dp"

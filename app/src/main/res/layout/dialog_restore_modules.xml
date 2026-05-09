@@ -265,14 +265,6 @@
                 android:textSize="14sp"
                 android:visibility="gone" />
 
-            <com.google.android.material.checkbox.MaterialCheckBox
-                android:id="@+id/cb_restore_settings_advanced_flip"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="翻转参数"
-                android:textColor="#23324A"
-                android:textSize="14sp"
-                android:visibility="gone" />
 
             <com.google.android.material.checkbox.MaterialCheckBox
                 android:id="@+id/cb_restore_settings_general_legacy"

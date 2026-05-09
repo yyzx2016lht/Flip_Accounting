@@ -40,6 +40,7 @@ class ChatMessagePipeline(
     private val updateLoadingMessage: (String, String) -> Unit,
     private val finalizeLoadingMessage: (String, String, String, String) -> Unit,
     private val buildAnalysisInput: suspend (String) -> String,
+    private val decideSingleOrMultiForChat: (String) -> Boolean,
     private val processBillResult: suspend (JSONObject, String, String, String) -> List<Bill>,
     private val processBillModifyResult: suspend (JSONObject, String, tao.test.tapaccounting.data.local.entity.Bill) -> Unit,
     private val buildBillSummary: (List<Bill>) -> String,
@@ -779,7 +780,7 @@ class ChatMessagePipeline(
                 if (!canWriteForRequest(requestContext)) return@launch
                 val voiceUserText = "[语音输入]"
                 val transcript = withContext(Dispatchers.IO) { transcribeVoiceToTextWithFallback(audioFile) }
-                val autoMultiMode = true
+                val autoMultiMode = decideSingleOrMultiForChat(transcript)
                 val result = try {
                     withContext(Dispatchers.IO) {
                         AIService.analyzeAccountingByAudio(

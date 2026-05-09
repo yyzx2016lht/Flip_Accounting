@@ -184,18 +184,9 @@
 - `[ ]` 长对话（100+ 条消息）滚动性能是否流畅
 - `[ ]` AI 连续回复中途断网，界面是否优雅提示错误，不卡死
 
-### 翻转手势 & 悬浮窗（FlipDetector / OverlayService / OverlayManager）
-- `[ ]` 翻转触发后，悬浮窗正确弹出记账界面
-- `[ ]` 翻转灵敏度调节（FlipSensitivityActivity）：调整后实际触发阈值符合设置
-- `[ ]` 悬浮窗权限未授予时，开启翻转功能后，提示引导用户去系统设置
-- `[ ]` 悬浮窗拖动到屏幕边缘，不超出屏幕范围
-- `[ ]` **横屏禁用翻转**（`isFlipDisableLandscape`）：横屏时翻转无效，竖屏恢复正常
-- `[ ]` **震动反馈**（`isVibrateFeedbackEnabled`）：翻转触发时震动，关闭设置后无震动
-- `[ ]` 悬浮窗关闭后，资源正确释放（无内存泄漏/前台服务残留）
-
 ### Shizuku 模式 & 白名单（ShizukuSafe / AppListActivity）
 - `[ ]` Shizuku 未启动时，开启白名单模式，给出友好提示（`showShizukuPrompt`）
-- `[ ]` 白名单模式开启后，只在白名单 App 前台时触发翻转
+- `[ ]` 白名单模式开启后，只在白名单 App 前台时触发
 - `[ ]` 关闭 Shizuku 模式后，白名单开关自动重置为关闭
 - `[ ]` **截屏记账**（ScreenCaptureActivity）：需要 Shizuku 授权，未授权时提示，授权后截图识别正常
 

@@ -42,14 +42,14 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView
-                android:id="@+id/btn_copy"
+                android:id="@+id/btn_exclude_stats"
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
-                android:background="@drawable/bg_dialog_button_outline"
+                android:background="@drawable/bg_dialog_button_primary"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
-                android:text="复制"
-                android:textColor="@color/text_secondary"
+                android:text="计入"
+                android:textColor="@color/dialog_button_primary_text"
                 android:textSize="@dimen/text_size_13" />
 
             <TextView

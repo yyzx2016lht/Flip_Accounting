@@ -12,7 +12,6 @@
     <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
@@ -28,13 +27,13 @@
         tools:ignore="QueryAllPackagesPermission" />
 
     <application
-        android:name=".FlipApplication"
+        android:name=".TapApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FlipAccounting"
+        android:theme="@style/Theme.TapAccounting"
         android:usesCleartextTraffic="true">
 
         <activity
@@ -91,7 +90,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="tao.test.flipaccounting.RESTART_SERVICE" />
+                <action android:name="tao.test.tapaccounting.RESTART_SERVICE" />
             </intent-filter>
         </receiver>
 
@@ -143,16 +142,17 @@
     <activity android:name=".ui.CurrencyManagerActivity" android:label="货币管理" />
     <activity android:name=".ui.ExchangeRateActivity" android:label="汇率管理" />
         <activity android:name=".BillDisplaySettingsActivity" android:label="账单显示效果" />
-        <activity android:name=".ui.FlipSensitivityActivity" android:label="灵敏度调节" />
         <activity android:name=".ui.SensitivityActivity" android:label="灵敏度调节" />
-    <activity android:name=".ui.activity.EditBillActivity" android:label="编辑账单" android:theme="@style/Theme.FlipAccounting.Transparent" />
-    <activity android:name=".ui.main.home.CalendarActivity" android:label="日历账单" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
-    <activity android:name=".ui.main.home.BillSearchActivity" android:label="搜索账单" android:windowSoftInputMode="stateVisible|adjustResize" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
-    <activity android:name=".ui.activity.BookOverviewActivity" android:label="账本总览" android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar"/>
+        <activity android:name=".ui.activity.BillDetailActivity" android:label="账单详情" />
+        <activity android:name=".ui.activity.RefundActivity" android:label="退款" />
+    <activity android:name=".ui.activity.EditBillActivity" android:label="编辑账单" android:theme="@style/Theme.TapAccounting.Transparent" />
+    <activity android:name=".ui.main.home.CalendarActivity" android:label="日历账单" android:theme="@style/Theme.TapAccounting.AppCompatNoActionBar"/>
+    <activity android:name=".ui.main.home.BillSearchActivity" android:label="搜索账单" android:windowSoftInputMode="stateVisible|adjustResize" android:theme="@style/Theme.TapAccounting.AppCompatNoActionBar"/>
+    <activity android:name=".ui.activity.BookOverviewActivity" android:label="账本总览" android:theme="@style/Theme.TapAccounting.AppCompatNoActionBar"/>
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.FlipAccounting.AppCompatNoActionBar" />
+            android:theme="@style/Theme.TapAccounting.AppCompatNoActionBar" />
 
     <activity android:name=".ui.main.assets.AssetDetailActivity" android:label="资产详情" />
     <activity android:name=".ui.main.assets.AssetStatsActivity" android:label="资产统计" />
@@ -164,18 +164,18 @@
             android:name=".ChatActivity"
             android:label="AI 瀵硅瘽璁拌处"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.FlipAccounting" />
+            android:theme="@style/Theme.TapAccounting" />
         <activity
             android:name=".ChatSearchActivity"
             android:label="搜索聊天记录"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.FlipAccounting" />
+            android:theme="@style/Theme.TapAccounting" />
         <activity
             android:name=".ScreenCaptureActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:noHistory="true"
-            android:theme="@style/Theme.FlipAccounting.Transparent" />
+            android:theme="@style/Theme.TapAccounting.Transparent" />
         <activity
             android:name=".ImagePickerActivity"
             android:label="图片选择"

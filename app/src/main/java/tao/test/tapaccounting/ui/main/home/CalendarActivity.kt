@@ -690,7 +690,7 @@ class CalendarActivity : AppCompatActivity() {
         val lineFeeDetail = view.findViewById<View>(R.id.line_fee_detail)
         val tvFeeDetail = view.findViewById<TextView>(R.id.tv_detail_fee)
 
-        val btnCopy = view.findViewById<View>(R.id.btn_copy)
+        val btnExcludeStats = view.findViewById<TextView>(R.id.btn_exclude_stats)
         val btnRefund = view.findViewById<View>(R.id.btn_refund)
         val btnEdit = view.findViewById<View>(R.id.btn_edit)
         val btnDelete = view.findViewById<View>(R.id.btn_delete)
@@ -699,6 +699,7 @@ class CalendarActivity : AppCompatActivity() {
         val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
         val isRefund = isRefundBill(bill)
         var linkedOriginalForRefund: Bill? = null
+        var currentExcludeFromStats = bill.excludeFromStats
 
         tvAmountFormula.visibility = View.GONE
         view.findViewById<LinearLayout>(R.id.layout_refund_records_section).visibility = View.GONE
@@ -794,7 +795,7 @@ class CalendarActivity : AppCompatActivity() {
         }
 
         if (isRefund) {
-            btnCopy.visibility = View.GONE
+            btnExcludeStats.visibility = View.GONE
             btnRefund.visibility = View.GONE
         } else if (bill.type == Bill.TYPE_INCOME || bill.type == Bill.TYPE_TRANSFER || bill.amount <= 0.0) {
             btnRefund.visibility = View.GONE
@@ -802,12 +803,25 @@ class CalendarActivity : AppCompatActivity() {
             btnRefund.visibility = View.VISIBLE
         }
 
-        btnCopy.setOnClickListener {
-            bottomSheet.dismiss()
-            val intent = Intent(this, EditBillActivity::class.java)
-            intent.putExtra("BILL_ID", bill.id)
-            intent.putExtra("IS_COPY", true)
-            startActivity(intent)
+        fun updateExcludeStatsButton() {
+            if (currentExcludeFromStats) {
+                btnExcludeStats.text = "不计入"
+                btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_outline)
+                btnExcludeStats.setTextColor(getColor(R.color.text_secondary))
+            } else {
+                btnExcludeStats.text = "计入"
+                btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_primary)
+                btnExcludeStats.setTextColor(getColor(R.color.dialog_button_primary_text))
+            }
+        }
+        updateExcludeStatsButton()
+
+        btnExcludeStats.setOnClickListener {
+            currentExcludeFromStats = !currentExcludeFromStats
+            updateExcludeStatsButton()
+            lifecycleScope.launch(Dispatchers.IO) {
+                AppDatabase.getDatabase(this@CalendarActivity).billDao().updateExcludeStats(bill.id, currentExcludeFromStats)
+            }
         }
 
         btnRefund.setOnClickListener {

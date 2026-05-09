@@ -284,6 +284,7 @@ class BookOverviewActivity : AppCompatActivity() {
                 .sumOf { bill ->
                     val amount = if (bill.currency == "CNY") bill.amount else bill.amount * bill.exchangeRate
                     when {
+                        bill.excludeFromStats -> 0.0
                         bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> 0.0
                         bill.subType == Bill.SUBTYPE_REFUND -> -amount
                         bill.type == Bill.TYPE_EXPENSE -> amount
@@ -294,6 +295,7 @@ class BookOverviewActivity : AppCompatActivity() {
                 .sumOf { bill ->
                     val amount = if (bill.currency == "CNY") bill.amount else bill.amount * bill.exchangeRate
                     when {
+                        bill.excludeFromStats -> 0.0
                         bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> 0.0
                         bill.subType == Bill.SUBTYPE_REFUND -> 0.0
                         bill.type == Bill.TYPE_INCOME -> amount

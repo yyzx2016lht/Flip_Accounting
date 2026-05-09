@@ -46,6 +46,61 @@
             android:padding="16dp">
 
             <LinearLayout
+                android:id="@+id/layout_ai_key_warning"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_ai_key_warning"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="12dp">
+
+                <TextView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:background="@drawable/bg_status_inactive"
+                    android:gravity="center"
+                    android:text="!"
+                    android:textColor="#B26A00"
+                    android:textSize="@dimen/text_size_16"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AI 详细配置未解锁"
+                        android:textColor="#5C4200"
+                        android:textSize="@dimen/text_size_15"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="请向开发者索要配置密钥，点此输入。"
+                        android:textColor="#8A6A1E"
+                        android:textSize="@dimen/text_size_12" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:tint="#B26A00" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
@@ -482,6 +537,96 @@
                             app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:id="@+id/layout_asr_engine"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_inset_panel"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="10dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:text="识别引擎"
+                            android:textColor="#4E5A6A"
+                            android:textSize="@dimen/text_size_14"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_asr_online"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="8dp"
+                                android:text="云端引擎"
+                                android:textSize="@dimen/text_size_13"
+                                app:strokeColor="#DCE2EA"
+                                app:cornerRadius="10dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_asr_offline"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:text="离线引擎"
+                                android:textSize="@dimen/text_size_13"
+                                app:strokeColor="#DCE2EA"
+                                app:cornerRadius="10dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layout_asr_model"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_inset_panel"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="10dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_asr_model_status"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="模型状态"
+                                android:textColor="#5F6B7A"
+                                android:textSize="@dimen/text_size_13"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_asr_model_action"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:minHeight="0dp"
+                            android:text="下载模型"
+                            android:textColor="#5C6BC0"
+                            android:textSize="@dimen/text_size_12" />
+                    </LinearLayout>
+
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
@@ -543,7 +688,7 @@
                     android:layout_height="44dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
-                    android:text="记账习惯"
+                    android:text="记账规则"
                     android:textColor="#4E5A6A"
                     android:textSize="@dimen/text_size_14"
                     app:backgroundTint="#FFFFFF"

@@ -53,38 +53,38 @@
     @retrofit2.http.* <methods>;
 }
 
--keep class tao.test.flipaccounting.data.local.entity.** { *; }
+-keep class tao.test.tapaccounting.data.local.entity.** { *; }
 
 # Built-in category/asset presets are deserialized from raw JSON with Gson in
 # release builds. Keep field names stable so raw data loads exactly like debug.
--keep class tao.test.flipaccounting.BuiltInCategory { *; }
+-keep class tao.test.tapaccounting.BuiltInCategory { *; }
 
 # Retrofit/Gson DTOs used by AI config, chat, and model testing.
--keep class tao.test.flipaccounting.SiliconFlowApi { *; }
--keep class tao.test.flipaccounting.ChatRequest { *; }
--keep class tao.test.flipaccounting.Message { *; }
--keep class tao.test.flipaccounting.MultimodalMessage { *; }
--keep class tao.test.flipaccounting.ContentPart { *; }
--keep class tao.test.flipaccounting.ImageUrl { *; }
--keep class tao.test.flipaccounting.MessageUnion { *; }
--keep class tao.test.flipaccounting.MessageUnion$* { *; }
--keep class tao.test.flipaccounting.MessageUnionSerializer { *; }
--keep class tao.test.flipaccounting.ResponseFormat { *; }
--keep class tao.test.flipaccounting.ChatResponse { *; }
--keep class tao.test.flipaccounting.Choice { *; }
--keep class tao.test.flipaccounting.AudioResponse { *; }
--keep class tao.test.flipaccounting.ModelsResponse { *; }
--keep class tao.test.flipaccounting.ModelItem { *; }
+-keep class tao.test.tapaccounting.SiliconFlowApi { *; }
+-keep class tao.test.tapaccounting.ChatRequest { *; }
+-keep class tao.test.tapaccounting.Message { *; }
+-keep class tao.test.tapaccounting.MultimodalMessage { *; }
+-keep class tao.test.tapaccounting.ContentPart { *; }
+-keep class tao.test.tapaccounting.ImageUrl { *; }
+-keep class tao.test.tapaccounting.MessageUnion { *; }
+-keep class tao.test.tapaccounting.MessageUnion$* { *; }
+-keep class tao.test.tapaccounting.MessageUnionSerializer { *; }
+-keep class tao.test.tapaccounting.ResponseFormat { *; }
+-keep class tao.test.tapaccounting.ChatResponse { *; }
+-keep class tao.test.tapaccounting.Choice { *; }
+-keep class tao.test.tapaccounting.AudioResponse { *; }
+-keep class tao.test.tapaccounting.ModelsResponse { *; }
+-keep class tao.test.tapaccounting.ModelItem { *; }
 
 # Shizuku screenshot path uses reflection to call Shizuku.newProcess(...).
 # R8 may strip/rename reflectively-accessed members in release, causing
 # debug works but release returns empty screencap bytes or fails silently.
 -keep class rikka.shizuku.Shizuku { *; }
 -keep class rikka.shizuku.ShizukuRemoteProcess { *; }
--keep class tao.test.flipaccounting.ShizukuHelper { *; }
--keep class tao.test.flipaccounting.ShizukuShell { *; }
+-keep class tao.test.tapaccounting.ShizukuHelper { *; }
+-keep class tao.test.tapaccounting.ShizukuShell { *; }
 
 # TensorFlow Lite
 -keep class org.tensorflow.lite.** { *; }
 -keepclassmembers class org.tensorflow.lite.** { *; }
--keep class tao.test.flipaccounting.tap.** { *; }
+-keep class tao.test.tapaccounting.tap.** { *; }

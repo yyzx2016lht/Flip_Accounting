@@ -171,6 +171,7 @@ class ChatActivity : AppCompatActivity() {
             updateLoadingMessage = ::updateLoadingMessage,
             finalizeLoadingMessage = ::finalizeLoadingMessage,
             buildAnalysisInput = ::buildAnalysisInput,
+            decideSingleOrMultiForChat = ::decideSingleOrMultiForChat,
             processBillResult = ::processBillResult,
             processBillModifyResult = { json, text, oldBill -> billCorrectionService.processBillModifyResult(json, text, oldBill) },
             buildBillSummary = ::buildBillSummary,
@@ -885,13 +886,16 @@ class ChatActivity : AppCompatActivity() {
     private suspend fun transcribeVoiceToTextWithFallback(audioFile: File): String {
         fun normalize(raw: String?): String {
             val text = raw.orEmpty().trim()
-            return text
+            return if (
+                text.isBlank() ||
+                text == "WHISPER_NOT_SETUP" ||
+                text == "MODEL_DOWNLOADING"
+            ) "" else text
         }
         val asrMode = Prefs.getAsrMode(this)
         return if (asrMode == Prefs.ASR_MODE_WHISPER) {
             normalize(LocalAsrService.speechToText(this@ChatActivity, audioFile))
         } else {
-            if (Prefs.getAiKey(this@ChatActivity).isBlank()) return "API_KEY_NOT_SETUP"
             normalize(AIService.speechToText(this@ChatActivity, audioFile))
         }
     }
@@ -1116,6 +1120,31 @@ class ChatActivity : AppCompatActivity() {
 
     private fun buildBillSummary(bills: List<Bill>): String {
         return billCorrectionService.buildBillSummary(bills)
+    }
+
+    private fun decideSingleOrMultiForChat(text: String): Boolean {
+        val normalized = text
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .lowercase(Locale.getDefault())
+        if (normalized.isBlank()) return false
+
+        val explicitMulti = Regex("分别|各[记来]?一笔|再来一笔|还有一笔|一共\\d+笔|两笔|三笔|四笔").containsMatchIn(normalized)
+        if (explicitMulti) return true
+        val explicitSingle = Regex("就这一笔|只记一笔|单笔|一笔就行|这笔就行").containsMatchIn(normalized)
+        if (explicitSingle) return false
+
+        var multiScore = 0
+        val moneyUnitRegex = Regex("\\d+(?:\\.\\d{1,2})?\\s*(元|块钱|块|rmb|cny|pln|usd|eur|€|\\$)")
+        val actionAmountRegex = Regex("(花了|花费|支付|付款|收了|收到|转账|还款|充值|提现|赚了|收入)\\s*\\d+(?:\\.\\d{1,2})?")
+        val amountMatches = actionAmountRegex.findAll(normalized).toList()
+        if (amountMatches.size >= 2) multiScore += 2
+        val unitMatches = moneyUnitRegex.findAll(normalized).toList()
+        if (unitMatches.size >= 2) multiScore++
+        val separatorRegex = Regex("[，,;；、然后接着又还]")
+        if (separatorRegex.containsMatchIn(normalized) && amountMatches.size >= 2) multiScore++
+
+        return multiScore >= 2
     }
 
     private suspend fun processBillResult(

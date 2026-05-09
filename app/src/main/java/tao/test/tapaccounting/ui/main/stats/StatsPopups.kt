@@ -550,12 +550,12 @@ class BillDetailBottomSheet(
     ): View {
         val root = inflater.inflate(R.layout.layout_bill_detail_bottom_sheet, container, false)
 
-        val btnCopy = root.findViewById<View>(R.id.btn_copy)
+        val btnExcludeStats = root.findViewById<View>(R.id.btn_exclude_stats)
         val btnRefund = root.findViewById<View>(R.id.btn_refund)
         val btnDelete = root.findViewById<View>(R.id.btn_delete)
         val btnEdit = root.findViewById<View>(R.id.btn_edit)
 
-        btnCopy.visibility = View.GONE
+        btnExcludeStats.visibility = View.GONE
         btnRefund.visibility = View.GONE
         btnDelete.visibility = View.GONE
 

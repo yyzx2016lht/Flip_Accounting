@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.FlipAccounting" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.TapAccounting" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- 主颜色配置 -->
         <item name="colorPrimary">@color/brand_primary</item>
         <item name="colorPrimaryVariant">@color/brand_primary_dark</item>
@@ -25,19 +25,19 @@
         <item name="android:windowLightStatusBar">true</item>
 
         <!-- Default corner radius for Material cards / sheets -->
-        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.FlipAccounting.SmallComponent</item>
-        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.FlipAccounting.MediumComponent</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.TapAccounting.SmallComponent</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.TapAccounting.MediumComponent</item>
     </style>
 
-    <style name="ShapeAppearance.FlipAccounting.SmallComponent" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+    <style name="ShapeAppearance.TapAccounting.SmallComponent" parent="ShapeAppearance.MaterialComponents.SmallComponent">
         <item name="cornerSize">@dimen/radius_8</item>
     </style>
 
-    <style name="ShapeAppearance.FlipAccounting.MediumComponent" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+    <style name="ShapeAppearance.TapAccounting.MediumComponent" parent="ShapeAppearance.MaterialComponents.MediumComponent">
         <item name="cornerSize">@dimen/radius_12</item>
     </style>
 
-    <style name="Theme.FlipAccounting.Transparent" parent="Theme.FlipAccounting">
+    <style name="Theme.TapAccounting.Transparent" parent="Theme.TapAccounting">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowContentOverlay">@null</item>
@@ -45,19 +45,19 @@
         <item name="android:backgroundDimEnabled">false</item>
     </style>
 
-    <style name="Theme.FlipAccounting.AppCompatNoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="Theme.TapAccounting.AppCompatNoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="fontFamily">sans-serif</item>
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:statusBarColor">@color/surface_card</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
-    <style name="Animation_FlipAccounting_DialogSoft">
+    <style name="Animation_TapAccounting_DialogSoft">
         <item name="android:windowEnterAnimation">@anim/dialog_soft_enter</item>
         <item name="android:windowExitAnimation">@anim/dialog_soft_exit</item>
     </style>
 
-    <style name="Animation_FlipAccounting_BottomDialogSoft">
+    <style name="Animation_TapAccounting_BottomDialogSoft">
         <item name="android:windowEnterAnimation">@anim/dialog_bottom_soft_enter</item>
         <item name="android:windowExitAnimation">@anim/dialog_bottom_soft_exit</item>
     </style>

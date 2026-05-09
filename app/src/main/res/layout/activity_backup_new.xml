@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -6,7 +6,7 @@
     android:background="@color/settings_page_bg"
     android:orientation="vertical">
 
-    <tao.test.flipaccounting.ui.widget.SecondaryPageHeaderView
+    <tao.test.tapaccounting.ui.widget.SecondaryPageHeaderView
         android:id="@+id/secondary_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -474,16 +474,6 @@
                                 android:textSize="14sp"
                                 app:buttonTint="#5C80EA" />
 
-                            <com.google.android.material.checkbox.MaterialCheckBox
-                                android:id="@+id/cb_settings_advanced_flip"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_columnWeight="1"
-                                android:checked="true"
-                                android:text="翻转参数"
-                                android:textColor="#23324A"
-                                android:textSize="14sp"
-                                app:buttonTint="#5C80EA" />
 
                             <com.google.android.material.checkbox.MaterialCheckBox
                                 android:id="@+id/cb_banners"
@@ -707,7 +697,7 @@
                         android:layout_height="48dp"
                         android:layout_marginTop="8dp"
                         android:background="@drawable/bg_backup_group"
-                        android:hint="云端子目录（如 FlipAccounting）"
+                        android:hint="云端子目录（如 TapAccount）"
                         android:paddingHorizontal="12dp"
                         android:singleLine="true"
                         android:textColor="#223047"

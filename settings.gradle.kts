@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FlipAccounting"
+rootProject.name = "TapAccount"
 include(":app")

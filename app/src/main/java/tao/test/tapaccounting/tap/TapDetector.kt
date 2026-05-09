@@ -8,6 +8,7 @@ import android.hardware.SensorManager
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Process
+import android.os.SystemClock
 import android.util.Log
 import tao.test.tapaccounting.Prefs
 
@@ -20,6 +21,7 @@ class TapDetector(
     companion object {
         private const val TAG = "TapDetector"
         private const val SAMPLING_INTERVAL_NS = 2500000L
+        private const val TAP_THROTTLE_MS = 500L
         val TAP_SENSITIVITY_VALUES = floatArrayOf(
             0.75f, 0.53f, 0.40f, 0.25f, 0.1f, 0.05f, 0.04f, 0.03f, 0.02f, 0.01f, 0.0f
         )
@@ -38,6 +40,8 @@ class TapDetector(
     @Volatile
     var lastSensorEventTimeMillis: Long = 0L
         private set
+
+    private var lastTapActionUptimeMs = 0L
 
     fun start(): Boolean {
         if (isRunning) return true
@@ -130,6 +134,11 @@ class TapDetector(
         )
 
         val result = currentTap.checkDoubleTapTiming(event.timestamp)
+        if (result >= 2) {
+            val now = SystemClock.uptimeMillis()
+            if (now - lastTapActionUptimeMs < TAP_THROTTLE_MS) return
+            lastTapActionUptimeMs = now
+        }
         when {
             result == 2 -> onTapAction(2)
             result == 3 && isTripleEnabled -> onTapAction(3)
