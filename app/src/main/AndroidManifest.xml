@@ -83,6 +83,19 @@
 
         </service>
 
+        <service
+            android:name=".KeepAliveAccessibilityService"
+            android:label="敲敲记账助手"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
@@ -164,6 +177,12 @@
             android:name=".ChatActivity"
             android:label="AI 瀵硅瘽璁拌处"
             android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.TapAccounting" />
+        <activity
+            android:name=".ChatImagePreviewActivity"
+            android:label="图片预览"
+            android:exported="false"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.TapAccounting" />
         <activity
             android:name=".ChatSearchActivity"

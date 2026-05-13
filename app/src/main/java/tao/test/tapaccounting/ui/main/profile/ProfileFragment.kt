@@ -99,14 +99,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         super.onResume()
         applyProfileStatusBarStyle()
         rootRef?.let { refreshOverlayReminder(it, Prefs.isQuickGestureEnabled(requireContext())) }
-        rootRef?.findViewById<View>(R.id.layout_screen_accounting_container)?.visibility =
-            if (
-                Prefs.isQuickGestureEnabled(requireContext()) &&
-                Prefs.isShizukuModeEnabled(requireContext())
-            ) View.VISIBLE else View.GONE
-        rootRef?.findViewById<View>(R.id.tv_screen_accounting_hint)?.visibility = View.GONE
-        rootRef?.findViewById<CompoundButton>(R.id.switch_screen_accounting)?.isChecked =
-            Prefs.isShowScreenAccounting(requireContext())
         rootRef?.let { updateShowBookEntrySettingVisibility(it) }
         rootRef?.let { refreshUserAvatarCard(it) }
         rootRef?.let { refreshHomeTrendCardSwitch(it) }
@@ -393,18 +385,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val dividerBeforeShowBookEntry = view.findViewById<View>(R.id.divider_before_show_book_entry)
         val switchShizukuMode = view.findViewById<CompoundButton>(R.id.switch_shizuku_mode)
         val layoutWhitelist = view.findViewById<View>(R.id.layout_whitelist_container)
-        val layoutScreenAccounting = view.findViewById<View>(R.id.layout_screen_accounting_container)
-        val tvScreenAccountingHint = view.findViewById<View>(R.id.tv_screen_accounting_hint)
         val switchWhitelistMode = view.findViewById<CompoundButton>(R.id.switch_whitelist_mode)
-        val switchScreenAccounting = view.findViewById<CompoundButton>(R.id.switch_screen_accounting)
         val btnManageWhitelist = view.findViewById<View>(R.id.btn_manage_whitelist)
         var ignoreWhitelistToggle = false
-        var ignoreScreenAccountingToggle = false
         fun updateWhitelistUi() {
             val shizukuModeEnabled = switchShizukuMode.isChecked
             layoutWhitelist.visibility = if (shizukuModeEnabled) View.VISIBLE else View.GONE
-            layoutScreenAccounting.visibility = if (shizukuModeEnabled) View.VISIBLE else View.GONE
-            tvScreenAccountingHint.visibility = View.GONE
             btnManageWhitelist.visibility = if (layoutWhitelist.visibility == View.VISIBLE && switchWhitelistMode.isChecked) View.VISIBLE else View.GONE
         }
         fun updateDataEntriesUi(multiCurrencyEnabled: Boolean) {
@@ -419,33 +405,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             Prefs.setShowMultiCurrency(requireContext(), isChecked)
             updateDataEntriesUi(isChecked)
             refreshOverlayReminder(view, Prefs.isQuickGestureEnabled(requireContext()))
-        }
-        switchScreenAccounting.apply {
-            isChecked = Prefs.isShowScreenAccounting(requireContext())
-            setOnCheckedChangeListener { _, isChecked ->
-                if (ignoreScreenAccountingToggle) return@setOnCheckedChangeListener
-                if (!switchShizukuMode.isChecked) {
-                    ignoreScreenAccountingToggle = true
-                    post {
-                        switchScreenAccounting.isChecked = false
-                        ignoreScreenAccountingToggle = false
-                    }
-                    Utils.toast(requireContext(), "请先开启 Shizuku 模式")
-                    return@setOnCheckedChangeListener
-                }
-                if (isChecked && !ShizukuSafe.isReady(requireContext())) {
-                    ignoreScreenAccountingToggle = true
-                    post {
-                        switchScreenAccounting.isChecked = false
-                        ignoreScreenAccountingToggle = false
-                    }
-                    Utils.toast(requireContext(), "截屏记账需要先启动并授权 Shizuku")
-                    tao.test.tapaccounting.ui.dialog.OverlayDialogs.showShizukuPrompt(requireContext())
-                    return@setOnCheckedChangeListener
-                }
-                Prefs.setShowScreenAccounting(requireContext(), isChecked)
-                Utils.toast(context, if (isChecked) "已开启截屏记账按钮" else "已关闭截屏记账按钮")
-            }
         }
         switchShowBookEntry.apply {
             isChecked = Prefs.isShowBookEntry(requireContext())

@@ -42,6 +42,7 @@ class ChatMessagePipeline(
     private val buildAnalysisInput: suspend (String) -> String,
     private val decideSingleOrMultiForChat: (String) -> Boolean,
     private val processBillResult: suspend (JSONObject, String, String, String) -> List<Bill>,
+    private val confirmVisualAccountingDraft: suspend (String, String, String) -> String?,
     private val processBillModifyResult: suspend (JSONObject, String, tao.test.tapaccounting.data.local.entity.Bill) -> Unit,
     private val buildBillSummary: (List<Bill>) -> String,
     private val transcribeVoiceToTextWithFallback: suspend (File) -> String,
@@ -589,24 +590,61 @@ class ChatMessagePipeline(
                 if (!canWriteForRequest(requestContext)) return@launch
                 val analysisInput = buildAnalysisInput(userText)
                 val autoMultiMode = true
+                var accountingSourceText = userText
                 val result = try {
-                    withContext(Dispatchers.IO) {
-                        if (userText.startsWith("[MULTIMODAL_IMAGE]")) {
-                            val payload = userText.removePrefix("[MULTIMODAL_IMAGE]")
-                            val parts = payload.split("|", limit = 2)
-                            val base64 = parts.getOrElse(0) { "" }
-                            val mime = parts.getOrElse(1) { "image/jpeg" }
-                            val visionResult = AIService.analyzeReceiptByImage(context, base64, mime)
+                    if (userText.startsWith("[MULTIMODAL_IMAGE]")) {
+                        accountingSourceText = "图片记账"
+                        val payload = userText.removePrefix("[MULTIMODAL_IMAGE]")
+                        val parts = payload.split("|", limit = 2)
+                        val base64 = parts.getOrElse(0) { "" }
+                        val mime = parts.getOrElse(1) { "image/jpeg" }
+
+                        updateLoadingMessage(loadingKey, "正在识别图片...")
+                        val visionResult = withContext(Dispatchers.IO) {
+                            AIService.analyzeReceiptByImage(context, base64, mime)
+                        }
+                        if (!canWriteForRequest(requestContext)) return@launch
+
+                        updateLoadingMessage(loadingKey, "请核对识别草稿...")
+                        val confirmedDraft = confirmVisualAccountingDraft(
+                            visionResult,
+                            requestContext.bookName,
+                            requestContext.conversationId
+                        )?.trim()
+                        if (!canWriteForRequest(requestContext)) return@launch
+                        if (confirmedDraft.isNullOrBlank()) {
+                            removeLoadingMessage(loadingKey)
+                            appendAiTextMessage(
+                                "已取消本次图片记账。",
+                                false,
+                                requestContext.bookName,
+                                requestContext.conversationId
+                            )
+                            return@launch
+                        }
+                        accountingSourceText = confirmedDraft
+
+                        updateLoadingMessage(loadingKey, "正在根据确认内容生成账单...")
+                        withContext(Dispatchers.IO) {
                             AIService.analyzeAccounting(
                                 ctx = context,
-                                userInput = visionResult,
+                                userInput = confirmedDraft,
                                 isMultiModeOverride = autoMultiMode,
                                 isFromChat = true,
                                 onProgress = { status ->
                                     runOnUiIfAlive { if (canWriteForRequest(requestContext)) pushLoadingStatus(status) }
                                 }
-                            )
-                        } else {
+                            )?.also { root ->
+                                AIService.markVisualAccountingReviewDraft(
+                                    root = root,
+                                    sourceKind = "chat_image",
+                                    naturalSummary = confirmedDraft,
+                                    includePaymentMethod = Prefs.isAssetFeatureEnabled(context)
+                                )
+                            }
+                        }
+                    } else {
+                        withContext(Dispatchers.IO) {
                             AIService.analyzeAccounting(
                                 ctx = context,
                                 userInput = analysisInput,
@@ -626,7 +664,7 @@ class ChatMessagePipeline(
                 if (!canWriteForRequest(requestContext)) return@launch
                 removeLoadingMessage(loadingKey)
                 if (result == null) {
-                    val replied = appendAssistantCompanionReply(userText, billSummary = "", extractorReplyHint = "", requestContext)
+                    val replied = appendAssistantCompanionReply(accountingSourceText, billSummary = "", extractorReplyHint = "", requestContext)
                     if (forceTextReply && !replied) {
                         appendAiTextMessage(
                             "我这次没能正确解析，但已经收到你的语音转写文本。你可以再说得更具体一点，我继续帮你记账。",
@@ -640,7 +678,7 @@ class ChatMessagePipeline(
                 if (result.optBoolean("no_bill", false)) {
                     val hint = result.optString("reply", "").trim()
                     appendGeneralChatStreamingReply(
-                        userText = userText,
+                        userText = accountingSourceText,
                         requestContext = requestContext,
                         replyGuideHint = hint,
                         routeTag = "accounting_no_bill"
@@ -657,14 +695,14 @@ class ChatMessagePipeline(
                 }
                 val savedBills = processBillResult(
                     result,
-                    userText,
+                    accountingSourceText,
                     requestContext.bookName,
                     requestContext.conversationId
                 )
                 if (!canWriteForRequest(requestContext)) return@launch
                 if (savedBills.isNotEmpty()) {
                     appendAssistantCompanionReply(
-                        userText = userText,
+                        userText = accountingSourceText,
                         billSummary = buildBillSummary(savedBills),
                         extractorReplyHint = "",
                         requestContext = requestContext

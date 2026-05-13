@@ -1,6 +1,7 @@
 package tao.test.tapaccounting
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.view.KeyEvent
@@ -19,6 +20,9 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.load.resource.bitmap.FitCenter
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,8 +74,11 @@ class ChatAdapter(
     private val onMaybeShowRuleDialogForChatBillCategoryEdit: (ChatDisplayItem, Bill, Bill) -> Unit,
     private val showCustomConfirmDialog: (String, String, String, Boolean, () -> Unit) -> Unit,
     private val onInteractiveBillAction: (ChatDisplayItem, Bill, Int) -> Unit,
+    private val onOpenImagePreview: (ChatDisplayItem) -> Unit,
     private val onInterruptAiLoading: () -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private val imageThumbSizeCache = mutableMapOf<String, Pair<Int, Int>>()
+    private val imageThumbSizeLoading = mutableSetOf<String>()
 
     override fun getItemCount(): Int = displayMessages.size
 
@@ -128,19 +135,33 @@ class ChatAdapter(
                     layoutVoice.visibility = View.GONE
                     layoutVoiceTranscript.visibility = View.GONE
                     ivImage.visibility = View.VISIBLE
-                    val density = itemView.resources.displayMetrics.density
-                    val maxWidth = (200f * density).toInt()
-                    val adaptiveWidth = (itemView.resources.displayMetrics.widthPixels * 0.56f).toInt()
-                    val imageWidth = minOf(maxWidth, adaptiveWidth).coerceAtLeast((144f * density).toInt())
-                    ivImage.layoutParams = ivImage.layoutParams.apply {
-                        width = imageWidth
-                        height = (imageWidth * 0.75f).toInt()
+                    val imageUri = item.imageUri
+                    ivImage.tag = imageUri
+                    ivImage.setPadding(0, 0, 0, 0)
+                    ivImage.scaleType = ImageView.ScaleType.FIT_CENTER
+                    imageThumbSizeCache[imageUri]?.let { (width, height) ->
+                        applyImageThumbSize(intrinsicWidth = width, intrinsicHeight = height)
+                    } ?: run {
+                        applyImageThumbSize(intrinsicWidth = 4, intrinsicHeight = 3)
+                        loadImageThumbSize(imageUri)
                     }
                     Glide.with(itemView.context)
-                        .load(Uri.parse(item.imageUri))
+                        .load(Uri.parse(imageUri))
                         .diskCacheStrategy(DiskCacheStrategy.NONE)
                         .skipMemoryCache(true)
+                        .apply(
+                            RequestOptions().transform(
+                                FitCenter(),
+                                RoundedCorners((12f * itemView.resources.displayMetrics.density).roundToInt())
+                            )
+                        )
                         .into(ivImage)
+                    ivImage.isClickable = true
+                    ivImage.isFocusable = true
+                    ivImage.contentDescription = "查看大图"
+                    ivImage.setOnClickListener {
+                        onOpenImagePreview(item)
+                    }
                 }
 
                 ChatActivity.MSG_TYPE_USER_VOICE -> {
@@ -197,9 +218,81 @@ class ChatAdapter(
                 tvVoiceTranscript.setOnLongClickListener(null)
                 ivVoiceTranscriptCopy.setOnClickListener(null)
             }
+            if (item.msgType != ChatActivity.MSG_TYPE_USER_IMAGE) {
+                ivImage.setOnClickListener(null)
+                ivImage.isClickable = false
+            }
             ivUserAvatar.setOnClickListener(null)
             itemView.setOnClickListener {
                 if (isVoiceSelectionMode() && supportsSelection) onToggleVoiceSelection(item)
+            }
+        }
+
+        private fun loadImageThumbSize(imageUri: String) {
+            if (imageUri.isBlank() || !imageThumbSizeLoading.add(imageUri)) return
+            lifecycleScope.launch {
+                val size = withContext(Dispatchers.IO) {
+                    decodeImageBounds(imageUri)
+                }
+                imageThumbSizeLoading.remove(imageUri)
+                if (size == null) return@launch
+                imageThumbSizeCache[imageUri] = size
+                if (ivImage.tag == imageUri) {
+                    applyImageThumbSize(size.first, size.second)
+                }
+            }
+        }
+
+        private fun decodeImageBounds(imageUri: String): Pair<Int, Int>? {
+            return runCatching {
+                val uri = Uri.parse(imageUri)
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input, null, options)
+                }
+                if (options.outWidth > 0 && options.outHeight > 0) {
+                    options.outWidth to options.outHeight
+                } else {
+                    null
+                }
+            }.getOrNull()
+        }
+
+        private fun applyImageThumbSize(intrinsicWidth: Int, intrinsicHeight: Int) {
+            val density = itemView.resources.displayMetrics.density
+            val maxWidth = minOf((184f * density).roundToInt(), (itemView.resources.displayMetrics.widthPixels * 0.52f).roundToInt())
+            val minWidth = (92f * density).roundToInt()
+            val maxHeight = (220f * density).roundToInt()
+            val minHeight = (72f * density).roundToInt()
+            val ratio = if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                intrinsicWidth.toFloat() / intrinsicHeight.toFloat()
+            } else {
+                4f / 3f
+            }.coerceIn(0.42f, 2.4f)
+
+            var width: Int
+            var height: Int
+            if (ratio >= 1f) {
+                width = maxWidth
+                height = (width / ratio).roundToInt()
+                if (height < minHeight) {
+                    height = minHeight
+                    width = (height * ratio).roundToInt()
+                }
+            } else {
+                height = maxHeight
+                width = (height * ratio).roundToInt()
+                if (width < minWidth) {
+                    width = minWidth
+                    height = (width / ratio).roundToInt()
+                }
+            }
+
+            width = width.coerceIn(minWidth, maxWidth)
+            height = height.coerceIn(minHeight, maxHeight)
+            ivImage.layoutParams = ivImage.layoutParams.apply {
+                this.width = width
+                this.height = height
             }
         }
 

@@ -351,7 +351,13 @@ object AIService {
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
         val model = Prefs.getAiReceiptVisionModel(ctx).ifBlank { Prefs.getAiReceiptModel(ctx) }
-        val systemPrompt = Prefs.getReceiptVisionPrompt(ctx).ifBlank { AIPrompts.RECEIPT_VISION_RETRY_PROMPT_DEFAULT }
+        val promptContext = buildAccountingPromptContext(ctx)
+        val systemPrompt = Prefs.getReceiptVisionPrompt(ctx)
+            .ifBlank { AIPrompts.RECEIPT_VISION_RETRY_PROMPT_DEFAULT } +
+            AIPrompts.buildReceiptVisionPaymentMethodRule(
+                promptContext.assetFeatureEnabled,
+                promptContext.assetNames
+            )
         val dataUrl = "data:$mimeType;base64,$imageBase64"
 
         val requestJson = buildVisionChatRequest(
@@ -359,7 +365,7 @@ object AIService {
             temperature = 0.3,
             systemPrompt = systemPrompt,
             dataUrl = dataUrl,
-            userText = "请分析这张小票订单图片，转为自然语言清单。",
+            userText = "请分析这张用于记账的图片，提取时间、对象/商品、支付方式（仅在资产功能开启时）、金额，转为自然语言清单。",
             enableThinking = enableThinkingForVision(ctx)
         )
 
@@ -424,8 +430,8 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
-        val model = Prefs.getAiScreenModel(ctx).trim()
-        if (model.isBlank()) throw IllegalArgumentException("请先在智能配置中选择屏幕识别模型")
+        val model = Prefs.getAiReceiptVisionModel(ctx).trim()
+        if (model.isBlank()) throw IllegalArgumentException("请先在智能配置中选择视觉重试模型")
 
         val promptContext = buildAccountingPromptContext(ctx)
         val systemPrompt = buildScreenAccountingSystemPrompt(
@@ -439,7 +445,7 @@ object AIService {
             temperature = 0.2,
             systemPrompt = systemPrompt,
             dataUrl = dataUrl,
-            userText = "这是一张手机屏幕截图。请忽略界面装饰，只提取真实交易信息，并直接返回 {\"bills\":[...]}。",
+            userText = "这是一张用于记账识别的截图或图片。请先判断画面类型，只提取真实交易信息，返回带 requires_review、natural_summary、risk_flags 和 bills 的待核对 JSON。",
             enableThinking = enableThinkingForVision(ctx)
         )
 
@@ -466,6 +472,11 @@ object AIService {
                     incomeCats = promptContext.incomeCats,
                     assetNames = promptContext.assetNames,
                     assetFeatureEnabled = promptContext.assetFeatureEnabled
+                )
+                markVisualAccountingReviewDraft(
+                    root = root,
+                    sourceKind = "screen_capture",
+                    includePaymentMethod = promptContext.assetFeatureEnabled
                 )
             }
             result
@@ -901,6 +912,96 @@ object AIService {
             val response = getApi(ctx).chatRaw("Bearer $apiKey", requestJson)
             response.choices.firstOrNull()?.message?.content != null
         }.getOrElse { false }
+    }
+
+    fun markVisualAccountingReviewDraft(
+        root: JSONObject,
+        sourceKind: String,
+        naturalSummary: String = "",
+        includePaymentMethod: Boolean = true
+    ): JSONObject {
+        if (root.optBoolean("no_bill", false)) return root
+        root.put("source_kind", sourceKind)
+        root.put("requires_review", true)
+        val summary = naturalSummary.trim().ifBlank {
+            root.optString("natural_summary", "").trim().ifBlank {
+                buildVisualAccountingNaturalSummary(root, includePaymentMethod)
+            }
+        }
+        if (summary.isNotBlank()) root.put("natural_summary", summary)
+
+        val riskFlags = root.optJSONArray("risk_flags") ?: JSONArray()
+        collectVisualAccountingRiskFlags(root, includePaymentMethod).forEach { flag ->
+            if (!jsonArrayContains(riskFlags, flag)) riskFlags.put(flag)
+        }
+        root.put("risk_flags", riskFlags)
+
+        if (root.has("bills")) {
+            val bills = root.getJSONArray("bills")
+            for (i in 0 until bills.length()) {
+                val bill = bills.optJSONObject(i) ?: continue
+                bill.put("source_kind", sourceKind)
+                bill.put("requires_review", true)
+                if (summary.isNotBlank()) bill.put("natural_summary", summary)
+            }
+        }
+        return root
+    }
+
+    private fun buildVisualAccountingNaturalSummary(root: JSONObject, includePaymentMethod: Boolean): String {
+        val bills = root.optJSONArray("bills") ?: JSONArray().put(root)
+        if (bills.length() == 0) return ""
+        val lines = mutableListOf<String>()
+        for (i in 0 until bills.length()) {
+            val bill = bills.optJSONObject(i) ?: continue
+            val type = bill.optInt("type", 0)
+            val subType = bill.optInt("subType", 0)
+            val amount = bill.optDouble("amount", 0.0)
+            val currency = bill.optString("currency", "CNY").ifBlank { "CNY" }
+            val remark = bill.optString("remarks", bill.optString("remark", "")).ifBlank { "待确认" }
+            val time = bill.optString("time", "").ifBlank { "待确认" }
+            val asset = bill.optString("asset_name", "").ifBlank { "待确认" }
+            val toAsset = bill.optString("to_asset_name", "")
+            val category = bill.optString("category_name", "").ifBlank { "待确认" }
+            val accountText = if (toAsset.isNotBlank()) "$asset -> $toAsset" else asset
+            val paymentText = if (includePaymentMethod) "，账户 $accountText" else ""
+            lines += "${i + 1}. ${visualTypeLabel(type, subType)} ${formatVisualAmount(amount, currency)}，$remark，时间 $time$paymentText，分类 $category"
+        }
+        return lines.joinToString("\n")
+    }
+
+    private fun collectVisualAccountingRiskFlags(root: JSONObject, includePaymentMethod: Boolean): Set<String> {
+        val flags = linkedSetOf<String>()
+        val bills = root.optJSONArray("bills") ?: JSONArray().put(root)
+        for (i in 0 until bills.length()) {
+            val bill = bills.optJSONObject(i) ?: continue
+            if (bill.optDouble("amount", 0.0) <= 0.0) flags += "unclear_amount"
+            if (includePaymentMethod && bill.optString("asset_name", "").isBlank()) flags += "missing_asset"
+            if (bill.optString("remarks", bill.optString("remark", "")).isBlank()) flags += "unclear_item"
+            if (bill.optString("category_name", "").isBlank()) flags += "unclear_category"
+            if (bill.optString("time", "").isBlank()) flags += "missing_time"
+        }
+        return flags
+    }
+
+    private fun visualTypeLabel(type: Int, subType: Int): String = when {
+        type == Bill.TYPE_INCOME -> "收入"
+        type == Bill.TYPE_TRANSFER && subType == Bill.SUBTYPE_REPAYMENT -> "还款"
+        type == Bill.TYPE_TRANSFER -> "转账"
+        else -> "支出"
+    }
+
+    private fun formatVisualAmount(amount: Double, currency: String): String {
+        val formatted = String.format(Locale.getDefault(), "%.2f", amount)
+        val prefix = if (currency.equals("CNY", ignoreCase = true)) "¥" else "$currency "
+        return "$prefix$formatted"
+    }
+
+    private fun jsonArrayContains(array: JSONArray, value: String): Boolean {
+        for (i in 0 until array.length()) {
+            if (array.optString(i) == value) return true
+        }
+        return false
     }
 
     /**

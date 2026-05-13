@@ -670,6 +670,65 @@
                             app:thumbTint="@color/switch_thumb_tint"
                             app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginVertical="4dp"
+                        android:background="#F0F2F5" />
+
+                    <!-- 截屏记账 -->
+                    <LinearLayout
+                        android:id="@+id/layout_screen_accounting"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="8dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="截屏记账"
+                                android:textColor="#1F2A3D"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="开启后可通过敲击背板截屏识别账单。"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_screen_accounting"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_screen_accounting_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_inset_panel"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="8dp"
+                        android:text="需开启无障碍服务或 Shizuku 模式才能使用截屏记账。"
+                        android:textColor="#9AA4B2"
+                        android:textSize="@dimen/text_size_10"
+                        android:visibility="gone" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

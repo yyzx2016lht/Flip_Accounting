@@ -2283,7 +2283,9 @@ class AccountingFormController(
             val billsArray = json.getJSONArray("bills")
             if (billsArray.length() == 0) return
             
-            val isNotSync = Prefs.isMultiBillNotSync(ctx)
+            val sourceKind = json.optString("source_kind", "")
+            val isVisualReviewDraft = sourceKind == "screen_capture" || sourceKind == "receipt_image"
+            val isNotSync = Prefs.isMultiBillNotSync(ctx) && !json.optBoolean("requires_review", false) && !isVisualReviewDraft
             if (isNotSync) {
                 scope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(ctx)

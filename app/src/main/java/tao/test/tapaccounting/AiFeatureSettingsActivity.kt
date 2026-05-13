@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -208,6 +209,41 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             }
         }
 
+        // 截屏记账
+        val switchScreenAccounting = findViewById<CompoundButton>(R.id.switch_screen_accounting)
+        val tvScreenAccountingHint = findViewById<TextView>(R.id.tv_screen_accounting_hint)
+        val layoutScreenAccounting = findViewById<View>(R.id.layout_screen_accounting)
+        var ignoreScreenAccountingToggle = false
+
+        fun updateScreenAccountingVisibility() {
+            val hasAccessibility = KeepAliveAccessibilityService.isServiceEnabled() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+            val hasShizuku = Prefs.isShizukuModeEnabled(this) && ShizukuSafe.isReady(this)
+            layoutScreenAccounting.visibility = if (hasAccessibility || hasShizuku) View.VISIBLE else View.GONE
+            tvScreenAccountingHint.visibility = if (hasAccessibility || hasShizuku) View.GONE else View.VISIBLE
+        }
+
+        switchScreenAccounting.apply {
+            isChecked = Prefs.isShowScreenAccounting(this@AiFeatureSettingsActivity)
+            setOnCheckedChangeListener { _, isChecked ->
+                if (ignoreScreenAccountingToggle) return@setOnCheckedChangeListener
+                val hasAccessibility = KeepAliveAccessibilityService.isServiceEnabled() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                val hasShizuku = Prefs.isShizukuModeEnabled(this@AiFeatureSettingsActivity) && ShizukuSafe.isReady(this@AiFeatureSettingsActivity)
+                if (!hasAccessibility && !hasShizuku) {
+                    ignoreScreenAccountingToggle = true
+                    post {
+                        switchScreenAccounting.isChecked = false
+                        ignoreScreenAccountingToggle = false
+                    }
+                    Utils.toast(this@AiFeatureSettingsActivity, "截屏记账需要开启无障碍服务或 Shizuku 模式")
+                    return@setOnCheckedChangeListener
+                }
+                Prefs.setShowScreenAccounting(this@AiFeatureSettingsActivity, isChecked)
+                Utils.toast(this@AiFeatureSettingsActivity, if (isChecked) "已开启截屏记账" else "已关闭截屏记账")
+            }
+        }
+
+        updateScreenAccountingVisibility()
+
         btnManageAiRules = findViewById(R.id.btn_manage_ai_rules)
         layoutAiKeyWarning = findViewById(R.id.layout_ai_key_warning)
         btnManageAiRules.setOnClickListener {
@@ -225,7 +261,8 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 R.id.switch_ai_llm_router,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,
-                R.id.switch_show_ai_image
+                R.id.switch_show_ai_image,
+                R.id.switch_screen_accounting
             )
 
             for (tid in toggleIds) {

@@ -173,6 +173,7 @@ class ChatActivity : AppCompatActivity() {
             buildAnalysisInput = ::buildAnalysisInput,
             decideSingleOrMultiForChat = ::decideSingleOrMultiForChat,
             processBillResult = ::processBillResult,
+            confirmVisualAccountingDraft = ::confirmVisualAccountingDraftInChat,
             processBillModifyResult = { json, text, oldBill -> billCorrectionService.processBillModifyResult(json, text, oldBill) },
             buildBillSummary = ::buildBillSummary,
             transcribeVoiceToTextWithFallback = ::transcribeVoiceToTextWithFallback,
@@ -258,6 +259,7 @@ class ChatActivity : AppCompatActivity() {
                 uiHelperController.showCustomConfirmDialog(title, message, confirmText, isDanger, onConfirm)
             },
             onInteractiveBillAction = ::onInteractiveBillAction,
+            onOpenImagePreview = ::openImagePreview,
             onInterruptAiLoading = ::interruptAiResponse
         )
     }
@@ -1156,6 +1158,72 @@ class ChatActivity : AppCompatActivity() {
         return billCorrectionService.processBillResult(result, userText, bookName, conversationId)
     }
 
+    private suspend fun confirmVisualAccountingDraftInChat(
+        summary: String,
+        bookName: String,
+        conversationId: String
+    ): String? {
+        val initialDraft = summary.trim()
+        if (initialDraft.isBlank()) return null
+        return withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { cont ->
+                if (isFinishing || isDestroyed) {
+                    cont.resume(null)
+                    return@suspendCancellableCoroutine
+                }
+
+                val themeContext = ContextThemeWrapper(this@ChatActivity, R.style.Theme_TapAccounting)
+                val view = LayoutInflater.from(themeContext).inflate(R.layout.dialog_visual_accounting_draft, null)
+                val etDraft = view.findViewById<EditText>(R.id.et_visual_draft)
+                val btnCancel = view.findViewById<TextView>(R.id.btn_visual_draft_cancel)
+                val btnConfirm = view.findViewById<TextView>(R.id.btn_visual_draft_confirm)
+
+                etDraft.setText(initialDraft)
+                etDraft.setSelection(initialDraft.length)
+
+                val dialog = AlertDialog.Builder(themeContext)
+                    .setView(view)
+                    .create()
+
+                var completed = false
+                fun finish(value: String?) {
+                    if (completed) return
+                    completed = true
+                    dialog.setOnDismissListener(null)
+                    if (cont.isActive) cont.resume(value)
+                    if (dialog.isShowing) dialog.dismiss()
+                }
+
+                btnCancel.setOnClickListener { finish(null) }
+                btnConfirm.setOnClickListener {
+                    val edited = etDraft.text?.toString().orEmpty().trim()
+                    if (edited.isBlank()) {
+                        Utils.toast(this@ChatActivity, "请保留可识别的记账内容")
+                        return@setOnClickListener
+                    }
+                    finish(edited)
+                }
+                dialog.setOnCancelListener { finish(null) }
+                dialog.setOnDismissListener { finish(null) }
+                cont.invokeOnCancellation {
+                    runOnUiThread {
+                        if (dialog.isShowing) dialog.dismiss()
+                    }
+                }
+
+                OverlayDialogs.showPageCenterDialog(
+                    dialog = dialog,
+                    ctx = this@ChatActivity,
+                    widthRatio = 0.92f,
+                    cancelOnTouchOutside = false,
+                    useSolidPanelBackground = false
+                )
+                dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+                if (!dialog.isShowing) finish(null)
+            }
+        }
+    }
+
     private suspend fun chooseModifyTargetBill(userText: String, candidates: List<Bill>): Bill? {
         if (candidates.isEmpty()) return null
         val displayCandidates = candidates.take(3)
@@ -1465,6 +1533,22 @@ class ChatActivity : AppCompatActivity() {
 
     private fun loadHistoryMessages() {
         historyController.loadHistoryMessages()
+    }
+
+    private fun openImagePreview(item: ChatDisplayItem) {
+        val imageUris = displayMessages
+            .asSequence()
+            .filter { it.msgType == MSG_TYPE_USER_IMAGE && it.imageUri.isNotBlank() }
+            .map { it.imageUri }
+            .toList()
+        if (imageUris.isEmpty()) return
+        val index = imageUris.indexOf(item.imageUri).coerceAtLeast(0)
+        val intent = android.content.Intent(this, ChatImagePreviewActivity::class.java).apply {
+            putStringArrayListExtra(ChatImagePreviewActivity.EXTRA_IMAGE_URIS, ArrayList(imageUris))
+            putExtra(ChatImagePreviewActivity.EXTRA_INDEX, index)
+        }
+        startActivity(intent)
+        overridePendingTransition(android.R.anim.fade_in, 0)
     }
 
     private fun scrollToPendingMessageIfNeeded() {

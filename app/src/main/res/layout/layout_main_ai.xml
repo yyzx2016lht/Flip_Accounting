@@ -501,21 +501,6 @@
                         android:textColor="#444444"
                         android:visibility="gone"/>
                     <EditText
-                        android:id="@+id/et_screen_accounting_prompt"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:minLines="5"
-                        android:maxLines="8"
-                        android:scrollbars="vertical"
-                        android:fadeScrollbars="false"
-                        android:gravity="top"
-                        android:hint="屏幕识别模式默认提示词..."
-                        android:background="@drawable/bg_search_box"
-                        android:padding="12dp"
-                        android:textSize="@dimen/text_size_13"
-                        android:textColor="#444444"
-                        android:visibility="gone"/>
-                    <EditText
                         android:id="@+id/et_receipt_ocr_refine_prompt"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

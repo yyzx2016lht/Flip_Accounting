@@ -105,23 +105,31 @@ internal fun buildScreenAccountingSystemPrompt(
     ctx: Context,
     promptContext: AIAccountingPromptContext
 ): String {
-    var prompt = Prefs.getScreenAccountingPrompt(ctx).ifBlank { AIService.SCREEN_ACCOUNTING_PROMPT_DEFAULT }
-    prompt = adaptPromptForCategoryDepth(
-        prompt = prompt,
-        hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
-    )
-    prompt += AIPrompts.buildRemarksRichnessRule()
-    prompt += AIPrompts.buildIncomeCategoryHardRule()
-    prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildAccountingDateRule()
-    prompt += AIPrompts.buildScreenModeRule(
+    // 使用内置的完整提示词，不再使用用户自定义提示词
+    var prompt = AIService.SCREEN_ACCOUNTING_PROMPT_DEFAULT
+    
+    // 只追加动态硬规则
+    // 1. 叶子分类提示
+    prompt += buildScreenCategoryHintRule(
         promptContext.expenseLeafCats,
-        promptContext.incomeLeafCats,
-        promptContext.assetFeatureEnabled
+        promptContext.incomeLeafCats
     )
-    prompt += AIPrompts.buildScreenUnifiedOutputRule()
+    prompt += AIPrompts.buildVisualPaymentMethodRule(
+        promptContext.assetFeatureEnabled,
+        promptContext.assetNames
+    )
+    
+    // 2. 信用卡还款补充（动态）
+    val creditCardNames = creditCardNames(promptContext)
+    if (promptContext.assetFeatureEnabled && creditCardNames.isNotEmpty()) {
+        prompt += AIPrompts.buildRepaymentRule(creditCardNames, true)
+    }
+    
+    // 3. 非人民币资产补充（动态）
+    val assetCurrencyHints = assetCurrencyHints(promptContext)
+    if (promptContext.assetFeatureEnabled && assetCurrencyHints.isNotEmpty()) {
+        prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints, true)
+    }
 
     return renderPromptTemplate(
         prompt = prompt,
@@ -130,6 +138,19 @@ internal fun buildScreenAccountingSystemPrompt(
         expenseCats = promptContext.expenseCats,
         incomeCats = promptContext.incomeCats
     )
+}
+
+private fun buildScreenCategoryHintRule(
+    expenseLeafCats: List<String>,
+    incomeLeafCats: List<String>
+): String {
+    return """
+
+【可用叶子分类提示】
+支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}
+收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}
+分类必须按交易性质选择，不要把商户名、平台名、收款方名称直接当分类。
+"""
 }
 
 private fun accountingBasePrompt(assetFeatureEnabled: Boolean): String =

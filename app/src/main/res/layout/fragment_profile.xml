@@ -984,70 +984,6 @@
                             android:visibility="gone" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:id="@+id/layout_screen_accounting_container"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:background="@drawable/bg_inset_panel"
-                        android:orientation="vertical"
-                        android:paddingBottom="4dp"
-                        android:paddingHorizontal="12dp"
-                        android:paddingTop="6dp"
-                        android:visibility="gone">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal"
-                            android:paddingVertical="4dp">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="截屏记账（Shizuku）"
-                                    android:textColor="#1F2A3D"
-                                    android:textSize="@dimen/text_size_13"
-                                    android:textStyle="bold" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="在悬浮窗中显示截屏记账按钮，优先走 Shizuku 静默截屏。"
-                                    android:textColor="#9AA4B2"
-                                    android:textSize="@dimen/text_size_10" />
-                            </LinearLayout>
-
-                            <com.google.android.material.switchmaterial.SwitchMaterial
-                                android:id="@+id/switch_screen_accounting"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                app:thumbTint="@color/switch_thumb_tint"
-                                app:trackTint="@color/switch_track_tint" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tv_screen_accounting_hint"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:background="@drawable/bg_inset_panel"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="10dp"
-                        android:text="截屏记账需先开启并授权 Shizuku，授权后才会显示屏幕识别入口和相关配置。"
-                        android:textColor="#9AA4B2"
-                        android:textSize="@dimen/text_size_10"
-                        android:visibility="gone" />
-
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
@@ -1600,6 +1536,12 @@
                             app:thumbTint="@color/switch_thumb_tint"
                             app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="50dp"
+                        android:background="@color/settings_divider" />
 
                     <View
                         android:layout_width="match_parent"

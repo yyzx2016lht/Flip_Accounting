@@ -21,6 +21,7 @@ class OverlayService : Service() {
         const val ACTION_SHOW_OVERLAY = "tao.test.tapaccounting.SHOW_OVERLAY"
         const val ACTION_HIDE_OVERLAY = "tao.test.tapaccounting.HIDE_OVERLAY"
         const val ACTION_SHOW_AI_INPUT = "tao.test.tapaccounting.SHOW_AI_INPUT"
+        const val ACTION_SCREEN_CAPTURE = "tao.test.tapaccounting.SCREEN_CAPTURE"
         const val ACTION_START_DOUBLE_TAP = "ACTION_START_DOUBLE_TAP"
         const val ACTION_STOP_DOUBLE_TAP = "ACTION_STOP_DOUBLE_TAP"
         const val ACTION_RESTART_DOUBLE_TAP = "ACTION_RESTART_DOUBLE_TAP"
@@ -31,7 +32,7 @@ class OverlayService : Service() {
 
         private const val RESTART_DELAY_MS = 3_000L
         private const val TAP_DEAD_EVENT_TIMEOUT_MS = 120_000L
-        private const val TAP_DEAD_CONSECUTIVE_LIMIT = 3
+        private const val TAP_DEAD_CONSECUTIVE_LIMIT = 2
         private const val TAP_FEEDBACK_THROTTLE_MS = 650L
     }
 
@@ -124,6 +125,21 @@ class OverlayService : Service() {
             }
         }
 
+        fun acquirePermanentWakeLock() {
+            try {
+                if (wakeLock == null) {
+                    val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TapAccount::BriefWL")
+                    wakeLock?.setReferenceCounted(false)
+                }
+                if (wakeLock?.isHeld == true) return
+                wakeLock?.acquire()
+                Logger.d(this@OverlayService, "OverlayService", "Permanent WakeLock acquired")
+            } catch (e: Exception) {
+                Logger.d(this@OverlayService, "OverlayService", "acquirePermanentWakeLock failed: ${e.message}")
+            }
+        }
+
         private fun releaseAllWakeLocks() {
             try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}
         }
@@ -149,7 +165,7 @@ class OverlayService : Service() {
         }
 
         fun syncWatchdogState() {
-            if (isDoubleTapEnabled) startWatchdog() else stopWatchdog()
+            if (isDoubleTapEnabled && isScreenInteractive()) startWatchdog() else stopWatchdog()
         }
 
         // ── 传感器健康检查 ────────────────────────────────────
@@ -202,7 +218,7 @@ class OverlayService : Service() {
                 Logger.d(this@OverlayService, "OverlayService", "Restarting detectors: reason=$reason")
                 stopTapDetection()
                 delay(300L)
-                if (isDoubleTapEnabled) startTapDetection()
+                if (isDoubleTapEnabled && isScreenInteractive()) startTapDetection()
             }
         }
 
@@ -226,8 +242,12 @@ class OverlayService : Service() {
             keepAliveManager.attach()
 
             if (isDoubleTapEnabled) {
-                startTapDetection()
-                KeepAliveWorker.schedulePeriodic(this)
+                startTapDetectionIfInteractive("service-create")
+                scheduleKeepAliveWork()
+            }
+
+            if (Prefs.isPermanentWakeLockEnabled(this)) {
+                keepAliveManager.acquirePermanentWakeLock()
             }
 
             keepAliveManager.syncWatchdogState()
@@ -274,15 +294,15 @@ class OverlayService : Service() {
                 isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
                 if (isDoubleTapEnabled) {
                     cancelRestart()
-                    startTapDetection()
-                    KeepAliveWorker.schedulePeriodic(this)
+                    startTapDetectionIfInteractive("sticky-restore")
+                    scheduleKeepAliveWork()
                 }
             }
             ACTION_START_DOUBLE_TAP -> {
                 isDoubleTapEnabled = true
                 cancelRestart()
-                startTapDetection()
-                KeepAliveWorker.schedulePeriodic(this)
+                startTapDetectionIfInteractive("user-start")
+                scheduleKeepAliveWork()
             }
             ACTION_STOP_DOUBLE_TAP -> {
                 val userDisabledTap = !Prefs.isDoubleTapEnabled(this)
@@ -290,6 +310,7 @@ class OverlayService : Service() {
                 stopTapDetection()
                 if (userDisabledTap) {
                     KeepAliveWorker.cancelPeriodic(this)
+                    KeepAliveWorker.cancelHourlyRestart(this)
                     stopSelfIfIdle("double-tap-disabled")
                 } else {
                     Logger.d(this, "OverlayService", "Tap detection paused temporarily; service kept alive")
@@ -300,11 +321,13 @@ class OverlayService : Service() {
                 isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
                 if (isDoubleTapEnabled) {
                     cancelRestart()
-                    startTapDetection()
+                    startTapDetectionIfInteractive("settings-restart")
+                    scheduleKeepAliveWork()
                 }
             }
             ACTION_SHOW_OVERLAY -> overlayManager.showOverlay()
             ACTION_SHOW_AI_INPUT -> overlayManager.showAiInputPanel()
+            ACTION_SCREEN_CAPTURE -> overlayManager.startScreenCaptureFromTap()
             ACTION_HIDE_OVERLAY -> {
                 overlayManager.removeOverlay()
                 stopSelfIfIdle("overlay-hidden")
@@ -323,6 +346,7 @@ class OverlayService : Service() {
         overlayManager.removeOverlay()
         if (Prefs.isDoubleTapEnabled(this)) {
             KeepAliveWorker.scheduleOneTime(this, RESTART_DELAY_MS)
+            scheduleRestart(RESTART_DELAY_MS)
         }
         isServiceRunning = false
         super.onDestroy()
@@ -330,7 +354,10 @@ class OverlayService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Logger.d(this, "OverlayService", "onTaskRemoved")
-        if (Prefs.isDoubleTapEnabled(this)) KeepAliveWorker.scheduleOneTime(this, RESTART_DELAY_MS)
+        if (Prefs.isDoubleTapEnabled(this)) {
+            KeepAliveWorker.scheduleOneTime(this, RESTART_DELAY_MS)
+            scheduleRestart(RESTART_DELAY_MS)
+        }
         super.onTaskRemoved(rootIntent)
     }
 
@@ -348,6 +375,15 @@ class OverlayService : Service() {
         } else {
             Logger.d(this, "OverlayService", "TapDetector started")
         }
+    }
+
+    private fun startTapDetectionIfInteractive(reason: String) {
+        if (!isScreenInteractive()) {
+            Logger.d(this, "OverlayService", "TapDetector not started: screen is off ($reason)")
+            stopTapDetection()
+            return
+        }
+        startTapDetection()
     }
 
     private fun handleTapAction(tapCount: Int) {
@@ -384,6 +420,15 @@ class OverlayService : Service() {
     private fun stopTapDetection() {
         tapDetector?.stop()
         tapDetector = null
+    }
+
+    private fun scheduleKeepAliveWork() {
+        KeepAliveWorker.schedulePeriodic(this)
+        if (Prefs.isAggressiveKeepAliveEnabled(this)) {
+            KeepAliveWorker.scheduleHourlyRestart(this)
+        } else {
+            KeepAliveWorker.cancelHourlyRestart(this)
+        }
     }
 
     // ════════════════════════════════════════════════════════

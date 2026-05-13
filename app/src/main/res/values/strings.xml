@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">敲敲记账</string>
 
+    <!-- 无障碍服务描述 -->
+    <string name="accessibility_service_description">敲敲记账助手需要无障碍权限来实现截屏记账功能和后台保活</string>
+
     <!-- 账单类型：用于悬浮窗 -->
     <string-array name="bill_types">
         <item>支出</item>

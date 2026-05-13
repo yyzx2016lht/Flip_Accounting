@@ -24,6 +24,7 @@ object TapActionRegistry {
     init {
         register(ShowOverlayAction())
         register(OpenAiChatAction())
+        register(ScreenCaptureAction())
     }
 }
 

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_overlay_accounting_panel"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/dialog_content_padding"
+    android:paddingTop="@dimen/dialog_content_padding"
+    android:paddingEnd="@dimen/dialog_content_padding"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:id="@+id/tv_visual_draft_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="核对图片记账"
+        android:textColor="@color/dialog_title"
+        android:textSize="@dimen/dialog_title_size"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tv_visual_draft_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:lineSpacingExtra="2dp"
+        android:text="AI 已整理成可编辑草稿，确认后再生成账单。"
+        android:textColor="@color/dialog_subtitle"
+        android:textSize="13sp" />
+
+    <EditText
+        android:id="@+id/et_visual_draft"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_ai_input_field"
+        android:gravity="top|start"
+        android:inputType="textMultiLine|textCapSentences"
+        android:lineSpacingExtra="4dp"
+        android:maxLines="9"
+        android:minHeight="148dp"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="13dp"
+        android:paddingBottom="13dp"
+        android:scrollbars="vertical"
+        android:textColor="#22324A"
+        android:textColorHint="#97A5B8"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btn_visual_draft_cancel"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/dialog_button_height"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_dialog_button_cancel"
+            android:gravity="center"
+            android:text="取消"
+            android:textColor="@color/dialog_button_cancel_text"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_visual_draft_confirm"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/dialog_button_height"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_dialog_button_primary"
+            android:gravity="center"
+            android:text="确认入账"
+            android:textColor="@color/dialog_button_primary_text"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>

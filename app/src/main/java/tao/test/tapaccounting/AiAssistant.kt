@@ -173,7 +173,13 @@ class AiAssistant(private val ctx: Context) {
         }
     }
 
-    private fun startAnalysis(text: String, isMultiMode: Boolean?, onResult: (JSONObject) -> Unit) {
+    private fun startAnalysis(
+        text: String,
+        isMultiMode: Boolean?,
+        onResult: (JSONObject) -> Unit,
+        visualReviewSource: String? = null,
+        visualDraftText: String = ""
+    ) {
         analyzeJob?.cancel()
         val hideStream = currentHideStreamText
         analyzeJob = CoroutineScope(Dispatchers.IO).launch {
@@ -195,6 +201,15 @@ class AiAssistant(private val ctx: Context) {
                         Utils.toast(ctx, "识别失败：AI 返回内容无法解析")
                         updatePanelState(MODE_INPUT, text)
                         return@withContext
+                    }
+
+                    if (visualReviewSource != null) {
+                        AIService.markVisualAccountingReviewDraft(
+                            root = result,
+                            sourceKind = visualReviewSource,
+                            naturalSummary = visualDraftText.ifBlank { text },
+                            includePaymentMethod = Prefs.isAssetFeatureEnabled(ctx)
+                        )
                     }
 
                     if (result.has("bills")) {
@@ -499,7 +514,13 @@ class AiAssistant(private val ctx: Context) {
                 return@setOnClickListener
             }
             updatePanelState(MODE_LOADING, "正在生成结构化账单...")
-            startAnalysis(text, true, onResult)
+            startAnalysis(
+                text = text,
+                isMultiMode = true,
+                onResult = onResult,
+                visualReviewSource = "receipt_image",
+                visualDraftText = text
+            )
         }
 
         btnRetryVision?.visibility = View.GONE

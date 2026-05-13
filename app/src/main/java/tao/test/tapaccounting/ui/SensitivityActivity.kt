@@ -2,8 +2,10 @@ package tao.test.tapaccounting.ui
 
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,6 +22,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
+import tao.test.tapaccounting.KeepAliveAccessibilityService
 import tao.test.tapaccounting.OverlayService
 import tao.test.tapaccounting.Prefs
 import tao.test.tapaccounting.R
@@ -64,6 +67,7 @@ class SensitivityActivity : AppCompatActivity() {
         initGestureSwitches()
         initTapViews()
         initTapOptions()
+        initKeepAliveSettings()
 
         // 让包含开关的整行都可点击
         makeSwitchRowsClickable()
@@ -318,6 +322,51 @@ class SensitivityActivity : AppCompatActivity() {
             seekBarTap.progress = tapLevel
             updateTapUI(tapLevel)
         }
+    }
+
+    private fun initKeepAliveSettings() {
+        // 电池优化豁免
+        findViewById<View>(R.id.btn_battery_optimization)?.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "无法打开电池优化设置", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // 无障碍服务
+        val btnAccessibility = findViewById<View>(R.id.btn_accessibility_service)
+        val tvAccessibilityStatus = findViewById<TextView>(R.id.tv_accessibility_status)
+
+        fun refreshAccessibilityStatus() {
+            val isEnabled = KeepAliveAccessibilityService.isServiceEnabled()
+            tvAccessibilityStatus?.text = if (isEnabled) "已开启" else "用于截屏记账和后台保活"
+            (btnAccessibility as? MaterialButton)?.text = if (isEnabled) "已开启" else "去开启"
+        }
+
+        btnAccessibility?.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "无法打开无障碍设置", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        refreshAccessibilityStatus()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 刷新无障碍服务状态
+        val tvAccessibilityStatus = findViewById<TextView>(R.id.tv_accessibility_status)
+        val btnAccessibility = findViewById<View>(R.id.btn_accessibility_service)
+        val isEnabled = KeepAliveAccessibilityService.isServiceEnabled()
+        tvAccessibilityStatus?.text = if (isEnabled) "已开启" else "用于截屏记账和后台保活"
+        (btnAccessibility as? MaterialButton)?.text = if (isEnabled) "已开启" else "去开启"
     }
 
     private fun updateTapUI(level: Int) {
