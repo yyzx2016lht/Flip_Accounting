@@ -294,7 +294,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     action = OverlayService.ACTION_SHOW_OVERLAY
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    requireContext().startForegroundService(intent)
+                    requireContext().startService(intent)
                 } else {
                     requireContext().startService(intent)
                 }
@@ -931,7 +931,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             action = if (isEnabled) OverlayService.ACTION_START_FLIP else OverlayService.ACTION_STOP_FLIP
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            requireContext().startForegroundService(intent)
+            requireContext().startService(intent)
         } else {
             requireContext().startService(intent)
         }

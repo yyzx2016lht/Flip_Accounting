@@ -633,11 +633,7 @@ class AiAssistant(private val ctx: Context) {
             action = OverlayService.ACTION_STOP_DOUBLE_TAP
         }
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ctx.startForegroundService(stopIntent)
-            } else {
-                ctx.startService(stopIntent)
-            }
+            OverlayService.startCompat(ctx, stopIntent)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -649,11 +645,7 @@ class AiAssistant(private val ctx: Context) {
             action = OverlayService.ACTION_START_DOUBLE_TAP
         }
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ctx.startForegroundService(startIntent)
-            } else {
-                ctx.startService(startIntent)
-            }
+            OverlayService.startCompat(ctx, startIntent)
         } catch (e: Exception) {
             e.printStackTrace()
         }

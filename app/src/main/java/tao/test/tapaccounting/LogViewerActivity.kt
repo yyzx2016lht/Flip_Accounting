@@ -9,13 +9,20 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.RandomAccessFile
 
 class LogViewerActivity : AppCompatActivity() {
+
+    companion object {
+        private const val MAX_DISPLAY_ENTRIES = 200
+        private const val MAX_READ_BYTES = 512 * 1024
+        private const val MAX_DISPLAY_CHARS = 200_000
+    }
 
     private lateinit var tvContent: TextView
     private lateinit var tabRuntime: TextView
@@ -24,6 +31,7 @@ class LogViewerActivity : AppCompatActivity() {
 
     /** true = 显示崩溃日志，false = 显示运行日志 */
     private var showingCrash = false
+    private var loadGeneration = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,7 +72,7 @@ class LogViewerActivity : AppCompatActivity() {
         btnShare.setOnClickListener { shareLogs() }
         btnClear.setOnClickListener {
             if (showingCrash) Logger.getCrashFile(this).delete()
-            else Logger.clearLogs(this)
+            else Logger.getLogFile(this).delete()
             loadCurrentLog()
         }
 
@@ -97,21 +105,57 @@ class LogViewerActivity : AppCompatActivity() {
     }
 
     private fun loadFileContent(view: TextView, file: File, emptyHint: String) {
+        val generation = ++loadGeneration
         view.text = "正在加载…"
-        CoroutineScope(Dispatchers.IO).launch {
-            val content = if (file.exists() && file.length() > 0) {
-                try {
-                    val text = file.readText()
-                    val entries = splitLogEntries(text)
-                    val tail = if (entries.size > 200) entries.takeLast(200) else entries
-                    tail.asReversed().joinToString("\n\n")
-                } catch (e: Exception) {
-                    "读取失败: ${e.message}"
-                }
-            } else {
-                emptyHint
+        lifecycleScope.launch {
+            val content = withContext(Dispatchers.IO) {
+                readDisplayContent(file, emptyHint)
             }
-            withContext(Dispatchers.Main) { view.text = content }
+            if (generation == loadGeneration) {
+                view.text = content
+            }
+        }
+    }
+
+    private fun readDisplayContent(file: File, emptyHint: String): String {
+        if (!file.exists() || file.length() <= 0L) {
+            return emptyHint
+        }
+
+        return try {
+            val fileLength = file.length()
+            val omittedHead = fileLength > MAX_READ_BYTES
+            val text = readTailText(file, MAX_READ_BYTES)
+            val entries = splitLogEntries(text)
+            val content = if (entries.isNotEmpty()) {
+                entries
+                    .takeLast(MAX_DISPLAY_ENTRIES)
+                    .asReversed()
+                    .joinToString("\n\n")
+                    .take(MAX_DISPLAY_CHARS)
+            } else {
+                text.trim().takeLast(MAX_DISPLAY_CHARS)
+            }
+            val prefix = if (omittedHead) {
+                "仅显示最新日志（文件较大，已省略前面的内容）\n\n"
+            } else {
+                ""
+            }
+            prefix + content.ifBlank { emptyHint }
+        } catch (e: Exception) {
+            "读取失败: ${e.message}"
+        }
+    }
+
+    private fun readTailText(file: File, maxBytes: Int): String {
+        RandomAccessFile(file, "r").use { raf ->
+            val length = raf.length()
+            val bytesToRead = minOf(length, maxBytes.toLong()).toInt()
+            val start = length - bytesToRead
+            val buffer = ByteArray(bytesToRead)
+            raf.seek(start)
+            raf.readFully(buffer)
+            return buffer.toString(Charsets.UTF_8)
         }
     }
 

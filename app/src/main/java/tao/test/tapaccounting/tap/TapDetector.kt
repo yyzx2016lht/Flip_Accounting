@@ -21,6 +21,7 @@ class TapDetector(
     companion object {
         private const val TAG = "TapDetector"
         private const val SAMPLING_INTERVAL_NS = 2500000L
+        private const val SENSOR_SAMPLING_PERIOD_US = 0
         private const val TAP_THROTTLE_MS = 500L
         val TAP_SENSITIVITY_VALUES = floatArrayOf(
             0.75f, 0.53f, 0.40f, 0.25f, 0.1f, 0.05f, 0.04f, 0.03f, 0.02f, 0.01f, 0.0f
@@ -84,12 +85,12 @@ class TapDetector(
                 sensorHandler = Handler(looper)
             }
 
-            sensorManager.registerListener(this, accelerometer, 0, sensorHandler)
-            sensorManager.registerListener(this, gyroscope, 0, sensorHandler)
+            sensorManager.registerListener(this, accelerometer, SENSOR_SAMPLING_PERIOD_US, sensorHandler)
+            sensorManager.registerListener(this, gyroscope, SENSOR_SAMPLING_PERIOD_US, sensorHandler)
 
             isRunning = true
             lastSensorEventTimeMillis = System.currentTimeMillis()
-            Log.d(TAG, "TapDetector started: model=${tapModel.displayName}, sensitivity=$sensitivity, nnapi=$nnapiLowPower, triple=$tripleEnabled")
+            Log.d(TAG, "TapDetector started: model=${tapModel.displayName}, sensitivity=$sensitivity, nnapi=$nnapiLowPower, triple=$tripleEnabled, samplingPeriodUs=$SENSOR_SAMPLING_PERIOD_US")
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start TapDetector", e)
@@ -100,13 +101,18 @@ class TapDetector(
 
     fun stop() {
         isRunning = false
-        sensorManager.unregisterListener(this)
+        try {
+            sensorManager.unregisterListener(this)
+        } catch (_: Exception) {
+        }
         sensorThread?.quitSafely()
         sensorThread = null
         sensorHandler = null
-        tap?.reset(false)
-        (tap as? TapTapTapRT)?.closeClassifier()
-        (tap as? TapRT)?.closeClassifier()
+        try {
+            tap?.closeClassifier()
+        } catch (e: Exception) {
+            Log.w(TAG, "close classifier failed", e)
+        }
         tap = null
         Log.d(TAG, "TapDetector stopped")
     }
@@ -118,30 +124,36 @@ class TapDetector(
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null || !isRunning) return
+        if (event.values.size < 3) return
 
         val currentTap = tap ?: return
         lastSensorEventTimeMillis = System.currentTimeMillis()
 
-        val isTripleEnabled = Prefs.isTapTripleEnabled(context)
-        currentTap.updateData(
-            event.sensor.type,
-            event.values[0],
-            event.values[1],
-            event.values[2],
-            event.timestamp,
-            SAMPLING_INTERVAL_NS,
-            false
-        )
+        try {
+            val isTripleEnabled = Prefs.isTapTripleEnabled(context)
+            currentTap.updateData(
+                event.sensor.type,
+                event.values[0],
+                event.values[1],
+                event.values[2],
+                event.timestamp,
+                SAMPLING_INTERVAL_NS,
+                false
+            )
 
-        val result = currentTap.checkDoubleTapTiming(event.timestamp)
-        if (result >= 2) {
-            val now = SystemClock.uptimeMillis()
-            if (now - lastTapActionUptimeMs < TAP_THROTTLE_MS) return
-            lastTapActionUptimeMs = now
-        }
-        when {
-            result == 2 -> onTapAction(2)
-            result == 3 && isTripleEnabled -> onTapAction(3)
+            val result = currentTap.checkDoubleTapTiming(event.timestamp)
+            if (result >= 2) {
+                val now = SystemClock.uptimeMillis()
+                if (now - lastTapActionUptimeMs < TAP_THROTTLE_MS) return
+                lastTapActionUptimeMs = now
+            }
+            when {
+                result == 2 -> onTapAction(2)
+                result == 3 && isTripleEnabled -> onTapAction(3)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Tap sensor event failed; resetting detector state", e)
+            currentTap.reset(false)
         }
     }
 

@@ -320,15 +320,13 @@ class HistoryBillActivity : AppCompatActivity() {
     private fun exitSelectMode() {
         isSelectMode = false
         selectedDeletedBillIds.clear()
-        adapter.setSelectedBillIds(emptySet())
-        adapter.setSelectMode(false)
+        adapter.applySelectionState(false, emptySet())
         updateBottomActions()
         updateHeaderUi()
     }
 
     private fun updateUI() {
-        adapter.setSelectedBillIds(selectedDeletedBillIds)
-        adapter.setSelectMode(isSelectMode)
+        adapter.applySelectionState(isSelectMode, selectedDeletedBillIds)
         updateBottomActions()
         updateHeaderUi()
     }
@@ -440,6 +438,27 @@ class HistoryBillActivity : AppCompatActivity() {
             notifyDataSetChanged()
         }
 
+        fun applySelectionState(selectMode: Boolean, selectedIds: Set<Long>) {
+            this.selectMode = selectMode
+            this.selectedIds = selectedIds
+            val recyclerView = this@HistoryBillActivity.rvDeletedBills
+            for (i in 0 until recyclerView.childCount) {
+                val holder = recyclerView.getChildViewHolder(recyclerView.getChildAt(i))
+                val position = holder.adapterPosition
+                if (position == RecyclerView.NO_POSITION) continue
+                when (holder) {
+                    is HeaderViewHolder -> {
+                        val header = items[position] as? ListItem.Header ?: continue
+                        holder.updateSelectionUI(selectMode, selectedIds, header)
+                    }
+                    is ItemViewHolder -> {
+                        val item = items[position] as? ListItem.Item ?: continue
+                        holder.updateSelectionUI(selectMode, selectedIds, item.bill.id)
+                    }
+                }
+            }
+        }
+
         fun setSelectMode(mode: Boolean) {
             selectMode = mode
             notifyDataSetChanged()
@@ -498,6 +517,12 @@ class HistoryBillActivity : AppCompatActivity() {
                     toggleDaySelection(header.billIds)
                 }
             }
+
+            fun updateSelectionUI(selectMode: Boolean, selectedIds: Set<Long>, header: ListItem.Header) {
+                cbSelectDay.visibility = if (selectMode) View.VISIBLE else View.GONE
+                val allSelected = header.billIds.isNotEmpty() && header.billIds.all { selectedIds.contains(it) }
+                cbSelectDay.isChecked = allSelected
+            }
         }
 
         inner class ItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -508,6 +533,11 @@ class HistoryBillActivity : AppCompatActivity() {
             private val tvDetail: TextView = itemView.findViewById(R.id.tv_bill_detail)
             private val tvAmount: TextView = itemView.findViewById(R.id.tv_bill_amount)
             private val tvAsset: TextView = itemView.findViewById(R.id.tv_bill_asset)
+
+            fun updateSelectionUI(selectMode: Boolean, selectedIds: Set<Long>, billId: Long) {
+                cbSelect.visibility = if (selectMode) View.VISIBLE else View.GONE
+                cbSelect.isChecked = selectedIds.contains(billId)
+            }
 
             fun bind(bill: DeletedBill) {
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER

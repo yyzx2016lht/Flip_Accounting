@@ -2,7 +2,6 @@ package tao.test.tapaccounting
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import androidx.work.*
 import kotlinx.coroutines.sync.Mutex
@@ -71,58 +70,39 @@ class KeepAliveWorker(
 
     override suspend fun doWork(): Result {
         return restartMutex.withLock {
-            Log.d(TAG, "doWork: checking OverlayService status")
+            log("doWork: checking OverlayService status")
             val tapEnabled = Prefs.isDoubleTapEnabled(applicationContext)
             if (!tapEnabled) {
-                Log.d(TAG, "doWork: tap disabled, nothing to do")
+                log("doWork: tap disabled, nothing to do")
                 return@withLock Result.success()
             }
 
             val isHourlyRestart = tags.contains("hourly_restart")
 
             if (isHourlyRestart) {
-                if (!Prefs.isAggressiveKeepAliveEnabled(applicationContext)) {
-                    Log.d(TAG, "doWork: hourly restart skipped, aggressive keep-alive disabled")
-                    cancelHourlyRestart(applicationContext)
-                    return@withLock Result.success()
-                }
-                Log.d(TAG, "doWork: hourly restart, restarting service...")
-                try {
-                    val stopIntent = Intent(applicationContext, OverlayService::class.java)
-                    applicationContext.stopService(stopIntent)
-                } catch (e: Exception) {
-                    Log.d(TAG, "doWork: stop service failed: ${e.message}")
-                }
-                try {
-                    val intent = Intent(applicationContext, OverlayService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        applicationContext.startForegroundService(intent)
-                    } else {
-                        applicationContext.startService(intent)
-                    }
-                    Log.d(TAG, "doWork: hourly restart completed")
-                } catch (e: Exception) {
-                    Log.d(TAG, "doWork: hourly restart failed: ${e.message}")
-                }
+                log("doWork: hourly restart disabled in quiet background mode")
+                cancelHourlyRestart(applicationContext)
                 return@withLock Result.success()
             }
 
             if (OverlayService.isServiceRunning) {
-                Log.d(TAG, "doWork: service already running")
+                log("doWork: service already running")
                 return@withLock Result.success()
             }
-            Log.d(TAG, "doWork: service not running, restarting...")
+            log("doWork: service not running, restarting...")
             try {
                 val intent = Intent(applicationContext, OverlayService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    applicationContext.startForegroundService(intent)
-                } else {
-                    applicationContext.startService(intent)
-                }
+                OverlayService.startCompat(applicationContext, intent)
+                log("doWork: restart requested")
             } catch (e: Exception) {
-                Log.d(TAG, "doWork: restart failed: ${e.message}")
+                log("doWork: restart failed: ${e.message}")
             }
             return@withLock Result.success()
         }
+    }
+
+    private fun log(message: String) {
+        Log.d(TAG, message)
+        Logger.d(applicationContext, TAG, message)
     }
 }

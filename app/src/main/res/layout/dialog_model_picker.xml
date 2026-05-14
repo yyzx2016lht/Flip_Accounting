@@ -17,6 +17,15 @@
         android:paddingTop="4dp"
         android:paddingBottom="10dp" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:paddingHorizontal="12dp"
+        android:text="留空时会跟随主文本模型；如果想让聊天语气或速度独立，再单独切换这里。"
+        android:textColor="#7D8CA2"
+        android:textSize="12sp" />
+
     <EditText
         android:id="@+id/et_model_search"
         android:layout_width="match_parent"

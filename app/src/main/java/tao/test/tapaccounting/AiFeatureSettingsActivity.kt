@@ -283,7 +283,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             layoutAiKeyWarning.visibility = View.GONE
             btnAiDetailConfig.visibility = View.VISIBLE
             updateRuleButtonLayout(locked = false)
-            btnAiDetailConfig.text = "AI 详细配置"
+            btnAiDetailConfig.text = "AI 核心模型"
             btnAiDetailConfig.setTextColor(Color.parseColor("#FFFFFF"))
             btnAiDetailConfig.setBackgroundColor(Color.parseColor("#5C6BC0"))
             btnAiDetailConfig.strokeColor = null

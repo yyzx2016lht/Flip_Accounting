@@ -1,19 +1,14 @@
 package tao.test.tapaccounting
 
 import android.annotation.SuppressLint
-import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
-import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ListView
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -28,19 +23,10 @@ import tao.test.tapaccounting.ui.dialog.OverlayDialogs
 
 class AiConfigActivity : AppCompatActivity() {
     private enum class ThinkingBinding {
-        MULTI,
+        TEXT,
         VISION,
-        CATEGORY_REFINE,
         FIXED_OFF
     }
-
-    private val providers = listOf(
-        "硅基流动"
-    )
-
-    private val providerUrls = mapOf(
-        "硅基流动" to "https://api.siliconflow.cn"
-    )
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,84 +35,37 @@ class AiConfigActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btn_back_to_settings).setOnClickListener { finish() }
 
-        val spinnerProviders = findViewById<Spinner>(R.id.spinner_providers)
-        val etUrl = findViewById<EditText>(R.id.et_api_url)
         val etKey = findViewById<EditText>(R.id.et_api_key)
         val tvSelectedModel = findViewById<TextView>(R.id.tv_selected_model)
         val layoutModelSelector = findViewById<View>(R.id.layout_model_selector)
 
-        val btnSingle = findViewById<Chip>(R.id.btn_single_prompt)
-        val btnMulti = findViewById<Chip>(R.id.btn_multi_prompt)
-        val btnModify = findViewById<Chip>(R.id.btn_modify_prompt)
-        val btnCategoryRefine = findViewById<Chip>(R.id.btn_category_refine_prompt)
-        val btnRule = findViewById<Chip>(R.id.btn_rule_prompt)
-        val btnReceipt = findViewById<Chip>(R.id.btn_receipt_prompt)
-        val btnReceiptVision = findViewById<Chip>(R.id.btn_receipt_vision_prompt)
-        val btnScreenAccounting = findViewById<Chip>(R.id.btn_screen_accounting_prompt)
-        val btnOcrRefine = findViewById<Chip>(R.id.btn_ocr_refine_prompt)
+        val btnTextModel = findViewById<Chip>(R.id.btn_text_model)
+        val btnVisionModel = findViewById<Chip>(R.id.btn_vision_model)
         val btnSpeech = findViewById<Chip>(R.id.btn_speech_prompt)
-        val btnRouter = findViewById<Chip>(R.id.btn_router_prompt)
-        val btnQuery = findViewById<Chip>(R.id.btn_query_prompt)
-        val promptModeGrid = findViewById<GridLayout>(R.id.chip_group_prompt_modes)
 
         val btnTest = findViewById<MaterialButton>(R.id.btn_test_conn)
         val btnSave = findViewById<View>(R.id.btn_save_config)
-        val tvToggleExpand = findViewById<TextView>(R.id.tv_toggle_expand)
         val tvEditPrompt = findViewById<TextView>(R.id.tv_edit_prompt)
         val switchEnableThinkingCurrent = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_current)
         val tvThinkingScopeHint = findViewById<TextView>(R.id.tv_thinking_scope_hint)
-        val switchEnableQuery = findViewById<SwitchMaterial>(R.id.switch_enable_query)
         val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
 
-        val providerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providers)
-        spinnerProviders.adapter = providerAdapter
-        spinnerProviders.setSelection(providers.indexOf(Prefs.getAiProvider(this)).coerceAtLeast(0))
-
-        etUrl.setText(providerUrls.getValue("硅基流动"))
-        etUrl.isEnabled = false
         etKey.setText(Prefs.getAiKey(this))
-
-        Prefs.setAiQueryEnabled(this, false)
-        switchEnableQuery.isChecked = false
 
         switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)
         switchEnableReceiptOcrRefine.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setReceiptOcrRefineEnabled(this, isChecked)
         }
 
-        var currentMode = "multi"
+        var currentMode = "text"
         var updatingThinkingUi = false
         val modeModels = mutableMapOf(
-            "multi" to Prefs.getAiMultiModel(this),
-            "modify" to Prefs.getAiModifyModel(this),
-            "category_refine" to Prefs.getAiCategoryRefineModel(this),
-            "router" to Prefs.getAiRouterModel(this),
-            "query" to Prefs.getAiQueryModel(this),
-            "rule" to Prefs.getAiRuleModel(this),
-            "receipt" to Prefs.getAiReceiptModel(this),
-            "receipt_vision" to Prefs.getAiReceiptVisionModel(this),
-            "screen_accounting" to Prefs.getAiScreenModel(this),
-            "ocr_refine" to Prefs.getAiReceiptOcrRefineModel(this),
+            "text" to Prefs.getAiMultiModel(this),
+            "vision" to Prefs.getAiReceiptVisionModel(this),
             "speech" to Prefs.getAiSpeechModel(this)
         )
 
         val allModelsList = mutableListOf<String>()
-        val canShowScreenAccounting = Prefs.isShizukuModeEnabled(this) && ShizukuSafe.isReady(this)
-
-        promptModeGrid.removeView(btnSingle)
-        promptModeGrid.removeView(btnModify)
-        btnScreenAccounting.visibility = if (canShowScreenAccounting) View.VISIBLE else View.GONE
-        promptModeGrid.removeView(btnRouter)
-        promptModeGrid.removeView(btnQuery)
-        promptModeGrid.removeView(btnSpeech)
-        if (!canShowScreenAccounting && currentMode == "screen_accounting") {
-            currentMode = "multi"
-        }
-        if (!canShowScreenAccounting) {
-            modeModels["screen_accounting"] = ""
-            // 避免 GridLayout 在隐藏中间项时出现“空格子”。
-            promptModeGrid.removeView(btnScreenAccounting)
-        }
 
         tvEditPrompt.visibility = View.GONE
 
@@ -140,24 +79,24 @@ class AiConfigActivity : AppCompatActivity() {
         }
 
         fun thinkingBindingForMode(mode: String): ThinkingBinding = when (mode) {
-            "multi" -> ThinkingBinding.MULTI
-            "category_refine" -> ThinkingBinding.CATEGORY_REFINE
-            "receipt", "receipt_vision", "screen_accounting", "ocr_refine" -> ThinkingBinding.VISION
+            "text" -> ThinkingBinding.TEXT
+            "vision" -> ThinkingBinding.VISION
             else -> ThinkingBinding.FIXED_OFF
         }
 
         fun isThinkingEnabled(binding: ThinkingBinding): Boolean = when (binding) {
-            ThinkingBinding.MULTI -> Prefs.isAiThinkingMultiBillEnabled(this)
+            ThinkingBinding.TEXT -> Prefs.isAiThinkingMultiBillEnabled(this)
             ThinkingBinding.VISION -> Prefs.isAiThinkingVisionEnabled(this)
-            ThinkingBinding.CATEGORY_REFINE -> Prefs.isAiThinkingCategoryRefineEnabled(this)
             ThinkingBinding.FIXED_OFF -> false
         }
 
         fun setThinkingEnabled(binding: ThinkingBinding, enabled: Boolean) {
             when (binding) {
-                ThinkingBinding.MULTI -> Prefs.setAiThinkingMultiBillEnabled(this, enabled)
+                ThinkingBinding.TEXT -> {
+                    Prefs.setAiThinkingMultiBillEnabled(this, enabled)
+                    Prefs.setAiThinkingCategoryRefineEnabled(this, enabled)
+                }
                 ThinkingBinding.VISION -> Prefs.setAiThinkingVisionEnabled(this, enabled)
-                ThinkingBinding.CATEGORY_REFINE -> Prefs.setAiThinkingCategoryRefineEnabled(this, enabled)
                 ThinkingBinding.FIXED_OFF -> Unit
             }
         }
@@ -165,17 +104,9 @@ class AiConfigActivity : AppCompatActivity() {
         fun updateThinkingUi() {
             val binding = thinkingBindingForMode(currentMode)
             val modeTitle = when (currentMode) {
-                "multi" -> "多账单"
-                "modify" -> "修改账单"
-                "category_refine" -> "二段分类"
-                "rule" -> "规则生成"
-                "receipt" -> "小票记账"
-                "receipt_vision" -> "视觉重试"
-                "screen_accounting" -> "屏幕识别"
-                "ocr_refine" -> "识别整理"
+                "text" -> "主文本模型"
+                "vision" -> "视觉模型"
                 "speech" -> "语音识别"
-                "router" -> "意图路由"
-                "query" -> "Query规划"
                 else -> "当前模式"
             }
             updatingThinkingUi = true
@@ -191,7 +122,11 @@ class AiConfigActivity : AppCompatActivity() {
                     switchEnableThinkingCurrent.isEnabled = true
                     switchEnableThinkingCurrent.isChecked = isThinkingEnabled(binding)
                     switchEnableThinkingCurrent.text = "$modeTitle：启用思考"
-                    tvThinkingScopeHint.text = "该开关跟随上方业务模式切换，并单独保存。"
+                    tvThinkingScopeHint.text = when (binding) {
+                        ThinkingBinding.TEXT -> "会同时影响记账、多账单、修改账单、二段分类、规则生成和 OCR 整理。"
+                        ThinkingBinding.VISION -> "会同时影响小票图片识别、视觉重试和截图识别。"
+                        ThinkingBinding.FIXED_OFF -> ""
+                    }
                 }
             }
             updatingThinkingUi = false
@@ -276,24 +211,15 @@ class AiConfigActivity : AppCompatActivity() {
         updateModelDisplay()
 
         fun updateUI() {
-            btnMulti.isChecked = currentMode == "multi"
-            btnModify.isChecked = currentMode == "modify"
-            btnCategoryRefine.isChecked = currentMode == "category_refine"
-            btnRule.isChecked = currentMode == "rule"
-            btnReceipt.isChecked = currentMode == "receipt"
-            btnReceiptVision.isChecked = currentMode == "receipt_vision"
-            btnScreenAccounting.isChecked = canShowScreenAccounting && currentMode == "screen_accounting"
-            btnOcrRefine.isChecked = currentMode == "ocr_refine"
+            btnTextModel.isChecked = currentMode == "text"
+            btnVisionModel.isChecked = currentMode == "vision"
             btnSpeech.isChecked = currentMode == "speech"
-            btnRouter.isChecked = currentMode == "router"
-            btnQuery.isChecked = currentMode == "query"
 
             tvSelectedModel.text = modeModels[currentMode] ?: ""
             updateThinkingUi()
         }
 
         fun switchMode(newMode: String) {
-            if (newMode == "screen_accounting" && !canShowScreenAccounting) return
             tvSelectedModel.text.toString().takeIf { it.isNotEmpty() }?.let {
                 modeModels[currentMode] = it
             }
@@ -301,29 +227,13 @@ class AiConfigActivity : AppCompatActivity() {
             updateUI()
         }
 
-        btnMulti.setOnClickListener { switchMode("multi") }
-        btnModify.setOnClickListener { switchMode("modify") }
-        btnCategoryRefine.setOnClickListener { switchMode("category_refine") }
-        btnRule.setOnClickListener { switchMode("rule") }
-        btnReceipt.setOnClickListener { switchMode("receipt") }
-        btnReceiptVision.setOnClickListener { switchMode("receipt_vision") }
-        btnScreenAccounting.setOnClickListener { switchMode("screen_accounting") }
-        btnOcrRefine.setOnClickListener { switchMode("ocr_refine") }
+        btnTextModel.setOnClickListener { switchMode("text") }
+        btnVisionModel.setOnClickListener { switchMode("vision") }
         btnSpeech.setOnClickListener { switchMode("speech") }
-        btnRouter.setOnClickListener { switchMode("router") }
-        btnQuery.setOnClickListener { switchMode("query") }
-
-        spinnerProviders.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                etUrl.setText(providerUrls.getValue("硅基流动"))
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
 
         btnTest.setOnClickListener {
             val key = etKey.text.toString().trim()
-            val url = etUrl.text.toString().trim()
+            val url = Prefs.getAiUrl(this)
             if (key.isEmpty()) {
                 Utils.toast(this, "请输入 API 令牌")
                 return@setOnClickListener
@@ -372,20 +282,6 @@ class AiConfigActivity : AppCompatActivity() {
                 modeModels[currentMode] = it
             }
 
-            val oldProvider = Prefs.getAiProvider(this)
-            val oldUrl = Prefs.getAiUrl(this)
-            val newProvider = "硅基流动"
-            val newUrl = providerUrls.getValue("硅基流动")
-            val providerChanged = oldProvider != newProvider || oldUrl != newUrl
-
-            if (providerChanged) {
-                Prefs.setAiModelsCache(this, emptyList())
-                allModelsList.clear()
-                modeModels.keys.toList().forEach { key ->
-                    modeModels[key] = ""
-                }
-            }
-
             val verifiedModels = allModelsList.toSet()
             if (verifiedModels.isNotEmpty()) {
                 modeModels.keys.toList().forEach { key ->
@@ -396,26 +292,27 @@ class AiConfigActivity : AppCompatActivity() {
                 }
             }
 
-            Prefs.setAiProvider(this, newProvider)
-            Prefs.setAiUrl(this, newUrl)
             Prefs.setAiKey(this, etKey.text.toString().trim())
+            val textModel = modeModels["text"].orEmpty()
+            val visionModel = modeModels["vision"].orEmpty()
+            val speechModel = modeModels["speech"].orEmpty()
 
-            Prefs.setAiMultiModel(this, modeModels["multi"] ?: "")
-            Prefs.setAiModifyModel(this, modeModels["modify"] ?: "")
-            Prefs.setAiCategoryRefineModel(this, modeModels["category_refine"] ?: "")
-            Prefs.setAiRouterModel(this, modeModels["router"] ?: "")
-            Prefs.setAiQueryModel(this, modeModels["query"] ?: "")
-            Prefs.setAiRuleModel(this, modeModels["rule"] ?: "")
-            Prefs.setAiReceiptModel(this, modeModels["receipt"] ?: "")
-            Prefs.setAiReceiptVisionModel(this, modeModels["receipt_vision"] ?: "")
-            Prefs.setAiScreenModel(this, if (canShowScreenAccounting) (modeModels["screen_accounting"] ?: "") else "")
-            Prefs.setAiReceiptOcrRefineModel(this, modeModels["ocr_refine"] ?: "")
-            Prefs.setAiSpeechModel(this, modeModels["speech"] ?: "")
+            Prefs.setAiModel(this, textModel)
+            Prefs.setAiMultiModel(this, textModel)
+            Prefs.setAiModifyModel(this, textModel)
+            Prefs.setAiCategoryRefineModel(this, textModel)
+            Prefs.setAiRouterModel(this, textModel)
+            Prefs.setAiQueryModel(this, textModel)
+            Prefs.setAiRuleModel(this, textModel)
+            Prefs.setAiReceiptModel(this, textModel)
+            Prefs.setAiReceiptVisionModel(this, visionModel)
+            Prefs.setAiScreenModel(this, visionModel)
+            Prefs.setAiReceiptOcrRefineModel(this, textModel)
+            Prefs.setAiSpeechModel(this, speechModel)
             val currentThinkingBinding = thinkingBindingForMode(currentMode)
             if (currentThinkingBinding != ThinkingBinding.FIXED_OFF) {
                 setThinkingEnabled(currentThinkingBinding, switchEnableThinkingCurrent.isChecked)
             }
-            Prefs.setAiQueryEnabled(this, false)
             Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
 
             Utils.toast(this, "所有 AI 配置已保存")

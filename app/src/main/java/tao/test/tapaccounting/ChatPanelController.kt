@@ -78,7 +78,10 @@ class ChatPanelController(
             .create()
 
         val allModels = Prefs.getAiModelsCache(context).ifEmpty {
-            listOf(Prefs.getAiModel(context), Prefs.getAiMultiModel(context)).distinct()
+            listOf(Prefs.getAiChatModel(context), Prefs.getAiMultiModel(context))
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
         }
         val modelAdapter = ModelOptionAdapter(
             current = Prefs.getAiChatModel(context),

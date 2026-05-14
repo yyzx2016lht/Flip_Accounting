@@ -604,9 +604,7 @@ class HomeFragment : Fragment() {
 
                     refreshController.onStateCollected(monthlyBills, state.isLoading)
 
-                    if (state.filteredByBook.isEmpty()) {
-                        updateHomeFabVisibilityByDrawerState()
-                    }
+                    updateHomeFabVisibilityByDrawerState()
                 }
             }
         }
@@ -886,8 +884,7 @@ class HomeFragment : Fragment() {
 
     fun shouldShowMainFab(): Boolean {
         if (!isAdded || !isVisible) return false
-        if (!::layoutEmptyView.isInitialized) return true
-        return layoutEmptyView.visibility != View.VISIBLE
+        return shouldShowHomeFab()
     }
 
     private fun syncDateFromSessionIfNeeded() {

@@ -399,7 +399,7 @@ object AIService {
     suspend fun probeVisionInputSupport(ctx: Context, modelName: String? = null): Boolean {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) return false
-        val model = modelName?.takeIf { it.isNotBlank() } ?: Prefs.getAiScreenModel(ctx)
+        val model = modelName?.takeIf { it.isNotBlank() } ?: Prefs.getAiReceiptVisionModel(ctx)
         if (model.isBlank()) return false
         return runCatching {
             Logger.d(ctx, "AIService", "Probing vision input support. model=$model")

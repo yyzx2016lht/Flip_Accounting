@@ -221,6 +221,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        KeepAliveDiagnostics.logSnapshot(this, "main-onCreate")
 
         bottomNavigationView = findViewById(R.id.bottom_navigation)
         fabApp = findViewById(R.id.fab_add)
@@ -399,11 +400,7 @@ class MainActivity : AppCompatActivity() {
         val serviceIntent = Intent(this, OverlayService::class.java)
         val needsService = Prefs.isDoubleTapEnabled(this)
         if (needsService) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
+            OverlayService.startCompat(this, serviceIntent)
         }
     }
 

@@ -46,6 +46,7 @@ open class TapRT(
     }
 
     private fun addToFeatureVector(vector: ArrayDeque<Float>, size: Int, start: Int) {
+        if (vector.isEmpty() || start >= _fv.size) return
         var startIndex = start
         val iterator = vector.iterator()
         var index = 0
@@ -56,6 +57,7 @@ open class TapRT(
                 if (index >= _sizeFeatureWindow + size) {
                     return
                 }
+                if (startIndex >= _fv.size) return
                 val featureVector = _fv
                 val next = iterator.next()
                 featureVector[startIndex] = next
@@ -121,9 +123,9 @@ open class TapRT(
         val interval = _resampleAcc.getInterval()
         val sizeWindow = (sizeWindowNs / interval).toInt()
         while (_xsAcc.size > sizeWindow) {
-            _xsAcc.removeFirst()
-            _ysAcc.removeFirst()
-            _zsAcc.removeFirst()
+            if (_xsAcc.isNotEmpty()) _xsAcc.removeFirst()
+            if (_ysAcc.isNotEmpty()) _ysAcc.removeFirst()
+            if (_zsAcc.isNotEmpty()) _zsAcc.removeFirst()
         }
 
         val lowpassKey = _lowpassKey.update(slopeAcc.z)

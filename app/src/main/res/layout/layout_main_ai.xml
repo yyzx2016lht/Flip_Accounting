@@ -50,11 +50,10 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Section: Provider Settings -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="接口基础设置"
+                android:text="接口设置"
                 android:textColor="@color/brand_primary"
                 android:textSize="@dimen/settings_section_title_size"
                 android:textStyle="bold"
@@ -68,39 +67,6 @@
                 android:background="@drawable/bg_ai_input_modern"
                 android:padding="@dimen/card_padding"
                 android:layout_marginBottom="@dimen/settings_card_margin_bottom">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="智能服务提供方"
-                    android:textColor="#666666"
-                    android:textSize="@dimen/text_size_12"
-                    android:layout_marginBottom="6dp"/>
-                <Spinner
-                    android:id="@+id/spinner_providers"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:background="@drawable/bg_spinner_rounded"
-                    android:spinnerMode="dropdown"
-                    android:layout_marginBottom="12dp"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="接口地址"
-                    android:textColor="#666666"
-                    android:textSize="@dimen/text_size_12"
-                    android:layout_marginBottom="6dp"/>
-                <EditText
-                    android:id="@+id/et_api_url"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:hint="https://api.example.com"
-                    android:background="@drawable/bg_search_box"
-                    android:paddingHorizontal="12dp"
-                    android:textSize="@dimen/text_size_14"
-                    android:singleLine="true"
-                    android:layout_marginBottom="12dp"/>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -132,13 +98,20 @@
                     app:strokeWidth="1dp"
                     app:strokeColor="#BBDEFB"
                     style="@style/Widget.MaterialComponents.Button.UnelevatedButton"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="当前固定使用硅基流动接口，刷新后会同步可选模型列表。"
+                    android:textColor="#999999"
+                    android:textSize="@dimen/text_size_11" />
             </LinearLayout>
 
-            <!-- Section: Mode Specific Settings -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="业务模型"
+                android:text="核心模型"
                 android:textColor="@color/brand_primary"
                 android:textSize="@dimen/settings_section_title_size"
                 android:textStyle="bold"
@@ -152,26 +125,6 @@
                 android:background="@drawable/bg_ai_input_modern"
                 android:padding="@dimen/card_padding"
                 android:layout_marginBottom="24dp">
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_enable_query"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="启用 Query 查询功能"
-                    android:textColor="#333333"
-                    android:textSize="@dimen/text_size_13"
-                    android:layout_marginBottom="2dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/tv_query_thinking_hint"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="路由模型与 Query 规划模型固定关闭思考。其余思考开关按当前选择的业务模型单独配置。"
-                    android:textColor="#999999"
-                    android:textSize="@dimen/text_size_11"
-                    android:layout_marginBottom="12dp"
-                    android:visibility="gone" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/switch_enable_receipt_ocr_refine"
@@ -189,6 +142,15 @@
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11"
                     android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="主文本模型会统一用于记账、修改账单、二段分类、规则生成和 OCR 整理。视觉模型会统一用于小票图片识别、视觉重试和截图识别。"
+                    android:textColor="#999999"
+                    android:textSize="@dimen/text_size_11" />
+
                 <GridLayout
                     android:id="@+id/chip_group_prompt_modes"
                     android:layout_width="match_parent"
@@ -200,7 +162,7 @@
                     android:useDefaultMargins="true">
 
                     <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_single_prompt"
+                        android:id="@+id/btn_text_model"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -209,13 +171,13 @@
                         android:gravity="center"
                         android:textAlignment="center"
                         android:checkable="true"
-                        android:text="单笔记账"
+                        android:text="主文本模型"
                         android:textSize="@dimen/text_size_13"
                         app:checkedIconVisible="false"
                         app:chipMinHeight="36dp" />
 
                     <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_multi_prompt"
+                        android:id="@+id/btn_vision_model"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -224,112 +186,7 @@
                         android:gravity="center"
                         android:textAlignment="center"
                         android:checkable="true"
-                        android:text="记账模型"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_modify_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="修改账单"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_category_refine_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="二段分类"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_receipt_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="小票记账"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_receipt_vision_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="视觉重试"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_screen_accounting_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="屏幕识别"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_rule_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="规则生成"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_ocr_refine_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="识别整理"
+                        android:text="视觉模型"
                         android:textSize="@dimen/text_size_13"
                         app:checkedIconVisible="false"
                         app:chipMinHeight="36dp" />
@@ -345,36 +202,6 @@
                         android:textAlignment="center"
                         android:checkable="true"
                         android:text="语音识别"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_router_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="意图路由"
-                        android:textSize="@dimen/text_size_13"
-                        app:checkedIconVisible="false"
-                        app:chipMinHeight="36dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/btn_query_prompt"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_gravity="fill_horizontal"
-                        android:gravity="center"
-                        android:textAlignment="center"
-                        android:checkable="true"
-                        android:text="Query规划"
                         android:textSize="@dimen/text_size_13"
                         app:checkedIconVisible="false"
                         app:chipMinHeight="36dp" />
@@ -520,7 +347,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="当前模式使用模型"
+                    android:text="当前项使用模型"
                     android:textColor="#666666"
                     android:textSize="@dimen/text_size_12"
                     android:layout_marginBottom="6dp"/>
@@ -529,7 +356,7 @@
                     android:id="@+id/switch_enable_thinking_current"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="当前模式启用思考"
+                    android:text="当前项启用思考"
                     android:textColor="#333333"
                     android:textSize="@dimen/text_size_13"
                     android:layout_marginBottom="2dp" />
@@ -601,4 +428,3 @@
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
-

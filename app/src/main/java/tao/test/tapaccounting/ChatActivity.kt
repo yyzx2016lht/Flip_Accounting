@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -69,6 +70,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
@@ -558,6 +560,29 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            clearInlineAmountFocusIfTouchOutside(ev)
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun clearInlineAmountFocusIfTouchOutside(ev: MotionEvent) {
+        inlineAmountEditingBillId ?: return
+        val focusedAmountInput = currentFocus as? EditText ?: return
+        if (focusedAmountInput.id != R.id.et_chat_bill_amount) return
+
+        val inputBounds = Rect()
+        if (focusedAmountInput.getGlobalVisibleRect(inputBounds) &&
+            inputBounds.contains(ev.rawX.toInt(), ev.rawY.toInt())
+        ) {
+            return
+        }
+
+        uiHelperController.hideSoftKeyboard(focusedAmountInput)
+        focusedAmountInput.clearFocus()
+    }
+
     private fun bindViews() {
         rvMessages = findViewById(R.id.rv_chat_messages)
         etInput = findViewById(R.id.et_chat_input)
@@ -792,7 +817,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun updateConversationSubtitle() {
-        val modelName = Prefs.getAiChatModel(this).ifEmpty { "未选择模型" }
+        val modelName = Prefs.getAiChatModel(this).ifEmpty { "跟随主文本模型" }
         tvAiModel.text = modelName
     }
 
@@ -1430,12 +1455,22 @@ class ChatActivity : AppCompatActivity() {
 
     private fun parseTimeToMillis(timeStr: String): Long {
         if (timeStr.isBlank()) return System.currentTimeMillis()
-        return try {
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(timeStr)?.time
-                ?: System.currentTimeMillis()
-        } catch (_: Exception) {
-            System.currentTimeMillis()
+        val locale = Locale.getDefault()
+        val fullFormats = listOf("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm")
+        for (pattern in fullFormats) {
+            val parsed = runCatching { SimpleDateFormat(pattern, locale).parse(timeStr)?.time }.getOrNull()
+            if (parsed != null) return parsed
         }
+        val partialFormats = listOf("MM-dd HH:mm", "MM-dd HH:mm:ss")
+        for (pattern in partialFormats) {
+            val parsedDate = runCatching { SimpleDateFormat(pattern, locale).parse(timeStr) }.getOrNull() ?: continue
+            return Calendar.getInstance(locale).apply {
+                val currentYear = get(Calendar.YEAR)
+                time = parsedDate
+                set(Calendar.YEAR, currentYear)
+            }.timeInMillis
+        }
+        return System.currentTimeMillis()
     }
 
     private fun maybeShowRuleDialogForChatBillCategoryEdit(

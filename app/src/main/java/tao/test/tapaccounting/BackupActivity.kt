@@ -33,6 +33,7 @@ import tao.test.tapaccounting.data.backup.CsvManager
 import tao.test.tapaccounting.data.backup.DataExportManager
 import tao.test.tapaccounting.data.backup.WebDavClient
 import tao.test.tapaccounting.data.local.AppDatabase
+import tao.test.tapaccounting.data.local.entity.Asset
 import tao.test.tapaccounting.data.local.entity.Bill
 import tao.test.tapaccounting.data.local.entity.ChatMessage
 import tao.test.tapaccounting.data.repository.BackupRepository
@@ -179,6 +180,9 @@ class BackupActivity : AppCompatActivity() {
             }
             openCsvLauncher.launch(intent)
         }
+        findViewById<MaterialButton>(R.id.btn_repair_csv_assets).setOnClickListener {
+            repairMissingCsvAssetBindings()
+        }
         updateBackupModeHint()
         handleOpenSectionIntent()
     }
@@ -256,8 +260,8 @@ class BackupActivity : AppCompatActivity() {
 
     private fun updatePinModeHint() {
         findViewById<TextView>(R.id.tv_backup_pin_hint).text = when (currentPinMode()) {
-            BackupPinMode.AUTO -> "PIN 自动：首次备份将设置 PIN；覆盖已加密备份时需验证同一 PIN。"
-            BackupPinMode.FORCE -> "PIN 强制：只要勾选 AI 核心配置，就要求输入 PIN。"
+            BackupPinMode.AUTO -> "PIN 自动：首次备份 AI 核心模型时会设置 PIN；覆盖已加密备份时需验证同一 PIN。"
+            BackupPinMode.FORCE -> "PIN 强制：只要勾选 AI 核心模型，就要求输入 PIN。"
             BackupPinMode.PLAIN -> "不加密：不会对 API Key 做 PIN 加密，请注意安全风险。"
         }
     }
@@ -445,10 +449,11 @@ class BackupActivity : AppCompatActivity() {
     private fun showCsvQuickActionDialog() {
         val dialog = AlertDialog.Builder(this)
             .setTitle("CSV 工具")
-            .setItems(arrayOf("导出 CSV", "导入账单")) { _, which ->
+            .setItems(arrayOf("导出 CSV", "导入账单", "修复历史资产绑定")) { _, which ->
                 when (which) {
                     0 -> findViewById<MaterialButton>(R.id.btn_export_csv).performClick()
                     1 -> findViewById<MaterialButton>(R.id.btn_import_csv).performClick()
+                    2 -> repairMissingCsvAssetBindings()
                 }
             }
             .create()
@@ -525,7 +530,7 @@ class BackupActivity : AppCompatActivity() {
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("备份加密方式")
-            .setMessage("检测到将备份 AI 核心配置（含 API Key），请选择本次加密方式。")
+            .setMessage("检测到将备份 AI 核心模型（含 API Key），请选择本次加密方式。")
             .setItems(labels.toTypedArray()) { _, which -> actions[which].invoke() }
             .setNegativeButton("取消", null)
             .create()
@@ -635,7 +640,11 @@ class BackupActivity : AppCompatActivity() {
         val toBackup = linkedMapOf<String, Any>()
         if (options.backupAssets) fullData["assets"]?.let { toBackup["assets"] = it }
         if (options.backupCategories) fullData["categories"]?.let { toBackup["categories"] = it }
-        if (options.backupBills) fullData["bills"]?.let { toBackup["bills"] = it }
+        if (options.backupBills) {
+            fullData["bills"]?.let { toBackup["bills"] = it }
+            fullData["deleted_bills"]?.let { toBackup["deleted_bills"] = it }
+            fullData["investment_lots"]?.let { toBackup["investment_lots"] = it }
+        }
         if (options.backupRules) fullData["rules"]?.let { toBackup["rules"] = it }
         if (options.backupChatMessages) fullData["chat_messages"]?.let { toBackup["chat_messages"] = it }
 
@@ -744,6 +753,7 @@ class BackupActivity : AppCompatActivity() {
                 "settings_advanced" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_advanced_legacy),
                 "banners" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_banners)
             )
+            val aiCoreHint = view.findViewById<TextView>(R.id.tv_restore_settings_ai_core_hint)
 
             var hasModules = false
             moduleViews.forEach { (key, checkBox) ->
@@ -756,6 +766,7 @@ class BackupActivity : AppCompatActivity() {
                 checkBox.isChecked = present
                 hasModules = hasModules || present
             }
+            aiCoreHint.visibility = moduleViews.getValue("settings_ai_core").visibility
 
             val groupCore = view.findViewById<LinearLayout>(R.id.group_restore_core)
             val groupChat = view.findViewById<LinearLayout>(R.id.group_restore_chat)
@@ -845,6 +856,8 @@ class BackupActivity : AppCompatActivity() {
                 backupRepository.restoreFullData(
                     assets = if (options.restoreAssets) dataMap["assets"]?.let { DataExportManager.deserializeAssets(it) } else null,
                     bills = if (options.restoreBills) dataMap["bills"]?.let { DataExportManager.deserializeBills(it) } else null,
+                    deletedBills = if (options.restoreBills) dataMap["deleted_bills"]?.let { DataExportManager.deserializeDeletedBills(it) } else null,
+                    investmentLots = if (options.restoreBills) dataMap["investment_lots"]?.let { DataExportManager.deserializeInvestmentLots(it) } else null,
                     categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
                     rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
                     chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null
@@ -964,11 +977,7 @@ class BackupActivity : AppCompatActivity() {
             }
         }
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
+        OverlayService.startCompat(this, serviceIntent)
     }
 
     private fun rootCauseMessage(e: Throwable): String {
@@ -1047,7 +1056,7 @@ class BackupActivity : AppCompatActivity() {
         container.addView(etPinConfirm)
         val dialog = AlertDialog.Builder(this)
             .setTitle("设置备份 PIN")
-            .setMessage("检测到要备份 AI 核心配置，其中包含 API Key。请设置 4 位数字 PIN 用于加密。")
+            .setMessage("检测到要备份 AI 核心模型，其中包含 API Key。请设置 4 位数字 PIN 用于加密。")
             .setView(container)
             .setPositiveButton("确认") { _, _ ->
                 val pin = etPin.text?.toString().orEmpty().trim()
@@ -1138,9 +1147,14 @@ class BackupActivity : AppCompatActivity() {
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     val db = AppDatabase.getDatabase(this@BackupActivity)
-                                    importCsvBills(db, bills)
+                                    val importResult = importCsvBills(db, bills)
                                     withContext(Dispatchers.Main) {
-                                        Utils.toast(this@BackupActivity, "成功导入 ${bills.size} 条账单")
+                                        val assetHint = if (importResult.createdAssetNames.isNotEmpty()) {
+                                            "，已补充 ${importResult.createdAssetNames.size} 个临时资产，请到资产管理确认"
+                                        } else {
+                                            ""
+                                        }
+                                        Utils.toast(this@BackupActivity, "成功导入 ${importResult.billCount} 条账单$assetHint")
                                         if (intent?.getStringExtra(EXTRA_OPEN_SECTION) == SECTION_CSV && isQuickOneShot()) finish()
                                     }
                                 } catch (e: Exception) {
@@ -1192,15 +1206,21 @@ class BackupActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun importCsvBills(db: AppDatabase, bills: List<Bill>) {
+    private suspend fun importCsvBills(db: AppDatabase, bills: List<Bill>): CsvImportResult {
         val importedIdMap = mutableMapOf<Long, Long>()
         val pendingRelations = mutableListOf<Pair<Long, Long>>()
         val importedIds = bills.mapNotNull { it.id.takeIf { id -> id > 0L } }.toSet()
+        val assetResolution = ensureCsvImportAssets(db, bills)
+        val assetByName = assetResolution.assetByName
 
         for (bill in bills) {
+            val accountAsset = assetByName[normalizeAssetImportName(bill.accountName)]
+            val toAccountAsset = assetByName[normalizeAssetImportName(bill.toAccountName)]
             val newId = db.billDao().insertBill(
                 bill.copy(
                     id = 0L,
+                    accountId = accountAsset?.id,
+                    toAccountId = toAccountAsset?.id,
                     categoryName = CategoryNameNormalizer.normalizeForStorage(bill.categoryName),
                     relatedBillId = null
                 )
@@ -1221,8 +1241,146 @@ class BackupActivity : AppCompatActivity() {
         }
 
         db.billDao().backfillAssetLinksByName()
+        return CsvImportResult(
+            billCount = bills.size,
+            createdAssetNames = assetResolution.createdAssetNames
+        )
+    }
+
+    private fun repairMissingCsvAssetBindings() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(this@BackupActivity)
+                val result = repairMissingAssetBindings(db)
+                withContext(Dispatchers.Main) {
+                    val message = if (result.updatedBillCount == 0 && result.createdAssetNames.isEmpty()) {
+                        "未发现需要修复的资产绑定"
+                    } else {
+                        "已修复 ${result.updatedBillCount} 条账单资产绑定" +
+                            if (result.createdAssetNames.isNotEmpty()) {
+                                "，补充 ${result.createdAssetNames.size} 个临时资产，请到资产管理确认"
+                            } else {
+                                ""
+                            }
+                    }
+                    Utils.toast(this@BackupActivity, message)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Utils.toast(this@BackupActivity, "修复失败: ${rootCauseMessage(e)}")
+                }
+            }
+        }
+    }
+
+    private suspend fun repairMissingAssetBindings(db: AppDatabase): CsvAssetRepairResult {
+        val bills = db.billDao().getAllBillsList().filter { bill ->
+            (normalizeAssetImportName(bill.accountName).isNotBlank() && bill.accountId == null) ||
+                (normalizeAssetImportName(bill.toAccountName).isNotBlank() && bill.toAccountId == null)
+        }
+        if (bills.isEmpty()) return CsvAssetRepairResult()
+
+        val assetResolution = ensureCsvImportAssets(db, bills)
+        var updatedCount = 0
+        bills.forEach { bill ->
+            val accountAsset = assetResolution.assetByName[normalizeAssetImportName(bill.accountName)]
+            val toAccountAsset = assetResolution.assetByName[normalizeAssetImportName(bill.toAccountName)]
+            val updated = bill.copy(
+                accountId = bill.accountId ?: accountAsset?.id,
+                toAccountId = bill.toAccountId ?: toAccountAsset?.id
+            )
+            if (updated.accountId != bill.accountId || updated.toAccountId != bill.toAccountId) {
+                db.billDao().updateBill(updated)
+                updatedCount += 1
+            }
+        }
+
+        return CsvAssetRepairResult(
+            updatedBillCount = updatedCount,
+            createdAssetNames = assetResolution.createdAssetNames
+        )
+    }
+
+    private suspend fun ensureCsvImportAssets(db: AppDatabase, bills: List<Bill>): CsvImportAssetResolution {
+        val assetDao = db.assetDao()
+        val existing = assetDao.getAllAssetsList().associateBy { normalizeAssetImportName(it.name) }.toMutableMap()
+        val createdAssetNames = mutableListOf<String>()
+        val required = linkedMapOf<String, String>()
+        bills.forEach { bill ->
+            listOf(bill.accountName to bill.currency, bill.toAccountName to bill.currency).forEach { (rawName, currency) ->
+                val name = normalizeAssetImportName(rawName)
+                if (name.isBlank() || existing.containsKey(name) || required.containsKey(name)) return@forEach
+                required[name] = currency.ifBlank { "CNY" }
+            }
+        }
+
+        var nextSortOrder = (assetDao.getMaxSortOrderInCategory(Asset.CATEGORY_FUND) ?: 0) + 10
+        required.forEach { (name, currency) ->
+            val category = inferImportedAssetCategory(name)
+            val sortOrder = if (category == Asset.CATEGORY_FUND) {
+                nextSortOrder.also { nextSortOrder += 10 }
+            } else {
+                (assetDao.getMaxSortOrderInCategory(category) ?: 0) + 10
+            }
+            val asset = Asset(
+                name = name,
+                type = "CSV导入待确认",
+                balance = 0.0,
+                initialBalance = 0.0,
+                currency = currency,
+                remark = CSV_TEMP_ASSET_MARKER,
+                includeInNetAsset = false,
+                sortOrder = sortOrder,
+                pickerSortOrder = sortOrder,
+                assetCategory = category
+            )
+            val newId = assetDao.insertAsset(asset)
+            existing[name] = asset.copy(id = newId)
+            createdAssetNames += name
+        }
+
+        return CsvImportAssetResolution(existing, createdAssetNames)
+    }
+
+    private fun normalizeAssetImportName(raw: String): String {
+        val name = raw.trim()
+        return when {
+            name.isBlank() -> ""
+            name == "选择资产" || name == "未知账户" -> ""
+            else -> name
+        }
+    }
+
+    private fun inferImportedAssetCategory(name: String): String {
+        return if (
+            name.contains("信用卡") ||
+            name.contains("花呗") ||
+            name.contains("白条") ||
+            name.contains("美团月付")
+        ) {
+            Asset.CATEGORY_CREDIT_CARD
+        } else {
+            Asset.CATEGORY_FUND
+        }
     }
 }
+
+private const val CSV_TEMP_ASSET_MARKER = "CSV导入自动创建，请检查资产类型、币种和余额"
+
+private data class CsvImportResult(
+    val billCount: Int,
+    val createdAssetNames: List<String>
+)
+
+private data class CsvImportAssetResolution(
+    val assetByName: Map<String, Asset>,
+    val createdAssetNames: List<String>
+)
+
+private data class CsvAssetRepairResult(
+    val updatedBillCount: Int = 0,
+    val createdAssetNames: List<String> = emptyList()
+)
 
 data class BackupOptions(
     val backupAssets: Boolean,
@@ -1268,4 +1426,3 @@ data class RestoreOptions(
     val restoreSettingsAdvancedLegacy: Boolean,
     val restoreBanners: Boolean
 )
-

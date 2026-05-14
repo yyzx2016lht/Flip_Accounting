@@ -1,6 +1,9 @@
 package tao.test.tapaccounting.ui
 
+import android.Manifest
+import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -20,9 +23,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import tao.test.tapaccounting.KeepAliveAccessibilityService
+import tao.test.tapaccounting.KeepAliveDiagnostics
 import tao.test.tapaccounting.OverlayService
 import tao.test.tapaccounting.Prefs
 import tao.test.tapaccounting.R
@@ -133,11 +138,7 @@ class SensitivityActivity : AppCompatActivity() {
     }
 
     private fun startServiceCompat(intent: Intent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        OverlayService.startCompat(this, intent)
     }
 
     private fun initTapViews() {
@@ -337,6 +338,32 @@ class SensitivityActivity : AppCompatActivity() {
             }
         }
 
+        val btnNotification = findViewById<View>(R.id.btn_notification_permission)
+        val tvNotificationStatus = findViewById<TextView>(R.id.tv_notification_status)
+
+        fun refreshNotificationStatus() {
+            val enabled = isNotificationPermissionReady()
+            tvNotificationStatus?.text = if (enabled) "仅录音等临时场景会用到" else "当前为无常驻通知模式"
+            (btnNotification as? MaterialButton)?.text = if (enabled) "已开启" else "可选"
+        }
+
+        btnNotification?.setOnClickListener {
+            try {
+                val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    }
+                } else {
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "无法打开通知设置", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         // 无障碍服务
         val btnAccessibility = findViewById<View>(R.id.btn_accessibility_service)
         val tvAccessibilityStatus = findViewById<TextView>(R.id.tv_accessibility_status)
@@ -357,16 +384,36 @@ class SensitivityActivity : AppCompatActivity() {
         }
 
         refreshAccessibilityStatus()
+        refreshNotificationStatus()
     }
 
     override fun onResume() {
         super.onResume()
-        // 刷新无障碍服务状态
+        KeepAliveDiagnostics.logSnapshot(this, "sensitivity-onResume")
+        // 刷新无障碍服务和通知状态
         val tvAccessibilityStatus = findViewById<TextView>(R.id.tv_accessibility_status)
         val btnAccessibility = findViewById<View>(R.id.btn_accessibility_service)
         val isEnabled = KeepAliveAccessibilityService.isServiceEnabled()
         tvAccessibilityStatus?.text = if (isEnabled) "已开启" else "用于截屏记账和后台保活"
         (btnAccessibility as? MaterialButton)?.text = if (isEnabled) "已开启" else "去开启"
+
+        val notificationReady = isNotificationPermissionReady()
+        findViewById<TextView>(R.id.tv_notification_status)?.text =
+            if (notificationReady) "仅录音等临时场景会用到" else "当前为无常驻通知模式"
+        (findViewById<View>(R.id.btn_notification_permission) as? MaterialButton)?.text =
+            if (notificationReady) "已开启" else "可选"
+    }
+
+    private fun isNotificationPermissionReady(): Boolean {
+        val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val channelEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            nm.getNotificationChannel(OverlayService.CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
+        } else {
+            true
+        }
+        return permissionGranted && channelEnabled
     }
 
     private fun updateTapUI(level: Int) {
@@ -385,6 +432,6 @@ class SensitivityActivity : AppCompatActivity() {
         val intent = Intent(this, OverlayService::class.java).apply {
             action = OverlayService.ACTION_RESTART_DOUBLE_TAP
         }
-        startService(intent)
+        startServiceCompat(intent)
     }
 }

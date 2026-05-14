@@ -2,12 +2,17 @@ package tao.test.tapaccounting.data.repository
 
 import android.util.Log
 import androidx.room.withTransaction
+import org.json.JSONArray
+import org.json.JSONObject
+import tao.test.tapaccounting.ChatBillMessageParser
 import tao.test.tapaccounting.data.local.AppDatabase
 import tao.test.tapaccounting.data.local.entity.AiRule
 import tao.test.tapaccounting.data.local.entity.Asset
 import tao.test.tapaccounting.data.local.entity.Bill
 import tao.test.tapaccounting.data.local.entity.Category
 import tao.test.tapaccounting.data.local.entity.ChatMessage
+import tao.test.tapaccounting.data.local.entity.DeletedBill
+import tao.test.tapaccounting.data.local.entity.InvestmentLot
 import tao.test.tapaccounting.logic.CategoryNameNormalizer
 
 class BackupRepository(private val db: AppDatabase) {
@@ -16,6 +21,8 @@ class BackupRepository(private val db: AppDatabase) {
         return mapOf(
             "assets" to db.assetDao().getAllAssetsList(),
             "bills" to db.billDao().getAllBillsList(),
+            "deleted_bills" to db.deletedBillDao().getAllDeletedBills(),
+            "investment_lots" to db.investmentLotDao().getAllLots(),
             "categories" to db.categoryDao().getAllCategoriesList(),
             "rules" to db.aiRuleDao().getAllRulesList(),
             "chat_messages" to db.chatMessageDao().getAll()
@@ -25,6 +32,8 @@ class BackupRepository(private val db: AppDatabase) {
     suspend fun restoreFullData(
         assets: List<Asset>?,
         bills: List<Bill>?,
+        deletedBills: List<DeletedBill>?,
+        investmentLots: List<InvestmentLot>?,
         categories: List<Category>?,
         rules: List<AiRule>?,
         chatMessages: List<ChatMessage>?
@@ -32,6 +41,7 @@ class BackupRepository(private val db: AppDatabase) {
         db.withTransaction {
             val categoryIdMap = mutableMapOf<Long, Long>()
             val assetIdMap = mutableMapOf<Long, Long>()
+            val billIdMap = mutableMapOf<Long, Long>()
 
             if (categories != null) {
                 Log.d("BackupRepo", "开始恢复分类，共 ${categories.size} 条")
@@ -59,9 +69,10 @@ class BackupRepository(private val db: AppDatabase) {
 
             if (bills != null) {
                 db.billDao().deleteAll()
+                db.deletedBillDao().deleteAll()
+                db.investmentLotDao().deleteAll()
                 val existingCategoriesByName = db.categoryDao().getAllCategoriesList().associateBy { it.name }
                 val existingAssetsByName = db.assetDao().getAllAssetsList().associateBy { it.name }
-                val billIdMap = mutableMapOf<Long, Long>()
                 val pendingRelated = mutableListOf<Pair<Long, Long>>()
 
                 bills.forEach { bill ->
@@ -97,6 +108,31 @@ class BackupRepository(private val db: AppDatabase) {
                     val current = db.billDao().getBillById(newBillId) ?: return@forEach
                     db.billDao().updateBill(current.copy(relatedBillId = newRelatedId))
                 }
+
+                deletedBills.orEmpty().forEach { deletedBill ->
+                    db.deletedBillDao().insert(
+                        deletedBill.copy(
+                            id = 0L,
+                            originalBillId = 0L,
+                            categoryId = deletedBill.categoryId?.let { categoryIdMap[it] },
+                            accountId = resolveAssetId(deletedBill.accountId, deletedBill.accountName, assetIdMap, existingAssetsByName),
+                            toAccountId = resolveAssetId(deletedBill.toAccountId, deletedBill.toAccountName, assetIdMap, existingAssetsByName),
+                            categoryName = CategoryNameNormalizer.normalizeForStorage(deletedBill.categoryName),
+                            relatedBillId = deletedBill.relatedBillId?.let { billIdMap[it] }
+                        )
+                    )
+                }
+
+                investmentLots.orEmpty().forEach { lot ->
+                    val newAssetId = assetIdMap[lot.assetId] ?: lot.assetId
+                    db.investmentLotDao().insertLot(
+                        lot.copy(
+                            id = 0L,
+                            assetId = newAssetId,
+                            sourceBillId = lot.sourceBillId?.let { billIdMap[it] }
+                        )
+                    )
+                }
             }
 
             if (rules != null) {
@@ -109,9 +145,56 @@ class BackupRepository(private val db: AppDatabase) {
                 if (existingIds.isNotEmpty()) {
                     db.chatMessageDao().deleteByIds(existingIds)
                 }
-                chatMessages.forEach { db.chatMessageDao().insert(it.copy(id = 0)) }
+                chatMessages.forEach { msg ->
+                    db.chatMessageDao().insert(remapChatBillReferences(msg, billIdMap).copy(id = 0))
+                }
             }
         }
+    }
+
+    private fun remapChatBillReferences(msg: ChatMessage, billIdMap: Map<Long, Long>): ChatMessage {
+        if (msg.msgType != 4 || billIdMap.isEmpty()) return msg
+
+        val oldBillIds = ChatBillMessageParser.parseBillIds(msg.billIds)
+        val newBillIds = oldBillIds.map { billIdMap[it] ?: it }
+        val baseBillIdsJson = JSONArray(newBillIds.map { it.toString() }).toString()
+        val newBillIdsText = if (ChatBillMessageParser.isDeprecatedBillMessage(msg.billIds)) {
+            ChatBillMessageParser.markBillIdsAsDeprecated(baseBillIdsJson)
+        } else {
+            baseBillIdsJson
+        }
+
+        return msg.copy(
+            billIds = newBillIdsText,
+            content = remapChatBillContentIds(msg.content, billIdMap)
+        )
+    }
+
+    private fun remapChatBillContentIds(content: String, billIdMap: Map<Long, Long>): String {
+        if (content.isBlank() || billIdMap.isEmpty()) return content
+        return runCatching {
+            val root = JSONObject(content)
+            root.optJSONArray("bills")?.let { bills ->
+                for (i in 0 until bills.length()) {
+                    val billJson = bills.optJSONObject(i) ?: continue
+                    val oldId = billJson.optLong("id", 0L)
+                    billIdMap[oldId]?.let { billJson.put("id", it) }
+                }
+            }
+            remapIdArray(root, "deprecatedBillIds", billIdMap)
+            remapIdArray(root, "editedBillIds", billIdMap)
+            root.toString()
+        }.getOrElse { content }
+    }
+
+    private fun remapIdArray(root: JSONObject, key: String, billIdMap: Map<Long, Long>) {
+        val source = root.optJSONArray(key) ?: return
+        val remapped = JSONArray()
+        for (i in 0 until source.length()) {
+            val oldId = source.optLong(i, 0L)
+            remapped.put(billIdMap[oldId] ?: oldId)
+        }
+        root.put(key, remapped)
     }
 
     private fun resolveCategoryId(

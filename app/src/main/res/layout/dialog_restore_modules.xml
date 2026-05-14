@@ -224,9 +224,20 @@
                 android:id="@+id/cb_restore_settings_ai_core"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AI 核心配置"
+                android:text="AI 核心模型"
                 android:textColor="#23324A"
                 android:textSize="14sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_restore_settings_ai_core_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="4dp"
+                android:text="包含 API Key、主文本模型、视觉模型、在线语音模型，以及相关 OCR / 思考开关。"
+                android:textColor="#8C98A8"
+                android:textSize="12sp"
                 android:visibility="gone" />
 
             <com.google.android.material.checkbox.MaterialCheckBox

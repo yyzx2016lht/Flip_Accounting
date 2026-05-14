@@ -17,11 +17,7 @@ class QuickStartTileService : TileService() {
         }
         
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
+            OverlayService.startCompat(this, serviceIntent)
             Logger.d(this, "QuickStartTile", "Service start requested successfully.")
         } catch (e: Exception) {
             Logger.d(this, "QuickStartTile", "Error starting service: ${e.message}")

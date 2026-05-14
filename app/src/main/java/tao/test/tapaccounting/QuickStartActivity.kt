@@ -2,7 +2,6 @@ package tao.test.tapaccounting
 
 import android.app.Activity
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 
 /**
@@ -22,11 +21,7 @@ class QuickStartActivity : Activity() {
         }
         
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
+            OverlayService.startCompat(this, intent)
             Logger.d(this, "QuickStartActivity", "Service start requested successfully.")
         } catch (e: Exception) {
             Logger.d(this, "QuickStartActivity", "Error starting service: ${e.message}")

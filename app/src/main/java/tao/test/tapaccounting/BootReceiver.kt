@@ -3,7 +3,6 @@ package tao.test.tapaccounting
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
@@ -27,11 +26,7 @@ class BootReceiver : BroadcastReceiver() {
             // 交给 OverlayService 从 Prefs 恢复 tap 状态
             val serviceIntent = Intent(context, OverlayService::class.java)
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
+                OverlayService.startCompat(context, serviceIntent)
             } catch (e: Exception) {
                 Log.d(TAG, "start OverlayService failed: ${e.message}")
             }

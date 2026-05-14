@@ -32,10 +32,10 @@ import tao.test.tapaccounting.data.local.entity.ChatMessage
 import tao.test.tapaccounting.data.repository.CategoryRepository
 import tao.test.tapaccounting.logic.BillMutationService
 import tao.test.tapaccounting.logic.BillDisplayFormatter
-import tao.test.tapaccounting.ui.activity.BillDetailActivity
 import tao.test.tapaccounting.ui.common.UiMotion
 import tao.test.tapaccounting.ui.common.UiMotion.pressFeedback
 import tao.test.tapaccounting.ui.dialog.OverlayDialogs
+import tao.test.tapaccounting.ui.main.home.BillDetailSheetHelper
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -789,8 +789,12 @@ class ChatAdapter(
                 tvAmount.setOnClickListener { startInlineAmountEdit() }
                 card.setOnClickListener {
                     if (deprecated || savingAmount || etAmount.visibility == View.VISIBLE) return@setOnClickListener
-                    if (bill.id > 0L && Prefs.isIndependentDetailEnabled(context)) {
-                        BillDetailActivity.start(context, bill.id)
+                    if (bill.id > 0L) {
+                        BillDetailSheetHelper.showBillDetailSheet(
+                            context = context,
+                            lifecycleOwner = context,
+                            bill = bill
+                        )
                     }
                 }
                 etAmount.setOnEditorActionListener { _, actionId, event ->

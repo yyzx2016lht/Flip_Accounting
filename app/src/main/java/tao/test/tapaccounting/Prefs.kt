@@ -88,7 +88,9 @@ object Prefs {
     fun getAiKey(ctx: Context): String = PrefsAiSupport.getAiKey(ctx)
     fun setAiKey(ctx: Context, key: String) = PrefsAiSupport.setAiKey(ctx, key)
 
+    // Legacy compatibility field. New code should prefer getAiMultiModel().
     fun getAiModel(ctx: Context): String = PrefsAiSupport.getAiModel(ctx)
+    // Legacy compatibility field. New code should prefer setAiMultiModel().
     fun setAiModel(ctx: Context, value: String) = PrefsAiSupport.setAiModel(ctx, value)
 
     fun getAiMultiModel(ctx: Context): String = PrefsAiSupport.getAiMultiModel(ctx)
@@ -97,15 +99,19 @@ object Prefs {
     fun getAiModifyModel(ctx: Context): String = PrefsAiSupport.getAiModifyModel(ctx)
     fun setAiModifyModel(ctx: Context, value: String) = PrefsAiSupport.setAiModifyModel(ctx, value)
 
+    // Legacy compatibility field. Current product flow follows the text model.
     fun getAiCategoryRefineModel(ctx: Context): String = PrefsAiSupport.getAiCategoryRefineModel(ctx)
     fun setAiCategoryRefineModel(ctx: Context, value: String) =
         PrefsAiSupport.setAiCategoryRefineModel(ctx, value)
 
+    // Hidden legacy field. Current product flow does not expose router configuration.
     fun getAiRouterModel(ctx: Context): String = PrefsAiSupport.getAiRouterModel(ctx)
     fun setAiRouterModel(ctx: Context, value: String) = PrefsAiSupport.setAiRouterModel(ctx, value)
+    // Hidden legacy flag kept for backward-compatible restore only.
     fun isAiLlmRouterEnabled(ctx: Context): Boolean = PrefsAiSupport.isAiLlmRouterEnabled(ctx)
     fun setAiLlmRouterEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiLlmRouterEnabled(ctx, enabled)
+    // Hidden legacy field. Current product flow does not expose query planning configuration.
     fun getAiQueryModel(ctx: Context): String = PrefsAiSupport.getAiQueryModel(ctx)
     fun setAiQueryModel(ctx: Context, value: String) = PrefsAiSupport.setAiQueryModel(ctx, value)
 
@@ -116,6 +122,7 @@ object Prefs {
     fun getAiReceiptVisionModel(ctx: Context): String = PrefsAiSupport.getAiReceiptVisionModel(ctx)
     fun setAiReceiptVisionModel(ctx: Context, value: String) =
         PrefsAiSupport.setAiReceiptVisionModel(ctx, value)
+    // Legacy compatibility field. Current product flow follows the vision model.
     fun getAiScreenModel(ctx: Context): String = PrefsAiSupport.getAiScreenModel(ctx)
     fun setAiScreenModel(ctx: Context, value: String) =
         PrefsAiSupport.setAiScreenModel(ctx, value)
@@ -147,6 +154,7 @@ object Prefs {
         PrefsAiSupport.isAiThinkingCategoryRefineEnabled(ctx)
     fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiThinkingCategoryRefineEnabled(ctx, enabled)
+    // Hidden legacy flag kept for backward-compatible restore only.
     fun isAiQueryEnabled(ctx: Context): Boolean = PrefsAiSupport.isAiQueryEnabled(ctx)
     fun setAiQueryEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiQueryEnabled(ctx, enabled)

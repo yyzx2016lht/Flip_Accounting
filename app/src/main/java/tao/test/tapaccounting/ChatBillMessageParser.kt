@@ -3,6 +3,7 @@ package tao.test.tapaccounting
 import org.json.JSONArray
 import org.json.JSONObject
 import tao.test.tapaccounting.data.local.entity.Bill
+import kotlin.math.abs
 
 object ChatBillMessageParser {
 
@@ -123,7 +124,11 @@ object ChatBillMessageParser {
         val merged = mutableListOf<Bill>()
         snapshots.forEach { snapshot ->
             val live = if (snapshot.id > 0L) liveById[snapshot.id] else null
-            merged += live ?: snapshot
+            merged += when {
+                live == null -> snapshot
+                live.matchesChatSnapshot(snapshot) -> live
+                else -> snapshot.copy(id = 0L)
+            }
         }
         liveBills.forEach { live ->
             if (live.id <= 0L || snapshots.none { it.id == live.id }) {
@@ -131,6 +136,17 @@ object ChatBillMessageParser {
             }
         }
         return merged
+    }
+
+    private fun Bill.matchesChatSnapshot(snapshot: Bill): Boolean {
+        if (type != snapshot.type || subType != snapshot.subType) return false
+        if (abs(amount - snapshot.amount) > 0.001) return false
+        if (abs(time - snapshot.time) > 60_000L) return false
+        if (snapshot.accountName.isNotBlank() && accountName != snapshot.accountName) return false
+        if (snapshot.toAccountName.isNotBlank() && toAccountName != snapshot.toAccountName) return false
+        if (snapshot.categoryName.isNotBlank() && categoryName != snapshot.categoryName) return false
+        if (snapshot.remark.isNotBlank() && remark != snapshot.remark) return false
+        return true
     }
 
     fun buildBillMessageContent(

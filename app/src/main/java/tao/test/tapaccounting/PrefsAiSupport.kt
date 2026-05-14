@@ -7,6 +7,7 @@ import org.json.JSONObject
 object PrefsAiSupport {
     private const val PREFS_NAME = "flip_prefs"
     private const val KEY_AI_KEY = "ai_api_key"
+    // Legacy text-model key kept for backward compatibility.
     private const val KEY_AI_MODEL = "ai_model_id"
     private const val KEY_AI_MULTI_MODEL = "ai_multi_model_id"
     private const val KEY_AI_MODIFY_MODEL = "ai_modify_model_id"
@@ -69,10 +70,11 @@ object PrefsAiSupport {
         prefs(ctx).edit().putString(KEY_AI_MODIFY_MODEL, value).apply()
 
     fun getAiCategoryRefineModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_CATEGORY_REFINE_MODEL, "") ?: "").trim()
+        (prefs(ctx).getString(KEY_AI_CATEGORY_REFINE_MODEL, "") ?: "").ifBlank { getAiMultiModel(ctx) }
     fun setAiCategoryRefineModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_CATEGORY_REFINE_MODEL, value).apply()
 
+    // Hidden legacy field. Current product flow no longer exposes router configuration.
     fun getAiRouterModel(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_ROUTER_MODEL, DEFAULT_ROUTER_MODEL) ?: DEFAULT_ROUTER_MODEL
     fun setAiRouterModel(ctx: Context, value: String) =
@@ -82,6 +84,7 @@ object PrefsAiSupport {
     fun setAiLlmRouterEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_LLM_ROUTER_ENABLED, enabled).apply()
 
+    // Hidden legacy field. Current product flow no longer exposes query planning configuration.
     fun getAiQueryModel(ctx: Context): String =
         (prefs(ctx).getString(KEY_AI_QUERY_MODEL, "") ?: "").ifBlank { getAiRouterModel(ctx) }
     fun setAiQueryModel(ctx: Context, value: String) =
@@ -102,8 +105,9 @@ object PrefsAiSupport {
     fun setAiReceiptVisionModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_RECEIPT_VISION_MODEL, value).apply()
 
+    // Legacy compatibility field. Current product flow follows the vision model.
     fun getAiScreenModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_SCREEN_MODEL, "") ?: "").ifBlank { "" }
+        (prefs(ctx).getString(KEY_AI_SCREEN_MODEL, "") ?: "").ifBlank { getAiReceiptVisionModel(ctx) }
     fun setAiScreenModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_SCREEN_MODEL, value).apply()
 
@@ -160,6 +164,7 @@ object PrefsAiSupport {
     fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_THINKING_CATEGORY_REFINE, enabled).apply()
 
+    // Hidden legacy flag kept for backward-compatible restore only.
     fun isAiQueryEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_AI_QUERY_ENABLED, false)
     fun setAiQueryEnabled(ctx: Context, enabled: Boolean) =

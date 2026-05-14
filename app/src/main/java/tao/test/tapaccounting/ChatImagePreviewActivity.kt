@@ -137,9 +137,12 @@ class ChatImagePreviewActivity : AppCompatActivity() {
 
     private fun hideSystemBars() {
         val decor = window.decorView ?: return
-        WindowCompat.getInsetsController(window, decor).apply {
-            hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        try {
+            WindowCompat.getInsetsController(window, decor).apply {
+                hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } catch (_: Exception) {
         }
         @Suppress("DEPRECATION")
         decor.systemUiVisibility =

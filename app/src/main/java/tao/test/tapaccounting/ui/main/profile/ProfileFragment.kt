@@ -303,11 +303,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 val intent = Intent(requireContext(), OverlayService::class.java).apply {
                     action = OverlayService.ACTION_SHOW_OVERLAY
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    requireContext().startForegroundService(intent)
-                } else {
-                    requireContext().startService(intent)
-                }
+                OverlayService.startCompat(requireContext(), intent)
                 Utils.toast(requireContext(), "悬浮窗已开启")
             } else {
                 Utils.toast(requireContext(), "请先授予悬浮窗权限")
@@ -502,14 +498,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             }
         }
 
-        view.findViewById<CompoundButton>(R.id.switch_aggressive_keep_alive).apply {
-            isChecked = Prefs.isAggressiveKeepAliveEnabled(requireContext())
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setAggressiveKeepAliveEnabled(requireContext(), isChecked)
-                updateDoubleTapService(Prefs.isDoubleTapEnabled(requireContext()))
-            }
-        }
-
         val btnShareLogs = view.findViewById<View>(R.id.btn_share_logs)
         view.findViewById<CompoundButton>(R.id.switch_logging).apply {
             isChecked = Prefs.isLoggingEnabled(requireContext())
@@ -546,8 +534,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 R.id.switch_show_home_trend_card,
                 R.id.switch_show_multi_cur,
                 R.id.switch_logging,
-                R.id.switch_shizuku_persistence,
-                R.id.switch_aggressive_keep_alive
+                R.id.switch_shizuku_persistence
             )
 
             for (tid in toggleIds) {
@@ -948,11 +935,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val intent = Intent(requireContext(), OverlayService::class.java).apply {
             action = if (isEnabled) OverlayService.ACTION_START_DOUBLE_TAP else OverlayService.ACTION_STOP_DOUBLE_TAP
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            requireContext().startForegroundService(intent)
-        } else {
-            requireContext().startService(intent)
-        }
+        OverlayService.startCompat(requireContext(), intent)
     }
 
     private fun updateShizukuPersistenceVisibility(view: View, shizukuEnabled: Boolean) {

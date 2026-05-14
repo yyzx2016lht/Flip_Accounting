@@ -17,6 +17,9 @@ object RemoteConfigManager {
         @SerializedName("apiKey") val apiKey: String = "",
         @SerializedName("apiUrl") val apiUrl: String = "https://api.siliconflow.cn",
         @SerializedName("provider") val provider: String = "硅基流动",
+        @SerializedName("textModelId") val textModelId: String = "",
+        @SerializedName("visionModelId") val visionModelId: String = "",
+        @SerializedName("onlineSpeechModelId") val onlineSpeechModelId: String = "",
         @SerializedName("modelId") val modelId: String = "Qwen/Qwen3-14B",
         @SerializedName("singleModelId") val singleModelId: String = "Qwen/Qwen3-14B",
         @SerializedName("multiModelId") val multiModelId: String = "Qwen/Qwen3-14B",
@@ -30,11 +33,15 @@ object RemoteConfigManager {
         @SerializedName("ocrRefineModelId") val ocrRefineModelId: String = "Qwen/Qwen3-8B",
         @SerializedName("speechModelId") val speechModelId: String = "FunAudioLLM/SenseVoiceSmall",
         @SerializedName("chatModelId") val chatModelId: String = "Qwen/Qwen3-14B",
+        // Legacy hidden-feature flags kept only for backward-compatible parsing.
         @SerializedName("llmRouterEnabled") val llmRouterEnabled: Boolean = false,
         @SerializedName("queryEnabled") val queryEnabled: Boolean = true,
         @SerializedName("thinkingEnabled") val thinkingEnabled: Boolean = true,
         @SerializedName("ocrRefineEnabled") val ocrRefineEnabled: Boolean = true
     )
+
+    private fun firstNonBlank(vararg values: String): String =
+        values.firstOrNull { it.isNotBlank() }?.trim().orEmpty()
 
     fun isConfigUrlConfigured(): Boolean = CONFIG_URL.isNotBlank()
 
@@ -77,45 +84,46 @@ object RemoteConfigManager {
         if (config.provider.isNotBlank()) {
             Prefs.setAiProvider(context, config.provider)
         }
-        if (config.modelId.isNotBlank()) {
-            Prefs.setAiModel(context, config.modelId)
+        val textModel = firstNonBlank(
+            config.textModelId,
+            config.multiModelId,
+            config.modelId,
+            config.singleModelId,
+            config.modifyModelId,
+            config.categoryRefineModelId,
+            config.routerModelId,
+            config.queryModelId,
+            config.ruleModelId,
+            config.receiptModelId,
+            config.ocrRefineModelId
+        )
+        if (textModel.isNotBlank()) {
+            Prefs.setAiModel(context, textModel)
+            Prefs.setAiMultiModel(context, textModel)
+            Prefs.setAiModifyModel(context, textModel)
+            Prefs.setAiCategoryRefineModel(context, textModel)
+            Prefs.setAiRouterModel(context, textModel)
+            Prefs.setAiQueryModel(context, textModel)
+            Prefs.setAiRuleModel(context, textModel)
+            Prefs.setAiReceiptModel(context, textModel)
+            Prefs.setAiReceiptOcrRefineModel(context, textModel)
         }
-        if (config.multiModelId.isNotBlank()) {
-            Prefs.setAiMultiModel(context, config.multiModelId)
+
+        val visionModel = firstNonBlank(config.visionModelId, config.receiptVisionModelId)
+        if (visionModel.isNotBlank()) {
+            Prefs.setAiReceiptVisionModel(context, visionModel)
+            Prefs.setAiScreenModel(context, visionModel)
         }
-        if (config.modifyModelId.isNotBlank()) {
-            Prefs.setAiModifyModel(context, config.modifyModelId)
+
+        val speechModel = firstNonBlank(config.onlineSpeechModelId, config.speechModelId)
+        if (speechModel.isNotBlank()) {
+            Prefs.setAiSpeechModel(context, speechModel)
         }
-        if (config.categoryRefineModelId.isNotBlank()) {
-            Prefs.setAiCategoryRefineModel(context, config.categoryRefineModelId)
-        }
-        if (config.routerModelId.isNotBlank()) {
-            Prefs.setAiRouterModel(context, config.routerModelId)
-        }
-        if (config.queryModelId.isNotBlank()) {
-            Prefs.setAiQueryModel(context, config.queryModelId)
-        }
-        if (config.ruleModelId.isNotBlank()) {
-            Prefs.setAiRuleModel(context, config.ruleModelId)
-        }
-        if (config.receiptModelId.isNotBlank()) {
-            Prefs.setAiReceiptModel(context, config.receiptModelId)
-        }
-        if (config.receiptVisionModelId.isNotBlank()) {
-            Prefs.setAiReceiptVisionModel(context, config.receiptVisionModelId)
-        }
-        if (config.ocrRefineModelId.isNotBlank()) {
-            Prefs.setAiReceiptOcrRefineModel(context, config.ocrRefineModelId)
-        }
-        if (config.speechModelId.isNotBlank()) {
-            Prefs.setAiSpeechModel(context, config.speechModelId)
-        }
+
         if (config.chatModelId.isNotBlank()) {
             Prefs.setAiChatModel(context, config.chatModelId)
         }
 
-        Prefs.setAiLlmRouterEnabled(context, config.llmRouterEnabled)
-        Prefs.setAiQueryEnabled(context, config.queryEnabled)
         Prefs.setReceiptOcrRefineEnabled(context, config.ocrRefineEnabled)
     }
 }

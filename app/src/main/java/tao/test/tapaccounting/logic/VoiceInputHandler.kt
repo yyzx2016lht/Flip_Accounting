@@ -255,7 +255,7 @@ class VoiceInputHandler(
         pendingLongPressRunnable = null
     }
 
-    private fun currentAccountingModel(): String = Prefs.getAiMultiModel(ctx).ifBlank { Prefs.getAiModel(ctx) }
+    private fun currentAccountingModel(): String = Prefs.getAiMultiModel(ctx)
 
     private fun currentModelSupportsDirectAudioInput(): Boolean {
         if (Prefs.getAsrMode(ctx) == Prefs.ASR_MODE_WHISPER) return false

@@ -9,7 +9,7 @@ import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.hardware.SensorManager
 import android.os.*
-import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
 import tao.test.tapaccounting.tap.TapDetector
 
@@ -29,6 +29,14 @@ class OverlayService : Service() {
         @Volatile
         var isServiceRunning = false
             private set
+
+        fun startCompat(context: Context, intent: Intent) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(context, intent)
+            } else {
+                context.startService(intent)
+            }
+        }
 
         private const val RESTART_DELAY_MS = 3_000L
         private const val TAP_DEAD_EVENT_TIMEOUT_MS = 120_000L
@@ -65,11 +73,22 @@ class OverlayService : Service() {
                         if (isDoubleTapEnabled) stopTapDetection()
                         stopWatchdog()
                     }
-                    Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                    Intent.ACTION_SCREEN_ON -> {
                         Logger.d(this@OverlayService, "OverlayService", "Screen ON: restarting detectors (${intent.action})")
                         if (!isDoubleTapEnabled) return
                         acquireWakeLockBriefly(5_000L)
                         restartDetector("screen-on")
+                        startWatchdog()
+                    }
+                    Intent.ACTION_USER_PRESENT -> {
+                        Logger.d(this@OverlayService, "OverlayService", "User present: ensuring detectors (${intent.action})")
+                        if (!isDoubleTapEnabled) return
+                        acquireWakeLockBriefly(5_000L)
+                        if (tapDetector == null) {
+                            restartDetector("user-present")
+                        } else {
+                            Logger.d(this@OverlayService, "OverlayService", "User present: detector already running, skip restart")
+                        }
                         startWatchdog()
                     }
                 }
@@ -148,7 +167,7 @@ class OverlayService : Service() {
         fun startWatchdog() {
             if (watchdogJob?.isActive == true) return
             watchdogJob = serviceScope.launch {
-                val interval = if (Prefs.isAggressiveKeepAliveEnabled(this@OverlayService)) 15_000L else 60_000L
+                val interval = 60_000L
                 Logger.d(this@OverlayService, "OverlayService", "Watchdog started (interval=${interval}ms)")
                 while (isActive) {
                     delay(interval)
@@ -233,12 +252,11 @@ class OverlayService : Service() {
         super.onCreate()
         isServiceRunning = true
         Logger.d(this, "OverlayService", "Service Created")
+        KeepAliveDiagnostics.logSnapshot(this, "overlay-onCreate")
         try {
             overlayManager = OverlayManager(this)
-            createNotificationChannel()
-            startForegroundCompat()
-
             isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
+            promoteToForeground("双击检测运行中")
             keepAliveManager.attach()
 
             if (isDoubleTapEnabled) {
@@ -257,36 +275,9 @@ class OverlayService : Service() {
         }
     }
 
-    private fun startForegroundCompat() {
-        val notification = buildNotification("记账助手正在后台运行")
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                // Android 14+：显式声明为 specialUse，避免系统回退到 manifest 全量类型导致权限校验异常。
-                startForeground(
-                    NOTIF_ID,
-                    notification,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                )
-            } else {
-                startForeground(NOTIF_ID, notification)
-            }
-        } catch (se: SecurityException) {
-            Logger.d(this, "OverlayService", "startForeground security fallback: ${se.message}")
-            try {
-                startForeground(NOTIF_ID, notification)
-            } catch (fallbackError: Exception) {
-                Logger.d(this, "OverlayService", "🚨 startForeground fallback Error: ${fallbackError.message}")
-            }
-        } catch (e: Exception) {
-            Logger.d(this, "OverlayService", "🚨 startForeground Error: ${e.message}")
-        }
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         Logger.d(this, "OverlayService", "onStartCommand: $action")
-
-        startForegroundCompat()
 
         when (action) {
             null -> {
@@ -301,6 +292,7 @@ class OverlayService : Service() {
             ACTION_START_DOUBLE_TAP -> {
                 isDoubleTapEnabled = true
                 cancelRestart()
+                promoteToForeground("双击检测运行中")
                 startTapDetectionIfInteractive("user-start")
                 scheduleKeepAliveWork()
             }
@@ -321,6 +313,7 @@ class OverlayService : Service() {
                 isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
                 if (isDoubleTapEnabled) {
                     cancelRestart()
+                    promoteToForeground("双击检测运行中")
                     startTapDetectionIfInteractive("settings-restart")
                     scheduleKeepAliveWork()
                 }
@@ -346,17 +339,25 @@ class OverlayService : Service() {
         overlayManager.removeOverlay()
         if (Prefs.isDoubleTapEnabled(this)) {
             KeepAliveWorker.scheduleOneTime(this, RESTART_DELAY_MS)
-            scheduleRestart(RESTART_DELAY_MS)
         }
         isServiceRunning = false
         super.onDestroy()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Logger.d(this, "OverlayService", "onTrimMemory: level=$level")
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        Logger.d(this, "OverlayService", "onLowMemory")
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Logger.d(this, "OverlayService", "onTaskRemoved")
         if (Prefs.isDoubleTapEnabled(this)) {
             KeepAliveWorker.scheduleOneTime(this, RESTART_DELAY_MS)
-            scheduleRestart(RESTART_DELAY_MS)
         }
         super.onTaskRemoved(rootIntent)
     }
@@ -400,18 +401,20 @@ class OverlayService : Service() {
             3 -> Prefs.getTapActionTriple(this)
             else -> ""
         }
-        triggerTapFeedback("tap-$tapCount-detected")
         if (actionId.isEmpty()) {
+            triggerTapFeedback("tap-$tapCount-detected-no-action")
             Logger.d(this, "OverlayService", "Tap $tapCount detected but no action configured")
             Utils.toast(this, "已识别敲击，但还没有配置触发动作")
             return
         }
         val action = tao.test.tapaccounting.tap.TapActionRegistry.findById(actionId)
         if (action != null) {
+            triggerTapFeedback("tap-$tapCount-detected")
             Logger.d(this, "OverlayService", "Tap $tapCount detected, executing: ${action.displayName}")
             keepAliveManager.acquireWakeLockBriefly(3_000L)
             action.execute(this)
         } else {
+            triggerTapFeedback("tap-$tapCount-detected-unknown-action")
             Logger.d(this, "OverlayService", "Tap $tapCount detected but action id is unknown: $actionId")
             Utils.toast(this, "已识别敲击，但动作配置已失效")
         }
@@ -424,63 +427,11 @@ class OverlayService : Service() {
 
     private fun scheduleKeepAliveWork() {
         KeepAliveWorker.schedulePeriodic(this)
-        if (Prefs.isAggressiveKeepAliveEnabled(this)) {
-            KeepAliveWorker.scheduleHourlyRestart(this)
-        } else {
-            KeepAliveWorker.cancelHourlyRestart(this)
-        }
-    }
-
-    // ════════════════════════════════════════════════════════
-    //  重拉保险：服务死亡时用 AlarmClock 快速重建
-    // ════════════════════════════════════════════════════════
-
-    /**
-     * 通过 AlarmManager.setAlarmClock 在 [delayMs] 后触发 BootReceiver，
-     * 由 BootReceiver 调用 startForegroundService 重建服务。
-     *
-     * setAlarmClock 在 Doze 模式下有特殊豁免（等同前台应用闹钟），
-     * 比 WorkManager / setExact 更可靠。
-     * 仅作为 START_STICKY 自动重建失败时的保险，不做周期性续约。
-     */
-    private fun scheduleRestart(delayMs: Long) {
-        try {
-            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val triggerAt = System.currentTimeMillis() + delayMs
-            val showIntent = PendingIntent.getActivity(
-                this, 0,
-                Intent(this, MainActivity::class.java),
-                PendingIntent.FLAG_IMMUTABLE
-            )
-            val restartIntent = Intent("tao.test.tapaccounting.RESTART_SERVICE").apply {
-                setClass(this@OverlayService, BootReceiver::class.java)
-            }
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            else PendingIntent.FLAG_UPDATE_CURRENT
-            val pi = PendingIntent.getBroadcast(this, 2002, restartIntent, flags)
-            am.setAlarmClock(
-                AlarmManager.AlarmClockInfo(triggerAt, showIntent),
-                pi
-            )
-            Logger.d(this, "OverlayService", "AlarmClock restart set in ${delayMs / 1000}s")
-        } catch (e: Exception) {
-            Logger.d(this, "OverlayService", "scheduleRestart failed: ${e.message}")
-        }
+        KeepAliveWorker.cancelHourlyRestart(this)
     }
 
     private fun cancelRestart() {
-        try {
-            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val restartIntent = Intent("tao.test.tapaccounting.RESTART_SERVICE").apply {
-                setClass(this@OverlayService, BootReceiver::class.java)
-            }
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            else PendingIntent.FLAG_UPDATE_CURRENT
-            val pi = PendingIntent.getBroadcast(this, 2002, restartIntent, flags)
-            am.cancel(pi)
-        } catch (_: Exception) {}
+        KeepAliveWorker.cancelOneTime(this)
     }
 
     // ════════════════════════════════════════════════════════
@@ -491,13 +442,31 @@ class OverlayService : Service() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) pm.isInteractive else pm.isScreenOn
     }
 
+    private fun promoteToForeground(content: String) {
+        try {
+            val notification = OverlayServiceNotifications.build(this, CHANNEL_ID, content)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NOTIF_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NOTIF_ID, notification)
+            }
+            Logger.d(this, "OverlayService", "Foreground service active: $content")
+        } catch (e: Exception) {
+            Logger.d(this, "OverlayService", "startForeground failed: ${e.message}")
+        }
+    }
+
     fun enterMicrophoneMode(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
 
         return try {
             startForeground(
                 NOTIF_ID,
-                buildNotification("录音中..."),
+                OverlayServiceNotifications.build(this, CHANNEL_ID, "录音中..."),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             )
@@ -510,17 +479,17 @@ class OverlayService : Service() {
     }
 
     fun exitMicrophoneMode() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            try {
-                startForeground(
-                    NOTIF_ID,
-                    buildNotification("记账助手正在后台运行"),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                )
-                Logger.d(this, "OverlayService", "exitMicrophoneMode: reverted to SPECIAL_USE")
-            } catch (e: Exception) {
-                Logger.d(this, "OverlayService", "exitMicrophoneMode failed: ${e.message}")
+        try {
+            if (isDoubleTapEnabled) {
+                promoteToForeground("双击检测运行中")
+                Logger.d(this, "OverlayService", "exitMicrophoneMode: restored SPECIAL_USE foreground")
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE)
+                else @Suppress("DEPRECATION") stopForeground(true)
+                Logger.d(this, "OverlayService", "exitMicrophoneMode: foreground notification removed")
             }
+        } catch (e: Exception) {
+            Logger.d(this, "OverlayService", "exitMicrophoneMode failed: ${e.message}")
         }
     }
 
@@ -549,32 +518,6 @@ class OverlayService : Service() {
         val vibrated = Utils.vibrate(this, duration = 45L, reason = reason, amplitude = 210)
         if (!vibrated) {
             Logger.d(this, "OverlayService", "Tap feedback requested but vibrator did not run. reason=$reason")
-        }
-    }
-
-    private fun buildNotification(content: String): Notification {
-        val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("敲敲记账助手").setContentText(content)
-            .setSmallIcon(android.R.drawable.ic_menu_edit).setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setSilent(true)
-            .setOngoing(true)
-            .setShowWhen(false)
-            .setOnlyAlertOnce(true)
-            .build()
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            val ch = NotificationChannel(CHANNEL_ID, "记账助手服务", NotificationManager.IMPORTANCE_MIN).apply {
-                setShowBadge(false)
-                enableLights(false)
-                enableVibration(false)
-                setSound(null, null)
-            }
-            nm.createNotificationChannel(ch)
         }
     }
 

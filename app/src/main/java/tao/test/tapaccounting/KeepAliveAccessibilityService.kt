@@ -2,9 +2,11 @@ package tao.test.tapaccounting
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Intent
 import android.graphics.Bitmap
 import android.hardware.HardwareBuffer
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import java.util.concurrent.Executor
@@ -17,6 +19,8 @@ class KeepAliveAccessibilityService : AccessibilityService() {
         @Volatile
         var instance: KeepAliveAccessibilityService? = null
             private set
+
+        private const val ENSURE_SERVICE_INTERVAL_MS = 60_000L
 
         fun isServiceEnabled(): Boolean = instance != null
 
@@ -78,10 +82,16 @@ class KeepAliveAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {
             Log.e(TAG, "onServiceConnected failed: ${e.message}")
         }
+        ensureOverlayService("a11y-connected")
     }
 
+    private var lastEnsureAtMs = 0L
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // 保活用途，不处理事件
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastEnsureAtMs >= ENSURE_SERVICE_INTERVAL_MS) {
+            ensureOverlayService("a11y-event")
+        }
     }
 
     override fun onInterrupt() {
@@ -92,5 +102,16 @@ class KeepAliveAccessibilityService : AccessibilityService() {
         instance = null
         Log.d(TAG, "Accessibility service destroyed")
         super.onDestroy()
+    }
+
+    private fun ensureOverlayService(reason: String) {
+        lastEnsureAtMs = SystemClock.elapsedRealtime()
+        if (!Prefs.isDoubleTapEnabled(this) || OverlayService.isServiceRunning) return
+        try {
+            OverlayService.startCompat(this, Intent(this, OverlayService::class.java))
+            Log.d(TAG, "ensureOverlayService: requested start, reason=$reason")
+        } catch (e: Exception) {
+            Log.d(TAG, "ensureOverlayService failed: ${e.message}")
+        }
     }
 }

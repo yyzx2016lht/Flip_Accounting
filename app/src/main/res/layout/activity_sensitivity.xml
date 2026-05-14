@@ -776,6 +776,66 @@
                         android:background="#F0F0F0"
                         android:layout_marginVertical="4dp" />
 
+                    <!-- 通知权限 -->
+                    <LinearLayout
+                        android:id="@+id/layout_notification_permission"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_blue">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_keep_alive"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="通知权限（可选）"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:id="@+id/tv_notification_status"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="无常驻通知模式下，仅录音等临时场景会使用"
+                                android:textColor="#999999"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_notification_permission"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="去开启"
+                            android:textColor="#5C6BC0"
+                            android:textSize="@dimen/text_size_13" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:background="#F0F0F0"
+                        android:layout_marginVertical="4dp" />
+
                     <!-- 无障碍服务 -->
                     <LinearLayout
                         android:id="@+id/layout_accessibility_service"
