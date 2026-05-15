@@ -14,11 +14,11 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "tao.test.tapaccounting"
+    namespace = "com.taostudio.tapaccounting"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "tao.test.tapaccounting"
+        applicationId = "com.taostudio.tapaccounting"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

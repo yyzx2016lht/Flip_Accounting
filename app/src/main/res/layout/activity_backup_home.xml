@@ -6,7 +6,7 @@
     android:background="@color/settings_page_bg"
     android:orientation="vertical">
 
-    <tao.test.tapaccounting.ui.widget.SecondaryPageHeaderView
+    <com.taostudio.tapaccounting.ui.widget.SecondaryPageHeaderView
         android:id="@+id/secondary_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -225,3 +225,4 @@
     </ScrollView>
 
 </LinearLayout>
+

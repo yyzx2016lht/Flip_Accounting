@@ -104,7 +104,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="tao.test.tapaccounting.RESTART_SERVICE" />
+                <action android:name="com.taostudio.tapaccounting.RESTART_SERVICE" />
             </intent-filter>
         </receiver>
 
@@ -224,3 +224,4 @@
     </application>
 
 </manifest>
+

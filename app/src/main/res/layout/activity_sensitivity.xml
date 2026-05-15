@@ -548,7 +548,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="1dp"
-                                android:text="仅使用加速度计和轻量规则检测，可降低功耗；省电模式下三击不可用"
+                                 android:text="仅使用加速度计和轻量规则检测，可降低后台活跃和耗电"
                                 android:textColor="#999999"
                                 android:textSize="@dimen/text_size_12" />
                         </LinearLayout>
