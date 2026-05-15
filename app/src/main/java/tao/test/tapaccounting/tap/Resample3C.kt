@@ -29,7 +29,11 @@ class Resample3C : Resample1C() {
                 return false
             }
             val tLastSecond = tRawLast
-            val scaledInterval = (interval - tLastSecond).toFloat() / (t - tLastSecond).toFloat()
+            if (t <= tLastSecond) return false
+            val denom = (t - tLastSecond).toFloat()
+            if (denom <= 0f) return false
+            val scaledInterval = (interval - tLastSecond).toFloat() / denom
+            if (!scaledInterval.isFinite()) return false
             xResampledThis = xRawLast + (x - xRawLast) * scaledInterval
             yResampledThis = yRawLast + (y - yRawLast) * scaledInterval
             zResampledThis = scaledInterval * (z - zRawLast) + zRawLast

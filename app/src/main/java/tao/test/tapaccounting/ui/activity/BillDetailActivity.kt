@@ -302,7 +302,7 @@ class BillDetailActivity : AppCompatActivity() {
                 }
                 .onFailure { error ->
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@BillDetailActivity, "删除失败: ${error.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@BillDetailActivity, "删除失败，请稍后重试", Toast.LENGTH_SHORT).show()
                     }
                 }
         }
@@ -355,7 +355,7 @@ class BillDetailActivity : AppCompatActivity() {
                 }
             } catch (error: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@BillDetailActivity, "保存失败: ${error.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BillDetailActivity, "保存失败，请稍后重试", Toast.LENGTH_SHORT).show()
                 }
             }
         }

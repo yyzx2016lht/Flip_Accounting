@@ -658,7 +658,7 @@ class StatsFragment : Fragment() {
             val filteredStats = targetStats.filter { it.percentage >= 2f }.sortedBy { it.amount }
             if (filteredStats.isEmpty()) {
                 pieChart.clear()
-                pieChart.setNoDataText("暂无占比≥2%的分类")
+                pieChart.setNoDataText("暂无占比超过 2% 的分类")
                 pieChart.invalidate()
                 categoryAdapter.setColorMap(colorByName)
                 return

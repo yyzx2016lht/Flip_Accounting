@@ -352,8 +352,7 @@ object AIService {
 
         val model = Prefs.getAiReceiptVisionModel(ctx).ifBlank { Prefs.getAiReceiptModel(ctx) }
         val promptContext = buildAccountingPromptContext(ctx)
-        val systemPrompt = Prefs.getReceiptVisionPrompt(ctx)
-            .ifBlank { AIPrompts.RECEIPT_VISION_RETRY_PROMPT_DEFAULT } +
+        val systemPrompt = AIPrompts.RECEIPT_VISION_RETRY_PROMPT_DEFAULT +
             AIPrompts.buildReceiptVisionPaymentMethodRule(
                 promptContext.assetFeatureEnabled,
                 promptContext.assetNames
@@ -584,7 +583,7 @@ object AIService {
         if (apiKey.isEmpty()) return localSummary
 
         val model = Prefs.getAiReceiptOcrRefineModel(ctx)
-        val systemPrompt = Prefs.getReceiptOcrRefinePrompt(ctx).ifBlank { AIPrompts.RECEIPT_OCR_REFINE_PROMPT_DEFAULT }
+        val systemPrompt = AIPrompts.RECEIPT_OCR_REFINE_PROMPT_DEFAULT
         val cleanedOcrText = shortenForModel(
             AIReceiptHelper.preprocessOcrTextForReceipt(originalOcrText),
             MAX_OCR_TEXT_CHARS
@@ -686,10 +685,7 @@ object AIService {
         val model = Prefs.getAiModifyModel(ctx)
         val safeInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val promptContext = buildAccountingPromptContext(ctx)
-        val systemPrompt = renderModifyBillPrompt(
-            Prefs.getModifyBillPrompt(ctx).ifBlank { AIPrompts.MODIFY_BILL_PROMPT_DEFAULT },
-            promptContext
-        )
+        val systemPrompt = renderModifyBillPrompt(AIPrompts.MODIFY_BILL_PROMPT_DEFAULT, promptContext)
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.0,

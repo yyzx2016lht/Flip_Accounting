@@ -227,7 +227,7 @@ class RefundActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RefundActivity, "退款失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RefundActivity, "退款失败，请稍后重试", Toast.LENGTH_SHORT).show()
                 }
             }
         }

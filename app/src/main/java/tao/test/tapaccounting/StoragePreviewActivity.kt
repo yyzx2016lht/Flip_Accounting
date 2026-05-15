@@ -211,7 +211,7 @@ class StoragePreviewActivity : AppCompatActivity() {
             audioAdapter.submit(audioFiles, playingPath)
         }.onFailure {
             runCatching { player.release() }
-            Utils.toast(this, "播放失败：${it.message ?: "未知错误"}")
+            Utils.toast(this, "播放失败，文件可能已损坏")
         }
     }
 

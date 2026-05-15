@@ -194,7 +194,7 @@ class LogViewerActivity : AppCompatActivity() {
             }
             startActivity(Intent.createChooser(intent, "分享${if (showingCrash) "崩溃" else "运行"}日志"))
         } catch (e: Exception) {
-            Utils.toast(this, "分享失败: ${e.message}")
+            Utils.toast(this, "分享失败，请稍后重试")
         }
     }
 }

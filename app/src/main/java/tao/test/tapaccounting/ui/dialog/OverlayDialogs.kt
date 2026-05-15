@@ -554,7 +554,7 @@ object OverlayDialogs {
         }
 
         val tip = TextView(themeContext).apply {
-            text = "长按分类直接拖动排序。二级分类可点“移出一级”单独拿出来，拖动时会保持和资产选择器一样的动画手感。"
+            text = "长按分类直接拖动排序。子分类可点「移出一级」单独拿出来，拖动时会保持和资产选择器一样的动画手感。"
             setTextColor(Color.parseColor("#8A8A8A"))
             textSize = 12f
             setPadding(8, 0, 8, 18)
@@ -675,7 +675,7 @@ object OverlayDialogs {
         val dialog = AlertDialog.Builder(themeContext)
             .setTitle("排序分类")
             .setView(container)
-            .setPositiveButton("保存排序", null)
+            .setPositiveButton("保存", null)
             .setNegativeButton("取消", null)
             .create()
 
@@ -1228,9 +1228,9 @@ object OverlayDialogs {
 
     fun showShizukuPrompt(ctx: Context) {
         val themeContext = ContextThemeWrapper(ctx, R.style.Theme_TapAccounting)
-        val dialog = AlertDialog.Builder(themeContext).setTitle("需要 Shizuku 权限").setMessage("你想使用白名单功能，但尚未启动 Shizuku 或未授予权限。") .setPositiveButton("去授权") { d, _ ->
+        val dialog = AlertDialog.Builder(themeContext).setTitle("需要 Shizuku 授权").setMessage("使用白名单功能需要先完成 Shizuku 授权。") .setPositiveButton("去授权") { d, _ ->
             d.dismiss()
-            try { ctx.startActivity(ctx.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Toast.makeText(ctx, "无法打开 Shizuku", Toast.LENGTH_SHORT).show() }
+            try { ctx.startActivity(ctx.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Toast.makeText(ctx, "无法启动 Shizuku，请检查是否已安装", Toast.LENGTH_SHORT).show() }
         }.setNegativeButton("取消", null).create()
         showStyledDialog(dialog = dialog, ctx = ctx, widthRatio = 0.84f)
     }
@@ -1380,7 +1380,7 @@ object OverlayDialogs {
     }
 
     /**
-     * 弹出“选择退款来源账单”对话框。
+     * 弹出"选择退款来源账单"对话框。
      * 读取最近的支出账单（非退款），以列表+复选框形式展示，用户选择一条后点击确认回调。
      *
      * @param ctx         上下文（Activity 或 Service）
@@ -1397,7 +1397,7 @@ object OverlayDialogs {
 
             withContext(Dispatchers.Main) {
                 fun normalizedTimeMillis(rawTime: Long): Long {
-                    // 兼容历史秒级时间戳，统一转成毫秒再排序/展示，避免列表看起来“乱序”。
+                    // 兼容历史秒级时间戳，统一转成毫秒再排序/展示，避免列表看起来"乱序"。
                     return if (rawTime in 1..9_999_999_999L) rawTime * 1000L else rawTime
                 }
                 val sortedRefundCandidates = expenseBills

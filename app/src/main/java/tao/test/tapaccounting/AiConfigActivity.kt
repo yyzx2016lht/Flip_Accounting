@@ -124,7 +124,7 @@ class AiConfigActivity : AppCompatActivity() {
                     switchEnableThinkingCurrent.text = "$modeTitle：启用思考"
                     tvThinkingScopeHint.text = when (binding) {
                         ThinkingBinding.TEXT -> "会同时影响记账、多账单、修改账单、二段分类、规则生成和 OCR 整理。"
-                        ThinkingBinding.VISION -> "会同时影响小票图片识别、视觉重试和截图识别。"
+                        ThinkingBinding.VISION -> "会同时影响小票图片识别、视觉重试和截屏识别。"
                         ThinkingBinding.FIXED_OFF -> ""
                     }
                 }
@@ -146,7 +146,7 @@ class AiConfigActivity : AppCompatActivity() {
                 setPadding(48, 32, 48, 16)
             }
             val etSearch = EditText(this).apply {
-                hint = "搜索模型..."
+                hint = "搜索 AI 模型"
                 setSingleLine()
             }
             val listView = ListView(this).apply {
@@ -165,7 +165,7 @@ class AiConfigActivity : AppCompatActivity() {
             listView.adapter = listAdapter
 
             val dialog = AlertDialog.Builder(this)
-                .setTitle("选择模型")
+                .setTitle("选择 AI 模型")
                 .setView(dialogLayout)
                 .create()
 
@@ -235,7 +235,7 @@ class AiConfigActivity : AppCompatActivity() {
             val key = etKey.text.toString().trim()
             val url = Prefs.getAiUrl(this)
             if (key.isEmpty()) {
-                Utils.toast(this, "请输入 API 令牌")
+                Utils.toast(this, getString(R.string.please_input_api_key))
                 return@setOnClickListener
             }
 
@@ -269,7 +269,7 @@ class AiConfigActivity : AppCompatActivity() {
                             when {
                                 msg.contains("timeout") || msg.contains("Failed to connect") || msg.contains("Unable to resolve host") -> "连接超时，请检查网络或 API 地址"
                                 msg.contains("401") -> "认证失败：API Key 可能错误或已过期"
-                                else -> "请求失败 (${e.javaClass.simpleName}): $msg"
+                                else -> "连接失败，请稍后重试"
                             }
                         )
                     }

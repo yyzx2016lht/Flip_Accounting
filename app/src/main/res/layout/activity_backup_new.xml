@@ -57,7 +57,7 @@
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="14dp"
                         android:lineSpacingExtra="2dp"
-                        android:text="模块已经按使用场景重新分组，选起来会更直观一些。"
+                        android:text="模块已按使用场景分组，便于按需选择。"
                         android:textColor="#8C98A8"
                         android:textSize="13sp" />
 
@@ -203,7 +203,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="迁移账本时最常用的一组，包含账单、资产、分类和记账习惯。"
+                            android:text="迁移账本的核心组合，包含账单、资产、分类和记账习惯。"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
 
@@ -280,7 +280,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="适合单独迁移 AI 对话体验，包含聊天记录、背景、头像和语音文件。"
+                            android:text="独立迁移 AI 对话数据，含聊天记录、背景和语音文件。"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
 
@@ -343,7 +343,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="如果只是想迁移风格和配置，可以只勾这组。现在已经拆成更细的模块，方便单独带走某一部分设置。"
+                            android:text="迁移界面风格和偏好配置，可分别勾选所需模块。"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
 
@@ -425,18 +425,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_columnWeight="1"
                                 android:checked="true"
-                                android:text="AI 核心模型"
-                                android:textColor="#23324A"
-                                android:textSize="14sp"
-                                app:buttonTint="#5C80EA" />
-
-                            <com.google.android.material.checkbox.MaterialCheckBox
-                                android:id="@+id/cb_settings_ai_prompts"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_columnWeight="1"
-                                android:checked="true"
-                                android:text="AI 提示词"
+                                android:text="@string/ai_core_model"
                                 android:textColor="#23324A"
                                 android:textSize="14sp"
                                 app:buttonTint="#5C80EA" />
@@ -491,7 +480,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
-                            android:text="AI 核心模型包含 API Key、主文本模型、视觉模型、在线语音模型，以及相关 OCR / 思考开关。"
+                            android:text="@string/ai_core_model_description"
                             android:textColor="#8C98A8"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -602,7 +591,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="14dp"
-                        android:text="从备份文件中挑选模块恢复，避免把不需要的配置整包覆盖。"
+                        android:text="从备份中按需选择模块恢复，避免整包覆盖。"
                         android:textColor="#8C98A8"
                         android:textSize="13sp" />
 

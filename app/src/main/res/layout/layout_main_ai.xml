@@ -29,7 +29,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="智能配置"
+                android:text="@string/title_ai_config"
                 android:textSize="@dimen/text_size_18"
                 android:textStyle="bold"
                 android:textColor="@color/settings_item_title"
@@ -53,7 +53,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="接口设置"
+                android:text="API 设置"
                 android:textColor="@color/brand_primary"
                 android:textSize="@dimen/settings_section_title_size"
                 android:textStyle="bold"
@@ -71,7 +71,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="接口令牌"
+                    android:text="@string/api_key"
                     android:textColor="#666666"
                     android:textSize="@dimen/text_size_12"
                     android:layout_marginBottom="6dp"/>
@@ -79,7 +79,7 @@
                     android:id="@+id/et_api_key"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
-                    android:hint="输入您的 API Key"
+                    android:hint="@string/input_api_key_hint"
                     android:inputType="textPassword"
                     android:background="@drawable/bg_search_box"
                     android:paddingHorizontal="12dp"
@@ -90,7 +90,7 @@
                     android:id="@+id/btn_test_conn"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
-                    android:text="刷新并测试模型连接"
+                    android:text="@string/test_connection"
                     android:textAllCaps="false"
                     app:cornerRadius="10dp"
                     android:backgroundTint="#E3F2FD"
@@ -103,7 +103,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="当前固定使用硅基流动接口，刷新后会同步可选模型列表。"
+                    android:text="当前接口为固定地址，刷新后会同步可选模型列表。"
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11" />
             </LinearLayout>
@@ -111,7 +111,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="核心模型"
+                    android:text="@string/ai_core_model"
                 android:textColor="@color/brand_primary"
                 android:textSize="@dimen/settings_section_title_size"
                 android:textStyle="bold"
@@ -130,7 +130,7 @@
                     android:id="@+id/switch_enable_receipt_ocr_refine"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="启用图片识别提取后再交给大模型整理"
+                    android:text="启用图片识别提取后再整理"
                     android:textColor="#333333"
                     android:textSize="@dimen/text_size_13"
                     android:layout_marginBottom="2dp" />
@@ -138,7 +138,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="关闭时：直接将图片识别原文交给文本模型。开启时：先做本地结构提取，再交给文本模型整理；失败会自动回退。"
+                    android:text="关闭时：直接识别图片中的原文。开启时：先做本地结构提取再整理；失败会自动回退。"
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11"
                     android:layout_marginBottom="12dp" />
@@ -147,7 +147,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:text="主文本模型会统一用于记账、修改账单、二段分类、规则生成和 OCR 整理。视觉模型会统一用于小票图片识别、视觉重试和截图识别。"
+                    android:text="主文本模型用于记账、修改账单、分类、规则生成和小票整理。视觉模型用于图片识别和截屏识别。"
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11" />
 
@@ -347,7 +347,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="当前项使用模型"
+                    android:text="当前模式使用模型"
                     android:textColor="#666666"
                     android:textSize="@dimen/text_size_12"
                     android:layout_marginBottom="6dp"/>
@@ -419,7 +419,7 @@
                 android:id="@+id/btn_save_config"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="保存所有配置"
+                android:text="@string/save_all_config"
                 android:textSize="@dimen/text_size_16"
                 android:textStyle="bold"
                 app:cornerRadius="12dp"

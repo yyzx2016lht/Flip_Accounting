@@ -989,7 +989,7 @@ class ChatMessagePipeline(
             normalized.contains("timeout") || normalized.contains("timed out") -> "网络不佳，请重试"
             normalized.contains("unable to resolve host") || normalized.contains("failed to connect") -> "网络不佳，请重试"
             raw.isBlank() -> "分析失败，请稍后重试"
-            else -> "分析失败: $raw"
+            else -> "分析失败，请稍后重试"
         }
     }
 

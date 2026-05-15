@@ -39,8 +39,11 @@ class OverlayService : Service() {
         }
 
         private const val RESTART_DELAY_MS = 3_000L
-        private const val TAP_DEAD_EVENT_TIMEOUT_MS = 120_000L
+        private const val WATCHDOG_INTERVAL_MS = 180_000L
+        private const val TAP_DEAD_EVENT_TIMEOUT_MS = 180_000L
         private const val TAP_DEAD_CONSECUTIVE_LIMIT = 2
+        private const val MAX_CONSECUTIVE_WATCHDOG_RESTARTS = 3
+        private const val WATCHDOG_COOLDOWN_MS = 5 * 60_000L
         private const val TAP_FEEDBACK_THROTTLE_MS = 650L
     }
 
@@ -58,10 +61,12 @@ class OverlayService : Service() {
         private var serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
         private var watchdogJob: Job? = null
         private var restartDetectorJob: Job? = null
+        private var startDetectorJob: Job? = null
         private var wakeLock: PowerManager.WakeLock? = null
 
-        private var lastWatchdogRestartAtMs: Long = 0L
         private var consecutiveDeadChecks: Int = 0
+        private var consecutiveWatchdogRestarts = 0
+        private var watchdogCooldownUntilMs = 0L
 
         // ── 亮/灭屏监听 ──────────────────────────────────────
         private val screenReceiver = object : BroadcastReceiver() {
@@ -69,27 +74,26 @@ class OverlayService : Service() {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
                         Logger.d(this@OverlayService, "OverlayService", "Screen OFF: stopping detectors to save power")
+                        startDetectorJob?.cancel()
                         restartDetectorJob?.cancel()
                         if (isDoubleTapEnabled) stopTapDetection()
                         stopWatchdog()
                     }
                     Intent.ACTION_SCREEN_ON -> {
-                        Logger.d(this@OverlayService, "OverlayService", "Screen ON: restarting detectors (${intent.action})")
-                        if (!isDoubleTapEnabled) return
-                        acquireWakeLockBriefly(5_000L)
-                        restartDetector("screen-on")
-                        startWatchdog()
+                        if (isUserUnlockedAndInteractive()) {
+                            Logger.d(this@OverlayService, "OverlayService", "Screen ON: already unlocked, scheduling detector start")
+                            scheduleStartAfterUnlock("screen-on-unlocked")
+                        } else {
+                            Logger.d(this@OverlayService, "OverlayService", "Screen ON: waiting for unlock")
+                        }
                     }
                     Intent.ACTION_USER_PRESENT -> {
-                        Logger.d(this@OverlayService, "OverlayService", "User present: ensuring detectors (${intent.action})")
+                        Logger.d(this@OverlayService, "OverlayService", "User present: scheduling detector start")
                         if (!isDoubleTapEnabled) return
-                        acquireWakeLockBriefly(5_000L)
-                        if (tapDetector == null) {
-                            restartDetector("user-present")
-                        } else {
-                            Logger.d(this@OverlayService, "OverlayService", "User present: detector already running, skip restart")
-                        }
-                        startWatchdog()
+                        watchdogCooldownUntilMs = 0L
+                        consecutiveDeadChecks = 0
+                        consecutiveWatchdogRestarts = 0
+                        scheduleStartAfterUnlock("user-present")
                     }
                 }
             }
@@ -122,6 +126,7 @@ class OverlayService : Service() {
         }
 
         fun detach() {
+            startDetectorJob?.cancel()
             restartDetectorJob?.cancel()
             stopWatchdog()
             releaseAllWakeLocks()
@@ -165,12 +170,12 @@ class OverlayService : Service() {
 
         // ── Watchdog ──────────────────────────────────────────
         fun startWatchdog() {
+            if (isWatchdogCoolingDown(System.currentTimeMillis())) return
             if (watchdogJob?.isActive == true) return
             watchdogJob = serviceScope.launch {
-                val interval = 60_000L
-                Logger.d(this@OverlayService, "OverlayService", "Watchdog started (interval=${interval}ms)")
+                Logger.d(this@OverlayService, "OverlayService", "Watchdog started (interval=${WATCHDOG_INTERVAL_MS}ms)")
                 while (isActive) {
-                    delay(interval)
+                    delay(WATCHDOG_INTERVAL_MS)
                     if (!isDoubleTapEnabled) break
                     checkSensorHealth()
                 }
@@ -178,71 +183,131 @@ class OverlayService : Service() {
         }
 
         fun stopWatchdog() {
+            if (watchdogJob == null) return
             watchdogJob?.cancel()
             watchdogJob = null
             Logger.d(this@OverlayService, "OverlayService", "Watchdog stopped")
         }
 
         fun syncWatchdogState() {
-            if (isDoubleTapEnabled && isScreenInteractive()) startWatchdog() else stopWatchdog()
+            if (isDoubleTapEnabled && isUserUnlockedAndInteractive()) startWatchdog() else stopWatchdog()
         }
 
         // ── 传感器健康检查 ────────────────────────────────────
         private fun checkSensorHealth() {
             if (!isDoubleTapEnabled) return
 
-            // 息屏时传感器已被完全停止，无需检查
-            if (!isScreenInteractive()) return
+            if (!isUserUnlockedAndInteractive()) {
+                Logger.d(this@OverlayService, "OverlayService", "Watchdog skipped: locked or screen off")
+                consecutiveDeadChecks = 0
+                stopWatchdog()
+                return
+            }
 
             val now = System.currentTimeMillis()
-            if (isDoubleTapEnabled) {
-                val det = tapDetector
-                if (det == null) {
-                    Logger.d(this@OverlayService, "OverlayService", "Watchdog: tap detector is null (screen on), rebuilding...")
-                    acquireWakeLockBriefly()
-                    restartDetector("watchdog-null-tap")
-                    return
-                }
-                val timeSinceLastEvent = now - det.lastSensorEventTimeMillis
-                if (timeSinceLastEvent > TAP_DEAD_EVENT_TIMEOUT_MS) {
-                    if (now - lastWatchdogRestartAtMs < 15_000L) return
-                    lastWatchdogRestartAtMs = now
-                    consecutiveDeadChecks++
-                    if (consecutiveDeadChecks < TAP_DEAD_CONSECUTIVE_LIMIT) {
-                        Logger.d(
-                            this@OverlayService,
-                            "OverlayService",
-                            "Watchdog: tap no sensor event for ${timeSinceLastEvent}ms, waiting (${consecutiveDeadChecks}/$TAP_DEAD_CONSECUTIVE_LIMIT)"
-                        )
-                        return
-                    }
-                    acquireWakeLockBriefly()
-                    Logger.d(
-                        this@OverlayService,
-                        "OverlayService",
-                        "Watchdog: tap sensor dead for ${timeSinceLastEvent}ms (consecutive=$consecutiveDeadChecks), restarting..."
-                    )
-                    restartDetector("watchdog-dead-tap")
-                    consecutiveDeadChecks = 0
-                    return
-                }
+            if (isWatchdogCoolingDown(now)) {
+                stopWatchdog()
+                return
             }
+
+            val det = tapDetector
+            if (det == null) {
+                consecutiveWatchdogRestarts++
+                if (consecutiveWatchdogRestarts > MAX_CONSECUTIVE_WATCHDOG_RESTARTS) {
+                    enterWatchdogCooldown(now)
+                    return
+                }
+                Logger.d(this@OverlayService, "OverlayService", "Watchdog: tap detector is null, rebuilding... (restart=${consecutiveWatchdogRestarts})")
+                acquireWakeLockBriefly()
+                restartDetector("watchdog-null-tap")
+                return
+            }
+            val timeSinceLastEvent = now - det.lastSensorEventTimeMillis
+            if (timeSinceLastEvent <= TAP_DEAD_EVENT_TIMEOUT_MS) {
+                consecutiveDeadChecks = 0
+                consecutiveWatchdogRestarts = 0
+                return
+            }
+
+            consecutiveDeadChecks++
+            if (consecutiveDeadChecks < TAP_DEAD_CONSECUTIVE_LIMIT) {
+                Logger.d(
+                    this@OverlayService,
+                    "OverlayService",
+                    "Watchdog: tap no sensor event for ${timeSinceLastEvent}ms, waiting (${consecutiveDeadChecks}/$TAP_DEAD_CONSECUTIVE_LIMIT)"
+                )
+                return
+            }
+
             consecutiveDeadChecks = 0
+            consecutiveWatchdogRestarts++
+
+            if (consecutiveWatchdogRestarts > MAX_CONSECUTIVE_WATCHDOG_RESTARTS) {
+                enterWatchdogCooldown(now)
+                return
+            }
+
+            acquireWakeLockBriefly()
+            Logger.d(
+                this@OverlayService,
+                "OverlayService",
+                "Watchdog: tap sensor dead for ${timeSinceLastEvent}ms (restart=${consecutiveWatchdogRestarts}), restarting..."
+            )
+            restartDetector("watchdog-dead-tap")
         }
 
         // ── Detector 重建 ─────────────────────────────────────
         fun restartDetector(reason: String) {
             restartDetectorJob?.cancel()
             restartDetectorJob = serviceScope.launch(Dispatchers.Main) {
-                Logger.d(this@OverlayService, "OverlayService", "Restarting detectors: reason=$reason")
+                if (!isUserUnlockedAndInteractive()) {
+                    Logger.d(this@OverlayService, "OverlayService", "Restart skipped: locked or screen off. reason=$reason")
+                    stopTapDetection()
+                    stopWatchdog()
+                    return@launch
+                }
+
+                Logger.d(this@OverlayService, "OverlayService", "Restarting detector: reason=$reason")
                 stopTapDetection()
-                delay(300L)
-                if (isDoubleTapEnabled && isScreenInteractive()) startTapDetection()
+                delay(500L)
+                if (isDoubleTapEnabled && isUserUnlockedAndInteractive()) {
+                    startTapDetection()
+                }
             }
         }
 
-        // ── 工具 ──────────────────────────────────────────────
-        private fun isScreenInteractive(): Boolean = this@OverlayService.isScreenInteractive()
+        // ── 延迟启动 ──────────────────────────────────────────
+        fun scheduleStartAfterUnlock(reason: String) {
+            startDetectorJob?.cancel()
+            startDetectorJob = serviceScope.launch(Dispatchers.Main) {
+                delay(1000L)
+                if (isDoubleTapEnabled && isUserUnlockedAndInteractive()) {
+                    if (tapDetector == null) {
+                        Logger.d(this@OverlayService, "OverlayService", "Starting detector after unlock: reason=$reason")
+                        startTapDetection()
+                    } else {
+                        Logger.d(this@OverlayService, "OverlayService", "Detector already running after unlock: reason=$reason")
+                    }
+                    startWatchdog()
+                } else {
+                    Logger.d(this@OverlayService, "OverlayService", "Detector start skipped after unlock: reason=$reason")
+                }
+            }
+        }
+
+        // ── Watchdog 冷却 ─────────────────────────────────────
+        private fun isWatchdogCoolingDown(now: Long): Boolean {
+            return watchdogCooldownUntilMs > now
+        }
+
+        private fun enterWatchdogCooldown(now: Long) {
+            watchdogCooldownUntilMs = now + WATCHDOG_COOLDOWN_MS
+            consecutiveDeadChecks = 0
+            consecutiveWatchdogRestarts = 0
+            Logger.d(this@OverlayService, "OverlayService", "Watchdog cooldown entered")
+            stopTapDetection()
+            stopWatchdog()
+        }
     }
 
     // ════════════════════════════════════════════════════════
@@ -260,7 +325,7 @@ class OverlayService : Service() {
             keepAliveManager.attach()
 
             if (isDoubleTapEnabled) {
-                startTapDetectionIfInteractive("service-create")
+                startTapDetectionIfUnlocked("service-create")
                 scheduleKeepAliveWork()
             }
 
@@ -285,7 +350,7 @@ class OverlayService : Service() {
                 isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
                 if (isDoubleTapEnabled) {
                     cancelRestart()
-                    startTapDetectionIfInteractive("sticky-restore")
+                    startTapDetectionIfUnlocked("sticky-restore")
                     scheduleKeepAliveWork()
                 }
             }
@@ -293,7 +358,7 @@ class OverlayService : Service() {
                 isDoubleTapEnabled = true
                 cancelRestart()
                 promoteToForeground("双击检测运行中")
-                startTapDetectionIfInteractive("user-start")
+                startTapDetectionIfUnlocked("user-start")
                 scheduleKeepAliveWork()
             }
             ACTION_STOP_DOUBLE_TAP -> {
@@ -314,7 +379,7 @@ class OverlayService : Service() {
                 if (isDoubleTapEnabled) {
                     cancelRestart()
                     promoteToForeground("双击检测运行中")
-                    startTapDetectionIfInteractive("settings-restart")
+                    startTapDetectionIfUnlocked("settings-restart")
                     scheduleKeepAliveWork()
                 }
             }
@@ -378,13 +443,20 @@ class OverlayService : Service() {
         }
     }
 
-    private fun startTapDetectionIfInteractive(reason: String) {
-        if (!isScreenInteractive()) {
-            Logger.d(this, "OverlayService", "TapDetector not started: screen is off ($reason)")
+    private fun startTapDetectionIfUnlocked(reason: String) {
+        if (!isUserUnlockedAndInteractive()) {
+            Logger.d(this, "OverlayService", "TapDetector not started: locked or screen off ($reason)")
             stopTapDetection()
             return
         }
         startTapDetection()
+    }
+
+    private fun isUserUnlockedAndInteractive(): Boolean {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val interactive = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) pm.isInteractive else pm.isScreenOn
+        return interactive && !km.isKeyguardLocked
     }
 
     private fun handleTapAction(tapCount: Int) {
@@ -437,11 +509,6 @@ class OverlayService : Service() {
     // ════════════════════════════════════════════════════════
     //  工具方法
     // ════════════════════════════════════════════════════════
-    private fun isScreenInteractive(): Boolean {
-        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) pm.isInteractive else pm.isScreenOn
-    }
-
     private fun promoteToForeground(content: String) {
         try {
             val notification = OverlayServiceNotifications.build(this, CHANNEL_ID, content)

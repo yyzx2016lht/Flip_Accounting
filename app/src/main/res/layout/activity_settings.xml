@@ -18,8 +18,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:headerActionText="+ 添加"
-            app:headerSubtitle="管理一级分类、二级分类与排序"
-            app:headerTitle="分类管理" />
+            app:headerSubtitle="@string/settings_category_subtitle"
+            app:headerTitle="@string/title_category_management" />
 
         <RadioGroup
             android:id="@+id/rg_type"

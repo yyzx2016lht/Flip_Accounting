@@ -221,8 +221,7 @@ internal object AIReceiptHelper {
         val weekFormat = SimpleDateFormat("EEEE", Locale.getDefault())
         val currentTimeStr = "${timeFormat.format(now)} (${weekFormat.format(now)})"
 
-        val customPrompt = Prefs.getReceiptBillPrompt(ctx)
-        val basePrompt = if (customPrompt.isNotEmpty()) customPrompt else AIPrompts.RECEIPT_BILL_PROMPT
+        val basePrompt = AIPrompts.RECEIPT_BILL_PROMPT
 
         val hardenedPrompt = basePrompt + """
 

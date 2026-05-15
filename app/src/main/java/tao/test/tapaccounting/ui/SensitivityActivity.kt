@@ -47,8 +47,10 @@ class SensitivityActivity : AppCompatActivity() {
     private lateinit var tvTapActionDoubleName: TextView
     private lateinit var tvTapActionTripleName: TextView
     private lateinit var switchTapNnapi: SwitchMaterial
+    private lateinit var switchTapLowPower: SwitchMaterial
     private lateinit var switchTapTriple: SwitchMaterial
     private lateinit var btnTapActionTriple: View
+    private var isUpdatingUi = false
 
     private lateinit var switchTapEnable: SwitchMaterial
     private lateinit var switchLandscapeDisable: SwitchMaterial
@@ -164,13 +166,16 @@ class SensitivityActivity : AppCompatActivity() {
         tvTapActionDoubleName = findViewById(R.id.tv_tap_action_double_name)
         tvTapActionTripleName = findViewById(R.id.tv_tap_action_triple_name)
         switchTapNnapi = findViewById(R.id.switch_tap_nnapi)
+        switchTapLowPower = findViewById(R.id.switch_tap_low_power)
         switchTapTriple = findViewById(R.id.switch_tap_triple)
         btnTapActionTriple = findViewById(R.id.btn_tap_action_triple)
         val layoutTapNnapi = findViewById<View>(R.id.layout_tap_nnapi)
         val layoutTapTriple = findViewById<View>(R.id.layout_tap_triple)
+        val layoutTapLowPower = findViewById<View>(R.id.layout_tap_low_power)
 
-        layoutTapNnapi.setOnClickListener { switchTapNnapi.performClick() }
-        layoutTapTriple.setOnClickListener { switchTapTriple.performClick() }
+        layoutTapNnapi.setOnClickListener { if (switchTapNnapi.isEnabled) switchTapNnapi.performClick() }
+        layoutTapTriple.setOnClickListener { if (switchTapTriple.isEnabled) switchTapTriple.performClick() }
+        layoutTapLowPower.setOnClickListener { switchTapLowPower.performClick() }
 
         // 模型选择
         tvTapModelName.text = TapModel.resolve(this).displayName
@@ -195,14 +200,26 @@ class SensitivityActivity : AppCompatActivity() {
             restartTapDetection()
         }
 
+        // 省电检测模式
+        switchTapLowPower.isChecked = Prefs.isTapLowPower(this)
+        switchTapLowPower.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setTapLowPower(this, isChecked)
+            updateLowPowerDependencies()
+            restartTapDetection()
+        }
+
         // 三击模式
         switchTapTriple.isChecked = Prefs.isTapTripleEnabled(this)
         btnTapActionTriple.visibility = if (Prefs.isTapTripleEnabled(this)) View.VISIBLE else View.GONE
         switchTapTriple.setOnCheckedChangeListener { _, isChecked ->
+            if (isUpdatingUi) return@setOnCheckedChangeListener
             Prefs.setTapTripleEnabled(this, isChecked)
             btnTapActionTriple.visibility = if (isChecked) View.VISIBLE else View.GONE
             restartTapDetection()
         }
+
+        // 初始同步
+        updateLowPowerDependencies()
 
         // 双击动作
         val doubleActionId = Prefs.getTapActionDouble(this)
@@ -426,6 +443,13 @@ class SensitivityActivity : AppCompatActivity() {
             else -> "中等"
         }
         tvTapCurrentValue.text = "当前等级：$label"
+    }
+
+    private fun updateLowPowerDependencies() {
+        val lowPower = Prefs.isTapLowPower(this)
+        switchTapNnapi.isEnabled = !lowPower
+        switchTapTriple.isEnabled = true
+        btnTapActionTriple.visibility = if (Prefs.isTapTripleEnabled(this)) View.VISIBLE else View.GONE
     }
 
     private fun restartTapDetection() {

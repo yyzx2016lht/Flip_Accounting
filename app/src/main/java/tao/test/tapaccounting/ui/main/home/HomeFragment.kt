@@ -136,12 +136,12 @@ class HomeFragment : Fragment() {
                         Toast.makeText(requireContext(), "裁剪结果文件不存在，请重试", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(requireContext(), "保存封面失败：${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "保存封面失败，请重试", Toast.LENGTH_SHORT).show()
                 }
             }
             UCrop.RESULT_ERROR -> {
                 val error = UCrop.getError(result.data!!)
-                Toast.makeText(requireContext(), "裁剪失败：${error?.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "裁剪失败，请重新选择图片", Toast.LENGTH_SHORT).show()
             }
         }
     }

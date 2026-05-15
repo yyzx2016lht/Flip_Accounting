@@ -234,11 +234,11 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                         switchScreenAccounting.isChecked = false
                         ignoreScreenAccountingToggle = false
                     }
-                    Utils.toast(this@AiFeatureSettingsActivity, "截屏记账需要开启无障碍服务或 Shizuku 模式")
+                    Utils.toast(this@AiFeatureSettingsActivity, getString(R.string.ai_screen_accounting_perm_hint))
                     return@setOnCheckedChangeListener
                 }
                 Prefs.setShowScreenAccounting(this@AiFeatureSettingsActivity, isChecked)
-                Utils.toast(this@AiFeatureSettingsActivity, if (isChecked) "已开启截屏记账" else "已关闭截屏记账")
+                Utils.toast(this@AiFeatureSettingsActivity, if (isChecked) getString(R.string.screen_accounting_enabled) else getString(R.string.screen_accounting_disabled))
             }
         }
 
@@ -283,7 +283,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             layoutAiKeyWarning.visibility = View.GONE
             btnAiDetailConfig.visibility = View.VISIBLE
             updateRuleButtonLayout(locked = false)
-            btnAiDetailConfig.text = "AI 核心模型"
+            btnAiDetailConfig.text = getString(R.string.ai_core_model)
             btnAiDetailConfig.setTextColor(Color.parseColor("#FFFFFF"))
             btnAiDetailConfig.setBackgroundColor(Color.parseColor("#5C6BC0"))
             btnAiDetailConfig.strokeColor = null
@@ -309,39 +309,39 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             lp.marginEnd = if (locked) 0 else resources.displayMetrics.density.times(6).toInt()
             btnManageAiRules.layoutParams = lp
         }
-        btnManageAiRules.text = "记账规则"
+        btnManageAiRules.text = getString(R.string.accounting_rules_btn)
     }
 
     private fun showAiDetailConfigUnlockDialog() {
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("配置密钥")
+        builder.setTitle(getString(R.string.config_key_dialog_title))
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 24, 48, 8)
         }
         val tvHint = TextView(this).apply {
-            text = "请输入开发者提供的配置密钥"
+            text = getString(R.string.config_key_dialog_hint)
             textSize = 13f
             setTextColor(Color.parseColor("#9AA4B2"))
             setPadding(0, 0, 0, 16)
         }
         val etPassword = EditText(this).apply {
-            hint = "输入密钥"
+            hint = getString(R.string.input_key_hint)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         layout.addView(tvHint)
         layout.addView(etPassword)
         builder.setView(layout)
-        builder.setPositiveButton("确认") { _, _ ->
+        builder.setPositiveButton(getString(R.string.confirm_btn)) { _, _ ->
             if (etPassword.text.toString().trim() == "1433223") {
                 Prefs.setAiDetailConfigUnlocked(this, true)
                 updateAiDetailConfigButton()
-                Utils.toast(this, "AI详细配置已解锁")
+                Utils.toast(this, getString(R.string.ai_config_unlocked))
             } else {
-                Utils.toast(this, "密钥错误")
+                Utils.toast(this, getString(R.string.key_error))
             }
         }
-        builder.setNegativeButton("取消", null)
+        builder.setNegativeButton(getString(R.string.cancel_btn), null)
         val dialog = builder.create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,

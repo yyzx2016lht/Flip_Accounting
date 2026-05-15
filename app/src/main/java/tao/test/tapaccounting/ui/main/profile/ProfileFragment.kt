@@ -61,7 +61,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             saveUserAvatar(uri)
         } else {
             val error = result.data?.let { UCrop.getError(it) }
-            if (error != null) Utils.toast(requireContext(), "头像裁剪失败: ${error.message ?: "未知错误"}")
+            if (error != null) Utils.toast(requireContext(), "头像裁剪失败，请重新选择图片")
         }
     }
 
@@ -420,7 +420,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     switchWhitelistMode.isChecked = false
                     ignoreWhitelistToggle = false
                 } else if (!ShizukuSafe.isReady(requireContext())) {
-                    Utils.toast(requireContext(), "Shizuku 模式已开启，白名单模式需要先启动并授权 Shizuku")
+                    Utils.toast(requireContext(), "Shizuku 高级模式已开启，还需完成授权才能使用白名单")
                 }
                 updateShizukuPersistenceVisibility(view, isChecked)
                 updateWhitelistUi()
@@ -441,7 +441,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                         ignoreWhitelistToggle = false
                     }
                     btnManageWhitelist.visibility = View.GONE
-                    Utils.toast(requireContext(), "请先开启 Shizuku 模式")
+                    Utils.toast(requireContext(), "请先开启 Shizuku 高级模式")
                     return@setOnCheckedChangeListener
                 }
                 if (isChecked && !ShizukuSafe.isReady(requireContext())) {
@@ -451,7 +451,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                         ignoreWhitelistToggle = false
                     }
                     btnManageWhitelist.visibility = View.GONE
-                    Utils.toast(requireContext(), "白名单模式需要先启动并授权 Shizuku")
+                    Utils.toast(requireContext(), "白名单模式需要先完成 Shizuku 授权")
                     tao.test.tapaccounting.ui.dialog.OverlayDialogs.showShizukuPrompt(requireContext())
                     return@setOnCheckedChangeListener
                 }
@@ -464,7 +464,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         btnManageWhitelist.setOnClickListener {
             if (!ShizukuSafe.isBinderAlive()) {
-                Utils.toast(requireContext(), "请先启动 Shizuku 并授权")
+                Utils.toast(requireContext(), "请先完成 Shizuku 授权")
                 return@setOnClickListener
             }
             if (!ShizukuSafe.hasPermission(requireContext())) {
@@ -518,7 +518,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             setOnCheckedChangeListener { _, isChecked ->
                 Prefs.setShizukuPersistenceEnabled(requireContext(), isChecked)
                 if (isChecked) {
-                    Utils.toast(requireContext(), "已开启 Shizuku 深度保活，将在服务启动时生效")
+                    Utils.toast(requireContext(), "已开启 Shizuku 保活模式，将在服务启动后生效")
                 }
             }
         }
@@ -740,23 +740,23 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private fun showApiKeyDialog() {
         val ctx = requireContext()
         val builder = AlertDialog.Builder(ctx)
-        builder.setTitle("配置API密钥")
+        builder.setTitle(getString(R.string.profile_config_api_key))
         val layout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 24, 48, 8)
         }
         val tvHint = TextView(ctx).apply {
-            text = "密钥将由云端配置统一拉取覆盖，本处仅作临时手动输入"
+            text = getString(R.string.profile_api_key_hint)
             textSize = 12f
             setTextColor(Color.parseColor("#9AA4B2"))
             setPadding(0, 0, 0, 16)
         }
         val etUrl = EditText(ctx).apply {
-            hint = "API 地址"
+            hint = getString(R.string.profile_api_url_hint)
             setText(Prefs.getAiUrl(ctx).ifBlank { "https://api.siliconflow.cn" })
         }
         val etKey = EditText(ctx).apply {
-            hint = "API Key"
+            hint = getString(R.string.api_key)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setText(Prefs.getAiKey(ctx))
         }
@@ -764,17 +764,17 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         layout.addView(etUrl)
         layout.addView(etKey)
         builder.setView(layout)
-        builder.setPositiveButton("保存") { _, _ ->
+        builder.setPositiveButton(getString(R.string.save_btn)) { _, _ ->
             Prefs.setAiUrl(ctx, etUrl.text.toString().trim())
             Prefs.setAiKey(ctx, etKey.text.toString().trim())
-            Utils.toast(ctx, "API密钥已保存")
+            Utils.toast(ctx, getString(R.string.profile_api_key_saved))
             refreshSyncRemoteConfigVisibility()
         }
-        builder.setNeutralButton("测试连接") { _, _ ->
+        builder.setNeutralButton(getString(R.string.test_connection_btn)) { _, _ ->
             val url = etUrl.text.toString().trim()
             val key = etKey.text.toString().trim()
             if (key.isBlank()) {
-                Utils.toast(ctx, "请先输入 API Key")
+                Utils.toast(ctx, getString(R.string.please_input_api_key))
                 return@setNeutralButton
             }
             CoroutineScope(Dispatchers.IO).launch {
@@ -789,12 +789,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Utils.toast(ctx, "连接失败: ${e.message}")
+                        Utils.toast(ctx, "连接失败，请检查 API 地址和 Key")
                     }
                 }
             }
         }
-        builder.setNegativeButton("取消", null)
+        builder.setNegativeButton(getString(R.string.cancel_btn), null)
         val dialog = builder.create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -904,7 +904,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             rootRef?.let { refreshUserAvatarCard(it) }
             Utils.toast(ctx, "用户头像已更新")
         }.onFailure {
-            if (isAdded) Utils.toast(requireContext(), "用户头像更新失败: ${it.message ?: "未知错误"}")
+            if (isAdded) Utils.toast(requireContext(), "头像更新失败，请重试")
         }
     }
 

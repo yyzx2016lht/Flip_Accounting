@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="恢复时会只覆盖你勾选的内容，其它模块不会动。"
+                android:text="只恢复勾选的模块，其它内容不受影响。"
             android:textColor="#7C8798"
             android:textSize="13sp" />
 
@@ -45,7 +45,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="恢复对应模块会覆盖当前同类数据，请只勾选你确认要恢复的部分。"
+                android:text="勾选的模块会覆盖当前数据，请确认后继续。"
                 android:textColor="#A96557"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -224,7 +224,7 @@
                 android:id="@+id/cb_restore_settings_ai_core"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AI 核心模型"
+                android:text="@string/ai_core_model"
                 android:textColor="#23324A"
                 android:textSize="14sp"
                 android:visibility="gone" />
@@ -235,18 +235,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:layout_marginBottom="4dp"
-                android:text="包含 API Key、主文本模型、视觉模型、在线语音模型，以及相关 OCR / 思考开关。"
+                android:text="@string/ai_core_model_description"
                 android:textColor="#8C98A8"
                 android:textSize="12sp"
-                android:visibility="gone" />
-
-            <com.google.android.material.checkbox.MaterialCheckBox
-                android:id="@+id/cb_restore_settings_ai_prompts"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="AI 提示词"
-                android:textColor="#23324A"
-                android:textSize="14sp"
                 android:visibility="gone" />
 
             <com.google.android.material.checkbox.MaterialCheckBox

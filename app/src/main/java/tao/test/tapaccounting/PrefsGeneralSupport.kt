@@ -29,6 +29,7 @@ object PrefsGeneralSupport {
     private const val KEY_TAP_SENSITIVITY_LEVEL = "tap_sensitivity_level"
     private const val KEY_TAP_NNAPI_LOW_POWER = "tap_nnapi_low_power"
     private const val KEY_TAP_TRIPLE_ENABLED = "tap_triple_enabled"
+    private const val KEY_TAP_LOW_POWER = "tap_low_power"
     private const val KEY_TAP_ACTION_DOUBLE = "tap_action_double"
     private const val KEY_TAP_ACTION_TRIPLE = "tap_action_triple"
     private const val KEY_API_CONFIG_UNLOCKED = "api_config_unlocked_v1"
@@ -179,6 +180,11 @@ object PrefsGeneralSupport {
         prefs(ctx).getBoolean(KEY_TAP_NNAPI_LOW_POWER, false)
     fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_TAP_NNAPI_LOW_POWER, enabled).apply()
+
+    fun isTapLowPower(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_TAP_LOW_POWER, false)
+    fun setTapLowPower(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_TAP_LOW_POWER, enabled).apply()
 
     fun isTapTripleEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_TAP_TRIPLE_ENABLED, false)

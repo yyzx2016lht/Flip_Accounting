@@ -175,7 +175,7 @@ class ChatMediaController(
                 val error = data?.let { UCrop.getError(it) }
                 if (error != null) {
                     val label = if (requestCode == reqCropBg) "背景裁剪失败" else "头像裁剪失败"
-                    Utils.toast(context, "$label: ${error.message ?: "未知错误"}")
+                    Utils.toast(context, "$label，请重新选择图片")
                 }
             }
             return requestCode in setOf(
@@ -362,7 +362,7 @@ class ChatMediaController(
             applyBackground()
             Utils.toast(context, "背景已更新")
         }.onFailure {
-            Utils.toast(context, "背景更新失败: ${it.message ?: "未知错误"}")
+            Utils.toast(context, "背景更新失败，请重试")
         }
     }
 
@@ -385,7 +385,7 @@ class ChatMediaController(
             refreshAiProfile()
             Utils.toast(context, "AI 头像已更新")
         }.onFailure {
-            Utils.toast(context, "AI 头像更新失败: ${it.message ?: "未知错误"}")
+            Utils.toast(context, "AI 头像更新失败，请重试")
         }
     }
 
@@ -399,7 +399,7 @@ class ChatMediaController(
             adapterProvider().notifyDataSetChanged()
             Utils.toast(context, "用户头像已更新")
         }.onFailure {
-            Utils.toast(context, "用户头像更新失败: ${it.message ?: "未知错误"}")
+            Utils.toast(context, "头像更新失败，请重试")
         }
     }
 

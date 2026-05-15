@@ -1717,7 +1717,7 @@ class AccountingFormController(
                     )
                 } catch (e: IllegalArgumentException) {
                     withContext(Dispatchers.Main) {
-                        Utils.toast(ctx, e.message ?: "保存失败")
+                        Utils.toast(ctx, "保存失败，请稍后重试")
                     }
                     return@launch
                 }
@@ -1757,12 +1757,12 @@ class AccountingFormController(
                         )
                     } catch (e: IllegalArgumentException) {
                         withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, e.message ?: "退款金额超过可退余额")
+                            Utils.toast(ctx, "退款金额超过可退余额")
                         }
                         return@launch
                     } catch (e: IllegalStateException) {
                         withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, e.message ?: "原账单不存在或不可退款")
+                            Utils.toast(ctx, "原账单不存在或不可退款")
                         }
                         return@launch
                     }

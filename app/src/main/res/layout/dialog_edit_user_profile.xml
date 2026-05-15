@@ -73,7 +73,7 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="@drawable/bg_chat_input"
-        android:hint="例如：点击设置名字和头像"
+        android:hint="例如：点击编辑头像和昵称"
         android:paddingHorizontal="14dp"
         android:singleLine="true"
         android:textColor="#333333"

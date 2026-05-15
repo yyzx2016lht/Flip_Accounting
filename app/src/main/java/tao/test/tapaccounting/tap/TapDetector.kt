@@ -44,34 +44,62 @@ class TapDetector(
 
     private var lastTapActionUptimeMs = 0L
 
+    private var isLowPowerMode = false
+
     fun start(): Boolean {
         if (isRunning) return true
 
-        if (accelerometer == null || gyroscope == null) {
-            Log.e(TAG, "Missing sensors: acc=${accelerometer != null}, gyro=${gyroscope != null}")
+        val lowPowerMode = Prefs.isTapLowPower(context)
+        isLowPowerMode = lowPowerMode
+
+        if (accelerometer == null) {
+            Log.e(TAG, "Missing accelerometer")
+            return false
+        }
+        if (!lowPowerMode && gyroscope == null) {
+            Log.e(TAG, "Missing gyroscope (required for non-low-power mode)")
             return false
         }
 
         try {
-            val tapModel = TapModel.resolve(context)
             val sensitivityLevel = Prefs.getTapSensitivityLevel(context)
             val sensitivity = TAP_SENSITIVITY_VALUES.getOrElse(sensitivityLevel) { 0.05f }
             val nnapiLowPower = Prefs.isTapNnapiLowPower(context)
             val tripleEnabled = Prefs.isTapTripleEnabled(context)
 
-            val classifier = TapTfClassifier(context.assets, tapModel.path, nnapiLowPower)
+            val classifier = if (!lowPowerMode) {
+                val tapModel = TapModel.resolve(context)
+                TapTfClassifier(context.assets, tapModel.path, nnapiLowPower)
+            } else null
 
-            tap = if (tripleEnabled) {
-                TapTapTapRT(160000000L, true, sensitivity, classifier).apply {
+            tap = when {
+                lowPowerMode && tripleEnabled -> HeuristicTapTapTapRT(160000000L, true).apply {
+                    getLowpassKey().setPara(0.2f)
+                    getHighpassKey().setPara(0.2f)
+                    getPositivePeakDetector().setMinNoiseTolerate(sensitivity)
+                    getPositivePeakDetector().setWindowSize(64)
+                    getNegativePeakDetection().setMinNoiseTolerate(sensitivity)
+                    getNegativePeakDetection().setWindowSize(64)
+                    reset(false)
+                }
+                lowPowerMode && !tripleEnabled -> TapRT(160000000L).apply {
+                    getLowpassKey().setPara(0.2f)
+                    getHighpassKey().setPara(0.2f)
+                    getPositivePeakDetector().setMinNoiseTolerate(sensitivity)
+                    getPositivePeakDetector().setWindowSize(64)
+                    getNegativePeakDetection().setMinNoiseTolerate(sensitivity)
+                    getNegativePeakDetection().setWindowSize(64)
+                    reset(false)
+                }
+                !lowPowerMode && tripleEnabled -> TapTapTapRT(160000000L, true, sensitivity, classifier!!).apply {
                     getLowpassKey().setPara(0.2f)
                     getHighpassKey().setPara(0.2f)
                     getPositivePeakDetector().setMinNoiseTolerate(sensitivity)
                     getPositivePeakDetector().setWindowSize(64)
                     reset(false)
                 }
-            } else {
-                TapRT(160000000L).apply {
-                    setClassifier(classifier)
+                else -> TapRT(160000000L).apply {
+                    setClassifier(classifier!!)
                     getLowpassKey().setPara(0.2f)
                     getHighpassKey().setPara(0.2f)
                     getPositivePeakDetector().setMinNoiseTolerate(sensitivity)
@@ -86,11 +114,21 @@ class TapDetector(
             }
 
             sensorManager.registerListener(this, accelerometer, SENSOR_SAMPLING_PERIOD_US, sensorHandler)
-            sensorManager.registerListener(this, gyroscope, SENSOR_SAMPLING_PERIOD_US, sensorHandler)
+            if (!lowPowerMode) {
+                sensorManager.registerListener(this, gyroscope, SENSOR_SAMPLING_PERIOD_US, sensorHandler)
+            }
 
             isRunning = true
             lastSensorEventTimeMillis = System.currentTimeMillis()
-            Log.d(TAG, "TapDetector started: model=${tapModel.displayName}, sensitivity=$sensitivity, nnapi=$nnapiLowPower, triple=$tripleEnabled, samplingPeriodUs=$SENSOR_SAMPLING_PERIOD_US")
+
+            val tapModelName = if (!lowPowerMode) TapModel.resolve(context).displayName else "none"
+            Log.d(TAG, "TapDetector started: model=$tapModelName, " +
+                    "sensitivity=$sensitivity, nnapi=$nnapiLowPower, " +
+                    "lowPowerMode=$lowPowerMode, heuristic=$lowPowerMode, " +
+                    "gyroRegistered=${!lowPowerMode}, classifierLoaded=${!lowPowerMode}, " +
+                    "tripleEnabled=$tripleEnabled, " +
+                    "samplingPeriodUs=$SENSOR_SAMPLING_PERIOD_US, " +
+                    "samplingIntervalNs=$SAMPLING_INTERVAL_NS")
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start TapDetector", e)
@@ -138,7 +176,7 @@ class TapDetector(
                 event.values[2],
                 event.timestamp,
                 SAMPLING_INTERVAL_NS,
-                false
+                isLowPowerMode
             )
 
             val result = currentTap.checkDoubleTapTiming(event.timestamp)

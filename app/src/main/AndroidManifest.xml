@@ -111,7 +111,7 @@
         <activity android:name=".AppListActivity" android:label="应用白名单" />
     <activity android:name=".AssetActivity" android:label="资产管理" />
     <activity android:name=".AddAssetActivity" android:label="新增资产" />
-        <activity android:name=".BalanceAdjustmentActivity" android:label="骞宠处璁板綍" />
+        <activity android:name=".BalanceAdjustmentActivity" android:label="@string/title_balance_adjustment" />
     <activity android:name=".SettingsActivity" android:label="分类管理" />
     <activity android:name=".CategorySortActivity" android:label="排序分类" />
         <activity
@@ -171,12 +171,12 @@
     <activity android:name=".ui.main.assets.AssetDetailActivity" android:label="资产详情" />
     <activity android:name=".ui.main.assets.AssetStatsActivity" android:label="资产统计" />
     <activity android:name=".AiRuleManageActivity" android:label="AI规则管理" />
-    <activity android:name=".AiFeatureSettingsActivity" android:label="AI智能功能" />
-    <activity android:name=".AiConfigActivity" android:label="AI详细配置" />
-    <activity android:name=".AiPromptEditorActivity" android:label="AI提示词编辑" />
+    <activity android:name=".AiFeatureSettingsActivity" android:label="@string/title_ai_features" />
+    <activity android:name=".AiConfigActivity" android:label="@string/title_ai_config" />
+<!-- AiPromptEditorActivity removed: custom prompt editing is no longer supported -->
         <activity
             android:name=".ChatActivity"
-            android:label="AI 瀵硅瘽璁拌处"
+            android:label="@string/title_chat"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.TapAccounting" />
         <activity

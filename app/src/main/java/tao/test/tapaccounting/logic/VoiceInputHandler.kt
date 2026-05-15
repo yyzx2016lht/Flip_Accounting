@@ -22,6 +22,7 @@ import tao.test.tapaccounting.LocalAsrService
 import tao.test.tapaccounting.Logger
 import tao.test.tapaccounting.PermissionRequestActivity
 import tao.test.tapaccounting.Prefs
+import tao.test.tapaccounting.R
 import tao.test.tapaccounting.Utils
 import java.io.File
 import java.io.FileOutputStream
@@ -218,22 +219,22 @@ class VoiceInputHandler(
                                             }
                                         } else if (text == "MODEL_DOWNLOADING") {
                                             aiAssistant.dismiss()
-                                            Utils.toast(ctx, "离线语音模型正在下载，请下载完成后再试")
+                                            Utils.toast(ctx, ctx.getString(R.string.asr_model_downloading))
                                         } else if (text == "WHISPER_NOT_SETUP") {
                                             aiAssistant.dismiss()
                                             val reason = LocalAsrService.getLastInitError()
                                             val msg = if (reason.isNullOrBlank()) {
-                                                "离线语音模型尚未准备完成，请检查模型状态"
+                                                ctx.getString(R.string.asr_model_not_ready)
                                             } else {
-                                                "离线语音模型未就绪: $reason"
+                                                "${ctx.getString(R.string.asr_model_unavailable)} $reason"
                                             }
                                             Utils.toast(ctx, msg)
                                         } else if (text == "API_KEY_NOT_SETUP") {
                                             aiAssistant.dismiss()
-                                            Utils.toast(ctx, "需要先配置 API Key，才能使用云端语音识别")
+                                            Utils.toast(ctx, ctx.getString(R.string.api_key_required_cloud_asr))
                                         } else {
                                             aiAssistant.dismiss()
-                                            Utils.toast(ctx, "未检测到清晰语音或解析失败")
+                                            Utils.toast(ctx, ctx.getString(R.string.asr_no_speech_detected))
                                         }
                                     }
                                 }

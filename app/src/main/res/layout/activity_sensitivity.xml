@@ -510,6 +510,63 @@
                         android:background="#F0F0F0"
                         android:layout_marginVertical="4dp" />
 
+                    <!-- 省电检测模式 -->
+                    <LinearLayout
+                        android:id="@+id/layout_tap_low_power"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_teal">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_power"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="省电检测模式"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="仅使用加速度计和轻量规则检测，可降低功耗；省电模式下三击不可用"
+                                android:textColor="#999999"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_tap_low_power"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:background="#F0F0F0"
+                        android:layout_marginVertical="4dp" />
+
                     <!-- 三击模式 -->
                     <LinearLayout
                         android:id="@+id/layout_tap_triple"

@@ -222,7 +222,7 @@ class OverlayManager(private val ctx: Context) {
             Logger.d(ctx, "OverlayManager", "showOverlay addView failed: ${e.message}")
             overlayView = null
             overlayParams = null
-            Utils.toast(ctx, "无法唤出悬浮窗：${e.message ?: "系统拒绝显示"}")
+            Utils.toast(ctx, "无法显示悬浮窗，请检查悬浮窗权限")
             return false
         }
 
@@ -359,7 +359,7 @@ class OverlayManager(private val ctx: Context) {
             Logger.d(ctx, "OverlayManager", "Using cached vision probe support. model=$screenModel")
         }
 
-        showScreenCaptureLoadingOverlay("正在准备截图识别...")
+        showScreenCaptureLoadingOverlay("正在准备截屏识别...")
         updateScreenCaptureLoadingHint("正在检测模型能力")
 
         setOverlayVisible(false)
@@ -383,7 +383,7 @@ class OverlayManager(private val ctx: Context) {
                 if (!support) {
                     hideScreenCaptureLoadingOverlay()
                     setOverlayVisible(true)
-                    Utils.toast(ctx, "当前模型不支持截图识别，请更换支持视觉输入的模型")
+                    Utils.toast(ctx, "当前模型不支持截屏识别，请更换支持视觉输入的模型")
                     finishScreenCaptureFlow(restoreOverlay = false)
                     return@withContext
                 }
@@ -424,7 +424,7 @@ class OverlayManager(private val ctx: Context) {
     }
 
     private fun startShizukuScreenCaptureRecognition() {
-        updateScreenCaptureLoadingStatus("正在通过 Shizuku 静默截屏...")
+        updateScreenCaptureLoadingStatus("正在通过 Shizuku 截屏...")
         updateScreenCaptureLoadingHint("请保持当前页面不动")
         screenCaptureJob?.cancel()
         screenCaptureJob = CoroutineScope(Dispatchers.IO).launch {
@@ -521,7 +521,7 @@ class OverlayManager(private val ctx: Context) {
                         } catch (e: Exception) {
                             Logger.d(ctx, "OverlayManager", "Accessibility screen recognition failed: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                handleScreenCaptureError("截图识别失败，请稍后重试")
+                                handleScreenCaptureError("截屏识别失败，请稍后重试")
                             }
                         }
                     }
@@ -583,8 +583,8 @@ class OverlayManager(private val ctx: Context) {
         val btnCancel = view.findViewById<TextView>(R.id.btn_visual_draft_cancel)
         val btnConfirm = view.findViewById<TextView>(R.id.btn_visual_draft_confirm)
 
-        title.text = "核对截图记账"
-        hint.text = "AI 已从截图整理出可编辑草稿，确认后再生成账单。"
+        title.text = "核对截屏记账"
+        hint.text = "AI 已从截屏整理出可编辑草稿，确认后再生成账单。"
         btnConfirm.text = "生成账单"
         etDraft.setText(draft)
         etDraft.setSelection(draft.length)
@@ -595,7 +595,7 @@ class OverlayManager(private val ctx: Context) {
 
         btnCancel.setOnClickListener {
             dialog.dismiss()
-            Utils.toast(ctx, "已取消截图记账")
+            Utils.toast(ctx, "已取消截屏记账")
         }
         btnConfirm.setOnClickListener {
             val edited = etDraft.text?.toString().orEmpty().trim()
@@ -689,7 +689,7 @@ class OverlayManager(private val ctx: Context) {
         setOverlayVisible(true)
         markOverlayRestoredNow()
         finishScreenCaptureFlow(restoreOverlay = false)
-        Utils.toast(ctx, message.ifBlank { "截图识别失败，请稍后重试" })
+        Utils.toast(ctx, message.ifBlank { "截屏识别失败，请稍后重试" })
     }
 
     private fun handleScreenCaptureCancelled() {

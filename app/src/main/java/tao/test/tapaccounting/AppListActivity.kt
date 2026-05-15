@@ -121,9 +121,9 @@ class AppListActivity : AppCompatActivity() {
     // ... checkShizukuStatus 保持不变 ...
     private fun checkShizukuStatus() {
         if (!ShizukuSafe.isBinderAlive()) {
-            Utils.toast(this, "提示：Shizuku 未运行，白名单功能将失效")
+            Utils.toast(this, "Shizuku 未运行，白名单功能将失效")
         } else if (!ShizukuSafe.hasPermission(this)) {
-            Utils.toast(this, "提示：尚未获得 Shizuku 授权")
+            Utils.toast(this, "尚未获得 Shizuku 授权")
         }
     }
 }

@@ -74,12 +74,7 @@ object RuleDialogHelper {
             Toast.makeText(ctx, "AI正在为你提取规则...", Toast.LENGTH_SHORT).show()
             CoroutineScope(Dispatchers.IO).launch {
                 val remark = referenceText ?: ""
-                var customPrompt = Prefs.getRulePrompt(ctx)
-                if (customPrompt.isEmpty() || customPrompt.contains("核心的【名词】或【宾语】")) {
-                    customPrompt = DEFAULT_RULE_PROMPT
-                    Prefs.setRulePrompt(ctx, customPrompt)
-                }
-                val prompt = customPrompt
+                val prompt = DEFAULT_RULE_PROMPT
                     .replace("{{REMARK}}", remark)
                     .replace("{{TYPE}}", spType.selectedItemPosition.toString())
                     .replace("{{CATEGORY}}", tvCategory.text.toString())
@@ -90,7 +85,7 @@ object RuleDialogHelper {
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(ctx, "AI提取失败：${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(ctx, "关键词提取失败，请稍后重试", Toast.LENGTH_SHORT).show()
                     }
                 }
             }

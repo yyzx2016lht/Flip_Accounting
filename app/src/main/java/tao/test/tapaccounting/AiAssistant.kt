@@ -239,7 +239,7 @@ class AiAssistant(private val ctx: Context) {
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Utils.toast(ctx, "AIService 错误: ${e.message ?: "未知异常"}")
+                    Utils.toast(ctx, "AI 服务请求失败，请稍后重试")
                     updatePanelState(MODE_INPUT, text)
                 }
             }
@@ -451,7 +451,7 @@ class AiAssistant(private val ctx: Context) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
                     dismiss()
-                    Utils.toast(ctx, "图片解析失败: ${e.message ?: "未知错误"}")
+                    Utils.toast(ctx, "图片解析失败，请换一张更清晰的图片再试")
                 }
             }
         }
@@ -473,7 +473,7 @@ class AiAssistant(private val ctx: Context) {
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Utils.toast(ctx, "小票解析失败: ${e.message ?: "未知异常"}")
+                    Utils.toast(ctx, "小票解析失败，请换一张更清晰的图片再试")
                     val dialog = currentDialog ?: return@withContext
                     val v = dialog.findViewById<View>(android.R.id.content) ?: return@withContext
                     v.findViewById<View>(R.id.layout_loading)?.visibility = View.GONE
@@ -562,7 +562,7 @@ class AiAssistant(private val ctx: Context) {
                     view.findViewById<View>(R.id.layout_input)?.visibility = View.VISIBLE
                     view.findViewById<View>(R.id.btn_close)?.visibility = View.VISIBLE
                     dialog.setCancelable(true)
-                    Utils.toast(ctx, "视觉重试失败: ${e.message ?: "未知错误"}")
+                    Utils.toast(ctx, "图片识别失败，请稍后重试")
                 }
             }
         }

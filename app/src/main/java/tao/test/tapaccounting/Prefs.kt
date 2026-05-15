@@ -169,36 +169,10 @@ object Prefs {
     fun getAiUrl(ctx: Context): String = PrefsAiSupport.getAiUrl(ctx)
     fun setAiUrl(ctx: Context, url: String) = PrefsAiSupport.setAiUrl(ctx, url)
 
-    fun getAiPrompt(ctx: Context): String = PrefsAiSupport.getAiPrompt(ctx)
-    fun setAiPrompt(ctx: Context, prompt: String) = PrefsAiSupport.setAiPrompt(ctx, prompt)
-    fun getModifyBillPrompt(ctx: Context): String = PrefsAiSupport.getModifyBillPrompt(ctx)
-    fun setModifyBillPrompt(ctx: Context, prompt: String) = PrefsAiSupport.setModifyBillPrompt(ctx, prompt)
-
-    fun getMultiBillPrompt(ctx: Context): String = PrefsAiSupport.getMultiBillPrompt(ctx)
-    fun setMultiBillPrompt(ctx: Context, prompt: String) =
-        PrefsAiSupport.setMultiBillPrompt(ctx, prompt)
-
-    fun getRulePrompt(ctx: Context): String = PrefsAiSupport.getRulePrompt(ctx)
-    fun setRulePrompt(ctx: Context, prompt: String) = PrefsAiSupport.setRulePrompt(ctx, prompt)
-    fun getReceiptBillPrompt(ctx: Context): String = PrefsAiSupport.getReceiptBillPrompt(ctx)
-    fun setReceiptBillPrompt(ctx: Context, prompt: String) =
-        PrefsAiSupport.setReceiptBillPrompt(ctx, prompt)
-    fun getReceiptVisionPrompt(ctx: Context): String = PrefsAiSupport.getReceiptVisionPrompt(ctx)
-    fun setReceiptVisionPrompt(ctx: Context, prompt: String) =
-        PrefsAiSupport.setReceiptVisionPrompt(ctx, prompt)
-    fun getScreenAccountingPrompt(ctx: Context): String =
-        PrefsAiSupport.getScreenAccountingPrompt(ctx)
-    fun setScreenAccountingPrompt(ctx: Context, prompt: String) =
-        PrefsAiSupport.setScreenAccountingPrompt(ctx, prompt)
     fun isReceiptOcrRefineEnabled(ctx: Context): Boolean =
         PrefsAiSupport.isReceiptOcrRefineEnabled(ctx)
     fun setReceiptOcrRefineEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setReceiptOcrRefineEnabled(ctx, enabled)
-    fun getReceiptOcrRefinePrompt(ctx: Context): String =
-        PrefsAiSupport.getReceiptOcrRefinePrompt(ctx)
-    fun setReceiptOcrRefinePrompt(ctx: Context, prompt: String) =
-        PrefsAiSupport.setReceiptOcrRefinePrompt(ctx, prompt)
-
     // --- Bill cache management ---
     fun addBill(ctx: Context, bill: Bill) = PrefsDataSupport.addBill(ctx, bill)
 
@@ -374,6 +348,8 @@ object Prefs {
     fun setTapSensitivityLevel(ctx: Context, level: Int) = PrefsGeneralSupport.setTapSensitivityLevel(ctx, level)
     fun isTapNnapiLowPower(ctx: Context): Boolean = PrefsGeneralSupport.isTapNnapiLowPower(ctx)
     fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapNnapiLowPower(ctx, enabled)
+    fun isTapLowPower(ctx: Context): Boolean = PrefsGeneralSupport.isTapLowPower(ctx)
+    fun setTapLowPower(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapLowPower(ctx, enabled)
     fun isTapTripleEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isTapTripleEnabled(ctx)
     fun setTapTripleEnabled(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapTripleEnabled(ctx, enabled)
     fun getTapActionDouble(ctx: Context): String = PrefsGeneralSupport.getTapActionDouble(ctx)

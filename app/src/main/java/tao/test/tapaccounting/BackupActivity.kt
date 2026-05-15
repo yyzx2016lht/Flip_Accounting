@@ -234,7 +234,6 @@ class BackupActivity : AppCompatActivity() {
             findViewById<MaterialCheckBox>(R.id.cb_settings_display_bills).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_display_multibill).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_ai_core).isChecked = value
-            findViewById<MaterialCheckBox>(R.id.cb_settings_ai_prompts).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_ai_chat).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_books).isChecked = value
             findViewById<MaterialCheckBox>(R.id.cb_settings_advanced_runtime).isChecked = value
@@ -260,8 +259,8 @@ class BackupActivity : AppCompatActivity() {
 
     private fun updatePinModeHint() {
         findViewById<TextView>(R.id.tv_backup_pin_hint).text = when (currentPinMode()) {
-            BackupPinMode.AUTO -> "PIN 自动：首次备份 AI 核心模型时会设置 PIN；覆盖已加密备份时需验证同一 PIN。"
-            BackupPinMode.FORCE -> "PIN 强制：只要勾选 AI 核心模型，就要求输入 PIN。"
+            BackupPinMode.AUTO -> "PIN 自动：首次备份 AI 服务配置时会设置 PIN；覆盖已加密备份时需验证同一 PIN。"
+            BackupPinMode.FORCE -> "PIN 强制：只要勾选 AI 服务配置，就要求输入 PIN。"
             BackupPinMode.PLAIN -> "不加密：不会对 API Key 做 PIN 加密，请注意安全风险。"
         }
     }
@@ -311,7 +310,7 @@ class BackupActivity : AppCompatActivity() {
                     WebDavClient.testConnection(config)
                     withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "连接成功") }
                 } catch (e: Exception) {
-                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "连接失败: ${rootCauseMessage(e)}") }
+                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "连接失败，请检查网络或 WebDAV 配置") }
                 }
             }
         }
@@ -418,7 +417,7 @@ class BackupActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "云端上传失败: ${rootCauseMessage(e)}")
+                    Utils.toast(this@BackupActivity, "云端上传失败，请检查网络后重试")
                 }
             } finally {
                 runCatching { tempFile.delete() }
@@ -440,7 +439,7 @@ class BackupActivity : AppCompatActivity() {
                 showRestoreDialogFromFile(tempFile)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "云端下载失败: ${rootCauseMessage(e)}")
+                    Utils.toast(this@BackupActivity, "云端下载失败，请检查网络后重试")
                 }
             }
         }
@@ -530,7 +529,7 @@ class BackupActivity : AppCompatActivity() {
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("备份加密方式")
-            .setMessage("检测到将备份 AI 核心模型（含 API Key），请选择本次加密方式。")
+            .setMessage("检测到将备份 AI 服务配置（含 API Key），请选择本次加密方式。")
             .setItems(labels.toTypedArray()) { _, which -> actions[which].invoke() }
             .setNegativeButton("取消", null)
             .create()
@@ -594,7 +593,6 @@ class BackupActivity : AppCompatActivity() {
             backupSettingsDisplayBills = findViewById<MaterialCheckBox>(R.id.cb_settings_display_bills).isChecked,
             backupSettingsDisplayMultiBill = findViewById<MaterialCheckBox>(R.id.cb_settings_display_multibill).isChecked,
             backupSettingsAiCore = findViewById<MaterialCheckBox>(R.id.cb_settings_ai_core).isChecked,
-            backupSettingsAiPrompts = findViewById<MaterialCheckBox>(R.id.cb_settings_ai_prompts).isChecked,
             backupSettingsAiChat = findViewById<MaterialCheckBox>(R.id.cb_settings_ai_chat).isChecked,
             backupSettingsBooks = findViewById<MaterialCheckBox>(R.id.cb_settings_books).isChecked,
             backupSettingsAdvancedRuntime = findViewById<MaterialCheckBox>(R.id.cb_settings_advanced_runtime).isChecked,
@@ -606,7 +604,7 @@ class BackupActivity : AppCompatActivity() {
         return backupAssets || backupCategories || backupBills || backupRules ||
             backupChatMessages || backupChatMedia || backupSettingsGeneralBasic || backupSettingsGeneralAssets ||
             backupSettingsGeneralCloud || backupSettingsDisplayEntries || backupSettingsDisplayBills ||
-            backupSettingsDisplayMultiBill || backupSettingsAiCore || backupSettingsAiPrompts ||
+            backupSettingsDisplayMultiBill || backupSettingsAiCore ||
             backupSettingsAiChat || backupSettingsBooks || backupSettingsAdvancedRuntime ||
             backupBanners
     }
@@ -627,7 +625,7 @@ class BackupActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "备份失败: ${rootCauseMessage(e)}")
+                    Utils.toast(this@BackupActivity, "备份失败，请稍后重试")
                 }
             } finally {
                 runCatching { tempFile.delete() }
@@ -662,7 +660,6 @@ class BackupActivity : AppCompatActivity() {
             } else raw
             toBackup["settings_ai_core"] = protected
         }
-        if (options.backupSettingsAiPrompts) settingsModules["settings_ai_prompts"]?.let { toBackup["settings_ai_prompts"] = it }
         if (options.backupSettingsAiChat) settingsModules["settings_ai_chat"]?.let { toBackup["settings_ai_chat"] = it }
         if (options.backupSettingsBooks) settingsModules["settings_books"]?.let { toBackup["settings_books"] = it }
         if (options.backupSettingsAdvancedRuntime) settingsModules["settings_advanced_runtime"]?.let { toBackup["settings_advanced_runtime"] = it }
@@ -714,7 +711,7 @@ class BackupActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("BackupActivity", "解析备份文件失败", e)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "解析备份文件失败: ${rootCauseMessage(e)}")
+                    Utils.toast(this@BackupActivity, "无法读取备份文件，文件可能已损坏")
                 }
             }
         }
@@ -744,7 +741,6 @@ class BackupActivity : AppCompatActivity() {
                 "settings_display_bills" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_display_bills),
                 "settings_display_multibill" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_display_multibill),
                 "settings_ai_core" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_ai_core),
-                "settings_ai_prompts" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_ai_prompts),
                 "settings_ai_chat" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_ai_chat),
                 "settings_books" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_books),
                 "settings_advanced_runtime" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_advanced_runtime),
@@ -792,7 +788,6 @@ class BackupActivity : AppCompatActivity() {
                 moduleViews.getValue("settings_general"),
                 moduleViews.getValue("settings_display"),
                 moduleViews.getValue("settings_ai_core"),
-                moduleViews.getValue("settings_ai_prompts"),
                 moduleViews.getValue("settings_ai_chat"),
                 moduleViews.getValue("settings_books"),
                 moduleViews.getValue("settings_advanced_runtime"),
@@ -821,7 +816,6 @@ class BackupActivity : AppCompatActivity() {
                         restoreSettingsDisplayBills = moduleViews.getValue("settings_display_bills").isChecked,
                         restoreSettingsDisplayMultiBill = moduleViews.getValue("settings_display_multibill").isChecked,
                         restoreSettingsAiCore = moduleViews.getValue("settings_ai_core").isChecked,
-                        restoreSettingsAiPrompts = moduleViews.getValue("settings_ai_prompts").isChecked,
                         restoreSettingsAiChat = moduleViews.getValue("settings_ai_chat").isChecked,
                         restoreSettingsBooks = moduleViews.getValue("settings_books").isChecked,
                         restoreSettingsAdvancedRuntime = moduleViews.getValue("settings_advanced_runtime").isChecked,
@@ -870,7 +864,6 @@ class BackupActivity : AppCompatActivity() {
                     options.restoreSettingsDisplayEntries to "settings_display_entries",
                     options.restoreSettingsDisplayBills to "settings_display_bills",
                     options.restoreSettingsDisplayMultiBill to "settings_display_multibill",
-                    options.restoreSettingsAiPrompts to "settings_ai_prompts",
                     options.restoreSettingsAiChat to "settings_ai_chat",
                     options.restoreSettingsBooks to "settings_books",
                     options.restoreSettingsAdvancedRuntime to "settings_advanced_runtime",
@@ -904,7 +897,7 @@ class BackupActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("BackupActivity", "恢复数据失败", e)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "恢复失败: ${rootCauseMessage(e)}")
+                    Utils.toast(this@BackupActivity, "恢复失败，请检查备份文件后重试")
                 }
             }
         }
@@ -1056,7 +1049,7 @@ class BackupActivity : AppCompatActivity() {
         container.addView(etPinConfirm)
         val dialog = AlertDialog.Builder(this)
             .setTitle("设置备份 PIN")
-            .setMessage("检测到要备份 AI 核心模型，其中包含 API Key。请设置 4 位数字 PIN 用于加密。")
+            .setMessage("检测到要备份 AI 服务配置，其中包含 API Key。请设置 4 位数字 PIN 用于加密。")
             .setView(container)
             .setPositiveButton("确认") { _, _ ->
                 val pin = etPin.text?.toString().orEmpty().trim()
@@ -1105,7 +1098,7 @@ class BackupActivity : AppCompatActivity() {
                     if (intent?.getStringExtra(EXTRA_OPEN_SECTION) == SECTION_CSV && isQuickOneShot()) finish()
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "导出失败: ${e.message}") }
+                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "导出失败，请稍后重试") }
             }
         }
     }
@@ -1158,7 +1151,7 @@ class BackupActivity : AppCompatActivity() {
                                         if (intent?.getStringExtra(EXTRA_OPEN_SECTION) == SECTION_CSV && isQuickOneShot()) finish()
                                     }
                                 } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "导入失败: ${e.message}") }
+                                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "导入失败，请检查 CSV 文件格式") }
                                 }
                             }
                         }
@@ -1167,7 +1160,7 @@ class BackupActivity : AppCompatActivity() {
                     OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "解析 CSV 失败: ${e.message}") }
+                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "无法解析 CSV 文件，请检查文件格式") }
             }
         }
     }
@@ -1267,7 +1260,7 @@ class BackupActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "修复失败: ${rootCauseMessage(e)}")
+                    Utils.toast(this@BackupActivity, "修复失败，请稍后重试")
                 }
             }
         }
@@ -1396,7 +1389,6 @@ data class BackupOptions(
     val backupSettingsDisplayBills: Boolean,
     val backupSettingsDisplayMultiBill: Boolean,
     val backupSettingsAiCore: Boolean,
-    val backupSettingsAiPrompts: Boolean,
     val backupSettingsAiChat: Boolean,
     val backupSettingsBooks: Boolean,
     val backupSettingsAdvancedRuntime: Boolean,
@@ -1417,7 +1409,6 @@ data class RestoreOptions(
     val restoreSettingsDisplayBills: Boolean,
     val restoreSettingsDisplayMultiBill: Boolean,
     val restoreSettingsAiCore: Boolean,
-    val restoreSettingsAiPrompts: Boolean,
     val restoreSettingsAiChat: Boolean,
     val restoreSettingsBooks: Boolean,
     val restoreSettingsAdvancedRuntime: Boolean,

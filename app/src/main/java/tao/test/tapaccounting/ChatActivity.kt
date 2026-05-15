@@ -718,7 +718,7 @@ class ChatActivity : AppCompatActivity() {
             android.content.pm.PackageManager.PERMISSION_GRANTED
         if (!granted) {
             requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1001)
-            Utils.toast(this, "需要麦克风权限才能录音")
+            Utils.toast(this, getString(R.string.mic_permission_required))
         }
         return granted
     }
@@ -726,9 +726,9 @@ class ChatActivity : AppCompatActivity() {
     private fun ensureAiVoiceFeatureEnabled(): Boolean {
         if (Prefs.isShowAiVoice(this)) return true
         uiHelperController.showCustomConfirmDialog(
-            title = "请先开启语音记账",
-            message = "你在 AI 对话里发送语音前，需要先到设置中心开启“语音记账”功能。",
-            confirmText = "去开启",
+            title = getString(R.string.chat_voice_dialog_title),
+            message = getString(R.string.chat_voice_dialog_message),
+            confirmText = getString(R.string.chat_goto_settings),
             onConfirm = {
                 startActivity(
                     Intent(this, MainActivity::class.java)
@@ -743,9 +743,9 @@ class ChatActivity : AppCompatActivity() {
     private fun ensureAiImageFeatureEnabled(): Boolean {
         if (Prefs.isShowAiImage(this)) return true
         uiHelperController.showCustomConfirmDialog(
-            title = "请先开启图片记账",
-            message = "你在 AI 对话里发送图片前，需要先到设置中心开启“图片记账”功能。",
-            confirmText = "去开启",
+            title = getString(R.string.chat_image_dialog_title),
+            message = getString(R.string.chat_image_dialog_message),
+            confirmText = getString(R.string.chat_goto_settings),
             onConfirm = {
                 startActivity(
                     Intent(this, MainActivity::class.java)
@@ -867,32 +867,32 @@ class ChatActivity : AppCompatActivity() {
             val copiedFile = withContext(Dispatchers.IO) { copyVoiceFileToStorage(tempFile) }
             if (durationSec > maxVoiceRecordDurationSec || copiedFile.length() > maxVoiceRecordBytes) {
                 runCatching { copiedFile.delete() }
-                appendAiTextMessage("语音超出限制（最长 3 分钟、8MB），请缩短后重试。", isLoading = false)
+                appendAiTextMessage(getString(R.string.voice_too_long), isLoading = false)
                 return@launch
             }
             val added = appendUserVoiceMessage(copiedFile, durationSec, "")
-            val loadingIdx = appendAiTextMessage("正在听写语音...", isLoading = true)
+            val loadingIdx = appendAiTextMessage(getString(R.string.transcribing_voice), isLoading = true)
             val transcript = withContext(Dispatchers.IO) {
                 transcribeVoiceToTextWithFallback(copiedFile)
             }.trim()
             if (transcript == "API_KEY_NOT_SETUP") {
                 removeLoadingMessage(loadingIdx)
-                appendAiTextMessage("需要先配置 API Key，才能使用云端语音识别。", isLoading = false)
+                appendAiTextMessage(getString(R.string.api_key_required_cloud_asr), isLoading = false)
                 return@launch
             }
             if (transcript == "MODEL_DOWNLOADING") {
                 removeLoadingMessage(loadingIdx)
-                appendAiTextMessage("离线语音模型正在下载，请下载完成后再试。", isLoading = false)
+                appendAiTextMessage(getString(R.string.asr_model_downloading), isLoading = false)
                 return@launch
             }
             if (transcript == "WHISPER_NOT_SETUP") {
                 removeLoadingMessage(loadingIdx)
-                appendAiTextMessage("需要先下载离线语音模型，才能使用本地语音识别。", isLoading = false)
+                appendAiTextMessage(getString(R.string.asr_model_needed_for_local), isLoading = false)
                 return@launch
             }
             if (transcript.isBlank()) {
                 removeLoadingMessage(loadingIdx)
-                appendAiTextMessage("这段语音没有识别清楚，你可以再说一遍，我会继续按“语音转文字”方式发送。", isLoading = false)
+                appendAiTextMessage(getString(R.string.voice_not_clear), isLoading = false)
                 return@launch
             }
             callAiAccounting(
@@ -1223,7 +1223,7 @@ class ChatActivity : AppCompatActivity() {
                 btnConfirm.setOnClickListener {
                     val edited = etDraft.text?.toString().orEmpty().trim()
                     if (edited.isBlank()) {
-                        Utils.toast(this@ChatActivity, "请保留可识别的记账内容")
+                        Utils.toast(this@ChatActivity, getString(R.string.keep_recognizable_bill_content))
                         return@setOnClickListener
                     }
                     finish(edited)
@@ -1262,7 +1262,7 @@ class ChatActivity : AppCompatActivity() {
                 pendingBillSelection?.continuation?.takeIf { it.isActive }?.resume(null)
                 pendingBillSelection = PendingBillSelection(token = token, continuation = cont)
                 appendAiTextMessage(
-                    "我找到了 ${displayCandidates.size} 笔可能匹配的账单，请在下方点“选这笔”确认要修改哪一笔。",
+                    "我找到了 ${displayCandidates.size} 笔可能匹配的账单，请在下方点「选这笔」确认要修改哪一笔。",
                     isLoading = false
                 )
                 appendInteractiveBillCard(
@@ -1482,7 +1482,7 @@ class ChatActivity : AppCompatActivity() {
         val referenceText = updatedBill.remark.ifBlank { originalBill.remark }.trim()
         if (referenceText.isBlank()) return
 
-        Utils.toast(this, "检测到 AI 识别与最终结果不一致，可添加本地规则自动纠正")
+        Utils.toast(this, getString(R.string.ai_mismatch_detected))
 
         RuleDialogHelper.showDialog(
             ctx = this,
@@ -1496,9 +1496,9 @@ class ChatActivity : AppCompatActivity() {
             onSave = { newRule ->
                 lifecycleScope.launch {
                     when (saveRuleWithKeywordConflictPrompt(newRule)) {
-                        RuleSaveOutcome.SAVED -> Utils.toast(this@ChatActivity, "规则创建成功")
-                        RuleSaveOutcome.OVERWRITTEN -> Utils.toast(this@ChatActivity, "已覆盖同关键词旧规则")
-                        RuleSaveOutcome.CANCELED -> Utils.toast(this@ChatActivity, "已取消规则保存")
+                        RuleSaveOutcome.SAVED -> Utils.toast(this@ChatActivity, getString(R.string.rule_saved))
+                        RuleSaveOutcome.OVERWRITTEN -> Utils.toast(this@ChatActivity, getString(R.string.rule_overwritten))
+                        RuleSaveOutcome.CANCELED -> Utils.toast(this@ChatActivity, getString(R.string.rule_save_canceled))
                     }
                 }
             },
@@ -1544,8 +1544,8 @@ class ChatActivity : AppCompatActivity() {
             return@suspendCancellableCoroutine
         }
         val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_TapAccounting))
-            .setTitle("检测到同关键词规则")
-            .setMessage("关键词“$keyword”已有 $existingCount 条规则。\n\n继续保存将覆盖旧规则，是否继续？")
+            .setTitle(getString(R.string.duplicate_rule_dialog_title))
+            .setMessage(getString(R.string.duplicate_rule_dialog_message, keyword, existingCount.toString()))
             .setPositiveButton("继续并覆盖") { d, _ ->
                 d.dismiss()
                 if (cont.isActive) cont.resume(true)

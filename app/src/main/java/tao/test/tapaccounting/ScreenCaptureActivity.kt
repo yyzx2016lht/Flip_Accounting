@@ -104,7 +104,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
 
         when {
             Prefs.isShizukuModeEnabled(this) && ShizukuSafe.isReady(this) -> {
-                tvStatus.text = "正在通过 Shizuku 静默截屏..."
+                tvStatus.text = "正在通过 Shizuku 截屏..."
                 Logger.d(this, "ScreenCaptureActivity", "Using Shizuku silent screencap path")
                 startShizukuCapture()
             }
@@ -134,14 +134,14 @@ class ScreenCaptureActivity : AppCompatActivity() {
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap == null) {
                     Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap decode returned null")
-                    withContext(Dispatchers.Main) { fail("Shizuku 截屏失败，请稍后重试") }
+                    withContext(Dispatchers.Main) { fail("截屏失败，请稍后重试") }
                     return@launch
                 }
                 Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap succeeded. bytes=${bytes.size}, size=${bitmap.width}x${bitmap.height}")
                 submitBitmapForRecognition(bitmap)
             } catch (e: Exception) {
                 Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap failed: ${e.message}")
-                withContext(Dispatchers.Main) { fail("Shizuku 截屏失败，请稍后重试") }
+                withContext(Dispatchers.Main) { fail("截屏失败，请稍后重试") }
             }
         }
     }
@@ -224,7 +224,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "AI screen recognition failed: ${e.message}")
-                    fail(e.message ?: "截图识别失败，请稍后重试")
+                    fail(e.message ?: "截屏识别失败，请稍后重试")
                 }
             }
         }

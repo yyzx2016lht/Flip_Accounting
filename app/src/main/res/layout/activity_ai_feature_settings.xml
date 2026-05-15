@@ -26,7 +26,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="AI 智能功能"
+            android:text="@string/ai_feature_title"
                 android:textColor="@color/settings_item_title"
             android:textSize="@dimen/text_size_18"
             android:textStyle="bold" />
@@ -79,7 +79,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="AI 核心模型未解锁"
+                        android:text="@string/ai_feature_unconfigured"
                         android:textColor="#5C4200"
                         android:textSize="@dimen/text_size_15"
                         android:textStyle="bold" />
@@ -88,7 +88,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="请向开发者索要配置密钥，点此输入。"
+                        android:text="@string/ai_feature_unconfigured_hint"
                         android:textColor="#8A6A1E"
                         android:textSize="@dimen/text_size_12" />
                 </LinearLayout>
@@ -170,7 +170,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="启用 AI 功能"
+                                android:text="@string/ai_feature_entry_title"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_16"
                                 android:textStyle="bold" />
@@ -179,7 +179,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="入口显示由设置中心控制，此处仅展示能力项。"
+                                android:text="@string/ai_feature_entry_desc"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -228,7 +228,7 @@
                                     <TextView
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:text="AI 对话页面"
+                                        android:text="@string/ai_chat_entry"
                                         android:textColor="#1F2A3D"
                                         android:textSize="@dimen/text_size_14"
                                         android:textStyle="bold" />
@@ -237,7 +237,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:layout_marginTop="2dp"
-                                        android:text="首页“+”可直接进入 AI 对话记账。"
+                                        android:text="@string/ai_chat_entry_desc"
                                         android:textColor="#9AA4B2"
                                         android:textSize="@dimen/text_size_11" />
                                 </LinearLayout>
@@ -272,7 +272,7 @@
                                     <TextView
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:text="记账页增加 AI 入口"
+                                        android:text="@string/ai_accounting_entry"
                                         android:textColor="#1F2A3D"
                                         android:textSize="@dimen/text_size_14"
                                         android:textStyle="bold" />
@@ -281,7 +281,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:layout_marginTop="2dp"
-                                        android:text="在传统记账弹窗底部显示切换入口。"
+                                        android:text="@string/ai_accounting_entry_desc"
                                         android:textColor="#9AA4B2"
                                         android:textSize="@dimen/text_size_11" />
                                 </LinearLayout>
@@ -359,7 +359,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="大模型路由"
+                                android:text="@string/ai_llm_router"
                                 android:textColor="#1F2A3D"
                                 android:textSize="@dimen/text_size_14"
                                 android:textStyle="bold" />
@@ -368,7 +368,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="关闭后仅区分“记账/闲聊”。"
+                                android:text="@string/ai_llm_router_desc"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -414,7 +414,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="会多轮次使用模型进行分类，使用 token 更多。"
+                                android:text="@string/ai_detailed_accounting_desc"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -515,7 +515,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="语音记账"
+                                android:text="@string/ai_voice_accounting"
                                 android:textColor="#1F2A3D"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -524,7 +524,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="开启后可通过语音识别快速生成账单。"
+                                android:text="@string/ai_voice_accounting_desc"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -553,7 +553,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="8dp"
-                            android:text="识别引擎"
+                            android:text="@string/asr_engine_label"
                             android:textColor="#4E5A6A"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
@@ -570,7 +570,7 @@
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="8dp"
-                                android:text="云端引擎"
+                                android:text="@string/asr_online"
                                 android:textSize="@dimen/text_size_13"
                                 app:strokeColor="#DCE2EA"
                                 app:cornerRadius="10dp" />
@@ -581,7 +581,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
-                                android:text="离线引擎"
+                                android:text="@string/asr_offline"
                                 android:textSize="@dimen/text_size_13"
                                 app:strokeColor="#DCE2EA"
                                 app:cornerRadius="10dp" />
@@ -649,7 +649,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="图片记账"
+                                android:text="@string/ai_image_accounting"
                                 android:textColor="#1F2A3D"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -658,7 +658,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="开启后可从小票或截图中识别账单信息。"
+                                android:text="@string/ai_image_accounting_desc"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -695,7 +695,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="截屏记账"
+                                android:text="@string/ai_screen_accounting"
                                 android:textColor="#1F2A3D"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -704,7 +704,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="开启后可通过敲击背板截屏识别账单。"
+                                android:text="@string/ai_screen_accounting_desc"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -725,7 +725,7 @@
                         android:background="@drawable/bg_inset_panel"
                         android:paddingHorizontal="12dp"
                         android:paddingVertical="8dp"
-                        android:text="需开启无障碍服务或 Shizuku 模式才能使用截屏记账。"
+                        android:text="@string/ai_screen_accounting_perm_hint"
                         android:textColor="#9AA4B2"
                         android:textSize="@dimen/text_size_10"
                         android:visibility="gone" />
@@ -760,7 +760,7 @@
                     android:layout_width="0dp"
                     android:layout_height="44dp"
                     android:layout_weight="1"
-                    android:text="AI 核心模型"
+                    android:text="@string/ai_core_model"
                     android:textColor="#FFFFFF"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold"

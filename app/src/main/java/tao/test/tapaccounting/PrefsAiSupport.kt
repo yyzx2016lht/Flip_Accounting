@@ -19,19 +19,12 @@ object PrefsAiSupport {
     private const val KEY_AI_MODELS_CACHE = "ai_models_cache"
     private const val KEY_AI_PROVIDER = "ai_provider"
     private const val KEY_AI_URL = "ai_api_url"
-    private const val KEY_AI_PROMPT = "ai_system_prompt"
-    private const val KEY_MULTI_BILL_PROMPT = "multi_bill_prompt"
-    private const val KEY_RULE_PROMPT = "rule_extract_prompt"
     private const val KEY_AI_RECEIPT_MODEL = "ai_receipt_model_id"
-    private const val KEY_RECEIPT_BILL_PROMPT = "receipt_bill_prompt"
     private const val KEY_AI_RECEIPT_VISION_MODEL = "ai_receipt_vision_model_id"
-    private const val KEY_RECEIPT_VISION_PROMPT = "receipt_vision_prompt"
     private const val KEY_AI_SCREEN_MODEL = "ai_screen_model_id"
     private const val KEY_SCREEN_VISION_SUPPORTED_MODELS = "screen_vision_supported_models"
-    private const val KEY_SCREEN_ACCOUNTING_PROMPT = "screen_accounting_prompt"
     private const val KEY_RECEIPT_OCR_REFINE_ENABLED = "receipt_ocr_refine_enabled"
     private const val KEY_AI_RECEIPT_OCR_REFINE_MODEL = "ai_receipt_ocr_refine_model_id"
-    private const val KEY_RECEIPT_OCR_REFINE_PROMPT = "receipt_ocr_refine_prompt"
     private const val KEY_AI_SPEECH_MODEL = "ai_speech_model_id"
     private const val KEY_AI_ENABLE_THINKING = "ai_enable_thinking"
     private const val KEY_AI_THINKING_MULTI_BILL = "ai_thinking_multi_bill"
@@ -192,47 +185,10 @@ object PrefsAiSupport {
     fun setAiUrl(ctx: Context, url: String) =
         prefs(ctx).edit().putString(KEY_AI_URL, "https://api.siliconflow.cn").apply()
 
-    fun getAiPrompt(ctx: Context): String = prefs(ctx).getString(KEY_AI_PROMPT, "") ?: ""
-    fun setAiPrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString(KEY_AI_PROMPT, prompt).apply()
-
-    fun getModifyBillPrompt(ctx: Context): String = prefs(ctx).getString("modify_bill_prompt", "") ?: ""
-    fun setModifyBillPrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString("modify_bill_prompt", prompt).apply()
-
-    fun getMultiBillPrompt(ctx: Context): String =
-        prefs(ctx).getString(KEY_MULTI_BILL_PROMPT, "") ?: ""
-    fun setMultiBillPrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString(KEY_MULTI_BILL_PROMPT, prompt).apply()
-
-    fun getRulePrompt(ctx: Context): String = prefs(ctx).getString(KEY_RULE_PROMPT, "") ?: ""
-    fun setRulePrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString(KEY_RULE_PROMPT, prompt).apply()
-
-    fun getReceiptBillPrompt(ctx: Context): String =
-        prefs(ctx).getString(KEY_RECEIPT_BILL_PROMPT, "") ?: ""
-    fun setReceiptBillPrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString(KEY_RECEIPT_BILL_PROMPT, prompt).apply()
-
-    fun getReceiptVisionPrompt(ctx: Context): String =
-        prefs(ctx).getString(KEY_RECEIPT_VISION_PROMPT, "") ?: ""
-    fun setReceiptVisionPrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString(KEY_RECEIPT_VISION_PROMPT, prompt).apply()
-
-    fun getScreenAccountingPrompt(ctx: Context): String =
-        prefs(ctx).getString(KEY_SCREEN_ACCOUNTING_PROMPT, "") ?: ""
-    fun setScreenAccountingPrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString(KEY_SCREEN_ACCOUNTING_PROMPT, prompt).apply()
-
     fun isReceiptOcrRefineEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_RECEIPT_OCR_REFINE_ENABLED, false)
     fun setReceiptOcrRefineEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_RECEIPT_OCR_REFINE_ENABLED, enabled).apply()
-
-    fun getReceiptOcrRefinePrompt(ctx: Context): String =
-        prefs(ctx).getString(KEY_RECEIPT_OCR_REFINE_PROMPT, "") ?: ""
-    fun setReceiptOcrRefinePrompt(ctx: Context, prompt: String) =
-        prefs(ctx).edit().putString(KEY_RECEIPT_OCR_REFINE_PROMPT, prompt).apply()
 
     fun addOcrDebugRecord(ctx: Context, text: String, source: String = "local_ocr_before_ai") {
         if (text.isBlank()) return

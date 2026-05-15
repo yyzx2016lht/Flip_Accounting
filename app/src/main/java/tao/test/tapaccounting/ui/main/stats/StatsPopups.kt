@@ -159,7 +159,7 @@ class SubCategoryBottomSheet(
         }
         if (filteredNames.isEmpty()) {
             pieChart.clear()
-            pieChart.setNoDataText("暂无占比≥2%的二级分类")
+            pieChart.setNoDataText("暂无占比超过 2% 的子分类")
             pieChart.invalidate()
             return
         }

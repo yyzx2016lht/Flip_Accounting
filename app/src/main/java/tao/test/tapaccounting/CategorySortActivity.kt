@@ -84,9 +84,9 @@ class CategorySortActivity : AppCompatActivity() {
                 val childCount = childCountByParentId[item.id] ?: 0
                 holder.subtitle.visibility = View.VISIBLE
                 holder.subtitle.text = if (childCount > 0) {
-                    "$childCount 个二级分类"
+                    "$childCount 个子分类"
                 } else {
-                    "暂无二级分类"
+                    "暂无子分类"
                 }
                 holder.arrow.visibility = View.VISIBLE
                 holder.dragHint.visibility = View.GONE
@@ -182,11 +182,11 @@ class CategorySortActivity : AppCompatActivity() {
                 loadData()
             }
             secondaryHeader.setTitle("排序分类")
-            secondaryHeader.setSubtitle("长按一级分类卡片进行排序，点击卡片进入对应的二级分类排序。")
+            secondaryHeader.setSubtitle("长按一级分类卡片进行排序，点击卡片进入对应的子分类排序。")
         } else {
             rgType.visibility = View.GONE
-            secondaryHeader.setTitle(parentName ?: "排序二级分类")
-            secondaryHeader.setSubtitle("这里只排序当前一级分类下的二级分类，不会和一级分类混在一起。")
+            secondaryHeader.setTitle(parentName ?: "排序子分类")
+            secondaryHeader.setSubtitle("这里只排序当前一级分类下的子分类，不会和一级分类混在一起。")
         }
 
         loadData()
