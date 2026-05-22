@@ -33,6 +33,7 @@ class BookOverviewActivity : AppCompatActivity() {
     private var selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR)
     private var selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH) + 1
     private var isYearMode: Boolean = false
+    private var collapsedBooksExpanded: Boolean = false
 
     private lateinit var tvCurrentPeriod: TextView
     private lateinit var tvTotalExpense: TextView
@@ -84,7 +85,12 @@ class BookOverviewActivity : AppCompatActivity() {
 
     private fun setupAdapter() {
         adapter = BookOverviewAdapter(
-            onCardClick = { item ->
+            onCardClick = cardClick@ { item ->
+                if (item.bookName == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+                    collapsedBooksExpanded = !collapsedBooksExpanded
+                    loadData()
+                    return@cardClick
+                }
                 // 点击卡片返回选中的账本
                 val resultIntent = android.content.Intent()
                 resultIntent.putExtra(EXTRA_CURRENT_BOOK, item.bookName)
@@ -270,15 +276,29 @@ class BookOverviewActivity : AppCompatActivity() {
     private suspend fun buildOverviewItems(): List<BookOverviewItem> {
         val ctx = this
         val db = AppDatabase.getDatabase(ctx)
-        val books = BookAccountManager.getBookAccounts(ctx)
+        val allBooks = BookAccountManager.getBookAccounts(ctx)
             .map { BookAccountManager.normalizeBookName(it) }
             .filter { it != BookAccountManager.ALL_BOOK }
+        val collapsedBooks = BookAccountManager.getCollapsedBookAccounts(ctx, allBooks)
+            .map { BookAccountManager.normalizeBookName(it) }
+            .toSet()
+        val books = BookAccountManager.getDisplayBookAccounts(
+            context = ctx,
+            books = allBooks,
+            includeAllBook = false,
+            collapsedGroupExpanded = collapsedBooksExpanded
+        )
         val (startMs, endMs) = getPeriodRange()
         val allBills: List<Bill> = db.billDao().getBillsBetweenTimesList(startMs, endMs)
 
         return books.map { normalizedBook ->
+            val targetBooks = if (normalizedBook == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+                collapsedBooks
+            } else {
+                setOf(normalizedBook)
+            }
             val billsForBook = allBills.filter {
-                BookAccountManager.isBillInBook(it.bookName, normalizedBook)
+                targetBooks.any { book -> BookAccountManager.isBillInBook(it.bookName, book) }
             }
             val expense = billsForBook
                 .sumOf { bill ->
@@ -305,8 +325,16 @@ class BookOverviewActivity : AppCompatActivity() {
 
             BookOverviewItem(
                 bookName = normalizedBook,
-                themeColor = BookAccountManager.getBookColor(ctx, normalizedBook),
-                bannerPath = BookAccountManager.getBookBannerPath(ctx, normalizedBook),
+                themeColor = if (normalizedBook == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+                    android.graphics.Color.parseColor("#8E9CAF")
+                } else {
+                    BookAccountManager.getBookColor(ctx, normalizedBook)
+                },
+                bannerPath = if (normalizedBook == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+                    null
+                } else {
+                    BookAccountManager.getBookBannerPath(ctx, normalizedBook)
+                },
                 expense = expense,
                 income = income,
                 isCurrentBook = normalizedBook == BookAccountManager.normalizeBookName(currentBook)

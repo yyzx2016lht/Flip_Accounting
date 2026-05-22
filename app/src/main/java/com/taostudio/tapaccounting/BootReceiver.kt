@@ -13,10 +13,11 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent == null) return
 
+        val flipEnabled = Prefs.isFlipEnabled(context)
         val tapEnabled = Prefs.isDoubleTapEnabled(context)
-        if (!tapEnabled) return
+        if (!flipEnabled && !tapEnabled) return
 
-        Log.d(TAG, "onReceive: action=${intent.action}, tap=$tapEnabled")
+        Log.d(TAG, "onReceive: action=${intent.action}, flip=$flipEnabled, tap=$tapEnabled")
 
         val action = intent.action
         if (Intent.ACTION_BOOT_COMPLETED == action ||

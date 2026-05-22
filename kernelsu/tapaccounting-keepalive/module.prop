@@ -1,0 +1,6 @@
+id=tapaccounting_keepalive
+name=TapAccounting KeepAlive
+version=1.0.0
+versionCode=1
+author=tao + Codex
+description=Keeps com.taostudio.tapaccounting on Android idle/appops allowlists and restores it after OEM force-stop when possible.

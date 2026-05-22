@@ -18,6 +18,9 @@ interface InvestmentLotDao {
     @Query("SELECT * FROM investment_lots WHERE remainingPrincipal > 0.0 ORDER BY startEarningAt ASC, id ASC")
     suspend fun getOpenLots(): List<InvestmentLot>
 
+    @Query("SELECT * FROM investment_lots WHERE assetId = :assetId AND remainingPrincipal > 0.0 ORDER BY startEarningAt ASC, id ASC")
+    suspend fun getOpenLotsByAssetId(assetId: Long): List<InvestmentLot>
+
     @Query("SELECT * FROM investment_lots ORDER BY startEarningAt ASC, id ASC")
     suspend fun getAllLots(): List<InvestmentLot>
 
@@ -26,6 +29,9 @@ interface InvestmentLotDao {
 
     @Query("DELETE FROM investment_lots WHERE sourceBillId = :billId")
     suspend fun deleteBySourceBillId(billId: Long)
+
+    @Query("DELETE FROM investment_lots WHERE assetId = :assetId")
+    suspend fun deleteByAssetId(assetId: Long)
 
     @Query("DELETE FROM investment_lots")
     suspend fun deleteAll()

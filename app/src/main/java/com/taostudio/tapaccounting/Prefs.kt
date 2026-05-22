@@ -43,6 +43,13 @@ object Prefs {
     fun isHideRecents(ctx: Context): Boolean = PrefsGeneralSupport.isHideRecents(ctx)
     fun setHideRecents(ctx: Context, hide: Boolean) = PrefsGeneralSupport.setHideRecents(ctx, hide)
 
+    fun isFlipEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isFlipEnabled(ctx)
+    fun setFlipEnabled(ctx: Context, enabled: Boolean) =
+        PrefsGeneralSupport.setFlipEnabled(ctx, enabled)
+    fun getFlipSensitivity(ctx: Context): Int = PrefsGeneralSupport.getFlipSensitivity(ctx)
+    fun setFlipSensitivity(ctx: Context, level: Int) =
+        PrefsGeneralSupport.setFlipSensitivity(ctx, level)
+
     fun isShizukuPersistenceEnabled(ctx: Context): Boolean =
         PrefsGeneralSupport.isShizukuPersistenceEnabled(ctx)
     fun setShizukuPersistenceEnabled(ctx: Context, enabled: Boolean) =

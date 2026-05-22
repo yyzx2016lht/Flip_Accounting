@@ -36,7 +36,7 @@ internal suspend fun buildAccountingPromptContext(ctx: Context): AIAccountingPro
     val db = AppDatabase.getDatabase(ctx)
     val dbAssets = withContext(Dispatchers.IO) {
         db.assetDao().getAllAssetsList()
-    }
+    }.filterNot { it.isArchived }
     val assetInfoList = if (assetFeatureEnabled) {
         dbAssets.map { asset ->
             mapOf(
@@ -62,9 +62,19 @@ internal suspend fun buildAccountingPromptContext(ctx: Context): AIAccountingPro
     val currentTimeStr = "${timeFormat.format(now)} (${weekFormat.format(now)})"
     val availableBooks = withContext(Dispatchers.IO) {
         val dbBookNames = db.billDao().getAllBookNames()
-        BookAccountManager.getBookAccounts(ctx, dbBookNames)
+        val allBooks = BookAccountManager.getBookAccounts(ctx, dbBookNames)
+        BookAccountManager.getDisplayBookAccounts(
+            context = ctx,
+            books = allBooks,
+            includeAllBook = false,
+            collapsedGroupExpanded = false
+        )
             .map { BookAccountManager.normalizeBookName(it) }
-            .filter { it.isNotBlank() && it != BookAccountManager.ALL_BOOK }
+            .filter {
+                it.isNotBlank() &&
+                    it != BookAccountManager.ALL_BOOK &&
+                    it != BookAccountManager.COLLAPSED_BOOK_GROUP
+            }
             .distinct()
     }
 

@@ -73,6 +73,8 @@ internal class HomeBookDrawerController(
     private var bookOrderTouchHelper: ItemTouchHelper? = null
     private var addBookSetDefaultEnabled: Boolean = false
     private var isBookNameEditing: Boolean = false
+    private var collapsedBooksExpanded: Boolean = false
+    private var drawerDisplayBooks: List<String> = emptyList()
 
     private enum class BookDeleteMode {
         MOVE_TO_OTHER_BOOK,
@@ -82,6 +84,9 @@ internal class HomeBookDrawerController(
     }
 
     fun setupBookDrawer() {
+        layoutBookDrawer.isClickable = true
+        layoutBookDrawer.isFocusable = true
+
         rvBookAccounts.layoutManager = LinearLayoutManager(fragment.requireContext())
         bookAccountAdapter = BookAccountAdapter(
             onItemClick = { onBookSelected(it) },
@@ -92,30 +97,14 @@ internal class HomeBookDrawerController(
                     renameBook(oldName, newName)
                 }
             },
-            onSetDefaultClick = { name ->
-                val normalized = BookAccountManager.normalizeBookName(name)
-                val currentDefault = BookAccountManager.getDefaultBook(fragment.requireContext())
-                if (normalized != BookAccountManager.ALL_BOOK && normalized != currentDefault) {
-                    BookAccountManager.setDefaultBook(fragment.requireContext(), normalized)
-                    Toast.makeText(fragment.requireContext(), "已将「$normalized」设为默认账本", Toast.LENGTH_SHORT).show()
-                    refreshBookAccounts(reloadTransactions = false)
-                }
-            },
-            onDeleteClick = { name ->
-                val normalized = BookAccountManager.normalizeBookName(name)
-                val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext())
-                if (normalized == BookAccountManager.ALL_BOOK) {
-                    Toast.makeText(fragment.requireContext(), "「全部账本」是系统入口，不能删除", Toast.LENGTH_SHORT).show()
-                } else if (normalized == defaultBook) {
-                    Toast.makeText(fragment.requireContext(), "默认账本不能删除，请先切换默认账本", Toast.LENGTH_SHORT).show()
-                } else {
-                    deleteBook(name)
-                }
+            onManageClick = { name ->
+                showBookManageDialog(name)
             },
             onOrderChanged = { newOrder ->
                 BookAccountManager.reorderBookAccounts(fragment.requireContext(), newOrder)
                 val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext(), newOrder)
                 setAvailableBookNames(BookAccountManager.withAllBookOption(newOrder, defaultBook))
+                drawerDisplayBooks = buildDrawerDisplayBooks(newOrder, defaultBook)
             },
             onStartDrag = { viewHolder ->
                 bookOrderTouchHelper?.startDrag(viewHolder)
@@ -272,7 +261,7 @@ internal class HomeBookDrawerController(
             val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
             val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             val imeExtra = max(0, imeBottom - navBottom)
-            v.updatePadding(bottom = bookDrawerBasePaddingBottom + navBottom + imeExtra)
+            v.updatePadding(bottom = bookDrawerBasePaddingBottom + imeExtra)
             rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
             insets
         }
@@ -299,22 +288,27 @@ internal class HomeBookDrawerController(
             val defaultBook = BookAccountManager.getDefaultBook(context, mergedBooks)
             val booksWithAll = BookAccountManager.withAllBookOption(mergedBooks, defaultBook)
             val selectedFromPrefs = BookAccountManager.getSelectedBook(context, booksWithAll)
+            val collapsedBooks = BookAccountManager.getCollapsedBookAccounts(context, mergedBooks)
 
             withContext(Dispatchers.Main) {
                 if (!fragment.isAdded) return@withContext
                 val currentSelected = getSelectedBookName()
                 val resolvedSelected = when {
+                    currentSelected != BookAccountManager.ALL_BOOK && collapsedBooks.contains(currentSelected) -> defaultBook
                     booksWithAll.contains(currentSelected) -> currentSelected
+                    selectedFromPrefs != BookAccountManager.ALL_BOOK && collapsedBooks.contains(selectedFromPrefs) -> defaultBook
                     else -> selectedFromPrefs
                 }
                 val bookChanged = resolvedSelected != currentSelected
                 setSelectedBookName(resolvedSelected)
                 BookAccountManager.setSelectedBook(fragment.requireContext(), resolvedSelected)
                 setAvailableBookNames(booksWithAll)
+                drawerDisplayBooks = buildDrawerDisplayBooks(booksWithAll, defaultBook)
                 bookAccountAdapter.submitList(
-                    books = getAvailableBookNames(),
+                    books = drawerDisplayBooks,
                     selected = getSelectedBookName(),
-                    defaultBookName = defaultBook
+                    defaultBookName = defaultBook,
+                    collapsedBookNames = collapsedBooks
                 )
                 if (drawerBooks.isDrawerOpen(GravityCompat.START)) {
                     scrollBookListToSelected(animate = false)
@@ -337,7 +331,7 @@ internal class HomeBookDrawerController(
 
     private fun scrollBookListToSelected(animate: Boolean = false) {
         val layoutManager = rvBookAccounts.layoutManager as? LinearLayoutManager ?: return
-        val selectedIndex = getAvailableBookNames().indexOfFirst {
+        val selectedIndex = drawerDisplayBooks.indexOfFirst {
             BookAccountManager.normalizeBookName(it) == getSelectedBookName()
         }
         if (selectedIndex < 0) return
@@ -393,21 +387,9 @@ internal class HomeBookDrawerController(
 
     private fun adjustBookListBottomPaddingForWholeRows() {
         if (!fragment.isAdded || fragment.context == null || fragment.view == null) return
-        val available = rvBookAccounts.height
-        if (available <= 0) return
-
-        val density = rvBookAccounts.resources.displayMetrics.density
-        val rowHeightPx = (60f * density).toInt()
-        val rowGapPx = (8f * density).toInt()
-        val rowUnitPx = rowHeightPx + rowGapPx
-        if (rowUnitPx <= 0) return
-
-        val remainder = available % rowUnitPx
-        val topExtra = remainder / 2
-        val bottomExtra = remainder - topExtra
         rvBookAccounts.updatePadding(
-            top = rvBookAccountsBasePaddingTop + topExtra,
-            bottom = rvBookAccountsBasePaddingBottom + bottomExtra
+            top = rvBookAccountsBasePaddingTop,
+            bottom = rvBookAccountsBasePaddingBottom
         )
     }
 
@@ -501,6 +483,19 @@ internal class HomeBookDrawerController(
 
     private fun onBookSelected(bookName: String) {
         val target = BookAccountManager.normalizeBookName(bookName)
+        if (target == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+            collapsedBooksExpanded = !collapsedBooksExpanded
+            val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext())
+            drawerDisplayBooks = buildDrawerDisplayBooks(getAvailableBookNames(), defaultBook)
+            bookAccountAdapter.submitList(
+                books = drawerDisplayBooks,
+                selected = getSelectedBookName(),
+                defaultBookName = defaultBook,
+                collapsedBookNames = BookAccountManager.getCollapsedBookAccounts(fragment.requireContext())
+            )
+            rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
+            return
+        }
         if (target == getSelectedBookName()) {
             drawerBooks.closeDrawer(GravityCompat.START)
             return
@@ -509,13 +504,150 @@ internal class HomeBookDrawerController(
         setAnimateNextBookDataReveal(true)
         BookAccountManager.setSelectedBook(fragment.requireContext(), getSelectedBookName())
         bookAccountAdapter.submitList(
-            books = getAvailableBookNames(),
+            books = drawerDisplayBooks,
             selected = getSelectedBookName(),
-            defaultBookName = BookAccountManager.getDefaultBook(fragment.requireContext())
+            defaultBookName = BookAccountManager.getDefaultBook(fragment.requireContext()),
+            collapsedBookNames = BookAccountManager.getCollapsedBookAccounts(fragment.requireContext())
         )
         updateHeaderBanner()
         setPendingBookSwitchName(getSelectedBookName())
         drawerBooks.closeDrawer(GravityCompat.START)
+    }
+
+    private fun toggleBookCollapsed(bookName: String) {
+        val target = BookAccountManager.normalizeBookName(bookName)
+        val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext())
+        if (target == BookAccountManager.ALL_BOOK || target == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+            Toast.makeText(fragment.requireContext(), "该入口不能收纳", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (target == defaultBook) {
+            Toast.makeText(fragment.requireContext(), "默认账本不能收纳", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val nextCollapsed = !BookAccountManager.isBookCollapsed(fragment.requireContext(), target)
+        val wasSelected = getSelectedBookName() == target
+        BookAccountManager.setBookCollapsed(fragment.requireContext(), target, nextCollapsed)
+        if (nextCollapsed && wasSelected) {
+            setSelectedBookName(defaultBook)
+            BookAccountManager.setSelectedBook(fragment.requireContext(), defaultBook)
+        }
+        val tip = if (nextCollapsed) "已将「$target」移入收纳账本" else "已将「$target」移出收纳账本"
+        Toast.makeText(fragment.requireContext(), tip, Toast.LENGTH_SHORT).show()
+        refreshBookAccounts(reloadTransactions = nextCollapsed && wasSelected)
+    }
+
+    private fun setDefaultBook(bookName: String) {
+        val target = BookAccountManager.normalizeBookName(bookName)
+        if (target == BookAccountManager.ALL_BOOK || target == BookAccountManager.COLLAPSED_BOOK_GROUP) return
+        BookAccountManager.setDefaultBook(fragment.requireContext(), target)
+        BookAccountManager.setBookCollapsed(fragment.requireContext(), target, collapsed = false)
+        Toast.makeText(fragment.requireContext(), "已将「$target」设为默认账本", Toast.LENGTH_SHORT).show()
+        refreshBookAccounts(reloadTransactions = false)
+    }
+
+    private fun showBookManageDialog(bookName: String) {
+        val target = BookAccountManager.normalizeBookName(bookName)
+        val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext())
+        if (target == BookAccountManager.ALL_BOOK || target == BookAccountManager.COLLAPSED_BOOK_GROUP) return
+
+        dismissKeyboardForDialog()
+        data class ManageOption(
+            val title: String,
+            val desc: String,
+            val highRisk: Boolean = false,
+            val enabled: Boolean = true,
+            val onClick: () -> Unit
+        )
+
+        val isDefault = target == defaultBook
+        val isCollapsed = BookAccountManager.isBookCollapsed(fragment.requireContext(), target)
+        val options = buildList {
+            add(
+                ManageOption(
+                    title = if (isDefault) "已是默认账本" else "设为默认账本",
+                    desc = if (isDefault) "默认账本会固定保留在日常列表" else "新账单没有指定账本时会进入这里",
+                    enabled = !isDefault,
+                    onClick = { setDefaultBook(target) }
+                )
+            )
+            add(
+                ManageOption(
+                    title = "重命名",
+                    desc = "回到列表中直接编辑名称，历史账单会同步更新",
+                    onClick = { startInlineRenameBook(target) }
+                )
+            )
+            add(
+                ManageOption(
+                    title = if (isCollapsed) "移出收纳账本" else "移入收纳账本",
+                    desc = if (isCollapsed) "重新显示在日常账本列表" else "从日常记账入口收起，仍可展开访问",
+                    enabled = !isDefault,
+                    onClick = { toggleBookCollapsed(target) }
+                )
+            )
+            add(
+                ManageOption(
+                    title = "删除账本",
+                    desc = if (isDefault) "默认账本不能删除" else "删除前可选择迁移或处理账单",
+                    highRisk = true,
+                    enabled = !isDefault,
+                    onClick = { deleteBook(target) }
+                )
+            )
+        }
+
+        val panel = LayoutInflater.from(fragment.requireContext())
+            .inflate(R.layout.dialog_book_delete_options, null, false)
+        panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "管理账本「$target」"
+        panel.findViewById<TextView>(R.id.tv_delete_book_desc).text =
+            if (isCollapsed) "这个账本当前位于收纳账本中" else "选择要执行的整理操作"
+        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+        val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_TapAccounting)
+        val dialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
+        options.forEach { opt ->
+            val item = LayoutInflater.from(fragment.requireContext())
+                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
+            item.findViewById<TextView>(R.id.tv_delete_option_title).text = opt.title
+            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = opt.desc
+            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility =
+                if (opt.highRisk && opt.enabled) View.VISIBLE else View.GONE
+            item.isEnabled = opt.enabled
+            item.alpha = if (opt.enabled) 1f else 0.45f
+            item.setOnClickListener {
+                if (!opt.enabled) return@setOnClickListener
+                dialog.dismiss()
+                opt.onClick()
+            }
+            optionsContainer.addView(item)
+        }
+        panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
+
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.86f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun startInlineRenameBook(bookName: String) {
+        hideInlineAddBookInput(clearText = true)
+        bookAccountAdapter.startInlineRename(bookName)
+    }
+
+    private fun buildDrawerDisplayBooks(books: List<String>, defaultBook: String): List<String> {
+        return BookAccountManager.getDisplayBookAccounts(
+            context = fragment.requireContext(),
+            books = books,
+            includeAllBook = true,
+            collapsedGroupExpanded = collapsedBooksExpanded,
+            defaultBookName = defaultBook
+        )
     }
 
     private fun renameBook(oldName: String, inputName: String) {

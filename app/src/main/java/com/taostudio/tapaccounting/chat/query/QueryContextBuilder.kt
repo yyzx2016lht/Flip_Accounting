@@ -11,6 +11,7 @@ class QueryContextBuilder(
     suspend fun build(currentBookName: String): QueryContext {
         val normalizedBook = BookAccountManager.normalizeBookName(currentBookName)
         val allAssets = db.assetDao().getAllAssetsList()
+            .filterNot { it.isArchived }
         val allCategories = db.categoryDao().getAllCategoriesList()
         val dbBooks = db.billDao().getAllBookNames().map { BookAccountManager.normalizeBookName(it) }
         val books = linkedSetOf<String>().apply {

@@ -7,11 +7,13 @@ import java.io.File
 object BookAccountManager {
     const val DEFAULT_BOOK = "\u65E5\u5E38\u8D26\u672C"
     const val ALL_BOOK = "\u5168\u90E8\u8D26\u672C"
+    const val COLLAPSED_BOOK_GROUP = "\u6536\u7EB3\u8D26\u672C"
     private const val LEGACY_PREVIOUS_DEFAULT_BOOK = "\u9ED8\u8BA4\u8D26\u672C"
     private const val LEGACY_DEFAULT_BOOK = "\u699B\u6A3F\uE17B\u7490\uFE3D\u6E70"
 
     private const val PREF_NAME = "flip_prefs"
     private const val KEY_BOOK_ACCOUNTS = "book_accounts_v1"
+    private const val KEY_COLLAPSED_BOOK_ACCOUNTS = "collapsed_book_accounts_v1"
     private const val KEY_SELECTED_BOOK = "selected_book_name_v1"
     private const val KEY_DEFAULT_BOOK = "default_book_name_v1"
 
@@ -132,6 +134,7 @@ object BookAccountManager {
         val normalized = normalizeBookName(bookName)
         return when (normalized) {
             ALL_BOOK -> emptyList()
+            COLLAPSED_BOOK_GROUP -> emptyList()
             DEFAULT_BOOK -> listOf(DEFAULT_BOOK, LEGACY_PREVIOUS_DEFAULT_BOOK, LEGACY_DEFAULT_BOOK, "")
             else -> listOf(normalized)
         }
@@ -139,6 +142,7 @@ object BookAccountManager {
 
     fun isBillInBook(billBookName: String?, selectedBookName: String): Boolean {
         if (normalizeBookName(selectedBookName) == ALL_BOOK) return true
+        if (normalizeBookName(selectedBookName) == COLLAPSED_BOOK_GROUP) return false
         return normalizeBookName(billBookName) == normalizeBookName(selectedBookName)
     }
 
@@ -146,7 +150,7 @@ object BookAccountManager {
         val defaultBook = normalizeBookName(defaultBookName)
         val result = linkedSetOf(defaultBook)
         books.map(::normalizeBookName)
-            .filter { it.isNotBlank() && it != ALL_BOOK }
+            .filter { it.isNotBlank() && it != ALL_BOOK && it != COLLAPSED_BOOK_GROUP }
             .forEach { result.add(it) }
         if (result.size > 1) {
             result.add(ALL_BOOK)
@@ -167,6 +171,70 @@ object BookAccountManager {
 
     fun setSelectedBook(context: Context, bookName: String) {
         prefs(context).edit().putString(KEY_SELECTED_BOOK, normalizeBookName(bookName)).apply()
+    }
+
+    fun getCollapsedBookAccounts(context: Context, availableBooks: List<String> = getBookAccounts(context)): List<String> {
+        val available = availableBooks
+            .map { normalizeBookName(it) }
+            .filter { it.isNotBlank() && it != ALL_BOOK && it != COLLAPSED_BOOK_GROUP }
+            .toSet()
+        return readCollapsedAccounts(context)
+            .map { normalizeBookName(it) }
+            .filter { it in available && it != getDefaultBook(context, availableBooks) }
+            .distinct()
+    }
+
+    fun isBookCollapsed(context: Context, bookName: String): Boolean {
+        val normalized = normalizeBookName(bookName)
+        if (normalized == ALL_BOOK || normalized == COLLAPSED_BOOK_GROUP) return false
+        return getCollapsedBookAccounts(context).contains(normalized)
+    }
+
+    fun setBookCollapsed(context: Context, bookName: String, collapsed: Boolean) {
+        val normalized = normalizeBookName(bookName)
+        if (normalized.isBlank() || normalized == ALL_BOOK || normalized == COLLAPSED_BOOK_GROUP) return
+        if (normalized == getDefaultBook(context)) return
+        val current = readCollapsedAccounts(context).map { normalizeBookName(it) }.toMutableList()
+        current.removeAll { it == normalized || it == ALL_BOOK || it == COLLAPSED_BOOK_GROUP }
+        if (collapsed) current.add(normalized)
+        saveCollapsedAccounts(context, current)
+
+        val selected = getSelectedBook(context)
+        if (collapsed && selected == normalized) {
+            setSelectedBook(context, getDefaultBook(context))
+        }
+    }
+
+    fun getDisplayBookAccounts(
+        context: Context,
+        books: List<String>,
+        includeAllBook: Boolean,
+        collapsedGroupExpanded: Boolean,
+        defaultBookName: String = getDefaultBook(context, books)
+    ): List<String> {
+        val defaultBook = normalizeBookName(defaultBookName)
+        val normalizedBooks = books
+            .map { normalizeBookName(it) }
+            .filter { it.isNotBlank() && it != ALL_BOOK && it != COLLAPSED_BOOK_GROUP }
+            .distinct()
+        val collapsed = getCollapsedBookAccounts(context, normalizedBooks).toSet()
+        val result = linkedSetOf<String>()
+        result.add(defaultBook)
+        normalizedBooks
+            .filter { it != defaultBook && it !in collapsed }
+            .forEach { result.add(it) }
+        if (collapsed.isNotEmpty()) {
+            result.add(COLLAPSED_BOOK_GROUP)
+            if (collapsedGroupExpanded) {
+                normalizedBooks
+                    .filter { it in collapsed }
+                    .forEach { result.add(it) }
+            }
+        }
+        if (includeAllBook && result.any { it != defaultBook && it != COLLAPSED_BOOK_GROUP }) {
+            result.add(ALL_BOOK)
+        }
+        return result.toList()
     }
 
     fun getBookAccounts(context: Context, databaseBooks: List<String> = emptyList()): List<String> {
@@ -209,8 +277,13 @@ object BookAccountManager {
         if (current.contains(newNorm)) return false
         val index = current.indexOf(oldNorm)
         if (index < 0) return false
+        val wasCollapsed = isBookCollapsed(context, oldNorm)
         current[index] = newNorm
         saveAccounts(context, current)
+        if (wasCollapsed) {
+            setBookCollapsed(context, oldNorm, collapsed = false)
+            setBookCollapsed(context, newNorm, collapsed = true)
+        }
         if (getDefaultBook(context, current) == oldNorm) {
             setDefaultBook(context, newNorm)
         }
@@ -226,6 +299,7 @@ object BookAccountManager {
         val current = getBookAccounts(context).toMutableList()
         if (!current.remove(target)) return false
         saveAccounts(context, current)
+        setBookCollapsed(context, target, collapsed = false)
         val prefs = prefs(context)
         val targetKeys = buildBookKeyCandidates(target)
         val targetBannerPaths = targetKeys
@@ -311,6 +385,31 @@ object BookAccountManager {
         }
     }
 
+    private fun readCollapsedAccounts(context: Context): List<String> {
+        val raw = prefs(context).getString(KEY_COLLAPSED_BOOK_ACCOUNTS, null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    add(arr.optString(i))
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun saveCollapsedAccounts(context: Context, names: List<String>) {
+        val normalized = linkedSetOf<String>()
+        names.map { normalizeBookName(it) }
+            .filter { it.isNotBlank() && it != ALL_BOOK && it != COLLAPSED_BOOK_GROUP }
+            .forEach { normalized.add(it) }
+
+        val arr = JSONArray()
+        normalized.forEach { arr.put(it) }
+        prefs(context).edit().putString(KEY_COLLAPSED_BOOK_ACCOUNTS, arr.toString()).apply()
+    }
+
     private fun saveAccounts(context: Context, names: List<String>) {
         val normalized = linkedSetOf<String>()
         names.map { normalizeBookName(it) }
@@ -332,6 +431,13 @@ object BookAccountManager {
         return arr.toString()
     }
 
+    fun serializeCollapsedBookAccounts(context: Context): String {
+        val accounts = getCollapsedBookAccounts(context)
+        val arr = JSONArray()
+        accounts.forEach { arr.put(it) }
+        return arr.toString()
+    }
+
     /**
      * 按拖拽后的新顺序重新保存账本列表。
      * [newOrder] 来自 BookOverviewAdapter.onDragEnd()，已包含所有账本名。
@@ -340,10 +446,14 @@ object BookAccountManager {
         // ALL_BOOK 不参与持久化排序，始终在运行时动态置顶
         val defaultBook = getDefaultBook(context)
         val normalized = newOrder.map { normalizeBookName(it) }
-            .filter { it.isNotBlank() && it != ALL_BOOK && it != defaultBook }
+            .filter { it.isNotBlank() && it != ALL_BOOK && it != COLLAPSED_BOOK_GROUP && it != defaultBook }
         val ordered = linkedSetOf<String>()
         ordered.add(defaultBook)
         normalized.forEach { ordered.add(it) }
+        getBookAccounts(context)
+            .map { normalizeBookName(it) }
+            .filter { it.isNotBlank() && it != ALL_BOOK && it != COLLAPSED_BOOK_GROUP && it != defaultBook }
+            .forEach { ordered.add(it) }
         saveAccounts(context, ordered.toList())
     }
 }

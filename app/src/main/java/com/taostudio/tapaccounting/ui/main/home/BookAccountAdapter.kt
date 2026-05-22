@@ -21,8 +21,7 @@ import kotlin.math.abs
 class BookAccountAdapter(
     private val onItemClick: (String) -> Unit,
     private val onRenameClick: (oldName: String, newName: String) -> Unit,
-    private val onSetDefaultClick: (name: String) -> Unit,
-    private val onDeleteClick: (name: String) -> Unit,
+    private val onManageClick: (name: String) -> Unit,
     private val onOrderChanged: (newOrder: List<String>) -> Unit,
     private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
     private val onEditingChanged: (Boolean) -> Unit = {}
@@ -31,6 +30,7 @@ class BookAccountAdapter(
     private val items = mutableListOf<String>()
     private var selectedBook: String = ""
     private var defaultBook: String = BookAccountManager.DEFAULT_BOOK
+    private val collapsedBooks = mutableSetOf<String>()
     private var openedPosition: Int = RecyclerView.NO_POSITION
     private var editingPosition: Int = RecyclerView.NO_POSITION
     private var recyclerView: RecyclerView? = null
@@ -47,11 +47,20 @@ class BookAccountAdapter(
         super.onDetachedFromRecyclerView(recyclerView)
     }
 
-    fun submitList(books: List<String>, selected: String, defaultBookName: String) {
+    fun submitList(
+        books: List<String>,
+        selected: String,
+        defaultBookName: String,
+        collapsedBookNames: List<String> = emptyList()
+    ) {
         val openedName = items.getOrNull(openedPosition)
         val editingName = items.getOrNull(editingPosition)
 
         defaultBook = BookAccountManager.normalizeBookName(defaultBookName)
+        collapsedBooks.clear()
+        collapsedBookNames.map { BookAccountManager.normalizeBookName(it) }
+            .filter { it.isNotBlank() }
+            .forEach { collapsedBooks.add(it) }
         items.clear()
         books.map { BookAccountManager.normalizeBookName(it) }
             .filter { it.isNotBlank() }
@@ -82,6 +91,14 @@ class BookAccountAdapter(
         if (position !in items.indices) return false
         val normalized = BookAccountManager.normalizeBookName(items[position])
         return normalized != BookAccountManager.ALL_BOOK && normalized != defaultBook
+            && normalized != BookAccountManager.COLLAPSED_BOOK_GROUP
+    }
+
+    private fun isManageablePosition(position: Int): Boolean {
+        if (position !in items.indices) return false
+        val normalized = BookAccountManager.normalizeBookName(items[position])
+        return normalized != BookAccountManager.ALL_BOOK &&
+            normalized != BookAccountManager.COLLAPSED_BOOK_GROUP
     }
 
     fun onDragEnd() {
@@ -93,6 +110,24 @@ class BookAccountAdapter(
             val old = openedPosition
             openedPosition = RecyclerView.NO_POSITION
             notifyItemChanged(old)
+        }
+    }
+
+    fun startInlineRename(bookName: String) {
+        val normalized = BookAccountManager.normalizeBookName(bookName)
+        val pos = items.indexOfFirst { BookAccountManager.normalizeBookName(it) == normalized }
+        if (pos == RecyclerView.NO_POSITION || !isManageablePosition(pos)) return
+
+        val oldOpened = openedPosition
+        val oldEditing = editingPosition
+        openedPosition = RecyclerView.NO_POSITION
+        editingPosition = pos
+        onEditingChanged(true)
+        if (oldOpened != RecyclerView.NO_POSITION && oldOpened != pos) notifyItemChanged(oldOpened)
+        if (oldEditing != RecyclerView.NO_POSITION && oldEditing != pos) notifyItemChanged(oldEditing)
+        notifyItemChanged(pos)
+        recyclerView?.post {
+            recyclerView?.smoothScrollToPosition(pos)
         }
     }
 
@@ -134,11 +169,10 @@ class BookAccountAdapter(
         private val etName: EditText = itemView.findViewById(R.id.et_book_name)
         private val ivSelected: TextView = itemView.findViewById(R.id.iv_book_selected)
         private val btnSetDefaultInline: TextView = itemView.findViewById(R.id.btn_book_set_default_inline)
-        private val btnEdit: ImageView = itemView.findViewById(R.id.btn_book_edit)
-        private val btnDelete: ImageView = itemView.findViewById(R.id.btn_book_delete)
+        private val btnManage: ImageView = itemView.findViewById(R.id.btn_book_manage)
 
         private val slop = ViewConfiguration.get(itemView.context).scaledTouchSlop
-        private val actionsWidthPx = 120f * itemView.resources.displayMetrics.density
+        private val actionsWidthPx = 60f * itemView.resources.displayMetrics.density
 
         private var downX = 0f
         private var downY = 0f
@@ -164,25 +198,11 @@ class BookAccountAdapter(
                 onItemClick(items[pos])
             }
 
-            btnEdit.setOnClickListener {
+            btnManage.setOnClickListener {
                 val pos = adapterPosition
                 if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
                 closeSwipeActions()
-                startInlineEdit(pos)
-            }
-
-            btnDelete.setOnClickListener {
-                val pos = adapterPosition
-                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
-                closeSwipeActions()
-                onDeleteClick(items[pos])
-            }
-            btnSetDefaultInline.setOnClickListener {
-                val pos = adapterPosition
-                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
-                val target = items[pos]
-                if (BookAccountManager.normalizeBookName(target) == defaultBook) return@setOnClickListener
-                onSetDefaultClick(target)
+                onManageClick(items[pos])
             }
 
             etName.setOnEditorActionListener { _, actionId, event ->
@@ -267,6 +287,10 @@ class BookAccountAdapter(
                     if (!dragging) {
                         when {
                             abs(dx) > slop && abs(dx) > abs(dy) -> {
+                                if (!isManageablePosition(pos)) {
+                                    requestAncestorsDisallowIntercept(false)
+                                    return false
+                                }
                                 // 确认横向拖动
                                 dragging = true
                             }
@@ -279,7 +303,7 @@ class BookAccountAdapter(
                         }
                     }
                     if (dragging) {
-                        // 向左滑（dx < 0）露出右侧编辑/删除按钮，translationX 范围 [-actionsWidthPx, 0]
+                        // 向左滑（dx < 0）露出右侧管理按钮，translationX 范围 [-actionsWidthPx, 0]
                         val tx = (startTx + dx).coerceIn(-actionsWidthPx, 0f)
                         foreground.translationX = tx
                         return true
@@ -325,6 +349,10 @@ class BookAccountAdapter(
         }
 
         private fun settleSwipe(pos: Int) {
+            if (!isManageablePosition(pos)) {
+                foreground.animate().translationX(0f).setDuration(180L).start()
+                return
+            }
             // 向左滑超过40%则弹出，否则回弹；向右滑时关闭
             val shouldOpen = foreground.translationX < -actionsWidthPx * 0.4f
             val target = if (shouldOpen) -actionsWidthPx else 0f
@@ -338,16 +366,6 @@ class BookAccountAdapter(
                 openedPosition = RecyclerView.NO_POSITION
             }
             foreground.animate().translationX(target).setDuration(180L).start()
-        }
-
-        private fun startInlineEdit(pos: Int) {
-            val old = editingPosition
-            editingPosition = pos
-            onEditingChanged(true)
-            if (old != RecyclerView.NO_POSITION && old != pos) {
-                notifyItemChanged(old)
-            }
-            notifyItemChanged(pos)
         }
 
         fun commitInlineRename() {
@@ -378,42 +396,50 @@ class BookAccountAdapter(
         fun bind(name: String, selected: Boolean, opened: Boolean, editing: Boolean) {
             val normalized = BookAccountManager.normalizeBookName(name)
             val isAllBook = normalized == BookAccountManager.ALL_BOOK
+            val isCollapsedGroup = normalized == BookAccountManager.COLLAPSED_BOOK_GROUP
             val isDefaultBook = normalized == defaultBook
+            val isCollapsedBook = normalized in collapsedBooks
+            val collapsedGroupExpanded = items.any { BookAccountManager.normalizeBookName(it) in collapsedBooks }
+            val density = itemView.resources.displayMetrics.density
+            val normalStart = (16f * density).toInt()
+            val nestedStart = (30f * density).toInt()
 
             foreground.animate().cancel()
             tvName.text = when {
                 isAllBook -> BookAccountManager.ALL_BOOK
+                isCollapsedGroup -> "${if (collapsedGroupExpanded) "▾" else "▸"} ${BookAccountManager.COLLAPSED_BOOK_GROUP}  ${collapsedBooks.size}"
                 isDefaultBook -> defaultBook
                 else -> name
             }
+            foreground.setPadding(
+                if (isCollapsedBook) nestedStart else normalStart,
+                foreground.paddingTop,
+                foreground.paddingRight,
+                foreground.paddingBottom
+            )
             foreground.translationX = if (opened) -actionsWidthPx else 0f
             foreground.setBackgroundResource(if (selected) R.drawable.bg_book_item_selected else R.drawable.bg_book_item_normal)
             ivSelected.visibility = if (selected) View.VISIBLE else View.GONE
 
-            if (isAllBook) {
+            if (isAllBook || isCollapsedGroup) {
                 tvName.setTextColor(android.graphics.Color.parseColor("#8E9CAF"))
-                btnEdit.isEnabled = false
-                btnDelete.isEnabled = false
-                btnEdit.alpha = 0.35f
-                btnDelete.alpha = 0.35f
+                btnManage.isEnabled = false
+                btnManage.alpha = 0.35f
             } else if (isDefaultBook) {
                 tvName.setTextColor(android.graphics.Color.parseColor("#1A73E8"))
-                btnEdit.isEnabled = true
-                btnDelete.isEnabled = false
-                btnEdit.alpha = 1f
-                btnDelete.alpha = 0.35f
+                btnManage.isEnabled = true
+                btnManage.alpha = 1f
             } else {
-                tvName.setTextColor(android.graphics.Color.parseColor("#333333"))
-                btnEdit.isEnabled = true
-                btnDelete.isEnabled = true
-                btnEdit.alpha = 1f
-                btnDelete.alpha = 1f
+                tvName.setTextColor(android.graphics.Color.parseColor(if (isCollapsedBook) "#6E7D94" else "#333333"))
+                btnManage.isEnabled = true
+                btnManage.alpha = 1f
             }
+            btnManage.contentDescription = "manage"
 
             if (editing) {
                 tvName.visibility = View.GONE
                 etName.visibility = View.VISIBLE
-                if (!isAllBook) {
+                if (!isAllBook && !isCollapsedGroup) {
                     btnSetDefaultInline.visibility = View.VISIBLE
                     btnSetDefaultInline.isEnabled = !isDefaultBook
                     btnSetDefaultInline.alpha = if (isDefaultBook) 0.6f else 1f

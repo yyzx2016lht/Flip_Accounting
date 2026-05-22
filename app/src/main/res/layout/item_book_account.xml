@@ -6,7 +6,7 @@
 
     <LinearLayout
         android:id="@+id/layout_book_actions"
-        android:layout_width="120dp"
+        android:layout_width="60dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:gravity="center_vertical"
@@ -15,28 +15,15 @@
         android:paddingEnd="4dp">
 
         <ImageView
-            android:id="@+id/btn_book_edit"
+            android:id="@+id/btn_book_manage"
             android:layout_width="52dp"
             android:layout_height="52dp"
             android:background="@drawable/bg_book_action_edit"
             android:clickable="true"
-            android:contentDescription="edit"
+            android:contentDescription="manage"
             android:focusable="true"
             android:padding="14dp"
-            android:src="@android:drawable/ic_menu_edit"
-            android:tint="#FFFFFF" />
-
-        <ImageView
-            android:id="@+id/btn_book_delete"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_book_action_delete"
-            android:clickable="true"
-            android:contentDescription="delete"
-            android:focusable="true"
-            android:padding="14dp"
-            android:src="@android:drawable/ic_menu_delete"
+            android:src="@drawable/ic_more_vert"
             android:tint="#FFFFFF" />
     </LinearLayout>
 

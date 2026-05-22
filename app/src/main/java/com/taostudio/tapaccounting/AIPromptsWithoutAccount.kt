@@ -25,6 +25,7 @@ object AIPromptsWithoutAccount {
 5. 若未提及币种，默认 CNY。
 6. time 必须输出 yyyy-MM-dd HH:mm:ss，可按 1 秒递增。
 7. 不要输出 Markdown、解释、代码块。
+8. 若无法准确判断分类，优先选择对应分类列表中的"其他/其它"类目；仅当分类列表中没有可用兜底类目时才留空。
 
 【输出格式】
 {"bills":[{"amount":0.0,"type":0,"category_name":"","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY"}]}

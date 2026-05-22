@@ -22,6 +22,8 @@ object PrefsGeneralSupport {
     private const val KEY_PRIVACY_DEBUG_UNTIL_MS = "privacy_debug_until_ms_v1"
     private const val KEY_DEVELOPER_FULL_LOGGING = "developer_full_logging_v1"
     private const val KEY_QUICK_GESTURE_ENABLED = "quick_gesture_enabled"
+    private const val KEY_FLIP_ENABLED = "flip_enabled"
+    private const val KEY_FLIP_SENSITIVITY = "flip_sensitivity_level"
     private const val KEY_DOUBLE_TAP_ENABLED = "double_tap_enabled"
     private const val KEY_DOUBLE_TAP_GUIDE_SEEN = "double_tap_guide_seen"
     private const val KEY_TAP_MODEL = "tap_model"
@@ -134,9 +136,9 @@ object PrefsGeneralSupport {
     fun isQuickGestureEnabled(ctx: Context): Boolean {
         val p = prefs(ctx)
         if (p.contains(KEY_QUICK_GESTURE_ENABLED)) {
-            return p.getBoolean(KEY_QUICK_GESTURE_ENABLED, false) || isDoubleTapEnabled(ctx)
+            return p.getBoolean(KEY_QUICK_GESTURE_ENABLED, false) || isDoubleTapEnabled(ctx) || isFlipEnabled(ctx)
         }
-        val migrated = isDoubleTapEnabled(ctx)
+        val migrated = isDoubleTapEnabled(ctx) || isFlipEnabled(ctx)
         setQuickGestureEnabled(ctx, migrated)
         return migrated
     }
@@ -146,12 +148,25 @@ object PrefsGeneralSupport {
             .putBoolean(KEY_DOUBLE_TAP_ENABLED, enabled)
             .apply()
 
+    fun isFlipEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_FLIP_ENABLED, false)
+    fun setFlipEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit()
+            .putBoolean(KEY_FLIP_ENABLED, enabled)
+            .putBoolean(KEY_QUICK_GESTURE_ENABLED, enabled || isDoubleTapEnabled(ctx))
+            .apply()
+
+    fun getFlipSensitivity(ctx: Context): Int =
+        prefs(ctx).getInt(KEY_FLIP_SENSITIVITY, 50)
+    fun setFlipSensitivity(ctx: Context, level: Int) =
+        prefs(ctx).edit().putInt(KEY_FLIP_SENSITIVITY, level.coerceIn(0, 100)).apply()
+
     fun isDoubleTapEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_DOUBLE_TAP_ENABLED, false)
     fun setDoubleTapEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit()
             .putBoolean(KEY_DOUBLE_TAP_ENABLED, enabled)
-            .putBoolean(KEY_QUICK_GESTURE_ENABLED, enabled)
+            .putBoolean(KEY_QUICK_GESTURE_ENABLED, enabled || isFlipEnabled(ctx))
             .apply()
 
     fun hasSeenDoubleTapGuide(ctx: Context): Boolean =

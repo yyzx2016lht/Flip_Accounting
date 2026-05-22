@@ -480,17 +480,56 @@ class AddAssetActivity : AppCompatActivity() {
         adjustment: AdjustmentDraft?
     ) {
         db.withTransaction {
+            val hasAdjustment = adjustment != null
+            val currencyChanged = hasAdjustment && !pending.oldCurrency.equals(pending.asset.currency, ignoreCase = true)
+
+            // 根据场景决定基线余额：
+            // - 无平账记录：直接保存目标余额
+            // - 普通余额调整（同币种）：基线余额 = oldBalance，账单负责调整差额
+            // - 换币平账：基线余额 = 0.0，账单负责将余额增加/减少到目标值
+            val baselineBalance = when {
+                !hasAdjustment -> pending.asset.balance
+                currencyChanged -> 0.0
+                else -> pending.oldBalance
+            }
+
             val savedAssetId = if (pending.isNew) {
                 val maxOrder = db.assetDao().getMaxSortOrderInCategory(pending.asset.assetCategory) ?: 0
                 val maxPickerOrder = db.assetDao().getMaxPickerSortOrder() ?: 0
                 db.assetDao().insertAsset(
                     pending.asset.copy(
+                        balance = baselineBalance,
                         sortOrder = maxOrder + 10,
                         pickerSortOrder = maxPickerOrder + 10
                     )
                 )
             } else {
-                db.assetDao().updateAsset(pending.asset)
+                if (hasAdjustment) {
+                    // 有平账记录时：更新非余额字段 + 基线余额
+                    db.assetDao().updateAssetInfo(
+                        id = pending.asset.id,
+                        name = pending.asset.name,
+                        type = pending.asset.type,
+                        initialBalance = pending.asset.initialBalance,
+                        currency = pending.asset.currency,
+                        icon = pending.asset.icon,
+                        remark = pending.asset.remark,
+                        includeInNetAsset = pending.asset.includeInNetAsset,
+                        sortOrder = pending.asset.sortOrder,
+                        pickerSortOrder = pending.asset.pickerSortOrder,
+                        createTime = pending.asset.createTime,
+                        assetCategory = pending.asset.assetCategory,
+                        creditLimit = pending.asset.creditLimit,
+                        billingDay = pending.asset.billingDay,
+                        annualInterestRate = pending.asset.annualInterestRate,
+                        interestLastSettledAt = pending.asset.interestLastSettledAt,
+                        isArchived = pending.asset.isArchived
+                    )
+                    // 更新基线余额
+                    db.assetDao().updateBalance(pending.asset.id, baselineBalance)
+                } else {
+                    db.assetDao().updateAsset(pending.asset)
+                }
                 if (pending.oldName.isNotEmpty() && pending.oldName != pending.asset.name) {
                     db.billDao().bindAccountIdByLegacyName(pending.asset.id, pending.oldName)
                     db.billDao().bindToAccountIdByLegacyName(pending.asset.id, pending.oldName)
@@ -500,29 +539,37 @@ class AddAssetActivity : AppCompatActivity() {
                 pending.asset.id
             }
 
+            // 投资资产的初始份额按用户保存后的目标余额创建；有平账记录时，账单随后会把资产余额调整到同一数值。
             pending.investmentSchedule?.let { schedule ->
-                val savedAsset = pending.asset.copy(id = savedAssetId)
+                val assetForLot = pending.asset.copy(id = savedAssetId)
                 InvestmentInterestService.createLotForAssetBalance(
                     db = db,
-                    asset = savedAsset,
+                    asset = assetForLot,
                     schedule = schedule
                 )
             }
 
             if (adjustment != null) {
-                val currencyChanged = !pending.oldCurrency.equals(pending.asset.currency, ignoreCase = true)
-                val diff = BillAssetImpactService.roundMoney(pending.asset.balance - pending.oldBalance)
+                val diff = BillAssetImpactService.roundMoney(pending.asset.balance - baselineBalance)
                 val excludeFromStats = currencyChanged || !adjustment.includeInStats
+
+                // 计算账单金额和类型：
+                // - 换币平账：基线为 0，金额为目标余额绝对值，类型按目标余额正负决定
+                // - 普通调整：金额为差额绝对值，类型按差额正负决定
+                val billAmount: Double
+                val billType: Int
+                if (currencyChanged) {
+                    billAmount = BillAssetImpactService.roundMoney(abs(pending.asset.balance))
+                    billType = if (pending.asset.balance >= 0) Bill.TYPE_INCOME else Bill.TYPE_EXPENSE
+                } else {
+                    billAmount = BillAssetImpactService.roundMoney(abs(diff))
+                    billType = if (diff >= 0) Bill.TYPE_INCOME else Bill.TYPE_EXPENSE
+                }
+
                 val bill = Bill(
-                    type = if (currencyChanged) Bill.TYPE_EXPENSE else if (diff >= 0) Bill.TYPE_INCOME else Bill.TYPE_EXPENSE,
-                    subType = if (excludeFromStats) {
-                        Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED
-                    } else {
-                        Bill.SUBTYPE_BALANCE_ADJUSTMENT
-                    },
-                    amount = BillAssetImpactService.roundMoney(
-                        if (currencyChanged) abs(pending.asset.balance) else abs(diff)
-                    ),
+                    type = billType,
+                    subType = Bill.SUBTYPE_NORMAL,
+                    amount = billAmount,
                     currency = pending.asset.currency,
                     accountId = savedAssetId,
                     accountName = pending.asset.name,
@@ -535,8 +582,19 @@ class AddAssetActivity : AppCompatActivity() {
                 BillMutationService.insertBillAndApplyImpact(
                     db = db,
                     bill = bill,
-                    applyAssetImpact = false
+                    applyAssetImpact = true
                 )
+            } else if (pending.asset.assetCategory == Asset.CATEGORY_INVESTMENT) {
+                db.assetDao().getAssetById(savedAssetId)?.let { latestAsset ->
+                    InvestmentInterestService.reconcileAssetLotsToBalance(
+                        db = db,
+                        asset = latestAsset
+                    )
+                }
+            }
+
+            if (pending.asset.assetCategory != Asset.CATEGORY_INVESTMENT) {
+                db.investmentLotDao().deleteByAssetId(savedAssetId)
             }
         }
     }

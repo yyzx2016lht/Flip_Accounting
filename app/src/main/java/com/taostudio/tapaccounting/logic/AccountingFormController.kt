@@ -482,6 +482,9 @@ class AccountingFormController(
 
     private fun setupDefaults() {
         tvTime.text = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        if (BookAccountManager.isBookCollapsed(ctx, selectedFormBook)) {
+            selectedFormBook = BookAccountManager.getDefaultBook(ctx)
+        }
         tvBook.text = selectedFormBook
     }
 
@@ -604,16 +607,18 @@ class AccountingFormController(
                 R.id.layout_account, R.id.tv_account -> {
                     scope.launch(Dispatchers.IO) {
                         val assets = AppDatabase.getDatabase(ctx).assetDao().getAllAssetsList()
+                            .filterNot { it.isArchived }
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
-                            if (assets.isNotEmpty()) {
-                                val isRepaymentMode = spType.selectedItemPosition == 3
-                                val title = if (spType.selectedItemPosition == 2 || isRepaymentMode) "选择转出账户" else "选择资产"
-                                val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
+                            val isRepaymentMode = spType.selectedItemPosition == 3
+                            val title = if (spType.selectedItemPosition == 2 || isRepaymentMode) "选择转出账户" else "选择资产"
+                            val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
                                     { asset -> asset.assetCategory != Asset.CATEGORY_CREDIT_CARD }
                                 } else {
                                     null
                                 }
+                            val selectableAssets = assetFilter?.let { filter -> assets.filter(filter) } ?: assets
+                            if (selectableAssets.isNotEmpty()) {
                                 OverlayDialogs.showGridAssetPicker(ctx, tvAccount.text.toString(), title, assetFilter) { selectedName ->
                                     tvAccount.text = selectedName
                                     refreshAccountIconForName(selectedName)
@@ -649,16 +654,18 @@ class AccountingFormController(
                 R.id.layout_account_2, R.id.tv_account_2 -> {
                     scope.launch(Dispatchers.IO) {
                         val assets = AppDatabase.getDatabase(ctx).assetDao().getAllAssetsList()
+                            .filterNot { it.isArchived }
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
-                            if (assets.isNotEmpty()) {
-                                val isRepaymentMode = spType.selectedItemPosition == 3
-                                val title = if (isRepaymentMode) "选择还款入账信用卡" else "选择转入账户"
-                                val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
+                            val isRepaymentMode = spType.selectedItemPosition == 3
+                            val title = if (isRepaymentMode) "选择还款入账信用卡" else "选择转入账户"
+                            val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
                                     { asset -> asset.assetCategory == Asset.CATEGORY_CREDIT_CARD }
                                 } else {
                                     null
                                 }
+                            val selectableAssets = assetFilter?.let { filter -> assets.filter(filter) } ?: assets
+                            if (selectableAssets.isNotEmpty()) {
                                 OverlayDialogs.showGridAssetPicker(ctx, tvAccount2.text.toString(), title, assetFilter) { selectedName ->
                                     tvAccount2.text = selectedName
                                     refreshAccount2IconForName(selectedName)
@@ -1079,7 +1086,12 @@ class AccountingFormController(
 
     /** 根据用户输入文本关键字自动匹配并切换账本（不走 AI） */
     private fun tryAutoSwitchBookByKeyword(text: String) {
-        val books = BookAccountManager.getBookAccounts(ctx)
+        val books = BookAccountManager.getDisplayBookAccounts(
+            context = ctx,
+            books = BookAccountManager.getBookAccounts(ctx),
+            includeAllBook = false,
+            collapsedGroupExpanded = false
+        ).filter { it != BookAccountManager.COLLAPSED_BOOK_GROUP }
         val matched = books.firstOrNull { name -> name.isNotEmpty() && text.contains(name) }
         if (matched != null && matched != selectedFormBook) {
             selectedFormBook = matched

@@ -130,6 +130,7 @@ object BillDeleteHelper {
                     billDao.delete(latestBill)
                 }
 
+                // 兼容旧平账记录：旧 subtype 的删除逻辑保持原样
                 latestBill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT ||
                 latestBill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> {
                     val impacted = BillAssetImpactService.revertBillBalanceImpact(db, latestBill)

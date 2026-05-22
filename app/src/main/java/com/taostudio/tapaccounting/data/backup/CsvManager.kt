@@ -17,7 +17,8 @@ object CsvManager {
 
     private data class ImportedBillType(
         val type: Int,
-        val subType: Int
+        val subType: Int,
+        val excludeFromStats: Boolean = false
     )
 
     private val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -29,7 +30,7 @@ object CsvManager {
         "转账" to ImportedBillType(Bill.TYPE_TRANSFER, Bill.SUBTYPE_NORMAL),
         "退款" to ImportedBillType(Bill.TYPE_INCOME, Bill.SUBTYPE_REFUND),
         "还款" to ImportedBillType(Bill.TYPE_TRANSFER, Bill.SUBTYPE_REPAYMENT),
-        "不计收支" to ImportedBillType(Bill.TYPE_EXPENSE, Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED),
+        "不计收支" to ImportedBillType(Bill.TYPE_EXPENSE, Bill.SUBTYPE_NORMAL, excludeFromStats = true),
         "报销" to ImportedBillType(Bill.TYPE_INCOME, Bill.SUBTYPE_NORMAL)
     )
 
@@ -48,7 +49,8 @@ object CsvManager {
         "remark",
         "fee",
         "bookName",
-        "relatedBillId"
+        "relatedBillId",
+        "excludeFromStats"
     )
 
     fun export(bills: List<Bill>, outputStream: OutputStream) {
@@ -72,7 +74,8 @@ object CsvManager {
                     csvEscape(bill.remark),
                     bill.fee.toString(),
                     csvEscape(bill.bookName),
-                    bill.relatedBillId?.toString().orEmpty()
+                    bill.relatedBillId?.toString().orEmpty(),
+                    if (bill.excludeFromStats) "1" else "0"
                 )
                 writer.write(row.joinToString(","))
                 writer.newLine()
@@ -116,6 +119,7 @@ object CsvManager {
         val iFee = idx("fee")
         val iBookName = idx("bookName")
         val iRelatedBillId = idx("relatedBillId")
+        val iExcludeFromStats = idx("excludeFromStats")
 
         val result = mutableListOf<Bill>()
         for (line in lines.drop(1)) {
@@ -150,6 +154,11 @@ object CsvManager {
                 val fee = if (iFee >= 0) cols[iFee].toDoubleOrNull() ?: 0.0 else 0.0
                 val bookNameFromCsv = if (iBookName >= 0) cols[iBookName] else ""
                 val relatedBillId = if (iRelatedBillId >= 0) cols[iRelatedBillId].toLongOrNull() else null
+                val excludeFromStats = if (iExcludeFromStats >= 0) {
+                    cols[iExcludeFromStats].let { it == "1" || it.equals("true", ignoreCase = true) }
+                } else {
+                    normalizedType.excludeFromStats
+                }
 
                 result += Bill(
                     id = importedId,
@@ -166,7 +175,8 @@ object CsvManager {
                     remark = remark,
                     fee = fee,
                     bookName = bookNameFromCsv.ifBlank { normalizeFallbackBookName(fallbackBookName) },
-                    relatedBillId = relatedBillId
+                    relatedBillId = relatedBillId,
+                    excludeFromStats = excludeFromStats
                 )
             }
         }
@@ -226,7 +236,8 @@ object CsvManager {
                     time = timeMs,
                     remark = remark,
                     fee = fee,
-                    bookName = normalizeFallbackBookName(fallbackBookName)
+                    bookName = normalizeFallbackBookName(fallbackBookName),
+                    excludeFromStats = mappedType.excludeFromStats
                 )
             }
         }
@@ -237,6 +248,20 @@ object CsvManager {
         val normalized = when {
             rawType == Bill.TYPE_REPAYMENT || rawSubType == Bill.SUBTYPE_REPAYMENT ->
                 ImportedBillType(Bill.TYPE_TRANSFER, Bill.SUBTYPE_REPAYMENT)
+            // 兼容旧平账记录：subType=3 转为 SUBTYPE_NORMAL + excludeFromStats=false
+            rawSubType == Bill.SUBTYPE_BALANCE_ADJUSTMENT ->
+                ImportedBillType(
+                    if (rawType in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) rawType else Bill.TYPE_EXPENSE,
+                    Bill.SUBTYPE_NORMAL,
+                    excludeFromStats = false
+                )
+            // 兼容旧平账记录：subType=4 转为 SUBTYPE_NORMAL + excludeFromStats=true
+            rawSubType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED ->
+                ImportedBillType(
+                    if (rawType in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER)) rawType else Bill.TYPE_EXPENSE,
+                    Bill.SUBTYPE_NORMAL,
+                    excludeFromStats = true
+                )
             rawType in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME, Bill.TYPE_TRANSFER) ->
                 ImportedBillType(rawType, rawSubType)
             else ->

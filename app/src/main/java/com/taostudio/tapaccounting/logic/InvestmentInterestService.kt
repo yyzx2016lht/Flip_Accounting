@@ -16,6 +16,7 @@ object InvestmentInterestService {
     const val CATEGORY_ICON = "http://res3.qianjiapp.com/cateic_licai.png"
     private const val DAYS_IN_YEAR = 365.0
     private const val MIN_INTEREST_AMOUNT = 0.01
+    private const val BALANCE_EPSILON = 0.000001
 
     data class InvestmentSchedule(
         val startEarningAt: Long,
@@ -76,6 +77,12 @@ object InvestmentInterestService {
     }
 
     suspend fun settleDueInterest(db: AppDatabase, now: Long = System.currentTimeMillis()) {
+        db.assetDao().getAllAssetsList()
+            .filter { it.assetCategory == Asset.CATEGORY_INVESTMENT && it.annualInterestRate != 0.0 }
+            .forEach { asset ->
+                reconcileAssetLotsToBalance(db, asset, now)
+            }
+
         val lots = db.investmentLotDao().getOpenLots()
         if (lots.isEmpty()) return
 
@@ -86,6 +93,49 @@ object InvestmentInterestService {
             if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.annualInterestRate == 0.0) return@forEach
             settleLotInterest(db, asset, lot, todayStart)
         }
+    }
+
+    suspend fun reconcileAssetLotsToBalance(
+        db: AppDatabase,
+        asset: Asset,
+        changedAt: Long = System.currentTimeMillis()
+    ) {
+        if (asset.id <= 0L || asset.assetCategory != Asset.CATEGORY_INVESTMENT) return
+
+        val targetPrincipal = BillAssetImpactService.roundMoney(asset.balance.coerceAtLeast(0.0))
+        val openLots = db.investmentLotDao().getOpenLotsByAssetId(asset.id)
+        val currentPrincipal = BillAssetImpactService.roundMoney(openLots.sumOf { it.remainingPrincipal })
+        val delta = BillAssetImpactService.roundMoney(targetPrincipal - currentPrincipal)
+        if (abs(delta) <= BALANCE_EPSILON) return
+
+        if (delta > 0.0) {
+            createLotForAssetBalance(
+                db = db,
+                asset = asset.copy(balance = delta),
+                schedule = defaultScheduleForBalanceChange(changedAt)
+            )
+            return
+        }
+
+        var reductionLeft = abs(delta)
+        openLots.forEach { lot ->
+            if (reductionLeft <= BALANCE_EPSILON) return@forEach
+            val reduced = minOf(lot.remainingPrincipal, reductionLeft)
+            reductionLeft = BillAssetImpactService.roundMoney(reductionLeft - reduced)
+            db.investmentLotDao().updateLot(
+                lot.copy(
+                    remainingPrincipal = BillAssetImpactService.roundMoney(lot.remainingPrincipal - reduced)
+                )
+            )
+        }
+    }
+
+    private fun defaultScheduleForBalanceChange(changedAt: Long): InvestmentSchedule {
+        val startEarningAt = plusDays(startOfDay(changedAt), 1)
+        return InvestmentSchedule(
+            startEarningAt = startEarningAt,
+            firstPayoutAt = plusDays(startEarningAt, 1)
+        )
     }
 
     private suspend fun settleLotInterest(
@@ -134,6 +184,7 @@ object InvestmentInterestService {
                 workingLot = workingLot.copy(lastSettledAt = nextSettledAt)
             }
             db.investmentLotDao().updateLot(workingLot)
+            db.assetDao().updateInterestLastSettledAt(asset.id, nextSettledAt)
             earningDay = nextSettledAt
         }
     }

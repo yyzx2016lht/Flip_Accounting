@@ -485,9 +485,25 @@ class AssetDetailActivity : AppCompatActivity() {
         }
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
         if (!asset.includeInNetAsset) noteParts += "不计入总资产"
+        if (asset.isArchived) noteParts += "已收纳"
         val remarkText = noteParts.joinToString(" · ")
         if (::adapter.isInitialized) {
             adapter.updateBalanceHeader(balanceText, remarkText)
+        }
+    }
+
+    private fun toggleArchiveCurrentAsset() {
+        val asset = currentAsset ?: return
+        val nextArchived = !asset.isArchived
+        lifecycleScope.launch(Dispatchers.IO) {
+            db.assetDao().updateArchived(asset.id, nextArchived)
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    this@AssetDetailActivity,
+                    if (nextArchived) "已将「${asset.name}」移入收纳资产" else "已将「${asset.name}」移出收纳资产",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
@@ -777,6 +793,13 @@ class AssetDetailActivity : AppCompatActivity() {
         inner class BalanceHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             private val tvBalance = v.findViewById<TextView>(R.id.tv_header_balance)
             private val tvRemark = v.findViewById<TextView>(R.id.tv_header_remark)
+            private val tvArchiveAction = v.findViewById<TextView>(R.id.tv_header_archive_action)
+
+            init {
+                tvArchiveAction.setOnClickListener {
+                    toggleArchiveCurrentAsset()
+                }
+            }
 
             fun bind(row: BalanceHeaderRow) {
                 tvBalance.text = row.balanceText
@@ -786,6 +809,9 @@ class AssetDetailActivity : AppCompatActivity() {
                     tvRemark.visibility = View.VISIBLE
                     tvRemark.text = row.remarkText
                 }
+                val archived = currentAsset?.isArchived == true
+                tvArchiveAction.text = if (archived) "移出收纳资产" else "收纳这个资产"
+                tvArchiveAction.setTextColor(Color.parseColor(if (archived) "#4080FF" else "#4F75E2"))
             }
         }
 

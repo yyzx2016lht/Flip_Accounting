@@ -34,4 +34,21 @@
         android:textSize="@dimen/text_size_12"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/tv_header_archive_action"
+        android:layout_width="wrap_content"
+        android:layout_height="34dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_book_overview_entry_btn"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:minWidth="112dp"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:text="收纳这个资产"
+        android:textColor="#4F75E2"
+        android:textSize="@dimen/text_size_12"
+        android:textStyle="bold" />
+
 </LinearLayout>

@@ -419,6 +419,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     ignoreWhitelistToggle = true
                     switchWhitelistMode.isChecked = false
                     ignoreWhitelistToggle = false
+                    view.findViewById<CompoundButton>(R.id.switch_shizuku_persistence)?.isChecked = false
+                    ShizukuRecoveryService.stop(requireContext())
                 } else if (!ShizukuSafe.isReady(requireContext())) {
                     Utils.toast(requireContext(), "Shizuku 高级模式已开启，还需完成授权才能使用白名单")
                 }
@@ -516,9 +518,27 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         view.findViewById<CompoundButton>(R.id.switch_shizuku_persistence).apply {
             isChecked = Prefs.isShizukuPersistenceEnabled(requireContext())
             setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked && !switchShizukuMode.isChecked) {
+                    post { this.isChecked = false }
+                    Utils.toast(requireContext(), "请先开启 Shizuku 高级模式")
+                    return@setOnCheckedChangeListener
+                }
+                if (isChecked && !ShizukuSafe.isReady(requireContext())) {
+                    post { this.isChecked = false }
+                    Utils.toast(requireContext(), "自动恢复需要先启动并授权 Shizuku")
+                    com.taostudio.tapaccounting.ui.dialog.OverlayDialogs.showShizukuPrompt(requireContext())
+                    return@setOnCheckedChangeListener
+                }
                 Prefs.setShizukuPersistenceEnabled(requireContext(), isChecked)
                 if (isChecked) {
-                    Utils.toast(requireContext(), "已开启 Shizuku 保活模式，将在服务启动后生效")
+                    val started = ShizukuRecoveryService.ensureStarted(requireContext())
+                    Utils.toast(
+                        requireContext(),
+                        if (started) "已开启 Shizuku 自动恢复" else "自动恢复启动失败，请检查 Shizuku"
+                    )
+                } else {
+                    ShizukuRecoveryService.stop(requireContext())
+                    Utils.toast(requireContext(), "已关闭 Shizuku 自动恢复")
                 }
             }
         }

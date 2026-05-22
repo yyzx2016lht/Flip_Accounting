@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.CategoryNode
+import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
@@ -830,14 +831,29 @@ object OverlayDialogs {
         val view = LayoutInflater.from(themeContext).inflate(R.layout.dialog_book_picker, null)
         val dialog = AlertDialog.Builder(themeContext).setView(view).create()
         val rv = view.findViewById<RecyclerView>(R.id.rv_books)
-        val currentSelection = currentBook
-        val selectedIndex = books.indexOfFirst { it == currentSelection }
+        val sourceBooks = books
+            .map { BookAccountManager.normalizeBookName(it) }
+            .filter { it.isNotBlank() }
+            .distinct()
+        val includeAllBook = sourceBooks.contains(BookAccountManager.ALL_BOOK)
+        val defaultBook = BookAccountManager.getDefaultBook(ctx, sourceBooks)
+        val currentSelection = BookAccountManager.normalizeBookName(currentBook)
+        var collapsedGroupExpanded = false
+        fun displayBooks(): List<String> = BookAccountManager.getDisplayBookAccounts(
+            context = ctx,
+            books = sourceBooks,
+            includeAllBook = includeAllBook,
+            collapsedGroupExpanded = collapsedGroupExpanded,
+            defaultBookName = defaultBook
+        )
+        var visibleBooks = displayBooks()
+        var selectedIndex = visibleBooks.indexOfFirst { it == currentSelection }
 
         // 账本很多时限制列表高度，避免弹窗过长；列表内部保持可滚动
         val density = ctx.resources.displayMetrics.density
         val itemHeightPx = (52f * density).toInt()
         val maxListHeightPx = (ctx.resources.displayMetrics.heightPixels * 0.46f).toInt()
-        val estimatedListHeight = books.size * itemHeightPx
+        val estimatedListHeight = sourceBooks.size * itemHeightPx
         rv.layoutParams = rv.layoutParams.apply {
             height = if (estimatedListHeight > maxListHeightPx) {
                 maxListHeightPx
@@ -854,10 +870,10 @@ object OverlayDialogs {
                 return object : RecyclerView.ViewHolder(itemView) {}
             }
 
-            override fun getItemCount(): Int = books.size
+            override fun getItemCount(): Int = visibleBooks.size
 
             override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-                val book = books[position]
+                val book = visibleBooks[position]
                 val itemView = holder.itemView
                 val tvName = itemView.findViewById<TextView>(R.id.tv_book_name)
                 val ivCheck = itemView.findViewById<ImageView>(R.id.iv_book_selected)
@@ -872,6 +888,13 @@ object OverlayDialogs {
                     if (isSelected) R.drawable.bg_book_item_selected else R.drawable.bg_book_item_normal
                 )
                 itemView.setOnClickListener {
+                    if (book == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+                        collapsedGroupExpanded = !collapsedGroupExpanded
+                        visibleBooks = displayBooks()
+                        selectedIndex = visibleBooks.indexOfFirst { it == currentSelection }
+                        notifyDataSetChanged()
+                        return@setOnClickListener
+                    }
                     onConfirm(book)
                     dialog.dismiss()
                 }
@@ -1212,7 +1235,10 @@ object OverlayDialogs {
         CoroutineScope(Dispatchers.Main).launch {
             val assets = withContext(Dispatchers.IO) { AppDatabase.getDatabase(ctx).assetDao().getAllAssetsListForPicker() }
             assetList.clear()
-            assetList.addAll(if (assetFilter == null) assets else assets.filter(assetFilter))
+            val visibleAssets = assets.filter { asset ->
+                !asset.isArchived || asset.name == currentSelection
+            }
+            assetList.addAll(if (assetFilter == null) visibleAssets else visibleAssets.filter(assetFilter))
             adapter.notifyDataSetChanged()
             applyBottomPickerEnterAnimation(dialog, view, rv)
             showStyledDialog(

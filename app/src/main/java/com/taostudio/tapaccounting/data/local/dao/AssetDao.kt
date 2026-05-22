@@ -59,6 +59,46 @@ interface AssetDao {
     @Query("UPDATE assets SET balance = :newBalance WHERE id = :assetId")
     suspend fun updateBalance(assetId: Long, newBalance: Double)
 
+    @Query("""
+        UPDATE assets SET
+            name = :name,
+            type = :type,
+            initialBalance = :initialBalance,
+            currency = :currency,
+            icon = :icon,
+            remark = :remark,
+            includeInNetAsset = :includeInNetAsset,
+            sortOrder = :sortOrder,
+            pickerSortOrder = :pickerSortOrder,
+            createTime = :createTime,
+            assetCategory = :assetCategory,
+            creditLimit = :creditLimit,
+            billingDay = :billingDay,
+            annualInterestRate = :annualInterestRate,
+            interestLastSettledAt = :interestLastSettledAt,
+            isArchived = :isArchived
+        WHERE id = :id
+    """)
+    suspend fun updateAssetInfo(
+        id: Long,
+        name: String,
+        type: String,
+        initialBalance: Double,
+        currency: String,
+        icon: String,
+        remark: String,
+        includeInNetAsset: Boolean,
+        sortOrder: Int,
+        pickerSortOrder: Int,
+        createTime: Long,
+        assetCategory: String,
+        creditLimit: Double,
+        billingDay: Int,
+        annualInterestRate: Double,
+        interestLastSettledAt: Long,
+        isArchived: Boolean
+    )
+
     @Query("UPDATE assets SET balance = :newBalance, interestLastSettledAt = :settledAt WHERE id = :assetId")
     suspend fun updateBalanceAfterInterest(assetId: Long, newBalance: Double, settledAt: Long)
 
@@ -70,6 +110,9 @@ interface AssetDao {
 
     @Query("UPDATE assets SET sortOrder = :sortOrder WHERE id = :assetId")
     suspend fun updateSortOrder(assetId: Long, sortOrder: Int)
+
+    @Query("UPDATE assets SET isArchived = :archived WHERE id = :assetId")
+    suspend fun updateArchived(assetId: Long, archived: Boolean)
 
     /** 获取指定类别中最大的 sortOrder，若该类别无资产则返回 null */
     @Query("SELECT MAX(sortOrder) FROM assets WHERE assetCategory = :category")

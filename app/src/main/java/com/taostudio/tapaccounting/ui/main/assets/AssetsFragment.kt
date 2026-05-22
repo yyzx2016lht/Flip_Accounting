@@ -53,6 +53,7 @@ class AssetsFragment : Fragment() {
     private var dragAutoScrollDirection = 0
     private var dragAutoScrollSpeedPx = 0
     private val collapsedCategories = mutableSetOf<String>()
+    private val expandedArchivedAssetCategories = mutableSetOf<String>()
     private var isFirstLoad = true
     private val dragAutoScrollRunner = object : Runnable {
         override fun run() {
@@ -364,7 +365,9 @@ class AssetsFragment : Fragment() {
         }
 
         // ── 资产列表（支持长按拖拽） ──
-        val assetList = group.toMutableList()
+        val activeAssets = group.filterNot { it.isArchived }
+        val archivedAssets = group.filter { it.isArchived }
+        val assetList = activeAssets.toMutableList()
         val adapter = AssetRowAdapter(assetList) { asset ->
             val intent = Intent(requireContext(), AssetDetailActivity::class.java)
             intent.putExtra("ASSET_ID", asset.id)
@@ -460,6 +463,38 @@ class AssetsFragment : Fragment() {
         cardContent.addView(headerRow)
         cardContent.addView(divider)
         cardContent.addView(assetsRecycler)
+        val archivedToggleRow = TextView(ctx).apply {
+            text = "▸ 收纳资产  ${archivedAssets.size}"
+            setTextColor(ctx.getColor(R.color.text_tertiary))
+            textSize = resources.getDimension(R.dimen.text_size_13) / density
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.card_padding),
+                resources.getDimensionPixelSize(R.dimen.space_8),
+                resources.getDimensionPixelSize(R.dimen.card_padding),
+                resources.getDimensionPixelSize(R.dimen.space_8)
+            )
+            visibility = if (archivedAssets.isEmpty()) View.GONE else View.VISIBLE
+            isClickable = true
+            isFocusable = true
+            background = ctx.getDrawable(R.drawable.bg_asset_category_header)
+        }
+        val archivedRecycler = RecyclerView(ctx).apply {
+            layoutManager = LinearLayoutManager(ctx)
+            this.adapter = AssetRowAdapter(archivedAssets) { asset ->
+                val intent = Intent(requireContext(), AssetDetailActivity::class.java)
+                intent.putExtra("ASSET_ID", asset.id)
+                startActivity(intent)
+            }
+            isNestedScrollingEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            itemAnimator = null
+            visibility = View.GONE
+        }
+        if (archivedAssets.isNotEmpty()) {
+            cardContent.addView(archivedToggleRow)
+            cardContent.addView(archivedRecycler)
+        }
         val tvExcludedSummary = TextView(ctx).apply {
             text = if (hasMissingRate) "不计入总资产：汇率未加载"
             else "不计入总资产：${CurrencyUtils.formatAmount(excludedTotal, "CNY")}"
@@ -498,6 +533,9 @@ class AssetsFragment : Fragment() {
                 tvExcludedSummary.alpha = 0f
                 tvExcludedSummary.visibility = View.VISIBLE
                 tvExcludedSummary.animate().alpha(1f).setDuration(duration).start()
+                archivedToggleRow.visibility = if (archivedAssets.isEmpty()) View.GONE else View.VISIBLE
+                archivedRecycler.visibility =
+                    if (expandedArchivedAssetCategories.contains(category) && archivedAssets.isNotEmpty()) View.VISIBLE else View.GONE
             } else if (withAnimation && collapsed) {
                 divider.animate().alpha(0f).setDuration(duration).withEndAction {
                     divider.visibility = View.GONE
@@ -514,10 +552,16 @@ class AssetsFragment : Fragment() {
                 tvExcludedSummary.animate().alpha(0f).setDuration(duration).withEndAction {
                     tvExcludedSummary.visibility = View.GONE
                 }.start()
+                archivedToggleRow.visibility = View.GONE
+                archivedRecycler.visibility = View.GONE
             } else {
                 divider.visibility = targetVisibility
                 assetsRecycler.visibility = targetVisibility
                 tvExcludedSummary.visibility = targetVisibility
+                archivedToggleRow.visibility =
+                    if (!collapsed && archivedAssets.isNotEmpty()) View.VISIBLE else View.GONE
+                archivedRecycler.visibility =
+                    if (!collapsed && expandedArchivedAssetCategories.contains(category) && archivedAssets.isNotEmpty()) View.VISIBLE else View.GONE
             }
         }
 
@@ -528,6 +572,35 @@ class AssetsFragment : Fragment() {
             if (collapsed) collapsedCategories.add(category) else collapsedCategories.remove(category)
             applyCollapsedState(collapsed, withAnimation = true)
         }
+        archivedToggleRow.setOnClickListener {
+            val expanded = !expandedArchivedAssetCategories.contains(category)
+            if (expanded) expandedArchivedAssetCategories.add(category) else expandedArchivedAssetCategories.remove(category)
+            archivedToggleRow.text = "${if (expanded) "▾" else "▸"} 收纳资产  ${archivedAssets.size}"
+            if (expanded) {
+                archivedRecycler.alpha = 0f
+                archivedRecycler.translationY = 8f
+                archivedRecycler.visibility = View.VISIBLE
+                archivedRecycler.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(UiMotion.NORMAL)
+                    .setInterpolator(UiMotion.STANDARD_EASING)
+                    .start()
+            } else {
+                archivedRecycler.animate()
+                    .alpha(0f)
+                    .translationY(8f)
+                    .setDuration(UiMotion.FAST)
+                    .setInterpolator(UiMotion.EXIT_EASING)
+                    .withEndAction {
+                        archivedRecycler.visibility = View.GONE
+                        archivedRecycler.translationY = 0f
+                    }
+                    .start()
+            }
+        }
+        archivedToggleRow.text =
+            "${if (expandedArchivedAssetCategories.contains(category)) "▾" else "▸"} 收纳资产  ${archivedAssets.size}"
 
         card.addView(cardContent)
         return card
@@ -639,6 +712,7 @@ class AssetsFragment : Fragment() {
             holder.tvBalance.text = CurrencyUtils.formatAmount(asset.balance, asset.currency)
 
             val remarkTexts = mutableListOf<String>()
+            if (asset.isArchived) remarkTexts.add("已收纳")
             if (!asset.includeInNetAsset) remarkTexts.add("不计入")
             if (asset.remark.isNotBlank()) remarkTexts.add(asset.remark.trim())
             if (remarkTexts.isNotEmpty()) {

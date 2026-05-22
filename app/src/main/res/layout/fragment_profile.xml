@@ -1400,14 +1400,14 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Shizuku 深度保活"
+                                android:text="Shizuku 自动恢复"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="阻止系统在后台杀死应用，需 Shizuku 授权"
+                                android:text="被电池管家强停后尝试清除 stopped 并重启"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11"
                                 android:layout_marginTop="1dp" />

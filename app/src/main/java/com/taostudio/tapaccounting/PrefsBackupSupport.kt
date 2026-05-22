@@ -233,6 +233,7 @@ object PrefsBackupSupport {
         if (root.has("local_rule_override_v1")) edit.putBoolean("enable_local_rule_override", root.getBoolean("local_rule_override_v1"))
         if (root.has("logging_enabled_v1")) edit.putBoolean(KEY_LOGGING_ENABLED, root.getBoolean("logging_enabled_v1"))
         if (root.has("book_accounts_v1")) edit.putString("book_accounts_v1", root.getString("book_accounts_v1"))
+        if (root.has("collapsed_book_accounts_v1")) edit.putString("collapsed_book_accounts_v1", root.getString("collapsed_book_accounts_v1"))
         if (root.has("selected_book_v1")) edit.putString("selected_book_name_v1", root.getString("selected_book_v1"))
         if (root.has("default_book_v1")) edit.putString("default_book_name_v1", root.getString("default_book_v1"))
 
@@ -368,6 +369,7 @@ object PrefsBackupSupport {
 
             val bookAccounts = BookAccountManager.getBookAccounts(ctx)
             put("book_accounts_v1", BookAccountManager.serializeBookAccounts(ctx))
+            put("collapsed_book_accounts_v1", BookAccountManager.serializeCollapsedBookAccounts(ctx))
             put("selected_book_v1", BookAccountManager.getSelectedBook(ctx))
             put("default_book_v1", BookAccountManager.getDefaultBook(ctx))
 
@@ -416,7 +418,7 @@ object PrefsBackupSupport {
             "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "multi_bill_fast_mode_v1", "save_ocr_debug_v1", "amount_grouping_v1", "bill_show_category_icon_v1", "bill_show_full_category_v1", "bill_remark_priority_v1"),
             "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_text_model_v1", "ai_vision_model_v1", "ai_online_speech_model_v1", "screen_vision_supported_models_v1", "ai_models_cache_v1", "asr_mode_v1", "asr_download_source_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1", "ai_thinking_modify_bill_v1", "ai_thinking_category_refine_v1"),
             "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "ai_chat_identity_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
-            "settings_books" to filterSettingsModule(full, "book_accounts_v1", "selected_book_v1", "default_book_v1", "book_colors_v1", "book_banners_v1"),
+            "settings_books" to filterSettingsModule(full, "book_accounts_v1", "collapsed_book_accounts_v1", "selected_book_v1", "default_book_v1", "book_colors_v1", "book_banners_v1"),
             "settings_advanced_runtime" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1"),
             "settings_advanced" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1", "show_multi_cur_v1", "show_screen_accounting_v1")
         )

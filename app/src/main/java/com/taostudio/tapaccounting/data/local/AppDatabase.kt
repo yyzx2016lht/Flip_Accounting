@@ -23,7 +23,7 @@ import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
 
 @Database(
     entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class, DeletedBill::class],
-    version = 17,
+    version = 19,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -227,6 +227,31 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 普通差额平账(计入统计)转为普通账单（排除备注以"换币平账"开头的记录）
+                database.execSQL("UPDATE bills SET subType = 0 WHERE subType = 3 AND remark NOT LIKE '换币平账%'")
+                // 普通差额平账(不计入统计)转为普通账单，并设置 excludeFromStats = 1（排除备注以"换币平账"开头的记录）
+                database.execSQL("UPDATE bills SET subType = 0, excludeFromStats = 1 WHERE subType = 4 AND remark NOT LIKE '换币平账%'")
+                // 换币平账(计入统计)保留旧 subtype，但设置 excludeFromStats = 1（因为换币平账不应计入统计）
+                database.execSQL("UPDATE bills SET excludeFromStats = 1 WHERE subType = 3 AND remark LIKE '换币平账%'")
+                // 换币平账(不计入统计)保留旧 subtype，确保 excludeFromStats = 1
+                database.execSQL("UPDATE bills SET excludeFromStats = 1 WHERE subType = 4 AND remark LIKE '换币平账%'")
+
+                // 同步处理已删除账单表
+                database.execSQL("UPDATE deleted_bills SET subType = 0 WHERE subType = 3 AND remark NOT LIKE '换币平账%'")
+                database.execSQL("UPDATE deleted_bills SET subType = 0, excludeFromStats = 1 WHERE subType = 4 AND remark NOT LIKE '换币平账%'")
+                database.execSQL("UPDATE deleted_bills SET excludeFromStats = 1 WHERE subType = 3 AND remark LIKE '换币平账%'")
+                database.execSQL("UPDATE deleted_bills SET excludeFromStats = 1 WHERE subType = 4 AND remark LIKE '换币平账%'")
+            }
+        }
+
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE assets ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -247,7 +272,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_13_14,
                         MIGRATION_14_15,
                         MIGRATION_15_16,
-                        MIGRATION_16_17
+                        MIGRATION_16_17,
+                        MIGRATION_17_18,
+                        MIGRATION_18_19
                     )
                     .build()
                 INSTANCE = instance

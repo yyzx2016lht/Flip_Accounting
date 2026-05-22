@@ -23,7 +23,7 @@ object OverlayServiceNotifications {
             .setContentText(content)
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             .setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setSilent(true)
             .setOngoing(true)
             .setShowWhen(false)
@@ -34,7 +34,7 @@ object OverlayServiceNotifications {
     private fun ensureChannel(ctx: Context, channelId: String) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val ch = NotificationChannel(channelId, "记账助手服务", NotificationManager.IMPORTANCE_MIN).apply {
+        val ch = NotificationChannel(channelId, "记账助手服务", NotificationManager.IMPORTANCE_LOW).apply {
             setShowBadge(false)
             enableLights(false)
             enableVibration(false)

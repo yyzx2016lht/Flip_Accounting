@@ -32,7 +32,9 @@ object BillAssetImpactService {
     suspend fun applyBillBalanceImpact(db: AppDatabase, bill: Bill): Int {
         var impactedAssets = 0
         when {
-            bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT || bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> return 0
+            // 兼容旧平账记录：旧 subtype 不再生成，但历史数据删除/恢复时需防止重复影响余额
+            bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT ||
+            bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> return 0
             bill.type == Bill.TYPE_EXPENSE -> {
                 val asset = resolveSourceAsset(db, bill) ?: run {
                     logFull("BILL_GUARD", "（警告）apply_expense 未找到资产，billId=${bill.id}, asset=${bill.accountName}")
@@ -42,6 +44,7 @@ object BillAssetImpactService {
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
                 logAssetDelta(asset, -sourceDelta, "apply_expense", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, -sourceDelta)
+                syncInvestmentPrincipalAfterExternalImpact(db, asset, bill)
                 impactedAssets += 1
             }
             bill.type == Bill.TYPE_INCOME -> {
@@ -53,6 +56,7 @@ object BillAssetImpactService {
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
                 logAssetDelta(asset, sourceDelta, "apply_income", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, sourceDelta)
+                syncInvestmentPrincipalAfterExternalImpact(db, asset, bill)
                 impactedAssets += 1
             }
             bill.type == Bill.TYPE_TRANSFER -> {
@@ -64,6 +68,7 @@ object BillAssetImpactService {
                     val sourceDelta = sourceDeltaInCurrency(bill, sourceAsset.currency)
                     logAssetDelta(sourceAsset, -sourceDelta, "apply_transfer_source", bill.id)
                     db.assetDao().addBalanceDelta(sourceAsset.id, -sourceDelta)
+                    syncInvestmentPrincipalAfterExternalImpact(db, sourceAsset, bill)
                     impactedAssets += 1
                 }
 
@@ -87,6 +92,7 @@ object BillAssetImpactService {
     suspend fun revertBillBalanceImpact(db: AppDatabase, bill: Bill): Int {
         var impactedAssets = 0
         when {
+            // 兼容旧平账记录：旧 subtype 的 revert 逻辑保持原样，防止错误回滚余额
             bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT ||
             bill.subType == Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED -> {
                 val asset = resolveSourceAsset(db, bill) ?: run {
@@ -113,6 +119,7 @@ object BillAssetImpactService {
                 val sourceDelta = convertAmountBetweenCurrencies(baseOriginalAmount(bill), bill.currency, asset.currency)
                 logAssetDelta(asset, sourceDelta, "revert_expense", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, sourceDelta)
+                syncInvestmentPrincipalAfterExternalImpact(db, asset, bill)
                 impactedAssets += 1
             }
             bill.type == Bill.TYPE_INCOME -> {
@@ -124,6 +131,7 @@ object BillAssetImpactService {
                 val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
                 logAssetDelta(asset, -sourceDelta, "revert_income", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, -sourceDelta)
+                syncInvestmentPrincipalAfterExternalImpact(db, asset, bill)
                 impactedAssets += 1
             }
             bill.type == Bill.TYPE_TRANSFER -> {
@@ -135,6 +143,7 @@ object BillAssetImpactService {
                     val sourceDelta = sourceDeltaInCurrency(bill, sourceAsset.currency)
                     logAssetDelta(sourceAsset, sourceDelta, "revert_transfer_source", bill.id)
                     db.assetDao().addBalanceDelta(sourceAsset.id, sourceDelta)
+                    syncInvestmentPrincipalAfterExternalImpact(db, sourceAsset, bill)
                     impactedAssets += 1
                 }
 
@@ -244,6 +253,22 @@ object BillAssetImpactService {
             .replace("账本", "")
             .replace("卡", "")
             .replace("\\s+".toRegex(), "")
+    }
+
+    private suspend fun syncInvestmentPrincipalAfterExternalImpact(
+        db: AppDatabase,
+        assetBeforeImpact: Asset,
+        bill: Bill
+    ) {
+        if (assetBeforeImpact.assetCategory != Asset.CATEGORY_INVESTMENT) return
+        if (bill.categoryName == InvestmentInterestService.CATEGORY_NAME && bill.remark.contains("自动结息")) return
+
+        val latestAsset = db.assetDao().getAssetById(assetBeforeImpact.id) ?: return
+        InvestmentInterestService.reconcileAssetLotsToBalance(
+            db = db,
+            asset = latestAsset,
+            changedAt = bill.time
+        )
     }
 
     private fun targetDeltaInCurrency(bill: Bill, _targetCurrency: String): Double {

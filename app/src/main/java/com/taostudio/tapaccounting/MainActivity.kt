@@ -2,7 +2,6 @@ package com.taostudio.tapaccounting
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.os.Build
 import android.os.Bundle
 import android.content.Intent
 import android.util.AttributeSet
@@ -221,6 +220,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        RecentTasksHelper.applyHideRecentsPreference(this)
         KeepAliveDiagnostics.logSnapshot(this, "main-onCreate")
 
         bottomNavigationView = findViewById(R.id.bottom_navigation)
@@ -398,7 +398,7 @@ class MainActivity : AppCompatActivity() {
 
     // 若已开启敲击，则在启动时拉起悬浮服务
         val serviceIntent = Intent(this, OverlayService::class.java)
-        val needsService = Prefs.isDoubleTapEnabled(this)
+        val needsService = Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)
         if (needsService) {
             OverlayService.startCompat(this, serviceIntent)
         }
@@ -411,6 +411,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        RecentTasksHelper.applyHideRecentsPreference(this)
         refreshBottomNavigationTabs()
     }
 

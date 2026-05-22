@@ -448,7 +448,7 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
             "- 每条 bill 必须包含完整字段：amount、type、asset_name、category_name、to_asset_name、time、remarks、currency、fee。\n" +
             "- remarks 仅保留该条消费的核心关键词，尽量简短（建议 <=12 字）。\n" +
             "- category_name 从可选分类中选择最合适的一条，支出参考：${expenseLeafCats.joinToString("、")}；收入参考：${incomeLeafCats.joinToString("、")}。\n" +
-            "- 若无法确定分类，输出空字符串，不要瞎猜；优先保证金额和拆单准确。\n"
+            "- 若无法确定分类，优先选择对应分类列表中的“其他/其它”类目；仅当分类列表中没有可用兜底类目时才输出空字符串。\n"
 
     fun buildMultiStageOneRule(expenseLeafCats: List<String>, incomeLeafCats: List<String>): String =
         "\n【多账单第一阶段职责】第一阶段只负责拆单和提取基础字段，不负责最终分类。\n" +
@@ -469,7 +469,7 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
             "- 每条 bill 只需要包含 amount、type、category_name、time、remarks、currency；不要输出 asset_name、to_asset_name、fee。\n" +
             "- 如果模型为了兼容旧格式输出了 asset_name/to_asset_name，也必须留空字符串。\n" +
             "- category_name 从可选分类中选择最合适的一条，支出参考：${expenseLeafCats.joinToString("、")}；收入参考：${incomeLeafCats.joinToString("、")}。\n" +
-            "- 若无法确定分类，输出空字符串，不要因为缺少账户而追问用户。\n"
+            "- 若无法确定分类，优先选择对应分类列表中的“其他/其它”类目；仅当分类列表中没有可用兜底类目时才输出空字符串，不要因为缺少账户而追问用户。\n"
 
     fun buildOutputJsonRuleWithTargetFields(): String =
         "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name、target_amount、target_currency（仅在用户明确提到到账金额时输出）。Do not return markdown or extra explanation.\n"

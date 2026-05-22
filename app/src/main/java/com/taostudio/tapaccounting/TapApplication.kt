@@ -11,6 +11,7 @@ import com.taostudio.tapaccounting.data.repository.BillRepository
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
+import com.taostudio.tapaccounting.logic.InvestmentInterestWorker
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 
 class TapApplication : Application() {
@@ -36,6 +37,7 @@ class TapApplication : Application() {
         SharedYearMonthSession.resetToCurrentMonth()
         installCrashHandler()
         CurrencyManager.init(this)
+        InvestmentInterestWorker.schedule(this)
 
         // 启动时在后台协程检查并执行数据迁移
         CoroutineScope(Dispatchers.IO).launch {

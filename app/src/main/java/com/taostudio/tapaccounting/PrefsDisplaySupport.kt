@@ -38,7 +38,7 @@ object PrefsDisplaySupport {
         prefs(ctx).edit().putBoolean(KEY_SHOW_AI_IMAGE, show).apply()
 
     fun isShowScreenAccounting(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_SHOW_SCREEN_ACCOUNTING, true)
+        prefs(ctx).getBoolean(KEY_SHOW_SCREEN_ACCOUNTING, false)
     fun setShowScreenAccounting(ctx: Context, show: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_SHOW_SCREEN_ACCOUNTING, show).apply()
 

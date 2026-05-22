@@ -76,10 +76,53 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="快捷手势开关"
+                            android:text="快捷手势"
                             android:textSize="@dimen/text_size_16"
                             android:textStyle="bold"
                             android:textColor="#333333" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="0dp"
+                        android:background="#F0F0F0" />
+
+                    <!-- 翻转唤出 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="翻转唤出"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="翻转手机快速唤出悬浮窗"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_flip_enable"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
 
                     <View
@@ -126,6 +169,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_before_landscape_disable"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="0dp"
@@ -133,6 +177,7 @@
 
                     <!-- 横屏状态不检测 -->
                     <LinearLayout
+                        android:id="@+id/row_landscape_disable"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
@@ -169,6 +214,52 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_before_hide_recents"
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="0dp"
+                        android:background="#F0F0F0" />
+
+                    <!-- 隐藏后台卡片 -->
+                    <LinearLayout
+                        android:id="@+id/row_hide_recents"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="隐藏后台卡片"
+                                android:textColor="#1A2744"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="实验性功能，测试是否解决杀后台问题"
+                                android:textColor="#9AA4B2"
+                                android:textSize="@dimen/text_size_11" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_hide_recents"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/divider_before_vibration_feedback"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="0dp"
@@ -176,6 +267,7 @@
 
                     <!-- 弹窗震动反馈 -->
                     <LinearLayout
+                        android:id="@+id/row_vibration_feedback"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
@@ -212,6 +304,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_before_save_vibrate"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:layout_marginStart="0dp"
@@ -219,6 +312,7 @@
 
                     <!-- 记账成功震动 -->
                     <LinearLayout
+                        android:id="@+id/row_save_vibrate"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
@@ -253,6 +347,100 @@
                             app:thumbTint="@color/switch_thumb_tint"
                             app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- ═══════════ 翻转灵敏度卡片 ═══════════ -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/card_flip_sensitivity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#FFFFFF">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+                        <View
+                            android:layout_width="4dp"
+                            android:layout_height="18dp"
+                            android:background="@drawable/bg_section_indicator_orange" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="翻转灵敏度"
+                            android:textSize="@dimen/text_size_16"
+                            android:textStyle="bold"
+                            android:textColor="#333333" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvFlipCurrentValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="4dp"
+                        android:text="当前等级：中等（50）"
+                        android:textColor="#FF9800"
+                        android:textSize="@dimen/text_size_15"
+                        android:textStyle="bold"
+                        android:background="#FFF3E0"
+                        android:paddingVertical="8dp"
+                        android:paddingHorizontal="12dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="14dp">
+                        <TextView
+                            android:layout_width="48dp"
+                            android:layout_height="wrap_content"
+                            android:text="更稳"
+                            android:textSize="@dimen/text_size_11"
+                            android:textColor="#999999"
+                            android:gravity="center" />
+                        <SeekBar
+                            android:id="@+id/seekBarFlipSensitivity"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginHorizontal="4dp"
+                            android:max="100"
+                            android:progress="50" />
+                        <TextView
+                            android:layout_width="48dp"
+                            android:layout_height="wrap_content"
+                            android:text="更灵"
+                            android:textSize="@dimen/text_size_11"
+                            android:textColor="#999999"
+                            android:gravity="center" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="灵敏度越高，翻转动作越容易触发。过高可能导致误触。"
+                        android:textSize="@dimen/text_size_12"
+                        android:textColor="#999999"
+                        android:lineSpacingExtra="4dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -393,6 +581,68 @@
                             android:textColor="#333333" />
                     </LinearLayout>
 
+                    <!-- 高级设置入口 -->
+                    <LinearLayout
+                        android:id="@+id/btn_tap_advanced_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_gray">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_settings"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="14dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="高级敲击设置"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:id="@+id/tv_tap_advanced_summary"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="模型、省电和推理参数"
+                                android:textColor="#999999"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/iv_tap_advanced_chevron"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_chevron_right"
+                            app:tint="#CCCCCC" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/divider_after_tap_advanced_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:background="#F0F0F0"
+                        android:layout_marginVertical="4dp" />
+
                     <!-- 模型选择 -->
                     <LinearLayout
                         android:id="@+id/btn_tap_model"
@@ -448,6 +698,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_after_tap_model"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:background="#F0F0F0"
@@ -505,6 +756,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_after_tap_nnapi"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:background="#F0F0F0"
@@ -562,6 +814,7 @@
                     </LinearLayout>
 
                     <View
+                        android:id="@+id/divider_after_tap_low_power"
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:background="#F0F0F0"
@@ -877,14 +1130,12 @@
                                 android:textSize="@dimen/text_size_12" />
                         </LinearLayout>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_notification_permission"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_notification_permission"
                             android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:text="去开启"
-                            android:textColor="#5C6BC0"
-                            android:textSize="@dimen/text_size_13" />
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
 
                     <View
@@ -947,10 +1198,67 @@
                             android:textSize="@dimen/text_size_13" />
                     </LinearLayout>
 
+                    <View
+                        android:id="@+id/divider_after_accessibility_service"
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:background="#F0F0F0"
+                        android:layout_marginVertical="4dp" />
+
+                    <!-- 隐藏后台卡片 -->
+                    <LinearLayout
+                        android:id="@+id/row_hide_recents_bottom"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_gray">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_keep_alive"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="14dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="隐藏后台卡片"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="实验性功能，测试是否解决杀后台问题"
+                                android:textColor="#999999"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_hide_recents_bottom"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>
-

@@ -410,7 +410,9 @@
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:background="#EFF3FB"
+        android:clickable="true"
         android:elevation="8dp"
+        android:focusable="true"
         android:orientation="vertical"
         android:paddingStart="14dp"
         android:paddingEnd="14dp"
@@ -626,5 +628,3 @@
     </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>
-
-

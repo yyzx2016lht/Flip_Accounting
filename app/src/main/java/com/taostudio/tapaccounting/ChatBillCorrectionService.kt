@@ -8,6 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.data.local.entity.Category
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import com.taostudio.tapaccounting.logic.BillAssetImpactService
@@ -178,6 +179,20 @@ class ChatBillCorrectionService(
         return null
     }
 
+    private suspend fun resolveFallbackCategoryName(type: Int): String? {
+        val categories = db.categoryDao().getCategoriesListByType(type)
+        if (categories.isEmpty()) return null
+        val rootsById = categories.filter { it.parentId == null }.associateBy { it.id }
+
+        fun displayName(category: Category): String {
+            val parent = category.parentId?.let { rootsById[it] }
+            return if (parent != null) "${parent.name} - ${category.name}" else category.name
+        }
+
+        return categories.firstOrNull { it.parentId == null && it.name in setOf("其他", "其它") }?.let(::displayName)
+            ?: categories.firstOrNull { it.name in setOf("其他", "其它") }?.let(::displayName)
+    }
+
     private fun extractSingleTransferSettlementHint(userText: String): TransferSettlementHint? {
         if (userText.isBlank()) return null
         val pattern = Regex(
@@ -246,7 +261,10 @@ class ChatBillCorrectionService(
                 val finalType = if (type == 3) 2 else type
                 val subType = if (type == 3) Bill.SUBTYPE_REPAYMENT else Bill.SUBTYPE_NORMAL
 
-                val categoryName = com.taostudio.tapaccounting.logic.CategoryNameNormalizer.normalizeForStorage(billJson.optString("category_name", "")).trim()
+                var categoryName = com.taostudio.tapaccounting.logic.CategoryNameNormalizer.normalizeForStorage(billJson.optString("category_name", "")).trim()
+                if (finalType != Bill.TYPE_TRANSFER && categoryName.isBlank()) {
+                    categoryName = resolveFallbackCategoryName(if (finalType == Bill.TYPE_INCOME) 1 else 0).orEmpty()
+                }
                 if (finalType != Bill.TYPE_TRANSFER && categoryName.isBlank()) {
                     errors += "第 ${rowNo} 笔缺少分类，请补充分类后再记账。"
                     continue

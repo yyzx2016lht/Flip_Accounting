@@ -109,7 +109,9 @@ object RuleDialogHelper {
         // Accounts
         CoroutineScope(Dispatchers.IO).launch {
             val db = AppDatabase.getDatabase(ctx)
-            val accounts = db.assetDao().getAllAssetsList().map { it.name }
+            val accounts = db.assetDao().getAllAssetsList()
+                .filterNot { it.isArchived }
+                .map { it.name }
             withContext(Dispatchers.Main) {
                 val accAdapter = ArrayAdapter<String>(ctx, android.R.layout.simple_spinner_item, (listOf("无") + accounts).toTypedArray()).apply {
                     setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
