@@ -34,6 +34,7 @@ internal class HomeMultiSelectController(
     private val getHomeAdapter: () -> HomeAdapter,
     private val dismissKeyboardForDialog: () -> Unit,
     private val configureDialogWindow: (Dialog, Int, Float) -> Unit,
+    private val onDataChanged: () -> Unit = {},
 ) {
     fun setupMultiSelectActions() {
         btnMsCancel.setOnClickListener {
@@ -67,6 +68,7 @@ internal class HomeMultiSelectController(
                 fragment.lifecycleScope.launch {
                     com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillsAndRevertBalance(db, billsToDelete)
                     getHomeAdapter().clearSelection()
+                    onDataChanged()
                     Toast.makeText(
                         fragment.context,
                         "已删除 ${billsToDelete.size} 条账单",
@@ -78,25 +80,13 @@ internal class HomeMultiSelectController(
     }
 
     fun setupMultiSelectActionsBottomOffset() {
-        val hostActivity = fragment.activity ?: return
-        val bottomNav = hostActivity.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottom_navigation)
-        val fallbackNavHeight = (56f * fragment.resources.displayMetrics.density).toInt()
-
-        fun applyOffset() {
-            val lp = layoutMultiSelectActions.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-            val navHeight = bottomNav?.height ?: 0
-            val navExtra = (navHeight - fallbackNavHeight).coerceAtLeast(0)
-            val targetBottom = multiSelectActionsBaseBottomMargin + navExtra
-            if (lp.bottomMargin != targetBottom) {
-                lp.bottomMargin = targetBottom
-                layoutMultiSelectActions.layoutParams = lp
-            }
+        // Home 页面容器已经通过 activity_main.xml 为底栏预留了固定高度，
+        // 这里不应再叠加 BottomNavigation 的额外偏移，否则会出现“悬空”间隙。
+        val lp = layoutMultiSelectActions.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+        if (lp.bottomMargin != multiSelectActionsBaseBottomMargin) {
+            lp.bottomMargin = multiSelectActionsBaseBottomMargin
+            layoutMultiSelectActions.layoutParams = lp
         }
-
-        bottomNav?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            applyOffset()
-        }
-        layoutMultiSelectActions.post { applyOffset() }
     }
 
     private fun showMoveToBookDialog(bills: List<Bill>) {
@@ -145,6 +135,7 @@ internal class HomeMultiSelectController(
                         db.billDao().moveBillsToBook(ids, targetBook)
                         withContext(Dispatchers.Main) {
                             getHomeAdapter().clearSelection()
+                            onDataChanged()
                             Toast.makeText(
                                 fragment.requireContext(),
                                 "已将 ${bills.size} 条账单移动到「$targetBook」",

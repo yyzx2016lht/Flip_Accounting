@@ -111,7 +111,12 @@ interface AssetDao {
     @Query("UPDATE assets SET sortOrder = :sortOrder WHERE id = :assetId")
     suspend fun updateSortOrder(assetId: Long, sortOrder: Int)
 
-    @Query("UPDATE assets SET isArchived = :archived WHERE id = :assetId")
+    @Query("""
+        UPDATE assets
+        SET isArchived = :archived,
+            includeInNetAsset = CASE WHEN :archived THEN 0 ELSE includeInNetAsset END
+        WHERE id = :assetId
+    """)
     suspend fun updateArchived(assetId: Long, archived: Boolean)
 
     /** 获取指定类别中最大的 sortOrder，若该类别无资产则返回 null */

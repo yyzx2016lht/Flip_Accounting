@@ -26,11 +26,19 @@ object PrefsGeneralSupport {
     private const val KEY_FLIP_SENSITIVITY = "flip_sensitivity_level"
     private const val KEY_DOUBLE_TAP_ENABLED = "double_tap_enabled"
     private const val KEY_DOUBLE_TAP_GUIDE_SEEN = "double_tap_guide_seen"
+    private const val KEY_FLIP_GUIDE_SEEN = "flip_guide_seen_v1"
+    private const val KEY_HOME_ONBOARDING_SEEN = "home_onboarding_seen_v1"
+    private const val KEY_SETTINGS_GUIDE_DISMISSED = "settings_guide_dismissed_v1"
+    private const val KEY_QUICK_GESTURE_SETUP_GUIDE_SEEN = "quick_gesture_setup_guide_seen_v1"
+    private const val KEY_SENSITIVITY_ONBOARDING_SEEN = "sensitivity_onboarding_seen_v2"
+    private const val KEY_GESTURE_PERMISSION_PROMPT_DEFER_UNTIL_MS = "gesture_permission_prompt_defer_until_ms_v1"
     private const val KEY_TAP_MODEL = "tap_model"
     private const val KEY_TAP_SENSITIVITY_LEVEL = "tap_sensitivity_level"
     private const val KEY_TAP_NNAPI_LOW_POWER = "tap_nnapi_low_power"
     private const val KEY_TAP_TRIPLE_ENABLED = "tap_triple_enabled"
     private const val KEY_TAP_LOW_POWER = "tap_low_power"
+    private const val KEY_TAP_FORCE_FULL_ML_MIGRATED = "tap_force_full_ml_migrated_v1"
+    private const val KEY_FLIP_ACTION = "flip_action"
     private const val KEY_TAP_ACTION_DOUBLE = "tap_action_double"
     private const val KEY_TAP_ACTION_TRIPLE = "tap_action_triple"
     private const val KEY_API_CONFIG_UNLOCKED = "api_config_unlocked_v1"
@@ -161,6 +169,16 @@ object PrefsGeneralSupport {
     fun setFlipSensitivity(ctx: Context, level: Int) =
         prefs(ctx).edit().putInt(KEY_FLIP_SENSITIVITY, level.coerceIn(0, 100)).apply()
 
+    fun getFlipAction(ctx: Context): String =
+        prefs(ctx).getString(KEY_FLIP_ACTION, "show_overlay") ?: "show_overlay"
+    fun setFlipAction(ctx: Context, actionId: String) =
+        prefs(ctx).edit().putString(KEY_FLIP_ACTION, actionId).apply()
+
+    fun hasSeenFlipGuide(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_FLIP_GUIDE_SEEN, false)
+    fun setFlipGuideSeen(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_FLIP_GUIDE_SEEN, true).apply()
+
     fun isDoubleTapEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_DOUBLE_TAP_ENABLED, false)
     fun setDoubleTapEnabled(ctx: Context, enabled: Boolean) =
@@ -173,6 +191,49 @@ object PrefsGeneralSupport {
         prefs(ctx).getBoolean(KEY_DOUBLE_TAP_GUIDE_SEEN, false)
     fun setDoubleTapGuideSeen(ctx: Context) =
         prefs(ctx).edit().putBoolean(KEY_DOUBLE_TAP_GUIDE_SEEN, true).apply()
+
+    fun hasSeenQuickGestureSetupGuide(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_QUICK_GESTURE_SETUP_GUIDE_SEEN, false)
+    fun setQuickGestureSetupGuideSeen(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_QUICK_GESTURE_SETUP_GUIDE_SEEN, true).apply()
+
+    fun hasSeenSensitivityOnboarding(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_SENSITIVITY_ONBOARDING_SEEN, false)
+    fun setSensitivityOnboardingSeen(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_SENSITIVITY_ONBOARDING_SEEN, true).apply()
+
+    fun hasSeenHomeOnboarding(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_HOME_ONBOARDING_SEEN, false)
+    fun setHomeOnboardingSeen(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_HOME_ONBOARDING_SEEN, true).apply()
+
+    fun isSettingsGuideDismissed(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_SETTINGS_GUIDE_DISMISSED, false)
+    fun setSettingsGuideDismissed(ctx: Context, dismissed: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_SETTINGS_GUIDE_DISMISSED, dismissed).apply()
+
+    fun getGesturePermissionPromptDeferUntilMs(ctx: Context): Long =
+        prefs(ctx).getLong(KEY_GESTURE_PERMISSION_PROMPT_DEFER_UNTIL_MS, 0L)
+
+    fun setGesturePermissionPromptDeferUntilMs(ctx: Context, untilMs: Long) {
+        val editor = prefs(ctx).edit()
+        if (untilMs <= 0L) {
+            editor.remove(KEY_GESTURE_PERMISSION_PROMPT_DEFER_UNTIL_MS)
+        } else {
+            editor.putLong(KEY_GESTURE_PERMISSION_PROMPT_DEFER_UNTIL_MS, untilMs)
+        }
+        editor.apply()
+    }
+
+    fun shouldDeferGesturePermissionPrompt(ctx: Context): Boolean {
+        val until = getGesturePermissionPromptDeferUntilMs(ctx)
+        if (until <= 0L) return false
+        val deferred = System.currentTimeMillis() < until
+        if (!deferred) {
+            setGesturePermissionPromptDeferUntilMs(ctx, 0L)
+        }
+        return deferred
+    }
 
     // --- Tap back settings ---
     fun getTapModel(ctx: Context): String =
@@ -190,10 +251,21 @@ object PrefsGeneralSupport {
     fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_TAP_NNAPI_LOW_POWER, enabled).apply()
 
-    fun isTapLowPower(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_TAP_LOW_POWER, false)
-    fun setTapLowPower(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean(KEY_TAP_LOW_POWER, enabled).apply()
+    fun isTapForceFullMl(ctx: Context): Boolean {
+        val prefs = prefs(ctx)
+        if (!prefs.getBoolean(KEY_TAP_FORCE_FULL_ML_MIGRATED, false)) {
+            prefs.edit()
+                .putBoolean(KEY_TAP_LOW_POWER, false)
+                .putBoolean(KEY_TAP_FORCE_FULL_ML_MIGRATED, true)
+                .apply()
+        }
+        return prefs.getBoolean(KEY_TAP_LOW_POWER, false)
+    }
+    fun setTapForceFullMl(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit()
+            .putBoolean(KEY_TAP_LOW_POWER, enabled)
+            .putBoolean(KEY_TAP_FORCE_FULL_ML_MIGRATED, true)
+            .apply()
 
     fun isTapTripleEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_TAP_TRIPLE_ENABLED, false)

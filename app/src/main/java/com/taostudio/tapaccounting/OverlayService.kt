@@ -619,9 +619,21 @@ class OverlayService : Service() {
             }
         }
         triggerTapFeedback("flip-detected")
-        Logger.d(this, "OverlayService", "Flip detected, showing overlay")
+        val actionId = Prefs.getFlipAction(this)
+        if (actionId.isEmpty()) {
+            Logger.d(this, "OverlayService", "Flip detected but no action configured")
+            Utils.toast(this, "已识别翻转，但还没有配置触发动作")
+            return
+        }
+        val action = com.taostudio.tapaccounting.tap.TapActionRegistry.findById(actionId)
+        if (action == null) {
+            Logger.d(this, "OverlayService", "Flip detected but action id is unknown: $actionId")
+            Utils.toast(this, "已识别翻转，但动作配置已失效")
+            return
+        }
+        Logger.d(this, "OverlayService", "Flip detected, executing: ${action.displayName}")
         keepAliveManager.acquireWakeLockBriefly(3_000L)
-        overlayManager.showOverlay()
+        action.execute(this)
     }
 
     private fun stopTapDetection() {

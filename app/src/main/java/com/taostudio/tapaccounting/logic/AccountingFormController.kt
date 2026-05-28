@@ -607,7 +607,6 @@ class AccountingFormController(
                 R.id.layout_account, R.id.tv_account -> {
                     scope.launch(Dispatchers.IO) {
                         val assets = AppDatabase.getDatabase(ctx).assetDao().getAllAssetsList()
-                            .filterNot { it.isArchived }
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             val isRepaymentMode = spType.selectedItemPosition == 3
@@ -654,7 +653,6 @@ class AccountingFormController(
                 R.id.layout_account_2, R.id.tv_account_2 -> {
                     scope.launch(Dispatchers.IO) {
                         val assets = AppDatabase.getDatabase(ctx).assetDao().getAllAssetsList()
-                            .filterNot { it.isArchived }
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             val isRepaymentMode = spType.selectedItemPosition == 3

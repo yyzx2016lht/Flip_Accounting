@@ -35,6 +35,7 @@ internal class HomeRefreshController(
     private var isPullRefreshing = false
     private var pullRefreshBeforeSnapshot: RefreshSnapshot? = null
     private var billsInvalidationObserver: InvalidationTracker.Observer? = null
+    private var billsInvalidationDebounceJob: Job? = null
 
     fun setupPullToRefresh() {
         swipeRefreshLayout.setOnRefreshListener {
@@ -80,21 +81,28 @@ internal class HomeRefreshController(
     }
 
     fun observeBillTableChanges() {
-        val db = AppDatabase.getDatabase(fragment.requireContext().applicationContext)
+        val appContext = fragment.requireContext().applicationContext
+        val db = AppDatabase.getDatabase(appContext)
         billsInvalidationObserver?.let { db.invalidationTracker.removeObserver(it) }
         val observer = object : InvalidationTracker.Observer("bills") {
             override fun onInvalidated(tables: Set<String>) {
+                // 兜底刷新：Room Flow 正常情况下会自动推送，这里只做“漏网之鱼”的补偿。
+                // 对于批量写入/连续更新，做 debounce 合并，避免频繁重启 flow。
                 fragment.viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
                     if (!fragment.isAdded) return@launch
-                    if (!fragment.viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
-                    homeViewModel.forceReload(
-                        bookName = getSelectedBookName(),
-                        year = getSelectedYear(),
-                        month = getSelectedMonth(),
-                        timeRange = getCurrentTimeRange(),
-                        type = getCurrentType(),
-                        isChartHidden = !Prefs.isShowHomeTrendCard(fragment.requireContext())
-                    )
+                    billsInvalidationDebounceJob?.cancel()
+                    billsInvalidationDebounceJob = fragment.viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                        delay(260)
+                        if (!fragment.isAdded) return@launch
+                        homeViewModel.forceReload(
+                            bookName = getSelectedBookName(),
+                            year = getSelectedYear(),
+                            month = getSelectedMonth(),
+                            timeRange = getCurrentTimeRange(),
+                            type = getCurrentType(),
+                            isChartHidden = !Prefs.isShowHomeTrendCard(appContext)
+                        )
+                    }
                 }
             }
         }
@@ -105,6 +113,8 @@ internal class HomeRefreshController(
     fun onDestroyView() {
         refreshTimeoutJob?.cancel()
         refreshTimeoutJob = null
+        billsInvalidationDebounceJob?.cancel()
+        billsInvalidationDebounceJob = null
         val appContext = fragment.context?.applicationContext
         if (appContext != null) {
             val db = AppDatabase.getDatabase(appContext)

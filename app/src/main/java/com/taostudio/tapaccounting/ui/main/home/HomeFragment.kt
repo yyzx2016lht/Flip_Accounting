@@ -235,7 +235,8 @@ class HomeFragment : Fragment() {
         HomeBillSheetsController(
             fragment = this,
             dfDetailTime = dfDetailTime,
-            dfDetailTimeShort = dfDetailTimeShort
+            dfDetailTimeShort = dfDetailTimeShort,
+            onDataChanged = { homeViewModel.reload() }
         )
     }
     private val accountCurrencyById = mutableMapOf<Long, String>()
@@ -263,6 +264,7 @@ class HomeFragment : Fragment() {
                 } else {
                     isEnabled = false
                     requireActivity().onBackPressed()
+                    isEnabled = true
                 }
             }
         })
@@ -359,6 +361,7 @@ class HomeFragment : Fragment() {
             getHomeAdapter = { homeAdapter },
             dismissKeyboardForDialog = { dismissKeyboardForDialog() },
             configureDialogWindow = { dialog, width, dim -> configureDialogWindow(dialog, width, dim) },
+            onDataChanged = { homeViewModel.reload() },
         )
 
         headerBannerLayout = view.findViewById(R.id.headerBannerLayout)

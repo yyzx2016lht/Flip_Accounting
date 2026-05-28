@@ -49,6 +49,11 @@ object Prefs {
     fun getFlipSensitivity(ctx: Context): Int = PrefsGeneralSupport.getFlipSensitivity(ctx)
     fun setFlipSensitivity(ctx: Context, level: Int) =
         PrefsGeneralSupport.setFlipSensitivity(ctx, level)
+    fun getFlipAction(ctx: Context): String = PrefsGeneralSupport.getFlipAction(ctx)
+    fun setFlipAction(ctx: Context, actionId: String) =
+        PrefsGeneralSupport.setFlipAction(ctx, actionId)
+    fun hasSeenFlipGuide(ctx: Context): Boolean = PrefsGeneralSupport.hasSeenFlipGuide(ctx)
+    fun setFlipGuideSeen(ctx: Context) = PrefsGeneralSupport.setFlipGuideSeen(ctx)
 
     fun isShizukuPersistenceEnabled(ctx: Context): Boolean =
         PrefsGeneralSupport.isShizukuPersistenceEnabled(ctx)
@@ -342,6 +347,28 @@ object Prefs {
         PrefsGeneralSupport.setDoubleTapEnabled(ctx, enabled)
     fun hasSeenDoubleTapGuide(ctx: Context): Boolean = PrefsGeneralSupport.hasSeenDoubleTapGuide(ctx)
     fun setDoubleTapGuideSeen(ctx: Context) = PrefsGeneralSupport.setDoubleTapGuideSeen(ctx)
+    fun hasSeenQuickGestureSetupGuide(ctx: Context): Boolean =
+        PrefsGeneralSupport.hasSeenQuickGestureSetupGuide(ctx)
+    fun setQuickGestureSetupGuideSeen(ctx: Context) =
+        PrefsGeneralSupport.setQuickGestureSetupGuideSeen(ctx)
+    fun hasSeenSensitivityOnboarding(ctx: Context): Boolean =
+        PrefsGeneralSupport.hasSeenSensitivityOnboarding(ctx)
+    fun setSensitivityOnboardingSeen(ctx: Context) =
+        PrefsGeneralSupport.setSensitivityOnboardingSeen(ctx)
+    fun hasSeenHomeOnboarding(ctx: Context): Boolean =
+        PrefsGeneralSupport.hasSeenHomeOnboarding(ctx)
+    fun setHomeOnboardingSeen(ctx: Context) =
+        PrefsGeneralSupport.setHomeOnboardingSeen(ctx)
+    fun isSettingsGuideDismissed(ctx: Context): Boolean =
+        PrefsGeneralSupport.isSettingsGuideDismissed(ctx)
+    fun setSettingsGuideDismissed(ctx: Context, dismissed: Boolean) =
+        PrefsGeneralSupport.setSettingsGuideDismissed(ctx, dismissed)
+    fun getGesturePermissionPromptDeferUntilMs(ctx: Context): Long =
+        PrefsGeneralSupport.getGesturePermissionPromptDeferUntilMs(ctx)
+    fun setGesturePermissionPromptDeferUntilMs(ctx: Context, untilMs: Long) =
+        PrefsGeneralSupport.setGesturePermissionPromptDeferUntilMs(ctx, untilMs)
+    fun shouldDeferGesturePermissionPrompt(ctx: Context): Boolean =
+        PrefsGeneralSupport.shouldDeferGesturePermissionPrompt(ctx)
 
     // --- Tap back settings ---
     fun getTapModel(ctx: Context): String = PrefsGeneralSupport.getTapModel(ctx)
@@ -350,8 +377,8 @@ object Prefs {
     fun setTapSensitivityLevel(ctx: Context, level: Int) = PrefsGeneralSupport.setTapSensitivityLevel(ctx, level)
     fun isTapNnapiLowPower(ctx: Context): Boolean = PrefsGeneralSupport.isTapNnapiLowPower(ctx)
     fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapNnapiLowPower(ctx, enabled)
-    fun isTapLowPower(ctx: Context): Boolean = PrefsGeneralSupport.isTapLowPower(ctx)
-    fun setTapLowPower(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapLowPower(ctx, enabled)
+    fun isTapForceFullMl(ctx: Context): Boolean = PrefsGeneralSupport.isTapForceFullMl(ctx)
+    fun setTapForceFullMl(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapForceFullMl(ctx, enabled)
     fun isTapTripleEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isTapTripleEnabled(ctx)
     fun setTapTripleEnabled(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapTripleEnabled(ctx, enabled)
     fun getTapActionDouble(ctx: Context): String = PrefsGeneralSupport.getTapActionDouble(ctx)

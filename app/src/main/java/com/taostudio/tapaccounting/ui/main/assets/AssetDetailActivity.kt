@@ -32,7 +32,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONObject
 import com.taostudio.tapaccounting.logic.AccountingFormController
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -790,6 +790,13 @@ class AssetDetailActivity : AppCompatActivity() {
 
         override fun getItemCount(): Int = rows.size
 
+        override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+            if (holder is BillViewHolder) {
+                holder.cancelIconLoad()
+            }
+            super.onViewRecycled(holder)
+        }
+
         inner class BalanceHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             private val tvBalance = v.findViewById<TextView>(R.id.tv_header_balance)
             private val tvRemark = v.findViewById<TextView>(R.id.tv_header_remark)
@@ -857,6 +864,16 @@ class AssetDetailActivity : AppCompatActivity() {
             private val ivIcon = v.findViewById<ImageView>(R.id.iv_bill_category_icon)
             private val iconContainer = v.findViewById<View>(R.id.layout_icon_container)
             private val cbSelect = v.findViewById<android.widget.CheckBox>(R.id.cb_bill_select)
+            private var iconLoadJob: Job? = null
+            private var boundBillId: Long = -1L
+
+            fun cancelIconLoad() {
+                iconLoadJob?.cancel()
+                iconLoadJob = null
+                if (!isFinishing && !isDestroyed) {
+                    Glide.with(this@AssetDetailActivity).clear(ivIcon)
+                }
+            }
 
             fun updateMode(bill: Bill) {
                 cbSelect.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
@@ -868,6 +885,8 @@ class AssetDetailActivity : AppCompatActivity() {
             }
 
             fun bind(bill: Bill, position: Int) {
+                boundBillId = bill.id
+                cancelIconLoad()
                 val isTransfer = bill.type == Bill.TYPE_TRANSFER
                 val isRepayment = isTransfer && bill.subType == Bill.SUBTYPE_REPAYMENT
                 val isRefund = bill.subType == Bill.SUBTYPE_REFUND
@@ -1023,15 +1042,21 @@ class AssetDetailActivity : AppCompatActivity() {
                     val iconName = if (isRefund) baseCategory else bill.categoryName
                     val iconType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
                     ivIcon.setImageResource(R.mipmap.ic_launcher)
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val iconUrl = CategoryIconHelper.findCategoryIcon(itemView.context, iconName, iconType)
-                        withContext(Dispatchers.Main) {
-                            if (iconUrl.isNotEmpty()) {
-                                Glide.with(itemView.context)
-                                    .load(iconUrl)
-                                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                                    .into(ivIcon)
-                            }
+                    iconLoadJob = lifecycleScope.launch {
+                        val iconUrl = withContext(Dispatchers.IO) {
+                            CategoryIconHelper.findCategoryIcon(applicationContext, iconName, iconType)
+                        }
+                        if (
+                            iconUrl.isNotEmpty() &&
+                            boundBillId == bill.id &&
+                            bindingAdapterPosition != RecyclerView.NO_POSITION &&
+                            !isFinishing &&
+                            !isDestroyed
+                        ) {
+                            Glide.with(this@AssetDetailActivity)
+                                .load(iconUrl)
+                                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                                .into(ivIcon)
                         }
                     }
                 }

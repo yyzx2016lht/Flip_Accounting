@@ -144,12 +144,13 @@
             android:gravity="center"
             android:orientation="vertical"
             android:paddingStart="18dp"
-            android:paddingTop="20dp"
+            android:paddingTop="18dp"
             android:paddingEnd="18dp"
-            android:paddingBottom="20dp"
+            android:paddingBottom="18dp"
             android:visibility="gone">
 
             <ProgressBar
+                android:id="@+id/progress_ai_loading"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:indeterminateTint="#4B74F0" />
@@ -158,7 +159,7 @@
                 android:id="@+id/tv_thinking_log"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="10dp"
                 android:gravity="center"
                 android:text="正在分析..."
                 android:textColor="#4B74F0"
@@ -169,14 +170,55 @@
                 android:id="@+id/tv_recorded_text_preview"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_ai_input_field"
+                android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:padding="12dp"
+                android:lineSpacingExtra="2dp"
+                android:paddingStart="4dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="2dp"
                 android:text=""
-                android:textColor="#22324A"
+                android:textColor="#4B74F0"
                 android:textSize="14sp"
+                android:textStyle="bold"
                 android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/btn_expand_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="4dp"
+                android:text="展开全部"
+                android:textColor="#4B74F0"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_start_record_now"
+                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="10dp"
+                android:backgroundTint="#4B74F0"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="现在就记"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:cornerRadius="14dp"
+                app:elevation="0dp" />
         </LinearLayout>
 
         <LinearLayout

@@ -21,6 +21,7 @@ import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 import com.taostudio.tapaccounting.ui.common.AddBillEntrySheetLauncher
 import com.taostudio.tapaccounting.ui.common.UiMotion
@@ -28,6 +29,7 @@ import com.taostudio.tapaccounting.ui.main.home.HomeFragment
 import com.taostudio.tapaccounting.ui.main.stats.StatsFragment
 import com.taostudio.tapaccounting.ui.main.assets.AssetsFragment
 import com.taostudio.tapaccounting.ui.main.profile.ProfileFragment
+import com.taostudio.tapaccounting.ui.SensitivityActivity
 import kotlin.math.abs
 
 // 支持水平滑动接管的 FrameLayout（用于页面切换手势）
@@ -216,6 +218,7 @@ class MainActivity : AppCompatActivity() {
 
     // 防止快速连续切换 Tab 导致状态错乱
     private var isSwitching = false
+    private var homeOnboardingShownThisSession = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -401,6 +404,10 @@ class MainActivity : AppCompatActivity() {
         val needsService = Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)
         if (needsService) {
             OverlayService.startCompat(this, serviceIntent)
+        }
+
+        if (savedInstanceState == null) {
+            swipeContainer.post { showHomeOnboardingIfNeeded() }
         }
     }
 
@@ -862,6 +869,38 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
+    }
+
+    private fun showHomeOnboardingIfNeeded() {
+        if (homeOnboardingShownThisSession) return
+        if (Prefs.hasSeenHomeOnboarding(this)) return
+        // 已经开启任一快捷手势时不再提示首次引导
+        if (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)) {
+            Prefs.setHomeOnboardingSeen(this)
+            return
+        }
+        // 仅在首页展示首次提示，避免跨页打断
+        if (currentTabIndex != 0) return
+        val root = findViewById<View>(android.R.id.content) ?: return
+        homeOnboardingShownThisSession = true
+        root.postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
+            if (currentTabIndex != 0) return@postDelayed
+            Snackbar.make(
+                root,
+                getString(R.string.onboarding_welcome_snackbar_message),
+                Snackbar.LENGTH_LONG
+            )
+                .setAction(getString(R.string.onboarding_welcome_go_settings)) {
+                    startActivity(Intent(this, SensitivityActivity::class.java))
+                }
+                .addCallback(object : Snackbar.Callback() {
+                    override fun onDismissed(transientBottomBar: Snackbar?, event: Int) {
+                        Prefs.setHomeOnboardingSeen(this@MainActivity)
+                    }
+                })
+                .show()
+        }, 900L)
     }
 
     private fun showAddBillBottomSheet() {

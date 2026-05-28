@@ -210,10 +210,7 @@
                 <ImageView
                     android:layout_width="@dimen/asset_empty_icon_size"
                     android:layout_height="@dimen/asset_empty_icon_size"
-                    android:background="@drawable/bg_asset_empty_icon"
-                    android:padding="@dimen/space_16"
-                    android:src="@android:drawable/ic_menu_myplaces"
-                    app:tint="@color/asset_empty_icon_tint" />
+                    android:src="@drawable/ic_asset_empty" />
 
                 <TextView
                     android:layout_width="wrap_content"

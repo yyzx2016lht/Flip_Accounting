@@ -94,7 +94,7 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:src="@drawable/ic_stats_empty"
-                    android:alpha="0.5" />
+                    android:alpha="1" />
 
                 <TextView
                     android:id="@+id/tv_tab_empty_text"

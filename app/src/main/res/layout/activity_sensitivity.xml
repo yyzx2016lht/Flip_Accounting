@@ -104,7 +104,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="翻转唤出"
+                                android:text="翻转手机"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -112,7 +112,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="翻转手机快速唤出悬浮窗"
+                                android:text="翻转手机后触发你选择的快捷动作"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -155,7 +155,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="敲击手机背面快速触发记账"
+                                android:text="敲击手机背面触发你选择的快捷动作"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -200,7 +200,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="启用后，横屏时将忽略敲击手势触发"
+                                android:text="启用后，横屏时将忽略翻转和敲击触发"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -290,7 +290,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="识别完成时通过轻震动提示（敲击）"
+                                android:text="识别到手势时通过轻震动提示"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>
@@ -441,6 +441,65 @@
                         android:textSize="@dimen/text_size_12"
                         android:textColor="#999999"
                         android:lineSpacingExtra="4dp" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginVertical="12dp"
+                        android:background="#F0F0F0" />
+
+                    <LinearLayout
+                        android:id="@+id/btn_flip_action"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="8dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_icon_badge_orange">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_profile_category_tree"
+                                android:tint="#FFFFFF" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="14dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="翻转动作"
+                                android:textColor="#333333"
+                                android:textSize="@dimen/text_size_15"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:id="@+id/tv_flip_action_name"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="弹出悬浮窗"
+                                android:textColor="#999999"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_chevron_right"
+                            app:tint="#CCCCCC" />
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -623,7 +682,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="1dp"
-                                android:text="模型、省电和推理参数"
+                                android:text="模型、功耗和推理参数"
                                 android:textColor="#999999"
                                 android:textSize="@dimen/text_size_12" />
                         </LinearLayout>
@@ -762,7 +821,7 @@
                         android:background="#F0F0F0"
                         android:layout_marginVertical="4dp" />
 
-                    <!-- 省电检测模式 -->
+                    <!-- 全程 ML 模式 -->
                     <LinearLayout
                         android:id="@+id/layout_tap_low_power"
                         android:layout_width="match_parent"
@@ -792,7 +851,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="省电检测模式"
+                                android:text="全程 ML 高灵敏模式"
                                 android:textColor="#333333"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -800,7 +859,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="1dp"
-                                 android:text="仅使用加速度计和轻量规则检测，可降低后台活跃和耗电"
+                                 android:text="开启后始终使用加速度计、陀螺仪和模型检测；关闭后静止一段时间会进入动态省电"
                                 android:textColor="#999999"
                                 android:textSize="@dimen/text_size_12" />
                         </LinearLayout>
@@ -1026,6 +1085,17 @@
                             android:textStyle="bold"
                             android:textColor="#333333" />
                     </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_gesture_permission_guide"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginBottom="10dp"
+                        android:text="查看快捷记账准备项"
+                        android:textColor="#FFFFFF"
+                        android:textSize="@dimen/text_size_13"
+                        app:backgroundTint="#E45649"
+                        app:cornerRadius="10dp" />
 
                     <!-- 电池优化豁免 -->
                     <LinearLayout

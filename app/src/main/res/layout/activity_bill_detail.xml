@@ -135,31 +135,49 @@
                 <LinearLayout
                     android:id="@+id/layout_amount"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="wrap_content"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:minHeight="54dp"
+                    android:orientation="horizontal"
+                    android:paddingVertical="10dp">
 
                     <TextView
+                        android:id="@+id/tv_amount_label"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="账单金额"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
-                    <TextView
-                        android:id="@+id/tv_amount"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:text="-¥5.40"
-                        android:textColor="#17181A"
-                        android:textSize="19sp"
-                        android:textStyle="bold" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tv_amount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="-¥5.40"
+                            android:textColor="#17181A"
+                            android:textSize="19sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_amount_formula"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:textColor="#8A8A8E"
+                            android:textSize="12sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
 
                     <ImageView
                         android:layout_width="18dp"
@@ -167,6 +185,75 @@
                         android:layout_marginStart="8dp"
                         android:src="@drawable/ic_edit"
                         app:tint="#80858F" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/divider_fee_top"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#F0F1F4"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/layout_fee"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:minHeight="44dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="手续费"
+                        android:textColor="#2A2C30"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:id="@+id/tv_fee"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:textColor="#FF9800"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/divider_incoming_top"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#F0F1F4"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/layout_incoming"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:minHeight="44dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="到账金额"
+                        android:textColor="#2A2C30"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:id="@+id/tv_incoming_amount"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:textColor="#17181A"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <View
@@ -455,6 +542,58 @@
                         android:textColor="#6E737D"
                         android:textSize="14sp" />
                 </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_refund_records_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_bill_detail_card"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp"
+                    android:text="退款记录"
+                    android:textColor="#1A2744"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/layout_refund_records_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_original_bill_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_bill_detail_card"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp"
+                    android:text="原账单 · 退款来源"
+                    android:textColor="#1A2744"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/layout_original_bill_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
             </LinearLayout>
 
             <TextView

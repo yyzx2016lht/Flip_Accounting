@@ -34,7 +34,7 @@ internal fun buildAccountingSystemPrompt(
     prompt += if (!promptContext.assetFeatureEnabled) {
         AIPrompts.buildNoAssetAccountingRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     } else if (isFastMode) {
-        AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+        AIPrompts.buildMultiFastModeRule(promptContext.expenseCats, promptContext.incomeCats)
     } else {
         AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     }
@@ -85,7 +85,7 @@ internal fun buildAudioAccountingSystemPrompt(
     prompt += if (!promptContext.assetFeatureEnabled) {
         AIPrompts.buildNoAssetAccountingRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
     } else if (isFastMode) {
-        AIPrompts.buildMultiFastModeRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+        AIPrompts.buildMultiFastModeRule(promptContext.expenseCats, promptContext.incomeCats)
     } else {
         AIPrompts.buildMultiStageOneRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats) +
             AIPrompts.buildMultiTwoStageRule()
@@ -187,8 +187,8 @@ internal fun buildPromptCorrectionBlock(
 }
 
 internal fun buildCategoryHierarchyHint(candidates: List<String>): String {
-    val parents = candidates.filterNot { it.contains("/::/") }
-    val children = candidates.filter { it.contains("/::/") }
+    val parents = candidates.filterNot { it.contains("/::/") || it.contains(" - ") || it.contains(" > ") }
+    val children = candidates.filter { it.contains("/::/") || it.contains(" - ") || it.contains(" > ") }
     return buildString {
         if (parents.isNotEmpty()) append("一级分类：${parents.joinToString("、")}。")
         if (children.isNotEmpty()) append("可选二级分类：${children.joinToString("、")}。")
@@ -199,7 +199,14 @@ internal fun hasSecondLevelCategories(
     expenseCats: List<String>,
     incomeCats: List<String>
 ): Boolean {
-    return expenseCats.any { it.contains("/::/") } || incomeCats.any { it.contains("/::/") }
+    // Category options may be rendered in different separators:
+    // - Prompt candidates are currently built as "一级 - 二级"
+    // - Some older paths use "/::/" as an internal separator
+    // - Some UI/export paths may use " > "
+    // We treat any visible hierarchy separator as second-level existence.
+    fun hasHierarchy(list: List<String>): Boolean =
+        list.any { it.contains(" - ") || it.contains("/::/") || it.contains(" > ") }
+    return hasHierarchy(expenseCats) || hasHierarchy(incomeCats)
 }
 
 internal fun adaptPromptForCategoryDepth(prompt: String, hasSecondLevel: Boolean): String {

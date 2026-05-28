@@ -30,6 +30,7 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
+import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
@@ -37,6 +38,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.ChartTouchListener
 import com.github.mikephil.charting.listener.OnChartGestureListener
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.github.mikephil.charting.utils.MPPointD
 import com.github.mikephil.charting.utils.MPPointF
 import com.github.mikephil.charting.animation.Easing
@@ -61,6 +63,10 @@ import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.logic.BillDeleteHelper
 import com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
+import com.taostudio.tapaccounting.ui.main.stats.BillListBottomSheet
+import com.taostudio.tapaccounting.ui.main.stats.CategoryStat
+import com.taostudio.tapaccounting.ui.main.stats.CategoryStatsAdapter
+import com.taostudio.tapaccounting.ui.main.stats.SubCategoryBottomSheet
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -115,6 +121,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private lateinit var tvPeriodLabel: TextView
     private lateinit var rvDateStrip: RecyclerView
     private lateinit var rvBillList: RecyclerView
+    private lateinit var rvCategoryList: RecyclerView
     private lateinit var barChart: BarChart
     private lateinit var pieChart: PieChart
 
@@ -139,6 +146,7 @@ class AssetStatsActivity : AppCompatActivity() {
 
     private lateinit var dateStripAdapter: DateStripAdapter
     private lateinit var billAdapter: AssetStatsBillAdapter
+    private lateinit var categoryAdapter: CategoryStatsAdapter
 
     private var assetId: Long = -1L
     private var currentAsset: Asset? = null
@@ -171,7 +179,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private var pagedAppendInFlight: Boolean = false
     private val filteredBillsCache = mutableMapOf<String, List<Bill>>()
     private val billRowsCache = mutableMapOf<String, List<Any>>()
-    private val pieRenderCache = mutableMapOf<String, PieRenderModel?>()
+    private val categoryBreakdownCache = mutableMapOf<String, CategoryBreakdownModel>()
     private lateinit var barMarker: AssetBarMarkerView
     private lateinit var topDoubleTapDetector: GestureDetector
 
@@ -198,7 +206,7 @@ class AssetStatsActivity : AppCompatActivity() {
             onDataChanged = {
                 filteredBillsCache.clear()
                 billRowsCache.clear()
-                pieRenderCache.clear()
+                categoryBreakdownCache.clear()
                 loadAssetAndBills()
             }
         )
@@ -215,6 +223,12 @@ class AssetStatsActivity : AppCompatActivity() {
         val labelByCategory: Map<String, String>,
         val rotation: Float,
         val useOutsideLabel: Boolean
+    )
+
+    private data class CategoryBreakdownModel(
+        val categoryStats: List<CategoryStat>,
+        val colorByCategory: Map<String, Int>,
+        val pieModel: PieRenderModel?
     )
 
     private data class BillRenderPlan(
@@ -254,6 +268,7 @@ class AssetStatsActivity : AppCompatActivity() {
         tvPeriodLabel = findViewById(R.id.tv_period_label)
         rvDateStrip = findViewById(R.id.rv_date_strip)
         rvBillList = findViewById(R.id.rv_bill_list)
+        rvCategoryList = findViewById(R.id.rv_category_list)
         barChart = findViewById(R.id.bar_chart)
         pieChart = findViewById(R.id.pie_chart)
 
@@ -292,6 +307,20 @@ class AssetStatsActivity : AppCompatActivity() {
         }
         rvDateStrip.layoutManager = LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
         rvDateStrip.adapter = dateStripAdapter
+
+        categoryAdapter = CategoryStatsAdapter(
+            chartColors = piePalette,
+            items = emptyList(),
+            isExpense = pieMode == ChartMode.EXPENSE,
+            currencySymbol = "¥"
+        ) { categoryName ->
+            showCategoryDetails(categoryName)
+        }
+        rvCategoryList.layoutManager = LinearLayoutManager(this)
+        rvCategoryList.isNestedScrollingEnabled = false
+        rvCategoryList.overScrollMode = View.OVER_SCROLL_NEVER
+        rvCategoryList.itemAnimator = null
+        rvCategoryList.adapter = categoryAdapter
 
         billAdapter = AssetStatsBillAdapter(
             currencyProvider = { currentAsset?.currency ?: "CNY" },
@@ -395,7 +424,7 @@ class AssetStatsActivity : AppCompatActivity() {
                     billAdapter.clearSelection()
                     filteredBillsCache.clear()
                     billRowsCache.clear()
-                    pieRenderCache.clear()
+                    categoryBreakdownCache.clear()
                     loadAssetAndBills()
                     Toast.makeText(
                         this@AssetStatsActivity,
@@ -435,7 +464,7 @@ class AssetStatsActivity : AppCompatActivity() {
                     if (result > 0) {
                         filteredBillsCache.clear()
                         billRowsCache.clear()
-                        pieRenderCache.clear()
+                        categoryBreakdownCache.clear()
                         loadAssetAndBills()
                     }
                     Toast.makeText(this@AssetStatsActivity, "已移动 $result 条账单", Toast.LENGTH_SHORT).show()
@@ -579,6 +608,20 @@ class AssetStatsActivity : AppCompatActivity() {
         pieChart.setExtraOffsets(20f, 14f, 20f, 16f)
         pieChart.setNoDataText("暂无图表数据")
         pieChart.setNoDataTextColor(Color.parseColor("#9AA0A6"))
+        pieChart.setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: Highlight?) {
+                val label = (e as? PieEntry)?.label ?: return
+                if (categoryAdapter.findPositionByCategory(label) < 0) return
+                categoryAdapter.pinCategory(label)
+                (rvCategoryList.layoutManager as? LinearLayoutManager)
+                    ?.scrollToPositionWithOffset(0, 0)
+                rvCategoryList.post { rvCategoryList.smoothScrollToPosition(0) }
+            }
+
+            override fun onNothingSelected() {
+                categoryAdapter.clearPinCategory()
+            }
+        })
 
         updateBarToggleState()
         updatePieToggleState()
@@ -628,7 +671,7 @@ class AssetStatsActivity : AppCompatActivity() {
                 allAssetBills = previewBills
                 filteredBillsCache.clear()
                 billRowsCache.clear()
-                pieRenderCache.clear()
+                categoryBreakdownCache.clear()
                 initDateChips(resetSelection = true)
                 renderAll()
             }
@@ -646,7 +689,7 @@ class AssetStatsActivity : AppCompatActivity() {
                 allAssetBills = fullBills
                 filteredBillsCache.clear()
                 billRowsCache.clear()
-                pieRenderCache.clear()
+                categoryBreakdownCache.clear()
                 assetStatsCacheByAssetId[assetId] = AssetStatsCache(
                     asset = previewAsset,
                     bills = fullBills,
@@ -1003,7 +1046,7 @@ class AssetStatsActivity : AppCompatActivity() {
             }
             filteredBillsCache.clear()
             billRowsCache.clear()
-            pieRenderCache.clear()
+            categoryBreakdownCache.clear()
             renderAll()
             dialog.dismiss()
         }
@@ -1580,23 +1623,24 @@ class AssetStatsActivity : AppCompatActivity() {
             // 至少给 UI 一个帧周期，确保“加载中 -> 动画”过渡可见。
             delay(18L)
             if (!isActive || modeSnapshot != pieMode || token != pieRenderToken) return@launch
-            val model = pieRenderCache[cacheKey] ?: withContext(Dispatchers.Default) {
-                buildPieRenderModel(bills, modeSnapshot)
+            val model = categoryBreakdownCache[cacheKey] ?: withContext(Dispatchers.Default) {
+                buildCategoryBreakdown(bills, modeSnapshot)
             }
             if (!isActive || modeSnapshot != pieMode || token != pieRenderToken) return@launch
-            if (!pieRenderCache.containsKey(cacheKey)) {
-                pieRenderCache[cacheKey] = model
+            if (!categoryBreakdownCache.containsKey(cacheKey)) {
+                categoryBreakdownCache[cacheKey] = model
             }
             val elapsed = SystemClock.elapsedRealtime() - loadingStartedAtMs
             if (elapsed < PIE_LOADING_MIN_MS) {
                 delay(PIE_LOADING_MIN_MS - elapsed)
             }
             if (!isActive || modeSnapshot != pieMode || token != pieRenderToken) return@launch
-            applyPieChartModel(model)
+            applyPieChartModel(model.pieModel)
+            renderCategoryStats(model, modeSnapshot)
         }
     }
 
-    private fun buildPieRenderModel(bills: List<Bill>, mode: ChartMode): PieRenderModel? {
+    private fun buildCategoryBreakdown(bills: List<Bill>, mode: ChartMode): CategoryBreakdownModel {
         val categoryMap = linkedMapOf<String, Double>()
         var total = 0.0
         bills.forEach { bill ->
@@ -1606,18 +1650,39 @@ class AssetStatsActivity : AppCompatActivity() {
             categoryMap[category] = (categoryMap[category] ?: 0.0) + amount
             total += amount
         }
-        if (total <= 0.0) return null
+        if (total <= 0.0) return CategoryBreakdownModel(emptyList(), emptyMap(), null)
 
         val sortedStats = categoryMap.toList().sortedByDescending { it.second }
+        val colorByName = sortedStats.mapIndexed { index, pair ->
+            pair.first to piePalette[index % piePalette.size]
+        }.toMap()
+        val categoryStats = sortedStats.map { (name, amount) ->
+            CategoryStat(
+                categoryName = name,
+                amount = amount,
+                percentage = (amount / total * 100.0).toFloat(),
+                amountDiffFromLastPeriod = 0.0
+            )
+        }
+
+        return CategoryBreakdownModel(
+            categoryStats = categoryStats,
+            colorByCategory = colorByName,
+            pieModel = buildPieRenderModel(sortedStats, total, colorByName)
+        )
+    }
+
+    private fun buildPieRenderModel(
+        sortedStats: List<Pair<String, Double>>,
+        total: Double,
+        colorByName: Map<String, Int>
+    ): PieRenderModel? {
         val minPercent = 2.0
         val filteredStats = sortedStats
             .filter { (_, amount) -> (amount / total * 100.0) >= minPercent }
             .sortedBy { it.second }
         if (filteredStats.isEmpty()) return null
 
-        val colorByName = sortedStats.mapIndexed { index, pair ->
-            pair.first to piePalette[index % piePalette.size]
-        }.toMap()
         val entries = filteredStats.map { PieEntry(it.second.toFloat(), it.first) }
         val sliceColors = filteredStats.map { (name, _) -> colorByName[name] ?: piePalette[0] }
         val labelByCategory = filteredStats.associate { (name, amount) ->
@@ -1702,6 +1767,16 @@ class AssetStatsActivity : AppCompatActivity() {
                 pieChart.invalidate()
             }, PIE_ANIM_DURATION_MS.toLong() + 16L)
         }
+    }
+
+    private fun renderCategoryStats(model: CategoryBreakdownModel, mode: ChartMode) {
+        categoryAdapter.clearPinCategory()
+        categoryAdapter.setColorMap(model.colorByCategory)
+        categoryAdapter.submitList(
+            model.categoryStats,
+            mode == ChartMode.EXPENSE,
+            currentAsset?.currency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
+        )
     }
 
     private fun showPieLoadingState() {
@@ -1898,6 +1973,93 @@ class AssetStatsActivity : AppCompatActivity() {
         val normalized = BillDisplayFormatter.stripRefundPrefix(name).trim()
         val level = normalized.split(Regex("\\s*>\\s*|/::/| - |::|·")).firstOrNull().orEmpty()
         return if (level.isBlank()) "未分类" else level
+    }
+
+    private fun secondLevelCategory(name: String): String {
+        val normalized = BillDisplayFormatter.stripRefundPrefix(name).trim()
+        val parts = normalized.split(Regex("\\s*>\\s*|/::/| - |::|·"))
+        val secondLevel = parts.getOrNull(1)?.trim().orEmpty()
+        return if (secondLevel.isBlank()) topLevelCategory(name) else secondLevel
+    }
+
+    private fun hasSubCategories(categoryName: String, mode: ChartMode): Boolean {
+        return getBillsForCategory(categoryName, mode).any { bill ->
+            val normalized = BillDisplayFormatter.stripRefundPrefix(bill.categoryName).trim()
+            val parts = normalized.split(Regex("\\s*>\\s*|/::/| - |::|·"))
+            parts.size > 1 && parts.getOrNull(1)?.trim().orEmpty().isNotBlank()
+        }
+    }
+
+    private fun getBillsForCategory(categoryName: String, mode: ChartMode): List<Bill> {
+        return filteredBills().filter { bill ->
+            amountForPieByMode(bill, mode) > 0.0 &&
+                topLevelCategory(bill.categoryName) == categoryName
+        }
+    }
+
+    private fun getSubCategoryStats(categoryName: String, mode: ChartMode): Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        getBillsForCategory(categoryName, mode).forEach { bill ->
+            val amount = amountForPieByMode(bill, mode)
+            if (amount <= 0.0) return@forEach
+            val subCategory = secondLevelCategory(bill.categoryName)
+            map[subCategory] = (map[subCategory] ?: 0.0) + amount
+        }
+        return map.toList()
+            .sortedByDescending { it.second }
+            .toMap()
+    }
+
+    private fun getBillsForSubCategory(
+        categoryName: String,
+        subCategory: String,
+        mode: ChartMode
+    ): List<Bill> {
+        return getBillsForCategory(categoryName, mode).filter { bill ->
+            secondLevelCategory(bill.categoryName) == subCategory
+        }
+    }
+
+    private fun showCategoryDetails(categoryName: String) {
+        if (supportFragmentManager.isStateSaved) return
+        val mode = pieMode
+        val categoryBills = getBillsForCategory(categoryName, mode)
+        if (categoryBills.isEmpty()) {
+            Toast.makeText(this, "暂无该分类账单", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (!hasSubCategories(categoryName, mode)) {
+            BillListBottomSheet(categoryName, categoryBills)
+                .show(supportFragmentManager, "asset_category_bills")
+            return
+        }
+
+        val subStats = getSubCategoryStats(categoryName, mode)
+        if (subStats.isEmpty()) {
+            BillListBottomSheet(categoryName, categoryBills)
+                .show(supportFragmentManager, "asset_category_bills")
+            return
+        }
+
+        SubCategoryBottomSheet(
+            title = categoryName,
+            isExpense = mode == ChartMode.EXPENSE,
+            subStats = subStats,
+            totalAmount = subStats.values.sum(),
+            colors = piePalette,
+            currencySymbol = currentAsset?.currency?.let { CurrencyManager.getSymbol(it) } ?: "¥"
+        ) { subCategory ->
+            if (!supportFragmentManager.isStateSaved) {
+                val bills = getBillsForSubCategory(categoryName, subCategory, mode)
+                if (bills.isEmpty()) {
+                    Toast.makeText(this, "暂无该分类账单", Toast.LENGTH_SHORT).show()
+                } else {
+                    BillListBottomSheet(subCategory, bills)
+                        .show(supportFragmentManager, "asset_sub_category_bills")
+                }
+            }
+        }.show(supportFragmentManager, "asset_sub_categories")
     }
 
     private fun amountInAssetCurrency(bill: Bill, ownerAssetId: Long, isInflow: Boolean): Double {

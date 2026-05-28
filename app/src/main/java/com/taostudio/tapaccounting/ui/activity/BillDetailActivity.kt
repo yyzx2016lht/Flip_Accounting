@@ -30,6 +30,9 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.logic.BillDeleteHelper
+import com.taostudio.tapaccounting.logic.BillDisplayFormatter
+import com.taostudio.tapaccounting.logic.BillMutationService
+import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.ui.dialog.AmountKeypadDialog
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import java.text.SimpleDateFormat
@@ -44,6 +47,14 @@ class BillDetailActivity : AppCompatActivity() {
     private lateinit var ivCategoryIcon: ImageView
     private lateinit var layoutCategoryIcon: View
     private lateinit var tvAmount: TextView
+    private lateinit var tvAmountLabel: TextView
+    private lateinit var tvAmountFormula: TextView
+    private lateinit var dividerFeeTop: View
+    private lateinit var layoutFee: LinearLayout
+    private lateinit var tvFee: TextView
+    private lateinit var dividerIncomingTop: View
+    private lateinit var layoutIncoming: LinearLayout
+    private lateinit var tvIncomingAmount: TextView
     private lateinit var tvBillDate: TextView
     private lateinit var tvAsset: TextView
     private lateinit var tvBook: TextView
@@ -57,6 +68,10 @@ class BillDetailActivity : AppCompatActivity() {
     private lateinit var layoutAsset: LinearLayout
     private lateinit var dividerAssetTop: View
     private lateinit var dividerBookTop: View
+    private lateinit var layoutRefundRecordsSection: LinearLayout
+    private lateinit var layoutRefundRecordsContainer: LinearLayout
+    private lateinit var layoutOriginalBillSection: LinearLayout
+    private lateinit var layoutOriginalBillContainer: LinearLayout
 
     private var billId: Long = -1L
     private var bill: Bill? = null
@@ -99,6 +114,14 @@ class BillDetailActivity : AppCompatActivity() {
         ivCategoryIcon = findViewById(R.id.iv_category_icon)
         layoutCategoryIcon = findViewById(R.id.layout_category_icon)
         tvAmount = findViewById(R.id.tv_amount)
+        tvAmountLabel = findViewById(R.id.tv_amount_label)
+        tvAmountFormula = findViewById(R.id.tv_amount_formula)
+        dividerFeeTop = findViewById(R.id.divider_fee_top)
+        layoutFee = findViewById(R.id.layout_fee)
+        tvFee = findViewById(R.id.tv_fee)
+        dividerIncomingTop = findViewById(R.id.divider_incoming_top)
+        layoutIncoming = findViewById(R.id.layout_incoming)
+        tvIncomingAmount = findViewById(R.id.tv_incoming_amount)
         tvBillDate = findViewById(R.id.tv_bill_date)
         tvAsset = findViewById(R.id.tv_asset)
         tvBook = findViewById(R.id.tv_book)
@@ -112,6 +135,10 @@ class BillDetailActivity : AppCompatActivity() {
         layoutAsset = findViewById(R.id.layout_asset)
         dividerAssetTop = findViewById(R.id.divider_asset_top)
         dividerBookTop = findViewById(R.id.divider_book_top)
+        layoutRefundRecordsSection = findViewById(R.id.layout_refund_records_section)
+        layoutRefundRecordsContainer = findViewById(R.id.layout_refund_records_container)
+        layoutOriginalBillSection = findViewById(R.id.layout_original_bill_section)
+        layoutOriginalBillContainer = findViewById(R.id.layout_original_bill_container)
 
         val assetEnabled = Prefs.isAssetFeatureEnabled(this)
         layoutAsset.visibility = if (assetEnabled) View.VISIBLE else View.GONE
@@ -185,6 +212,257 @@ class BillDetailActivity : AppCompatActivity() {
         btnRefund.visibility = if (shouldShowRefundButton()) View.VISIBLE else View.GONE
         renderTypeSelector()
         renderCategoryIcon()
+        renderAmountDetails()
+        renderRefundRecords()
+        renderOriginalBill()
+    }
+
+    private fun renderAmountDetails() {
+        val currentBill = bill
+        if (currentBill == null) {
+            tvAmountLabel.text = "账单金额"
+            tvAmountFormula.visibility = View.GONE
+            hideFeeRow()
+            hideIncomingRow()
+            return
+        }
+
+        val isRefund = currentBill.subType == Bill.SUBTYPE_REFUND
+
+        if (isTransferFamily(currentUiType)) {
+            renderTransferDetails(currentBill)
+        } else {
+            tvAmountLabel.text = "账单金额"
+            hideFeeRow()
+            hideIncomingRow()
+
+            if (!isRefund && currentBill.type == Bill.TYPE_EXPENSE) {
+                val refundedAmount = refundedAmountInBillCurrency(currentBill)
+                if (refundedAmount > 0.0) {
+                    tvAmountFormula.visibility = View.VISIBLE
+                    val symbol = CurrencyManager.getSymbol(currentBill.currency)
+                    tvAmountFormula.text = "退款${symbol}${String.format(Locale.getDefault(), "%.2f", refundedAmount)}，实际支出${symbol}${String.format(Locale.getDefault(), "%.2f", currentBill.amount)}"
+                } else {
+                    showCrossCurrencyFormula(currentBill)
+                }
+            } else {
+                showCrossCurrencyFormula(currentBill)
+            }
+        }
+    }
+
+    private fun renderTransferDetails(currentBill: Bill) {
+        val isRepayment = currentUiType == Bill.TYPE_REPAYMENT
+
+        if (currentBill.fee > 0.0 && !isRepayment) {
+            showFeeRow(currentBill)
+        } else {
+            hideFeeRow()
+        }
+
+        val app = application as TapApplication
+        lifecycleScope.launch(Dispatchers.IO) {
+            val toAsset = currentBill.toAccountId?.let { app.database.assetDao().getAssetById(it) }
+            val toAssetCurrency = toAsset?.currency ?: "CNY"
+            withContext(Dispatchers.Main) {
+                val sourceCurrency = currentBill.currency
+                val isCrossCurrency = !isRepayment && sourceCurrency != toAssetCurrency && currentBill.exchangeRate != 1.0
+                val symbol = CurrencyManager.getSymbol(sourceCurrency)
+
+                if (isCrossCurrency) {
+                    tvAmountLabel.text = "转出金额"
+                    val targetAmount = currentBill.amount * currentBill.exchangeRate
+                    val toSymbol = CurrencyManager.getSymbol(toAssetCurrency)
+                    showIncomingRow(toSymbol, targetAmount)
+                    tvAmountFormula.visibility = View.GONE
+                } else {
+                    tvAmountLabel.text = when {
+                        isRepayment -> "还款金额"
+                        else -> "转账金额"
+                    }
+                    hideIncomingRow()
+                    showCrossCurrencyFormula(currentBill)
+                }
+            }
+        }
+    }
+
+    private fun showCrossCurrencyFormula(currentBill: Bill) {
+        val formula = BillDisplayFormatter.buildCrossCurrencyDetailFormula(currentBill, "CNY")
+        if (!formula.isNullOrBlank()) {
+            tvAmountFormula.visibility = View.VISIBLE
+            tvAmountFormula.text = formula
+        } else {
+            tvAmountFormula.visibility = View.GONE
+        }
+    }
+
+    private fun showFeeRow(currentBill: Bill) {
+        dividerFeeTop.visibility = View.VISIBLE
+        layoutFee.visibility = View.VISIBLE
+        val feeSymbol = CurrencyManager.getSymbol(currentBill.currency)
+        tvFee.text = "-$feeSymbol${String.format(Locale.getDefault(), "%.2f", currentBill.fee)}"
+    }
+
+    private fun hideFeeRow() {
+        dividerFeeTop.visibility = View.GONE
+        layoutFee.visibility = View.GONE
+    }
+
+    private fun showIncomingRow(symbol: String, amount: Double) {
+        dividerIncomingTop.visibility = View.VISIBLE
+        layoutIncoming.visibility = View.VISIBLE
+        tvIncomingAmount.text = "$symbol${String.format(Locale.getDefault(), "%.2f", amount)}"
+    }
+
+    private fun hideIncomingRow() {
+        dividerIncomingTop.visibility = View.GONE
+        layoutIncoming.visibility = View.GONE
+    }
+
+    private fun refundedAmountInBillCurrency(currentBill: Bill): Double {
+        if (currentBill.type != Bill.TYPE_EXPENSE || currentBill.subType == Bill.SUBTYPE_REFUND) return 0.0
+        val originalAmount = if (currentBill.originalAmount > 0.0) {
+            maxOf(currentBill.originalAmount, currentBill.amount)
+        } else {
+            currentBill.amount
+        }
+        return (originalAmount - currentBill.amount).coerceAtLeast(0.0)
+    }
+
+    private fun renderRefundRecords() {
+        val currentBill = bill
+        layoutRefundRecordsSection.visibility = View.GONE
+        layoutRefundRecordsContainer.removeAllViews()
+
+        if (currentBill == null || currentBill.type != Bill.TYPE_EXPENSE || currentBill.subType == Bill.SUBTYPE_REFUND) return
+        if (refundedAmountInBillCurrency(currentBill) <= 0.0) return
+
+        val app = application as TapApplication
+        lifecycleScope.launch(Dispatchers.IO) {
+            val refunds = app.database.billDao().getRefundBillsBySourceId(currentBill.id)
+            withContext(Dispatchers.Main) {
+                if (refunds.isEmpty()) {
+                    layoutRefundRecordsSection.visibility = View.GONE
+                    return@withContext
+                }
+                layoutRefundRecordsSection.visibility = View.VISIBLE
+                refunds.forEach { refundBill ->
+                    addRefundBillRow(layoutRefundRecordsContainer, refundBill)
+                }
+            }
+        }
+    }
+
+    private fun renderOriginalBill() {
+        val currentBill = bill
+        layoutOriginalBillSection.visibility = View.GONE
+        layoutOriginalBillContainer.removeAllViews()
+
+        if (currentBill == null || currentBill.subType != Bill.SUBTYPE_REFUND) return
+
+        val app = application as TapApplication
+        lifecycleScope.launch(Dispatchers.IO) {
+            val original = BillMutationService.resolveRefundSourceBill(app.database, currentBill)
+            withContext(Dispatchers.Main) {
+                if (original != null) {
+                    layoutOriginalBillSection.visibility = View.VISIBLE
+                    addLinkedBillRow(layoutOriginalBillContainer, original)
+                }
+            }
+        }
+    }
+
+    private fun addRefundBillRow(container: LinearLayout, refundBill: Bill) {
+        val row = layoutInflater.inflate(R.layout.item_home_transaction, container, false)
+        fillBillRow(row, refundBill, forceGrayStyle = true)
+        row.findViewById<View?>(R.id.cb_bill_select)?.visibility = View.GONE
+        container.addView(row)
+    }
+
+    private fun addLinkedBillRow(container: LinearLayout, linkedBill: Bill) {
+        val row = layoutInflater.inflate(R.layout.item_home_transaction, container, false)
+        fillBillRow(row, linkedBill, forceGrayStyle = false)
+        row.findViewById<View?>(R.id.cb_bill_select)?.visibility = View.GONE
+        container.addView(row)
+    }
+
+    private fun fillBillRow(row: View, bill: Bill, forceGrayStyle: Boolean) {
+        val tvCategory = row.findViewById<TextView>(R.id.tv_bill_category)
+        val tvDetail = row.findViewById<TextView>(R.id.tv_bill_detail)
+        val tvAmountRow = row.findViewById<TextView>(R.id.tv_bill_amount)
+        val tvAsset = row.findViewById<TextView>(R.id.tv_bill_asset)
+        val tvTime = row.findViewById<TextView>(R.id.tv_bill_time)
+        val ivIcon = row.findViewById<ImageView>(R.id.iv_bill_category_icon)
+        val iconContainer = row.findViewById<View?>(R.id.layout_icon_container)
+
+        val isRefund = bill.subType == Bill.SUBTYPE_REFUND
+        val symbol = CurrencyManager.getSymbol(bill.currency)
+        val baseCategory = BillDisplayFormatter.stripRefundPrefix(bill.categoryName)
+
+        row.setBackgroundResource(R.drawable.bg_bill_group_single)
+        iconContainer?.setBackgroundResource(R.drawable.bg_circle_soft)
+
+        val categoryText = BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifEmpty { "未分类" }
+
+        val sign = when {
+            forceGrayStyle || isRefund -> ""
+            bill.type == Bill.TYPE_EXPENSE -> "-"
+            bill.type == Bill.TYPE_INCOME -> "+"
+            else -> ""
+        }
+        tvAmountRow.text = "$sign$symbol${String.format(Locale.getDefault(), "%.2f", bill.amount)}"
+
+        if (forceGrayStyle || isRefund) {
+            tvAmountRow.setTextColor(Color.parseColor("#9AA1AA"))
+            tvCategory.setTextColor(Color.parseColor("#8E98A3"))
+            tvDetail?.setTextColor(Color.parseColor("#A1A8AF"))
+            tvTime?.setTextColor(Color.parseColor("#A1A8AF"))
+            tvAsset?.setTextColor(Color.parseColor("#A1A8AF"))
+        } else {
+            tvCategory.setTextColor(Color.parseColor("#1A1A1A"))
+            tvDetail?.setTextColor(Color.parseColor("#8A8A8E"))
+            tvTime?.setTextColor(Color.parseColor("#8A8A8E"))
+            tvAsset?.setTextColor(Color.parseColor("#8A8A8E"))
+            when (bill.type) {
+                Bill.TYPE_EXPENSE -> tvAmountRow.setTextColor(Color.parseColor("#FF3B30"))
+                Bill.TYPE_INCOME -> tvAmountRow.setTextColor(Color.parseColor("#4CAF50"))
+                else -> tvAmountRow.setTextColor(Color.parseColor("#5F6772"))
+            }
+        }
+
+        tvCategory.text = categoryText
+        tvDetail?.text = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(bill.time))
+        tvDetail?.visibility = View.VISIBLE
+        tvTime?.visibility = View.GONE
+        tvAsset?.text = bill.accountName
+
+        val iconLookupName = if (isRefund) baseCategory else bill.categoryName
+        val iconLookupType = if (isRefund) Bill.TYPE_EXPENSE else bill.type
+        val iconTint = when {
+            forceGrayStyle || isRefund -> Color.parseColor("#8E98A3")
+            bill.type == Bill.TYPE_EXPENSE -> Color.parseColor("#FF3B30")
+            bill.type == Bill.TYPE_INCOME -> Color.parseColor("#4CAF50")
+            else -> Color.parseColor("#9E9E9E")
+        }
+        ivIcon?.layoutParams = ivIcon?.layoutParams?.apply {
+            val px = (ivIcon.resources.displayMetrics.density * 21).toInt()
+            width = px
+            height = px
+        }
+        ivIcon?.setImageResource(R.mipmap.ic_launcher)
+        ivIcon?.setColorFilter(iconTint)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val iconUrl = CategoryIconHelper.findCategoryIcon(this@BillDetailActivity, iconLookupName, iconLookupType)
+            withContext(Dispatchers.Main) {
+                if (iconUrl.isNotEmpty()) {
+                    Glide.with(row)
+                        .load(iconUrl)
+                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.DATA)
+                        .into(ivIcon!!)
+                }
+            }
+        }
     }
 
     private fun renderTypeSelector() {
@@ -239,6 +517,7 @@ class BillDetailActivity : AppCompatActivity() {
             currentAmountText = result
             tvAmount.text = formatAmountDisplay(result.toDoubleOrNull() ?: 0.0, currentUiType)
             tvAmount.setTextColor(resolveAmountColor(currentUiType))
+            renderAmountDetails()
         }
     }
 
@@ -462,7 +741,7 @@ class BillDetailActivity : AppCompatActivity() {
     }
 
     private fun formatAmountDisplay(amount: Double, uiType: Int): String {
-        val symbol = "¥"
+        val symbol = CurrencyManager.getSymbol(bill?.currency ?: "CNY")
         val prefix = when (uiType) {
             Bill.TYPE_EXPENSE -> "-$symbol"
             Bill.TYPE_INCOME -> "+$symbol"

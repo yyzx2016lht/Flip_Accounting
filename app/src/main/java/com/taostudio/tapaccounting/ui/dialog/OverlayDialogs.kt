@@ -41,6 +41,11 @@ import java.util.*
 object OverlayDialogs {
     private const val TAG = "OverlayDialogs"
 
+    private sealed class AssetPickerItem {
+        data class AssetItem(val asset: com.taostudio.tapaccounting.data.local.entity.Asset) : AssetPickerItem()
+        data class ArchivedGroup(val count: Int, val expanded: Boolean) : AssetPickerItem()
+    }
+
     private fun setExactVisibleRowsHeight(target: View, rowHeight: Int, rows: Int = 4) {
         if (rowHeight <= 0) return
         val lp = target.layoutParams ?: return
@@ -904,7 +909,12 @@ object OverlayDialogs {
         rv.adapter = adapter
         applyBottomPickerEnterAnimation(dialog, view, rv) {
             if (selectedIndex >= 0) {
-                rv.post { rv.smoothScrollToPosition(selectedIndex) }
+                rv.post {
+                    // Keep picker in IDLE state on first frame to avoid
+                    // occasional first-tap loss caused by settling scroll.
+                    rv.stopScroll()
+                    rv.scrollToPosition(selectedIndex)
+                }
             }
         }
          showStyledDialog(
@@ -1134,48 +1144,91 @@ object OverlayDialogs {
         val dialog = AlertDialog.Builder(themeContext).setView(view).create()
         val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_assets)
         var currentSelection = currentSelectionText
+        var archivedExpanded = false
 
-    // 资产列表（可变，用于拖拽重排）
-        val assetList = mutableListOf<com.taostudio.tapaccounting.data.local.entity.Asset>()
+        val pickerItems = mutableListOf<AssetPickerItem>()
+        var activePickerAssets = emptyList<com.taostudio.tapaccounting.data.local.entity.Asset>()
+        var archivedPickerAssets = emptyList<com.taostudio.tapaccounting.data.local.entity.Asset>()
+
+        fun rebuildPickerItems() {
+            pickerItems.clear()
+            activePickerAssets.forEach { pickerItems.add(AssetPickerItem.AssetItem(it)) }
+            if (archivedPickerAssets.isNotEmpty()) {
+                pickerItems.add(AssetPickerItem.ArchivedGroup(archivedPickerAssets.size, archivedExpanded))
+                if (archivedExpanded) {
+                    archivedPickerAssets.forEach { pickerItems.add(AssetPickerItem.AssetItem(it)) }
+                }
+            }
+        }
 
         val adapter = object : androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder>() {
             init { setHasStableIds(true) }
             inner class AssetVH(v: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(v)
 
-            override fun getItemId(position: Int) = assetList[position].id
+            override fun getItemId(position: Int): Long {
+                return when (val item = pickerItems[position]) {
+                    is AssetPickerItem.AssetItem -> item.asset.id
+                    is AssetPickerItem.ArchivedGroup -> Long.MIN_VALUE + item.count
+                }
+            }
 
             override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): AssetVH {
                 val v = LayoutInflater.from(ctx).inflate(R.layout.item_asset_grid, parent, false)
                 return AssetVH(v)
             }
 
-            override fun getItemCount() = assetList.size
+            override fun getItemCount() = pickerItems.size
 
             override fun onBindViewHolder(holder: androidx.recyclerview.widget.RecyclerView.ViewHolder, position: Int) {
-                val asset = assetList[position]
+                val item = pickerItems[position]
                 val tv = holder.itemView.findViewById<TextView>(R.id.tv_asset_name)
                 val tvType = holder.itemView.findViewById<TextView?>(R.id.tv_asset_type)
                 val iv = holder.itemView.findViewById<ImageView>(R.id.iv_asset_icon)
-                tv.text = asset.name
-                tvType?.text = ""   // 清空复用残留，选择器不显示类型
-                tvType?.visibility = View.GONE
-                tv.setTextColor(if (asset.name == currentSelection) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
-                holder.itemView.alpha = if (asset.name == currentSelection) 1f else 0.85f
 
-                if (asset.icon.isNotEmpty()) {
-                    Glide.with(ctx)
-                        .load(asset.icon)
-                        .transform(CircleCrop())
-                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.AUTOMATIC)
-                        .into(iv)
-                } else {
-                    iv.setImageResource(R.mipmap.ic_launcher_round)
-                }
+                when (item) {
+                    is AssetPickerItem.ArchivedGroup -> {
+                        tv.text = if (item.expanded) "收起资产" else "已收纳资产"
+                        tvType?.text = "${item.count} 个"
+                        tvType?.visibility = View.VISIBLE
+                        tv.setTextColor(Color.parseColor("#6E7D94"))
+                        holder.itemView.alpha = 0.92f
+                        iv.setImageResource(R.drawable.ic_backup_folder_action)
+                        iv.alpha = 0.72f
+                        holder.itemView.setOnClickListener {
+                            archivedExpanded = !archivedExpanded
+                            rebuildPickerItems()
+                            notifyDataSetChanged()
+                        }
+                    }
+                    is AssetPickerItem.AssetItem -> {
+                        val asset = item.asset
+                        tv.text = asset.name
+                        tvType?.text = if (asset.isArchived) "已收纳" else ""
+                        tvType?.visibility = if (asset.isArchived) View.VISIBLE else View.GONE
+                        tv.setTextColor(if (asset.name == currentSelection) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
+                        holder.itemView.alpha = when {
+                            asset.name == currentSelection -> 1f
+                            asset.isArchived -> 0.72f
+                            else -> 0.85f
+                        }
+                        iv.alpha = if (asset.isArchived) 0.76f else 1f
 
-                holder.itemView.setOnClickListener {
-                    currentSelection = asset.name
-                    onConfirm(currentSelection)
-                    dialog.dismiss()
+                        if (asset.icon.isNotEmpty()) {
+                            Glide.with(ctx)
+                                .load(asset.icon)
+                                .transform(CircleCrop())
+                                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.AUTOMATIC)
+                                .into(iv)
+                        } else {
+                            iv.setImageResource(R.mipmap.ic_launcher_round)
+                        }
+
+                        holder.itemView.setOnClickListener {
+                            currentSelection = asset.name
+                            onConfirm(currentSelection)
+                            dialog.dismiss()
+                        }
+                    }
                 }
             }
         }
@@ -1198,8 +1251,11 @@ object OverlayDialogs {
                         to == androidx.recyclerview.widget.RecyclerView.NO_POSITION ||
                         from == to
                     ) return false
-                    val moved = assetList.removeAt(from)
-                    assetList.add(to, moved)
+                    if (pickerItems.getOrNull(from) !is AssetPickerItem.AssetItem ||
+                        pickerItems.getOrNull(to) !is AssetPickerItem.AssetItem
+                    ) return false
+                    val moved = pickerItems.removeAt(from)
+                    pickerItems.add(to, moved)
                     adapter.notifyItemMoved(from, to)
                     return true
                 }
@@ -1217,13 +1273,20 @@ object OverlayDialogs {
 
                 override fun clearView(rv: androidx.recyclerview.widget.RecyclerView, viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder) {
                     super.clearView(rv, viewHolder)
-                    viewHolder.itemView.alpha = if (assetList.getOrNull(viewHolder.adapterPosition)?.name == currentSelection) 1f else 0.85f
+                    val item = pickerItems.getOrNull(viewHolder.adapterPosition)
+                    val asset = (item as? AssetPickerItem.AssetItem)?.asset
+                    viewHolder.itemView.alpha = when {
+                        asset?.name == currentSelection -> 1f
+                        asset?.isArchived == true -> 0.72f
+                        else -> 0.85f
+                    }
                     viewHolder.itemView.scaleX = 1f
                     viewHolder.itemView.scaleY = 1f
                     // 拖拽释放后批量保存新的 pickerSortOrder（独立于资产页 sortOrder）
                     CoroutineScope(Dispatchers.IO).launch {
                         val db = AppDatabase.getDatabase(ctx)
-                        assetList.forEachIndexed { idx, asset ->
+                        pickerItems.mapNotNull { (it as? AssetPickerItem.AssetItem)?.asset }
+                            .forEachIndexed { idx, asset ->
                             db.assetDao().updatePickerSortOrder(asset.id, idx + 1)
                         }
                     }
@@ -1234,11 +1297,10 @@ object OverlayDialogs {
 
         CoroutineScope(Dispatchers.Main).launch {
             val assets = withContext(Dispatchers.IO) { AppDatabase.getDatabase(ctx).assetDao().getAllAssetsListForPicker() }
-            assetList.clear()
-            val visibleAssets = assets.filter { asset ->
-                !asset.isArchived || asset.name == currentSelection
-            }
-            assetList.addAll(if (assetFilter == null) visibleAssets else visibleAssets.filter(assetFilter))
+            val filteredAssets = if (assetFilter == null) assets else assets.filter(assetFilter)
+            activePickerAssets = filteredAssets.filterNot { it.isArchived }
+            archivedPickerAssets = filteredAssets.filter { it.isArchived }
+            rebuildPickerItems()
             adapter.notifyDataSetChanged()
             applyBottomPickerEnterAnimation(dialog, view, rv)
             showStyledDialog(

@@ -554,7 +554,7 @@ class ChatMessagePipeline(
     ) {
         if (appendUserBubble) appendUserMessage(userText, ChatActivity.MSG_TYPE_USER_TEXT)
         val loadingKey = loadingIdxOverride ?: appendAiTextMessage(
-            "正在思考...",
+            "正在读懂这笔账...",
             true,
             getCurrentBookName(),
             getCurrentConversationId()
@@ -576,8 +576,8 @@ class ChatMessagePipeline(
             val nextStage = maxOf(loadingStage, stage)
             loadingStage = nextStage
             val stableText = when (nextStage) {
-                1 -> "正在思考..."
-                2 -> "正在生成回复..."
+                1 -> "正在读懂这笔账..."
+                2 -> "正在整理账单..."
                 else -> text
             }
             updateLoadingMessage(loadingKey, stableText)
@@ -599,13 +599,13 @@ class ChatMessagePipeline(
                         val base64 = parts.getOrElse(0) { "" }
                         val mime = parts.getOrElse(1) { "image/jpeg" }
 
-                        updateLoadingMessage(loadingKey, "正在识别图片...")
+                        updateLoadingMessage(loadingKey, "正在看图识别交易...")
                         val visionResult = withContext(Dispatchers.IO) {
                             AIService.analyzeReceiptByImage(context, base64, mime)
                         }
                         if (!canWriteForRequest(requestContext)) return@launch
 
-                        updateLoadingMessage(loadingKey, "请核对识别草稿...")
+                        updateLoadingMessage(loadingKey, "识别好了，等你核对草稿...")
                         val confirmedDraft = confirmVisualAccountingDraft(
                             visionResult,
                             requestContext.bookName,
@@ -624,7 +624,7 @@ class ChatMessagePipeline(
                         }
                         accountingSourceText = confirmedDraft
 
-                        updateLoadingMessage(loadingKey, "正在根据确认内容生成账单...")
+                        updateLoadingMessage(loadingKey, "正在按确认内容整理账单...")
                         withContext(Dispatchers.IO) {
                             AIService.analyzeAccounting(
                                 ctx = context,
@@ -790,7 +790,7 @@ class ChatMessagePipeline(
     }
 
     fun callAiAccountingWithVoice(audioFile: File) {
-        val loadingKey = appendAiTextMessage("正在理解你的消息...", true, getCurrentBookName(), getCurrentConversationId())
+        val loadingKey = appendAiTextMessage("正在听写语音...", true, getCurrentBookName(), getCurrentConversationId())
         val requestContext = newRequestContext(loadingKey)
         var loadingStage = 1
         val streamedRaw = StringBuilder()
@@ -807,8 +807,8 @@ class ChatMessagePipeline(
             val (stage, text) = mapProgressToNaturalStatus(raw)
             loadingStage = maxOf(loadingStage, stage)
             val stableText = when (loadingStage) {
-                1 -> "正在理解你的消息..."
-                2 -> "正在生成回复..."
+                1 -> "正在听写语音..."
+                2 -> "正在整理账单..."
                 else -> text
             }
             updateLoadingMessage(loadingKey, stableText)
@@ -1002,10 +1002,15 @@ class ChatMessagePipeline(
 
     private fun mapProgressToNaturalStatus(raw: String): Pair<Int, String> {
         val text = raw.trim()
-        if (text.isBlank()) return 1 to "正在思考..."
+        if (text.isBlank()) return 1 to "正在读懂这笔账..."
         val lower = text.lowercase(Locale.getDefault())
 
-        if (text.contains("智能分类中") || text.contains("智能分析中") || text.contains("匹配中")) {
+        if (text.contains("智能分类中") ||
+            text.contains("智能分析中") ||
+            text.contains("匹配中") ||
+            text.contains("核对分类") ||
+            text.contains("确认分类")
+        ) {
             return 3 to text
         }
 
@@ -1015,7 +1020,8 @@ class ChatMessagePipeline(
                 lower.contains("output") ||
                 lower.contains("generate") ||
                 lower.contains("生成") ||
-                lower.contains("回复") -> 2 to "正在生成回复..."
+                lower.contains("回复") ||
+                lower.contains("整理") -> 2 to "正在整理账单..."
 
             lower.contains("upload") ||
                 lower.contains("audio") ||
@@ -1026,9 +1032,9 @@ class ChatMessagePipeline(
                 lower.contains("analy") ||
                 lower.contains("thinking") ||
                 lower.contains("理解") ||
-                lower.contains("分析") -> 1 to "正在思考..."
+                lower.contains("分析") -> 1 to "正在读懂这笔账..."
 
-            else -> 1 to "正在思考..."
+            else -> 1 to "正在读懂这笔账..."
         }
     }
 
@@ -1036,7 +1042,7 @@ class ChatMessagePipeline(
         val compact = raw.replace("\n", "")
         val objectRegex = Regex("\\{[^{}]*\\}")
         val objects = objectRegex.findAll(compact).map { it.value }.toList()
-        if (objects.isEmpty()) return "正在思考..."
+        if (objects.isEmpty()) return "正在读懂这笔账..."
 
         val lines = mutableListOf<String>()
         var index = 1
@@ -1046,9 +1052,11 @@ class ChatMessagePipeline(
                 ?: extractJsonString(obj, "remark")
                 ?: "未命名账单"
             val category = extractJsonString(obj, "category_name").orEmpty()
+            val currency = extractJsonString(obj, "currency").orEmpty()
             if (amount == null && category.isBlank() && remark == "未命名账单") return@forEach
             val amountText = amount?.let { String.format(Locale.getDefault(), "%.2f", it) } ?: "--"
-            lines += "$index. $remark  ¥$amountText"
+            val amountWithCurrency = if (currency.isNotBlank()) "$amountText $currency" else amountText
+            lines += "$index. $remark  $amountWithCurrency"
             if (category.isNotBlank()) {
                 lines += "   分类: $category"
             }
@@ -1056,9 +1064,9 @@ class ChatMessagePipeline(
             if (index > 8) return@forEach
         }
         return if (lines.isEmpty()) {
-            "正在思考..."
+            "正在读懂这笔账..."
         } else {
-            "正在整理结果...\n" + lines.joinToString("\n")
+            "正在整理账单...\n" + lines.joinToString("\n")
         }
     }
 

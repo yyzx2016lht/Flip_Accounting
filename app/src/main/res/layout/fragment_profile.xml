@@ -170,7 +170,7 @@
                                 android:id="@+id/tv_overlay_reminder_title"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="翻转记账需要悬浮窗权限"
+                                android:text="快捷记账还差一步"
                                 android:textColor="#7A4B00"
                                 android:textSize="@dimen/text_size_14"
                                 android:textStyle="bold" />
@@ -180,7 +180,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="3dp"
-                                android:text="检测到未授予悬浮窗权限。请先授权，否则翻转手势无法正常唤起记账界面。"
+                                android:text="完成悬浮窗和后台运行设置后，翻转和敲击会更稳定。"
                                 android:textColor="#8A5A00"
                                 android:textSize="@dimen/text_size_12" />
                         </LinearLayout>
@@ -479,14 +479,14 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="手势设置"
+                                android:text="快捷记账"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="管理翻转与敲击手势、调节灵敏度及反馈"
+                                android:text="翻转、敲击背板、动作选择和后台稳定性"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11"
                                 android:layout_marginTop="1dp" />

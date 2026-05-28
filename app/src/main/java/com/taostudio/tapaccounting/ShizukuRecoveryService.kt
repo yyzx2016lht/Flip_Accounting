@@ -119,10 +119,6 @@ object ShizukuRecoveryService {
               am start-foreground-service --user "__D__USER_ID" -n "__D__PKG/.OverlayService" >> "__D__LOG_FILE" 2>&1
               sleep 3
               has_process && return 0
-
-              am start --user "__D__USER_ID" -n "__D__PKG/.MainActivity" --activity-clear-top --activity-single-top >> "__D__LOG_FILE" 2>&1
-              sleep 2
-              input keyevent KEYCODE_HOME >/dev/null 2>&1
             }
 
             recover_if_needed() {

@@ -26,4 +26,4 @@ RESTART_ACTION=...       # broadcast action for restart
 
 - Does NOT disable `com.oplus.battery` or hide the process.
 - Recovery latency: ~10 seconds (poll) or ~1-2 seconds (logcat catch).
-- If broadcast fails, falls back to direct service start, then activity launch.
+- If broadcast fails, falls back to direct service start only.

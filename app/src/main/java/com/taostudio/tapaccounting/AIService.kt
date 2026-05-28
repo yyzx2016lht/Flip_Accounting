@@ -186,7 +186,7 @@ object AIService {
                 userText = safeUserInput,
                 enableThinking = enableThinking
             )
-            onProgress?.invoke("智能分析中...")
+            onProgress?.invoke("正在拆分金额和备注...")
             val useDetailedStream = !Prefs.isMultiBillFastMode(ctx)
             val useTextPreviewStream = !useDetailedStream
             val content = requestAccountingContentStreamed(
@@ -237,6 +237,18 @@ object AIService {
                     assetFeatureEnabled = promptContext.assetFeatureEnabled,
                     referenceText = safeUserInput
                 )
+                if (Prefs.isLocalRuleOverrideEnabled(ctx)) {
+                    applyLocalRuleOverrideOnResult(root, safeUserInput, promptRules)
+                    normalizeAccountingResult(
+                        root = root,
+                        expenseCats = promptContext.expenseCats,
+                        incomeCats = promptContext.incomeCats,
+                        assetNames = promptContext.assetNames,
+                        assetFeatureEnabled = promptContext.assetFeatureEnabled,
+                        referenceText = safeUserInput
+                    )
+                }
+                Logger.d(ctx, AI_IO_LOG_TAG, "[记账] FINAL: ${root.toString().take(3000)}")
             }
             result
         } catch (e: Exception) {
@@ -288,14 +300,14 @@ object AIService {
                 audioFormat = audioFormat,
                 enableThinking = enableThinking
             )
-            onProgress?.invoke("智能分析中...")
+            onProgress?.invoke("正在听写并识别账单...")
             val streamed = requestChatContentStreamedWithReasoning(
                 ctx = ctx,
                 apiKey = apiKey,
                 requestJson = requestJson,
                 logReasoning = enableThinking,
                 reasoningLogTag = ACCOUNTING_AUDIO_MULTI_LOG_TAG,
-                onProgressChars = { currentLen -> onProgress?.invoke("智能分析中...（已接收 $currentLen 字）") }
+                onProgressChars = { currentLen -> onProgress?.invoke("正在整理语音结果...（已接收 $currentLen 字）") }
             )
             if (!streamed.completed) {
                 throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("语音账单流式回复未完整结束")
@@ -330,6 +342,17 @@ object AIService {
                     assetNames = promptContext.assetNames,
                     assetFeatureEnabled = promptContext.assetFeatureEnabled
                 )
+                if (Prefs.isLocalRuleOverrideEnabled(ctx)) {
+                    applyLocalRuleOverrideOnResult(root, "[语音输入]", promptRules)
+                    normalizeAccountingResult(
+                        root = root,
+                        expenseCats = promptContext.expenseCats,
+                        incomeCats = promptContext.incomeCats,
+                        assetNames = promptContext.assetNames,
+                        assetFeatureEnabled = promptContext.assetFeatureEnabled
+                    )
+                }
+                Logger.d(ctx, AI_IO_LOG_TAG, "[语音记账] FINAL: ${root.toString().take(3000)}")
             }
             result
         } catch (e: Exception) {
@@ -1205,7 +1228,7 @@ object AIService {
         val unresolvedRemarks = mutableListOf<String>()
         val unresolvedCandidates = mutableListOf<List<String>>()
         val progressLines = MutableList(bills.length()) { "" }
-        onProgress?.invoke("本地规则匹配中...")
+        onProgress?.invoke("正在核对分类规则...")
         for (i in 0 until bills.length()) {
             val bill = bills.optJSONObject(i) ?: continue
             val rawType = bill.optInt("type", 0)
@@ -1218,13 +1241,13 @@ object AIService {
                 } else if (bill.optString("category_name").isBlank()) {
                     bill.put("category_name", "转账")
                 }
-                val shownCategory = bill.optString("category_name", "").ifBlank { "待定分类" }
+                val shownCategory = bill.optString("category_name", "").ifBlank { "待确认" }
                 val transferRemark = bill.optString("remarks", "").trim()
                     .ifEmpty { bill.optString("remark", "").trim() }
-                progressLines[i] = "${i + 1}. ${transferRemark.take(18)} -> $shownCategory"
+                progressLines[i] = "${i + 1}. ${transferRemark.take(18)} → $shownCategory"
                 onProgress?.invoke(
                     buildString {
-                        append("本地规则匹配中 ${i + 1}/${bills.length()}...\n")
+                        append("正在核对分类规则 ${i + 1}/${bills.length()}...\n")
                         append(progressLines.filter { it.isNotBlank() }.joinToString("\n"))
                     }
                 )
@@ -1253,11 +1276,14 @@ object AIService {
                     "Multi refine precheck idx=${i + 1}/${bills.length()}, remarkLen=${remark.length}, resolvedBy=local_rule, categoryLen=${localCategory.length}"
                 )
             } else {
-                if (finalConfidence >= CONFIDENCE_HIGH_THRESHOLD && originalCategory.isNotBlank()) {
-                    progressLines[i] = "${i + 1}. ${remark.take(18)} -> ${originalCategory.take(12)}"
+                // For multi-bill inputs (e.g. receipt line items), even a structurally "high-confidence"
+                // category may still be semantically over-generalized (all lines collapsed to one category).
+                // Keep the high-confidence fast path only for single-bill cases.
+                if (bills.length() == 1 && finalConfidence >= CONFIDENCE_HIGH_THRESHOLD && originalCategory.isNotBlank()) {
+                    progressLines[i] = "${i + 1}. ${remark.take(18)} → ${originalCategory.take(12)}"
                     onProgress?.invoke(
                         buildString {
-                            append("本地规则匹配中 ${i + 1}/${bills.length()}...\n")
+                            append("正在核对分类规则 ${i + 1}/${bills.length()}...\n")
                             append(progressLines.filter { it.isNotBlank() }.joinToString("\n"))
                         }
                     )
@@ -1274,11 +1300,11 @@ object AIService {
                 )
             }
 
-            val shownCategory = bill.optString("category_name", "").ifBlank { "待定分类" }
-            progressLines[i] = "${i + 1}. ${remark.take(18)} -> $shownCategory"
+            val shownCategory = bill.optString("category_name", "").ifBlank { "待确认" }
+            progressLines[i] = "${i + 1}. ${remark.take(18)} → $shownCategory"
             onProgress?.invoke(
                 buildString {
-                    append("本地规则匹配中 ${i + 1}/${bills.length()}...\n")
+                    append("正在核对分类规则 ${i + 1}/${bills.length()}...\n")
                     append(progressLines.filter { it.isNotBlank() }.joinToString("\n"))
                 }
             )
@@ -1296,7 +1322,7 @@ object AIService {
                 }
                 onProgress?.invoke(
                     buildString {
-                        append("智能分类中，第 ${unresolvedPos + 1}/${unresolvedIndexes.size} 条...\n")
+                        append("正在逐条确认分类，第 ${unresolvedPos + 1}/${unresolvedIndexes.size} 条...\n")
                         append(progressLines.filter { it.isNotBlank() }.joinToString("\n"))
                     }
                 )
@@ -1324,10 +1350,10 @@ object AIService {
                     "AIService",
                     "Multi refine llm idx=${billIndex + 1}/${bills.length()}, remarkLen=${remark.length}, hasFinal=${!refined.isNullOrBlank()}"
                 )
-                progressLines[billIndex] = "${billIndex + 1}. ${remark.take(18)} -> ${bill.optString("category_name", "").ifBlank { "待定分类" }}"
+                progressLines[billIndex] = "${billIndex + 1}. ${remark.take(18)} → ${bill.optString("category_name", "").ifBlank { "待确认" }}"
                 onProgress?.invoke(
                     buildString {
-                        append("智能分类中，已完成 ${unresolvedPos + 1}/${unresolvedIndexes.size} 条...\n")
+                        append("正在逐条确认分类，已完成 ${unresolvedPos + 1}/${unresolvedIndexes.size} 条...\n")
                         append(progressLines.filter { it.isNotBlank() }.joinToString("\n"))
                     }
                 )
@@ -1345,11 +1371,16 @@ object AIService {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isEmpty()) return null
 
-        val model = Prefs.getAiMultiModel(ctx)
+        val model = Prefs.getAiCategoryRefineModel(ctx)
         Logger.d(
             ctx,
             "AIService",
             "Category refine request: model=$model, type=${if (type == 1) "income" else "expense"}, remarkLen=${remark.length}, candidateCount=${candidates.size}, matchedRuleCount=${matchedRules.size}"
+        )
+        Logger.d(
+            ctx,
+            "AIService",
+            "Category refine candidates(type=${if (type == 1) "income" else "expense"}): ${candidates.take(40).joinToString(" | ")}${if (candidates.size > 40) " | ...(+${candidates.size - 40})" else ""}"
         )
         val correctionBlock = if (matchedRules.isNotEmpty()) buildPromptCorrectionBlock(matchedRules) else ""
         val systemPrompt = AIPrompts.buildCategoryRefineSystemPrompt(
@@ -1377,12 +1408,12 @@ object AIService {
         )
         if (!streamed.completed) return null
         val content = streamed.content
-        val parsed = runCatching { parseAnalyzeResult(content, isMultiMode = true) }
+        val parsed = runCatching { JSONObject(cleanJsonString(content)) }
             .getOrElse {
                 Logger.d(
                     ctx,
                     "AIService",
-                    "Category refine parse failed: remarkLen=${remark.length}, responseLen=${content.length}, err=${it.javaClass.simpleName}"
+                    "Category refine parse failed: remarkLen=${remark.length}, responseLen=${content.length}, err=${it.javaClass.simpleName}, raw=${content.take(120)}"
                 )
                 return null
             } ?: return null
@@ -1427,7 +1458,7 @@ object AIService {
         if (normalizedInput.length < 2) return null
         candidates.firstOrNull { candidate ->
             val full = categoryToken(candidate)
-            val leaf = categoryToken(candidate.substringAfterLast("/::/"))
+            val leaf = categoryToken(candidate.substringAfterLast(" - ").substringAfterLast("/::/"))
             (leaf.length >= 2 && (normalizedInput.contains(leaf) || leaf.contains(normalizedInput))) ||
                 (full.length >= 2 && (normalizedInput.contains(full) || full.contains(normalizedInput)))
         }?.let { return it }
@@ -1589,7 +1620,7 @@ object AIService {
                 logReasoning = logReasoning,
                 reasoningLogTag = reasoningLogTag,
                 onContentDelta = if (emitTextDelta) { delta -> onProgress?.invoke("AI_STREAM_TEXT::$delta") } else null,
-                onProgressChars = if (emitTextDelta) null else { currentLen -> onProgress?.invoke("智能分析中...（已接收 $currentLen 字）") }
+                onProgressChars = if (emitTextDelta) null else { currentLen -> onProgress?.invoke("正在整理账单...（已接收 $currentLen 字）") }
             )
             if (!streamed.completed) {
                 val reason = streamed.parseError ?: streamed.transportError ?: IllegalStateException("SSE stream ended before [DONE]")

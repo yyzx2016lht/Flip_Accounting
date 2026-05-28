@@ -32,12 +32,14 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.taostudio.tapaccounting.KeepAliveAccessibilityService
 import com.taostudio.tapaccounting.KeepAliveDiagnostics
+import com.taostudio.tapaccounting.GesturePermissionGuideActivity
 import com.taostudio.tapaccounting.OverlayService
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.RecentTasksHelper
 import com.taostudio.tapaccounting.ShizukuSafe
 import com.taostudio.tapaccounting.tap.TapActionRegistry
+import com.google.android.material.snackbar.Snackbar
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import com.taostudio.tapaccounting.tap.TapModel
 import java.util.Locale
@@ -47,6 +49,7 @@ class SensitivityActivity : AppCompatActivity() {
         private const val TAP_RESTART_DEBOUNCE_MS = 1_000L
         private const val REQUEST_POST_NOTIFICATIONS = 7101
         private const val SCREEN_CAPTURE_ACTION_ID = "screen_capture"
+        private const val PERMISSION_PROMPT_DEFER_DAYS = 7L
     }
 
     private lateinit var cardFlipSensitivity: View
@@ -76,6 +79,7 @@ class SensitivityActivity : AppCompatActivity() {
 
     private lateinit var seekBarFlip: SeekBar
     private lateinit var tvFlipCurrentValue: TextView
+    private lateinit var tvFlipActionName: TextView
     private lateinit var seekBarTap: SeekBar
     private lateinit var tvTapCurrentValue: TextView
     private lateinit var tvTapModelName: TextView
@@ -100,6 +104,8 @@ class SensitivityActivity : AppCompatActivity() {
     private val tapRestartHandler = Handler(Looper.getMainLooper())
     private var tapRestartPending = false
     private var isUpdatingNotificationSwitch = false
+    private var permissionGuidePromptShowing = false
+    private var permissionGuidePromptShownOnce = false
     private val tapRestartRunnable = Runnable {
         tapRestartPending = false
         val intent = Intent(this, OverlayService::class.java).apply {
@@ -152,6 +158,8 @@ class SensitivityActivity : AppCompatActivity() {
 
         // 让包含开关的整行都可点击
         makeSwitchRowsClickable()
+
+        switchFlipEnable.post { showInitialOnboardingIfNeeded() }
     }
 
     private fun initGestureSwitches() {
@@ -172,6 +180,13 @@ class SensitivityActivity : AppCompatActivity() {
                 action = if (isChecked) OverlayService.ACTION_START_FLIP else OverlayService.ACTION_STOP_FLIP
             }
             startServiceCompat(intent)
+            if (isChecked) {
+                handleGestureEnabled("翻转手机")
+                if (!Prefs.hasSeenFlipGuide(this@SensitivityActivity)) {
+                    Prefs.setFlipGuideSeen(this@SensitivityActivity)
+                    cardFlipSensitivity.post { showFlipSecondaryGuide() }
+                }
+            }
         }
 
         switchTapEnable.isChecked = Prefs.isDoubleTapEnabled(this)
@@ -187,6 +202,17 @@ class SensitivityActivity : AppCompatActivity() {
                 if (Prefs.getTapModel(this).isEmpty()) {
                     val recommended = TapModel.recommend(this)
                     Prefs.setTapModel(this, recommended.path)
+                }
+                if (Prefs.getTapActionDouble(this).isEmpty()) {
+                    Prefs.setTapActionDouble(this, "show_overlay")
+                    if (::tvTapActionDoubleName.isInitialized) {
+                        tvTapActionDoubleName.text = getVisibleTapActionName("show_overlay")
+                    }
+                }
+                handleGestureEnabled("敲击背板")
+                if (!Prefs.hasSeenDoubleTapGuide(this@SensitivityActivity)) {
+                    Prefs.setDoubleTapGuideSeen(this@SensitivityActivity)
+                    cardTapSensitivity.post { showTapSecondaryGuide() }
                 }
             }
         }
@@ -284,6 +310,17 @@ class SensitivityActivity : AppCompatActivity() {
     private fun initFlipViews() {
         seekBarFlip = findViewById(R.id.seekBarFlipSensitivity)
         tvFlipCurrentValue = findViewById(R.id.tvFlipCurrentValue)
+        tvFlipActionName = findViewById(R.id.tv_flip_action_name)
+        tvFlipActionName.text = getVisibleTapActionName(Prefs.getFlipAction(this))
+
+        findViewById<View>(R.id.btn_flip_action).setOnClickListener {
+            showTapActionDialog(
+                title = "翻转动作",
+                currentActionId = Prefs.getFlipAction(this),
+                targetView = tvFlipActionName,
+                onSelected = { Prefs.setFlipAction(this, it) }
+            )
+        }
 
         seekBarFlip.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -357,10 +394,10 @@ class SensitivityActivity : AppCompatActivity() {
             restartTapDetection()
         }
 
-        // 省电检测模式
-        switchTapLowPower.isChecked = Prefs.isTapLowPower(this)
+        // 全程 ML 模式
+        switchTapLowPower.isChecked = Prefs.isTapForceFullMl(this)
         switchTapLowPower.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setTapLowPower(this, isChecked)
+            Prefs.setTapForceFullMl(this, isChecked)
             updateLowPowerDependencies()
             restartTapDetection()
         }
@@ -533,16 +570,13 @@ class SensitivityActivity : AppCompatActivity() {
     }
 
     private fun initKeepAliveSettings() {
+        findViewById<View>(R.id.btn_gesture_permission_guide)?.setOnClickListener {
+            startActivity(Intent(this, GesturePermissionGuideActivity::class.java))
+        }
+
         // 电池优化豁免
         findViewById<View>(R.id.btn_battery_optimization)?.setOnClickListener {
-            try {
-                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "无法打开电池优化设置", Toast.LENGTH_SHORT).show()
-            }
+            startActivity(Intent(this, GesturePermissionGuideActivity::class.java))
         }
 
         // 通知权限
@@ -689,8 +723,7 @@ class SensitivityActivity : AppCompatActivity() {
     }
 
     private fun updateLowPowerDependencies() {
-        val lowPower = Prefs.isTapLowPower(this)
-        switchTapNnapi.isEnabled = !lowPower
+        switchTapNnapi.isEnabled = true
         switchTapTriple.isEnabled = true
         btnTapActionTriple.visibility = if (Prefs.isTapTripleEnabled(this)) View.VISIBLE else View.GONE
     }
@@ -705,9 +738,9 @@ class SensitivityActivity : AppCompatActivity() {
         dividerAfterTapNnapi.visibility = visibility
         dividerAfterTapLowPower.visibility = visibility
         tvTapAdvancedSummary.text = if (tapAdvancedExpanded) {
-            "已展开模型、省电和推理参数"
+            "已展开模型、功耗和推理参数"
         } else {
-            "模型、省电和推理参数"
+            "模型、功耗和推理参数"
         }
         ivTapAdvancedChevron.rotation = if (tapAdvancedExpanded) 90f else 0f
     }
@@ -716,6 +749,149 @@ class SensitivityActivity : AppCompatActivity() {
         tapRestartPending = true
         tapRestartHandler.removeCallbacks(tapRestartRunnable)
         tapRestartHandler.postDelayed(tapRestartRunnable, TAP_RESTART_DEBOUNCE_MS)
+    }
+
+    private var tipCard: View? = null
+
+    private fun showInitialOnboardingIfNeeded() {
+        if (Prefs.hasSeenSensitivityOnboarding(this)) return
+        if (Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)) {
+            Prefs.setSensitivityOnboardingSeen(this)
+            return
+        }
+        Prefs.setSensitivityOnboardingSeen(this)
+        val gestureCard = findViewById<View>(R.id.card_gesture_switches) ?: return
+        val parent = gestureCard.parent as? android.widget.LinearLayout ?: return
+
+        val dp = resources.displayMetrics.density
+        val card = androidx.cardview.widget.CardView(this).apply {
+            radius = 16 * dp
+            cardElevation = 0f
+            setCardBackgroundColor(android.graphics.Color.parseColor("#EEF2FF"))
+            useCompatPadding = false
+        }
+        val inner = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((16 * dp).toInt(), (14 * dp).toInt(), (16 * dp).toInt(), (14 * dp).toInt())
+        }
+        inner.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.onboarding_gesture_tip_title)
+            setTextColor(android.graphics.Color.parseColor("#3949AB"))
+            textSize = 15f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        inner.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.onboarding_gesture_tip_desc)
+            setTextColor(android.graphics.Color.parseColor("#5C6BC0"))
+            textSize = 13f
+            setLineSpacing(3 * dp, 1f)
+            setPadding(0, (6 * dp).toInt(), 0, (8 * dp).toInt())
+        })
+        inner.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.onboarding_gesture_tip_footer)
+            setTextColor(android.graphics.Color.parseColor("#3949AB"))
+            textSize = 12f
+            setPadding(0, 0, 0, (10 * dp).toInt())
+        })
+        val dismissBtn = android.widget.TextView(this).apply {
+            text = getString(R.string.onboarding_welcome_dismiss)
+            setTextColor(android.graphics.Color.parseColor("#3949AB"))
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding((12 * dp).toInt(), (6 * dp).toInt(), (12 * dp).toInt(), (6 * dp).toInt())
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(android.graphics.Color.parseColor("#DDE3F9"))
+                cornerRadius = 8 * dp
+            }
+        }
+        dismissBtn.setOnClickListener {
+            parent.removeView(card)
+            tipCard = null
+        }
+        inner.addView(dismissBtn)
+        card.addView(inner)
+
+        val lp = android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = (12 * dp).toInt() }
+
+        val idx = parent.indexOfChild(gestureCard)
+        parent.addView(card, idx, lp)
+        tipCard = card
+    }
+
+    private fun showFlipSecondaryGuide() {
+        val root = findViewById<View>(android.R.id.content) ?: return
+        Snackbar.make(root,
+            getString(R.string.onboarding_flip_enabled_tip),
+            Snackbar.LENGTH_LONG
+        ).show()
+    }
+
+    private fun showTapSecondaryGuide() {
+        val root = findViewById<View>(android.R.id.content) ?: return
+        Snackbar.make(root,
+            getString(R.string.onboarding_tap_enabled_tip),
+            Snackbar.LENGTH_LONG
+        ).show()
+    }
+
+    private fun handleGestureEnabled(name: String) {
+        Toast.makeText(this, getString(R.string.onboarding_gesture_enabled_toast, name), Toast.LENGTH_SHORT).show()
+        tipCard?.let { card ->
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+            tipCard = null
+        }
+        if (hasCoreGesturePermissionGap()) {
+            promptGesturePermissionGuide()
+            return
+        }
+        val root = findViewById<View>(android.R.id.content) ?: return
+        Snackbar.make(root, getString(R.string.onboarding_gesture_ready_tip), Snackbar.LENGTH_LONG).show()
+    }
+
+    private fun promptGesturePermissionGuide() {
+        if (permissionGuidePromptShowing || permissionGuidePromptShownOnce) return
+        if (Prefs.shouldDeferGesturePermissionPrompt(this)) return
+        permissionGuidePromptShowing = true
+        permissionGuidePromptShownOnce = true
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.onboarding_permission_prompt_title))
+            .setMessage(getString(R.string.onboarding_permission_prompt_message))
+            .setPositiveButton(getString(R.string.onboarding_permission_prompt_go)) { _, _ ->
+                Prefs.setGesturePermissionPromptDeferUntilMs(this, 0L)
+                startActivity(Intent(this, GesturePermissionGuideActivity::class.java))
+            }
+            .setNegativeButton(getString(R.string.onboarding_permission_prompt_later)) { _, _ ->
+                val deferUntil = System.currentTimeMillis() + PERMISSION_PROMPT_DEFER_DAYS * 24L * 60L * 60L * 1000L
+                Prefs.setGesturePermissionPromptDeferUntilMs(this, deferUntil)
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    getString(R.string.onboarding_permission_prompt_deferred_tip),
+                    Snackbar.LENGTH_LONG
+                ).show()
+            }
+            .setOnDismissListener {
+                permissionGuidePromptShowing = false
+            }
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun hasCoreGesturePermissionGap(): Boolean {
+        val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+        val batteryReady = runCatching {
+            val powerManager = getSystemService(POWER_SERVICE) as android.os.PowerManager
+            powerManager.isIgnoringBatteryOptimizations(packageName)
+        }.getOrDefault(false)
+        return !hasOverlay || !batteryReady
     }
 
     override fun onDestroy() {

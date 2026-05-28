@@ -157,6 +157,7 @@
     <activity android:name=".ui.ExchangeRateActivity" android:label="汇率管理" />
         <activity android:name=".BillDisplaySettingsActivity" android:label="账单显示效果" />
         <activity android:name=".ui.SensitivityActivity" android:label="灵敏度调节" />
+        <activity android:name=".GesturePermissionGuideActivity" android:label="快捷记账准备" />
         <activity android:name=".ui.activity.BillDetailActivity" android:label="账单详情" />
         <activity android:name=".ui.activity.RefundActivity" android:label="退款" />
     <activity android:name=".ui.activity.EditBillActivity" android:label="编辑账单" android:theme="@style/Theme.TapAccounting.Transparent" />

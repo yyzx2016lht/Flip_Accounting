@@ -15,7 +15,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.AmountFormatHelper
 import com.taostudio.tapaccounting.CategoryIconHelper
 import com.taostudio.tapaccounting.R
@@ -37,6 +40,8 @@ class CategoryStatsAdapter(
     private var pinnedCategory: String? = null
     private var listRenderSeq = 0L
     private val iconUrlCache = mutableMapOf<String, String>()
+    private val loadingIconKeys = mutableSetOf<String>()
+    private val adapterScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun setColors(colors: List<Int>) {
         chartColors = colors
@@ -127,18 +132,9 @@ class CategoryStatsAdapter(
 
         val type = if (isExpense) 0 else 1
         val ctx = holder.itemView.context
-        holder.ivIcon.setImageResource(R.drawable.ic_placeholder)
-        val iconUrl = iconUrlCache[iconCacheKey(stat.categoryName, type)]
-        if (!iconUrl.isNullOrEmpty()) {
-            Glide.with(ctx)
-                .load(iconUrl)
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .placeholder(R.drawable.ic_placeholder)
-                .into(holder.ivIcon)
-        } else {
-            holder.ivIcon.setImageResource(R.drawable.ic_placeholder)
-        }
-        holder.ivIcon.setColorFilter(Color.WHITE)
+        val iconKey = iconCacheKey(stat.categoryName, type)
+        holder.ivIcon.tag = iconKey
+        bindCategoryIcon(holder.ivIcon, ctx, stat.categoryName, type, iconKey)
 
         holder.divider.visibility = if (position == itemCount - 1) View.GONE else View.VISIBLE
         holder.itemView.setBackgroundColor(Color.TRANSPARENT)
@@ -186,11 +182,49 @@ class CategoryStatsAdapter(
 
     override fun getItemCount() = displayItems().size
 
+    private fun bindCategoryIcon(
+        imageView: ImageView,
+        context: android.content.Context,
+        categoryName: String,
+        type: Int,
+        iconKey: String
+    ) {
+        imageView.clearColorFilter()
+        imageView.imageTintList = null
+        imageView.setImageDrawable(null)
+
+        val cachedIconUrl = iconUrlCache[iconKey]
+        if (cachedIconUrl != null) {
+            if (cachedIconUrl.isNotEmpty()) {
+                Glide.with(context)
+                    .load(cachedIconUrl)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .into(imageView)
+            }
+            return
+        }
+
+        if (!loadingIconKeys.add(iconKey)) return
+        adapterScope.launch {
+            val iconUrl = withContext(Dispatchers.IO) {
+                CategoryIconHelper.findCategoryIcon(context.applicationContext, categoryName, type)
+            }
+            loadingIconKeys.remove(iconKey)
+            iconUrlCache[iconKey] = iconUrl
+            if (imageView.tag == iconKey && iconUrl.isNotEmpty()) {
+                Glide.with(context)
+                    .load(iconUrl)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .into(imageView)
+            }
+        }
+    }
+
     private fun preloadIconsAsync(newItems: List<CategoryStat>, seq: Long, isExpense: Boolean) {
         val type = if (isExpense) 0 else 1
         val names = newItems.map { it.categoryName }.distinct()
         if (names.isEmpty()) return
-        CoroutineScope(Dispatchers.IO).launch {
+        adapterScope.launch(Dispatchers.IO) {
             val context = lastBoundContext ?: return@launch
             val updates = mutableMapOf<String, String>()
             names.forEach { name ->
@@ -214,6 +248,11 @@ class CategoryStatsAdapter(
     override fun onViewAttachedToWindow(holder: ViewHolder) {
         super.onViewAttachedToWindow(holder)
         lastBoundContext = holder.itemView.context.applicationContext
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        adapterScope.cancel()
     }
 
     private fun iconCacheKey(name: String, type: Int): String = "$type|$name"

@@ -155,10 +155,10 @@ class AssetsFragment : Fragment() {
     // ──────────────────────────────────────────────
     private fun updateHeader(assets: List<Asset>) {
         val hasForeignIncludedAsset = assets.any {
-            it.includeInNetAsset && !it.currency.equals("CNY", ignoreCase = true)
+            it.includeInNetAsset && !it.isArchived && !it.currency.equals("CNY", ignoreCase = true)
         }
         val hasMissingIncludedRates = assets.any { asset ->
-            asset.includeInNetAsset && !CurrencyManager.hasRate(asset.currency)
+            asset.includeInNetAsset && !asset.isArchived && !CurrencyManager.hasRate(asset.currency)
         }
         val hasSyncedRates = CurrencyManager.getLastUpdateTime(requireContext()) > 0L
 
@@ -189,12 +189,12 @@ class AssetsFragment : Fragment() {
         var creditCardDebtCny = 0.0
 
         assets.forEach {
-            if (it.includeInNetAsset) {
+            if (it.includeInNetAsset && !it.isArchived) {
                 val cnyBalance = CurrencyManager.convertToCny(it.balance, it.currency)
                 netAssetCny += cnyBalance
                 if (cnyBalance >= 0) totalAssetCny += cnyBalance
             }
-            if (it.assetCategory == Asset.CATEGORY_CREDIT_CARD && it.includeInNetAsset) {
+            if (it.assetCategory == Asset.CATEGORY_CREDIT_CARD && it.includeInNetAsset && !it.isArchived) {
                 val cnyBalance = CurrencyManager.convertToCny(it.balance, it.currency)
                 if (cnyBalance < 0) creditCardDebtCny += cnyBalance
             }
@@ -287,14 +287,14 @@ class AssetsFragment : Fragment() {
 
         // ── 汇率检测 ──
         val hasMissingRate = group.any { asset ->
-            asset.includeInNetAsset && !CurrencyManager.hasRate(asset.currency)
+            asset.includeInNetAsset && !asset.isArchived && !CurrencyManager.hasRate(asset.currency)
         }
 
         val total = if (hasMissingRate) 0.0 else group
-            .filter { it.includeInNetAsset }
+            .filter { it.includeInNetAsset && !it.isArchived }
             .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
         val excludedTotal = if (hasMissingRate) 0.0 else group
-            .filterNot { it.includeInNetAsset }
+            .filterNot { it.includeInNetAsset && !it.isArchived }
             .sumOf { CurrencyManager.convertToCny(it.balance, it.currency) }
 
         val card = CardView(ctx).apply {

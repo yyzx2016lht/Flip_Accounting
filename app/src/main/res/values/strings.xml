@@ -31,8 +31,8 @@
 
     <!-- AI 功能页 -->
     <string name="ai_feature_title">AI 功能</string>
-    <string name="ai_feature_unconfigured">AI 未配置</string>
-    <string name="ai_feature_unconfigured_hint">请先输入 API Key，完成后即可使用 AI 功能。</string>
+    <string name="ai_feature_unconfigured">AI 智能记账未配置</string>
+    <string name="ai_feature_unconfigured_hint">点击配置密钥，开启一句话记账、语音记账等 AI 能力</string>
     <string name="ai_detailed_accounting_desc">识别更细，但耗时更长、消耗更多额度。</string>
     <string name="ai_voice_accounting">语音记账</string>
     <string name="ai_image_accounting">图片记账</string>
@@ -44,20 +44,20 @@
     <string name="ai_feature_entry_title">启用 AI 功能</string>
     <string name="ai_feature_entry_desc">入口显示由设置中心控制，此处仅展示能力项。</string>
     <string name="ai_chat_entry">AI 对话页面</string>
-    <string name="ai_chat_entry_desc">首页“+”可直接进入 AI 对话记账。</string>
+    <string name="ai_chat_entry_desc">首页"+"可直接进入 AI 对话记账。</string>
     <string name="ai_accounting_entry">记账页增加 AI 入口</string>
     <string name="ai_accounting_entry_desc">在传统记账弹窗底部显示切换入口。</string>
     <string name="ai_llm_router">大模型路由</string>
-    <string name="ai_llm_router_desc">关闭后仅区分“记账/闲聊”。</string>
+    <string name="ai_llm_router_desc">关闭后仅区分"记账/闲聊"。</string>
 
     <!-- 设置中心 -->
     <string name="settings_category_subtitle">管理分类、子分类和显示顺序</string>
 
     <!-- 聊天页 -->
     <string name="chat_voice_dialog_title">请先开启语音记账</string>
-    <string name="chat_voice_dialog_message">要在 AI 对话中发送语音，请先到设置中心开启“语音记账”。</string>
+    <string name="chat_voice_dialog_message">要在 AI 对话中发送语音，请先到设置中心开启"语音记账"。</string>
     <string name="chat_image_dialog_title">请先开启图片记账</string>
-    <string name="chat_image_dialog_message">要在 AI 对话中发送图片，请先到设置中心开启“图片记账”。</string>
+    <string name="chat_image_dialog_message">要在 AI 对话中发送图片，请先到设置中心开启"图片记账"。</string>
     <string name="chat_goto_settings">去设置</string>
 
     <!-- 通用 -->
@@ -76,11 +76,12 @@
     <string name="asr_model_unavailable">离线语音模型未就绪：</string>
     <string name="asr_no_speech_detected">未检测到清晰语音，请重试</string>
     <string name="profile_config_api_key">配置 API Key</string>
-    <string name="profile_api_key_hint">密钥可由云端配置同步，此处仅作临时手动输入</string>
+    <string name="profile_api_key_hint">当前服务提供方：硅基流动。请输入 sk- 开头的 API Key。</string>
     <string name="profile_api_url_hint">API 地址</string>
     <string name="profile_api_key_saved">API 密钥已保存</string>
     <string name="please_input_api_key">请先输入 API Key</string>
     <string name="test_connection_btn">测试连接</string>
+    <string name="save_and_test_btn">保存并测试</string>
     <string name="save_btn">保存</string>
     <string name="cancel_btn">取消</string>
     <string name="confirm_btn">确认</string>
@@ -104,5 +105,33 @@
     <string name="asr_model_needed_for_local">需要先下载离线语音模型，才能使用本地语音识别</string>
     <string name="voice_not_clear">这段语音没有识别清楚，可以再说一遍</string>
     <string name="duplicate_rule_dialog_title">检测到同关键词规则</string>
-    <string name="duplicate_rule_dialog_message">关键词“%1$s”已有 %2$s 条规则。\n\n继续保存将覆盖旧规则，是否继续？</string>
+    <string name="duplicate_rule_dialog_message">关键词"%1$s"已有 %2$s 条规则。\n\n继续保存将覆盖旧规则，是否继续？</string>
+
+    <!-- 新用户引导 -->
+    <string name="onboarding_welcome_title">欢迎使用敲敲记账</string>
+    <string name="onboarding_welcome_message">点击首页的 + 按钮即可快速记一笔。\n\n此外，本应用还支持翻转手机、敲击背板等快捷方式记账，前往设置中心即可开启。</string>
+    <string name="onboarding_welcome_snackbar_message">点击首页 + 可快速记账；也可开启翻转/敲击背板做快捷记账。</string>
+    <string name="onboarding_welcome_go_settings">了解快捷记账</string>
+    <string name="onboarding_welcome_dismiss">知道了</string>
+    <string name="onboarding_settings_gesture_title">快捷记账设置</string>
+    <string name="onboarding_settings_gesture_desc">在这里开启翻转手机或敲击背板，随时唤出记账界面。</string>
+    <string name="onboarding_gesture_tip_title">试试快捷记账</string>
+    <string name="onboarding_gesture_tip_desc">开启下方的「翻转手机」或「敲击背板」开关，不用打开 App 也能快速记账。开启后还可以切换功能和调节灵敏度。</string>
+    <string name="onboarding_gesture_tip_footer">开启后若无法弹出记账面板，请点击下方“查看快捷记账准备项”完成权限准备。</string>
+    <string name="onboarding_flip_enabled_tip">翻转已开启，继续完成准备项后可在任意界面唤起记账</string>
+    <string name="onboarding_tap_enabled_tip">敲击已开启，继续完成准备项后可在任意界面唤起记账</string>
+    <string name="onboarding_gesture_enabled_toast">已开启%1$s</string>
+    <string name="onboarding_gesture_ready_tip">快捷记账已可用，现在可以在任意界面尝试手势唤起</string>
+    <string name="onboarding_permission_prompt_title">继续完成快捷记账准备</string>
+    <string name="onboarding_permission_prompt_message">需要获取以下权限才能确保服务稳定使用：\n• 悬浮窗权限\n• 后台运行不受限制\n\n现在去完成准备项吗？</string>
+    <string name="onboarding_permission_prompt_go">去准备</string>
+    <string name="onboarding_permission_prompt_later">稍后再说</string>
+    <string name="onboarding_permission_prompt_deferred_tip">已为你暂缓此提醒 7 天，可在本页随时点击“查看快捷记账准备项”继续设置</string>
+
+    <!-- AI 配置引导 -->
+    <string name="ai_key_dialog_title">配置 AI 智能记账</string>
+    <string name="ai_key_dialog_hint">输入硅基流动 API Key（sk- 开头），即可使用 AI 一句话记账、语音记账等功能。\n\n普通用户只需填这里，高级模型配置入口默认隐藏。</string>
+    <string name="ai_key_warning_title">AI 智能记账未配置</string>
+    <string name="ai_key_warning_desc">点击配置密钥，开启一句话记账、语音记账等 AI 能力</string>
+    <string name="ai_key_how_to_get">如何获取？前往 siliconflow.cn 注册即可免费获得密钥。</string>
 </resources>

@@ -287,6 +287,8 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
 【核心规则】
 1. 同一句中出现多个金额、多个动作、多个对象时，必须拆分成多条账单。
 2. category_name 优先命中更细的子分类；命中子分类时格式必须为 一级 - 二级。
+   - 多条账单属于同一大类时，必须逐条根据商品本体区分子分类，禁止全部归入同一个子分类。
+   - 例如：香蕉→水果，胡萝卜→蔬菜，饼干→零食，它们虽然都是"吃的"但子分类不同。
 3. asset_name 与 to_asset_name 只允许从资产库中选择；无法确定时留空。
 4. type 只允许 0=支出，1=收入，2=转账，3=还款。
 5. 还款语义必须单独拆出一条账单。
@@ -443,18 +445,21 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
     fun buildChatIntentAwarenessRule(): String =
         "\n【场景感知】你收到的消息可能来自闲聊，请先判断是否真的要新增账单。非记账消息返回 no_bill。\n"
 
-    fun buildMultiFastModeRule(expenseLeafCats: List<String>, incomeLeafCats: List<String>): String =
+    fun buildMultiFastModeRule(expenseCats: List<String>, incomeCats: List<String>): String =
         "\n【极简多账单模式】直接在本轮输出所有账单及完整分类，不会有第二阶段。\n" +
             "- 每条 bill 必须包含完整字段：amount、type、asset_name、category_name、to_asset_name、time、remarks、currency、fee。\n" +
             "- remarks 仅保留该条消费的核心关键词，尽量简短（建议 <=12 字）。\n" +
-            "- category_name 从可选分类中选择最合适的一条，支出参考：${expenseLeafCats.joinToString("、")}；收入参考：${incomeLeafCats.joinToString("、")}。\n" +
+            "- category_name 必须从完整可选分类路径中原样选择，不要只输出叶子名；支出可选：${expenseCats.joinToString("、")}；收入可选：${incomeCats.joinToString("、")}。\n" +
+            "- 每条 bill 必须独立判断分类，根据商品/事项本体性质区分子分类；同一张小票或同一段话里的不同商品，禁止因为同属一个父类就偷懒全部归入同一个子分类。\n" +
+            "- 超市/小票商品分类时，优先按商品本体理解：水果类应选水果相关候选，蔬菜/调料/生鲜类应选蔬菜/食材/生鲜相关候选，饼干糖果类才选零食相关候选；如果对应候选不存在，再选择最接近的真实候选，禁止创造列表外分类。\n" +
             "- 若无法确定分类，优先选择对应分类列表中的“其他/其它”类目；仅当分类列表中没有可用兜底类目时才输出空字符串。\n"
 
     fun buildMultiStageOneRule(expenseLeafCats: List<String>, incomeLeafCats: List<String>): String =
         "\n【多账单第一阶段职责】第一阶段只负责拆单和提取基础字段，不负责最终分类。\n" +
             "- 每条 bill 必须优先保证 amount、type、asset_name、to_asset_name、time、remarks、currency、fee 正确。\n" +
             "- remarks 只保留能区分该条消费的核心关键词，尽量简短（建议 <=12 字），便于下一阶段分类。\n" +
-            "- category_name 在第一阶段可以留空，或仅在你非常确定时填写；不要为了凑字段而勉强分类，更不要把多条商品统一归成同一类。\n" +
+            "- category_name 在第一阶段可以留空，或仅在你非常确定时填写；不要为了凑字段而勉强分类，更不要把多条商品偷懒统一归成同一个子分类。\n" +
+            "- 如果你不确定每条的精确子分类，宁可留空让第二阶段逐条判断，也不要把它们全部堆到一个兜底子类里。\n" +
             "- 如果一句话里有多个商品/事项，先拆成多条，再交给下一阶段逐条分类。\n" +
             "\n【第二阶段分类提示】后续会按每条 remarks 单独判断最终分类。支出可用叶子分类示例：${expenseLeafCats.joinToString("、")}。收入可用叶子分类示例：${incomeLeafCats.joinToString("、")}。\n"
 
@@ -503,18 +508,20 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
         correctionBlock: String
     ): String = buildString {
         appendLine("你是账单分类精修助手。")
-        appendLine("任务：只根据当前这一条账单的 remarks，从可选分类里选出唯一最合适的 category_name。")
+        appendLine("任务：只根据当前这一条账单的 remarks，从可选分类里选出唯一最合适的完整 category_name。")
         appendLine("硬约束：")
         appendLine("1. 只能处理当前这一条账单，不能受其他账单影响。")
-        appendLine("2. category_name 只能从“可选分类”列表中原样选择一项，一字不差；禁止输出列表外分类。")
-        appendLine("3. 如果候选里同时存在上级分类和更具体的下级分类，只要 remarks 已经提供了足够证据指向某个下级分类，就必须返回该下级分类，不能只返回上级分类。")
-        appendLine("4. 只有在 remarks 本身过于宽泛，或者虽然能确定大类但不足以稳定区分多个相近子类时，才允许停在上级分类。")
-        appendLine("5. 优先依据交易对象、商品本体、服务本体或事项本身归类，不要只按购买场景、用途、上级概念或宽泛父类归类。")
-        appendLine("6. 如果 remarks 指向的是一个具体对象，而候选中恰好有与该对象更贴近的细分类，应优先选择那个更贴近的细分类。")
-        appendLine("7. 如果多个细分类都像，但 remarks 不能稳定区分它们，就回退到它们共同更稳妥的上级分类；不要硬猜。")
-        appendLine("8. 忽略第一阶段可能给出的临时分类，不要被上一轮结果锚定；只依据当前 remarks 和可选分类语义重新判断。")
-        appendLine("9. 只输出 JSON，不要解释。")
-        appendLine("10. 输出格式固定为：{\"category_name\":\"可选分类中的某一项原文\"}")
+        appendLine("2. category_name 只能从“可选分类”列表中原样选择一项，一字不差；必须输出完整路径（如“一级 - 二级”），禁止输出列表外分类或只输出叶子名。")
+        appendLine("3. 分类依据优先级：商品/服务本体 > 事项用途 > 交易对象/商户 > 宽泛场景。不要因为它来自超市、外卖、平台或同一个父类，就把不同商品归到同一子类。")
+        appendLine("4. remarks 很短也可以是强证据：例如“香蕉”“生姜”“胡萝卜”“大蒜”“包心菜”“饼干”等商品名本身足以判断分类，不要因为文本短就回退到父类或兜底类。")
+        appendLine("5. 如果候选里同时存在上级分类和更具体的下级分类，只要 remarks 指向某个具体商品/服务，并且候选中存在贴近的下级分类，就必须返回该下级分类，不能只返回上级分类。")
+        appendLine("6. 只有在 remarks 本身过于宽泛，或虽然能确定大类但不足以稳定区分多个相近子类时，才允许停在上级分类。")
+        appendLine("7. 不要把宽泛/兜底性质的子分类（如“零食”“其他”“其它”）当作默认选择；只有当商品确实符合该子分类定义，或没有更贴近的真实候选时才选择它。")
+        appendLine("8. 食品/小票分类时按商品本体区分：水果类优先选候选中的水果相关分类；蔬菜、调料、生鲜原料优先选食材/生鲜/蔬菜相关分类；饼干、糖果、薯片这类即食小吃才选零食相关分类。若这些候选不存在，选择最接近的真实候选，禁止创造新分类。")
+        appendLine("9. 忽略第一阶段可能给出的临时分类，不要被上一轮结果锚定；只依据当前 remarks 和可选分类语义重新判断。")
+        appendLine("10. 如果多个细分类都像，但 remarks 不能稳定区分它们，就回退到它们共同更稳妥的上级分类；不要硬猜。")
+        appendLine("11. 只输出 JSON，不要解释。")
+        appendLine("12. 输出格式固定为：{\"category_name\":\"可选分类中的某一项原文\"}")
         appendLine("账单类型：${if (type == 1) "收入" else "支出"}")
         appendLine("可选分类：$candidatesJson")
         appendLine("分类层级参考：$hierarchyHint")
@@ -526,7 +533,7 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
 
     fun buildCategoryRefineUserPrompt(remark: String): String = buildString {
         appendLine("当前账单 remarks：$remark")
-        append("请只返回一个 JSON，给出这条账单最终最合适的 category_name。")
+        append("请按商品/事项本体从可选分类中原样选择完整 category_name，只返回一个 JSON。")
     }
 
 }

@@ -45,6 +45,7 @@ class AmountKeypadDialog(
     private fun initViews() {
         etAmount = findViewById(R.id.et_amount)
         btnConfirm = findViewById(R.id.btn_key_confirm)
+        findViewById<View>(R.id.layout_amount_keypad)?.visibility = View.VISIBLE
 
         etAmount.setText(initialAmount)
         etAmount.setSelection(initialAmount.length)

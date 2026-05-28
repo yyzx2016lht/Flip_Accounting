@@ -36,7 +36,8 @@ import java.util.Locale
 internal class HomeBillSheetsController(
     private val fragment: Fragment,
     private val dfDetailTime: SimpleDateFormat,
-    private val dfDetailTimeShort: SimpleDateFormat
+    private val dfDetailTimeShort: SimpleDateFormat,
+    private val onDataChanged: () -> Unit = {}
 ) {
     private var activeDetailSheet: BottomSheetDialog? = null
     private var lastDetailBillId: Long = -1L
@@ -560,6 +561,7 @@ internal class HomeBillSheetsController(
                     val db = AppDatabase.getDatabase(context)
                     com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
                     withContext(Dispatchers.Main) {
+                        onDataChanged()
                         Toast.makeText(fragment.context, "已删除", Toast.LENGTH_SHORT).show()
                     }
                 }

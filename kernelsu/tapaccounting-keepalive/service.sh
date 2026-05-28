@@ -69,13 +69,7 @@ ensure_running() {
     return 0
   fi
 
-  log "broadcast failed; trying activity fallback"
-  am start --user "$USER_ID" \
-    -n "$PKG/.MainActivity" \
-    --activity-clear-top --activity-single-top >> "$LOG" 2>&1
-  sleep 3
-  run_quiet input keyevent KEYCODE_HOME
-  has_process && log "app restored via activity"
+  log "broadcast failed; no activity fallback configured"
 }
 
 main_loop() {

@@ -91,8 +91,10 @@ internal suspend fun buildAccountingPromptContext(ctx: Context): AIAccountingPro
         demoAsset = assetNames.firstOrNull() ?: "微信",
         demoExpenseCat = expenseCats.firstOrNull() ?: "其他",
         demoIncomeCat = incomeCats.firstOrNull() ?: "工资",
-        expenseLeafCats = expenseCats.map { it.substringAfterLast("/::/") }.distinct(),
-        incomeLeafCats = incomeCats.map { it.substringAfterLast("/::/") }.distinct()
+        // Category options here are "父类" or "父类 - 子类" (not "/::/").
+        // Leaf hints should be the last segment (child name when exists).
+        expenseLeafCats = expenseCats.map { it.substringAfterLast(" - ").trim() }.distinct(),
+        incomeLeafCats = incomeCats.map { it.substringAfterLast(" - ").trim() }.distinct()
     )
 }
 

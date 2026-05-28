@@ -462,6 +462,38 @@ internal class AssetBillDetailSheetController(
             }
         }
 
+        btnRefund.setOnClickListener {
+            bottomSheet.dismiss()
+            showRefundSheet(bill)
+        }
+
+        btnEdit.setOnClickListener {
+            bottomSheet.dismiss()
+            if (isRefund) {
+                val cachedOriginal = linkedOriginalForRefund
+                if (cachedOriginal != null) {
+                    showRefundSheet(cachedOriginal, bill)
+                    return@setOnClickListener
+                }
+                scope.launch(Dispatchers.IO) {
+                    val source = com.taostudio.tapaccounting.logic.BillMutationService.resolveRefundSourceBill(db, bill)
+                    withContext(Dispatchers.Main) {
+                        if (source != null) {
+                            showRefundSheet(source, bill)
+                        } else {
+                            val intent = Intent(activity, EditBillActivity::class.java)
+                            intent.putExtra("BILL_ID", bill.id)
+                            activity.startActivity(intent)
+                        }
+                    }
+                }
+            } else {
+                val intent = Intent(activity, EditBillActivity::class.java)
+                intent.putExtra("BILL_ID", bill.id)
+                activity.startActivity(intent)
+            }
+        }
+
         view.findViewById<View>(R.id.btn_delete).setOnClickListener {
             bottomSheet.dismiss()
             val themeContext = ContextThemeWrapper(activity, R.style.Theme_TapAccounting)

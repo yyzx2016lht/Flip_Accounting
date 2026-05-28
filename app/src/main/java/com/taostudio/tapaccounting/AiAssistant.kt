@@ -25,12 +25,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 
 class AiAssistant(private val ctx: Context) {
 
     private var currentDialog: AlertDialog? = null
     private var tvThinkingLog: TextView? = null
     private var tvRecordedTextPreview: TextView? = null
+    private var progressAiLoading: View? = null
+    private var btnExpandPreview: TextView? = null
+    private var btnStartRecordNow: View? = null
     private var analyzeJob: Job? = null
     private var lastReceiptImageUri: Uri? = null
     private var currentHideStreamText: Boolean = false
@@ -83,6 +87,9 @@ class AiAssistant(private val ctx: Context) {
 
         tvThinkingLog = view.findViewById(R.id.tv_thinking_log)
         tvRecordedTextPreview = view.findViewById(R.id.tv_recorded_text_preview)
+        progressAiLoading = view.findViewById(R.id.progress_ai_loading)
+        btnExpandPreview = view.findViewById(R.id.btn_expand_preview)
+        btnStartRecordNow = view.findViewById(R.id.btn_start_record_now)
 
         btnClose.setOnClickListener { dismiss() }
 
@@ -137,6 +144,9 @@ class AiAssistant(private val ctx: Context) {
                 tvThinkingLog?.text = if (!text.isNullOrEmpty()) "正在听：$text" else "倾听中..."
                 tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
                 tvRecordedTextPreview?.visibility = View.GONE
+                progressAiLoading?.visibility = View.VISIBLE
+                btnExpandPreview?.visibility = View.GONE
+                btnStartRecordNow?.visibility = View.GONE
                 dialog.setCancelable(false)
                 btnClose.visibility = View.GONE
             }
@@ -148,6 +158,9 @@ class AiAssistant(private val ctx: Context) {
                 tvThinkingLog?.text = "松开即可取消"
                 tvThinkingLog?.setTextColor(android.graphics.Color.RED)
                 tvRecordedTextPreview?.visibility = View.GONE
+                progressAiLoading?.visibility = View.VISIBLE
+                btnExpandPreview?.visibility = View.GONE
+                btnStartRecordNow?.visibility = View.GONE
                 dialog.setCancelable(false)
                 btnClose.visibility = View.GONE
             }
@@ -159,6 +172,9 @@ class AiAssistant(private val ctx: Context) {
                 tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
                 tvThinkingLog?.text = text ?: "正在处理..."
                 tvRecordedTextPreview?.visibility = View.GONE
+                progressAiLoading?.visibility = View.VISIBLE
+                btnExpandPreview?.visibility = View.GONE
+                btnStartRecordNow?.visibility = View.GONE
                 dialog.setCancelable(true)
                 btnClose.visibility = View.VISIBLE
             }
@@ -173,6 +189,123 @@ class AiAssistant(private val ctx: Context) {
         }
     }
 
+    private fun updateLoadingPreview(text: String?) {
+        tvRecordedTextPreview?.let { preview ->
+            if (text.isNullOrBlank()) {
+                preview.visibility = View.GONE
+                preview.text = ""
+            } else {
+                preview.visibility = View.VISIBLE
+                preview.background = null
+                preview.gravity = Gravity.CENTER
+                preview.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
+                if (preview.text?.toString() != text) {
+                    preview.text = text
+                }
+            }
+        }
+    }
+
+    private fun overlayHiddenStreamStatus(): String =
+        if (Prefs.isMultiBillFastMode(ctx)) {
+            "正在整理账单...\n正在提取金额、分类和账户"
+        } else {
+            "正在逐条确认分类...\n稍等一下，结果马上出来"
+        }
+
+    private fun formatOverlayStreamingBillPreview(raw: String): String? {
+        val compact = raw.replace("\n", "")
+        val objects = Regex("\\{[^{}]*\\}").findAll(compact).map { it.value }.toList()
+        if (objects.isEmpty()) return null
+
+        val lines = mutableListOf<String>()
+        for (obj in objects) {
+            val remark = extractJsonString(obj, "remarks")
+                ?: extractJsonString(obj, "remark")
+                ?: continue
+            val category = extractJsonString(obj, "category_name").orEmpty()
+            val amount = extractJsonNumber(obj, "amount")
+            val currency = extractJsonString(obj, "currency").orEmpty()
+            lines += formatOverlayBillPreviewLine(
+                remark = remark,
+                category = category,
+                amount = amount,
+                currency = currency
+            )
+            if (lines.size >= 6) break
+        }
+        return lines.takeIf { it.isNotEmpty() }?.joinToString("\n")
+    }
+
+    private fun formatOverlayFinalBillPreview(bills: JSONArray, expanded: Boolean = false): String {
+        val lines = mutableListOf<String>()
+        val limit = if (expanded) bills.length() else 8
+        for (i in 0 until minOf(bills.length(), limit)) {
+            val bill = bills.optJSONObject(i) ?: continue
+            val remark = bill.optString("remarks", bill.optString("remark", "")).ifBlank { "未命名账单" }
+            val category = bill.optString("category_name", "")
+            val amount = bill.optDouble("amount", Double.NaN).takeUnless { it.isNaN() }
+            val currency = bill.optString("currency", "")
+            lines += formatOverlayBillPreviewLine(
+                remark = remark,
+                category = category,
+                amount = amount,
+                currency = currency
+            )
+        }
+        lines += "共识别到 ${bills.length()} 条账单"
+        return lines.joinToString("\n")
+    }
+
+    private fun formatOverlayBillPreviewLine(
+        remark: String,
+        category: String,
+        amount: Double?,
+        currency: String
+    ): String {
+        val amountText = amount?.let { formatMoneyWithSymbol(it, currency) }.orEmpty()
+        val categoryText = category.ifBlank { "分类识别中" }
+        return listOf(remark, categoryText, amountText)
+            .filter { it.isNotBlank() }
+            .joinToString("  ")
+    }
+
+    private fun formatMoneyWithSymbol(amount: Double, currency: String): String {
+        val code = currency.uppercase(Locale.ROOT)
+        val symbol = when (code) {
+            "CNY", "RMB", "CNH" -> "￥"
+            "USD" -> "$"
+            "EUR" -> "€"
+            "GBP" -> "£"
+            "JPY" -> "¥"
+            "HKD" -> "HK$"
+            "TWD" -> "NT$"
+            "AUD" -> "A$"
+            "CAD" -> "C$"
+            "SGD" -> "S$"
+            "PLN" -> "zł"
+            else -> code.takeIf { it.isNotBlank() }?.let { "$it " }.orEmpty()
+        }
+        val value = if (amount % 1.0 == 0.0) {
+            String.format(Locale.US, "%.0f", amount)
+        } else {
+            String.format(Locale.US, "%.2f", amount)
+        }
+        return "$symbol$value"
+    }
+
+    private fun extractJsonString(obj: String, key: String): String? {
+        val escapedKey = Regex.escape(key)
+        val regex = Regex("\"$escapedKey\"\\s*:\\s*\"([^\"]*)\"")
+        return regex.find(obj)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun extractJsonNumber(obj: String, key: String): Double? {
+        val escapedKey = Regex.escape(key)
+        val regex = Regex("\"$escapedKey\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)")
+        return regex.find(obj)?.groupValues?.getOrNull(1)?.toDoubleOrNull()
+    }
+
     private fun startAnalysis(
         text: String,
         isMultiMode: Boolean?,
@@ -182,14 +315,19 @@ class AiAssistant(private val ctx: Context) {
     ) {
         analyzeJob?.cancel()
         val hideStream = currentHideStreamText
+        val streamedRaw = StringBuilder()
         analyzeJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val result = AIService.analyzeAccounting(ctx, text, isMultiMode, onProgress = { status ->
                     Handler(Looper.getMainLooper()).post {
                         if (currentDialog?.isShowing == true) {
                             if (hideStream && status.startsWith("AI_STREAM_TEXT::")) {
-                                // 流式输出时只显示加载动画，不显示JSON内容
-                                updateLoadingText("记账中...")
+                                streamedRaw.append(status.removePrefix("AI_STREAM_TEXT::"))
+                                val preview = formatOverlayStreamingBillPreview(streamedRaw.toString())
+                                updateLoadingText(
+                                    if (preview.isNullOrBlank()) overlayHiddenStreamStatus() else "正在整理账单..."
+                                )
+                                updateLoadingPreview(preview)
                             } else {
                                 updateLoadingText(status)
                             }
@@ -222,8 +360,26 @@ class AiAssistant(private val ctx: Context) {
                             dismiss()
                             onResult(bills.getJSONObject(0))
                         } else {
-                            // 多条账单需要用户确认
-                            showResult(result, onResult)
+                            updateLoadingText("识别完成，共 ${bills.length()} 条")
+                            progressAiLoading?.visibility = View.GONE
+                            updateLoadingPreview(formatOverlayFinalBillPreview(bills))
+                            btnExpandPreview?.apply {
+                                visibility = if (bills.length() > 8) View.VISIBLE else View.GONE
+                                this.text = "展开全部"
+                                var expanded = false
+                                setOnClickListener {
+                                    expanded = !expanded
+                                    updateLoadingPreview(formatOverlayFinalBillPreview(bills, expanded))
+                                    this.text = if (expanded) "收起" else "展开全部"
+                                }
+                            }
+                            btnStartRecordNow?.apply {
+                                visibility = View.VISIBLE
+                                setOnClickListener {
+                                    dismiss()
+                                    onResult(result)
+                                }
+                            }
                         }
                     } else {
                         result.put("original_text_from_user", text)

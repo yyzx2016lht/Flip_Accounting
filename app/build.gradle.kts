@@ -115,6 +115,9 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.0")
 
+    // Onboarding spotlight / coach mark
+    implementation("com.github.takusemba:spotlight:2.0.5")
+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     testImplementation("junit:junit:4.13.2")

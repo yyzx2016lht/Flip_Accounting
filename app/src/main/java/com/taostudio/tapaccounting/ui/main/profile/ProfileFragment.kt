@@ -290,13 +290,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         // --- 悬浮窗及权限 ---
         btnRequestOverlay?.setOnClickListener {
-            if (!Settings.canDrawOverlays(requireContext())) {
-                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-                intent.data = Uri.parse("package:${requireContext().packageName}")
-                requireActivity().startActivity(intent)
-            } else {
-                Utils.toast(requireContext(), "悬浮窗权限已授予")
-            }
+            requireActivity().startActivity(Intent(requireContext(), GesturePermissionGuideActivity::class.java))
         }
         btnShowOverlay?.setOnClickListener {
             if (Settings.canDrawOverlays(requireContext())) {
@@ -609,21 +603,33 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val btnShowOverlay = view.findViewById<MaterialButton>(R.id.btnShowOverlay)
 
         val hasOverlayPermission = Settings.canDrawOverlays(requireContext())
+        val batteryReady = isIgnoringBatteryOptimizations()
 
-        // 仅在「快捷手势已开启 且 缺少悬浮窗权限」时显示提醒
-        if (!quickGestureEnabled || hasOverlayPermission) {
+        // 仅在「快捷手势已开启 且核心权限未完成」时显示提醒
+        if (!quickGestureEnabled || (hasOverlayPermission && batteryReady)) {
             card.visibility = View.GONE
             return
         }
 
         card.visibility = View.VISIBLE
-        tvTitle?.text = "⚠ 快捷手势需要悬浮窗权限"
+        tvTitle?.text = "快捷记账还差一步"
 
-        tvDesc?.text = "当前未授予悬浮窗权限，快捷手势将无法正常唤起记账界面。"
+        tvDesc?.text = when {
+            !hasOverlayPermission -> "开启悬浮窗后，翻转或敲击才能弹出记账面板。"
+            !batteryReady -> "把后台运行设为不受限制后，手势会更稳定。"
+            else -> "完成准备项后，翻转和敲击会更稳定。"
+        }
         btnRequestOverlay?.isEnabled = true
         btnRequestOverlay?.alpha = 1f
-        btnRequestOverlay?.text = "立即去开启"
+        btnRequestOverlay?.text = "查看准备项"
         btnShowOverlay?.visibility = View.GONE
+    }
+
+    private fun isIgnoringBatteryOptimizations(): Boolean {
+        return runCatching {
+            val powerManager = requireContext().getSystemService(Context.POWER_SERVICE) as PowerManager
+            powerManager.isIgnoringBatteryOptimizations(requireContext().packageName)
+        }.getOrDefault(false)
     }
 
     private fun promptOverlayPermissionDialog() {
