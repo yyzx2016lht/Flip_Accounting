@@ -207,8 +207,7 @@ class ChatMessagePipeline(
         val job = aiWorkScope.launch(start = CoroutineStart.LAZY) {
             try {
                 if (!canWriteForRequest(requestContext)) return@launch
-                val chatHistoryTurns = buildChatHistoryTurns(userText, requestContext)
-                val result = agentOrchestrator?.handle(userText, chatHistoryTurns)
+                val result = agentOrchestrator?.handle(userText)
                 if (!canWriteForRequest(requestContext)) return@launch
                 runOnUiIfAlive { removeLoadingMessage(loadingKey) }
                 if (result != null) {
