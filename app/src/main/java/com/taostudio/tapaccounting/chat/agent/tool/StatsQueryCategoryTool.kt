@@ -38,6 +38,10 @@ class StatsQueryCategoryTool(private val db: AppDatabase) : AgentTool {
                 put("type", "string")
                 put("description", "账单类型：EXPENSE, INCOME, TRANSFER, REPAYMENT, REFUND, ANY")
             })
+            put("bookName", JSONObject().apply {
+                put("type", "string")
+                put("description", "账本名称，如：法国账本、总账本。不填则查所有账本")
+            })
         })
         put("required", org.json.JSONArray().apply { put("categoryName") })
     }
@@ -55,30 +59,30 @@ class StatsQueryCategoryTool(private val db: AppDatabase) : AgentTool {
         } catch (e: Exception) {
             com.taostudio.tapaccounting.chat.query.QueryBillType.EXPENSE
         }
+        val bookName = params.optString("bookName", "").trim().ifBlank { null }
 
         val timeRange = parseTimeRange(timeRangeKey)
         val resolvedCategory = context.queryContext.categories.find {
             it.name.contains(categoryName, ignoreCase = true)
         }
 
-        val action = QueryAction(
-            intent = QueryIntent.QUERY_CATEGORY_STATS,
-            slots = QuerySlots(
-                timeRange = timeRange,
-                categoryName = resolvedCategory?.name ?: categoryName,
-                categoryId = resolvedCategory?.id,
-                billType = billType,
-                aggregation = QueryAggregation.TOTAL
-            )
-        )
-
         val billSource = RoomQueryBillSource(db)
-        val bills = billSource.loadBetween(
+        var bills = billSource.loadBetween(
             timeRange.startMillis ?: 0,
             timeRange.endMillis ?: System.currentTimeMillis(),
             null
-        ).filter { bill ->
-            val catName = resolvedCategory?.name ?: categoryName
+        )
+
+        // 按账本筛选
+        if (bookName != null) {
+            bills = bills.filter { bill ->
+                bill.bookName.contains(bookName, ignoreCase = true)
+            }
+        }
+
+        // 按分类和类型筛选
+        val catName = resolvedCategory?.name ?: categoryName
+        bills = bills.filter { bill ->
             bill.categoryName.contains(catName, ignoreCase = true) &&
             when (billType) {
                 com.taostudio.tapaccounting.chat.query.QueryBillType.EXPENSE -> bill.type == 0 && bill.subType != 4
@@ -94,6 +98,7 @@ class StatsQueryCategoryTool(private val db: AppDatabase) : AgentTool {
             facts = JSONObject().apply {
                 put("category", resolvedCategory?.name ?: categoryName)
                 put("timeRangeLabel", timeRange.label ?: timeRangeKey)
+                put("bookName", bookName ?: "所有账本")
                 put("totalAmount", String.format("%.2f", total))
                 put("billCount", count)
             }

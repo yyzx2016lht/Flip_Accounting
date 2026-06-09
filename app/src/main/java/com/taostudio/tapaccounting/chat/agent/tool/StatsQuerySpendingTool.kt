@@ -36,6 +36,10 @@ class StatsQuerySpendingTool(private val db: AppDatabase) : AgentTool {
                 put("type", "string")
                 put("description", "关键词筛选")
             })
+            put("bookName", JSONObject().apply {
+                put("type", "string")
+                put("description", "账本名称，如：法国账本、总账本。不填则查所有账本")
+            })
         })
     }
 
@@ -48,26 +52,26 @@ class StatsQuerySpendingTool(private val db: AppDatabase) : AgentTool {
             QueryBillType.EXPENSE
         }
         val keyword = params.optString("keyword", "").trim().ifBlank { null }
+        val bookName = params.optString("bookName", "").trim().ifBlank { null }
 
         val timeRange = parseTimeRange(timeRangeKey)
 
-        val action = QueryAction(
-            intent = QueryIntent.QUERY_BILLS,
-            slots = QuerySlots(
-                timeRange = timeRange,
-                billType = billType,
-                keyword = keyword,
-                aggregation = QueryAggregation.TOTAL
-            )
-        )
-
         val billSource = RoomQueryBillSource(db)
-        val executor = QueryExecutor(billSource)
-        val bills = billSource.loadBetween(
+        var bills = billSource.loadBetween(
             timeRange.startMillis ?: 0,
             timeRange.endMillis ?: System.currentTimeMillis(),
             null
-        ).filter { bill ->
+        )
+
+        // 按账本筛选
+        if (bookName != null) {
+            bills = bills.filter { bill ->
+                bill.bookName.contains(bookName, ignoreCase = true)
+            }
+        }
+
+        // 按类型筛选
+        bills = bills.filter { bill ->
             when (billType) {
                 QueryBillType.EXPENSE -> bill.type == 0 && bill.subType != 4
                 QueryBillType.INCOME -> bill.type == 1
@@ -89,6 +93,7 @@ class StatsQuerySpendingTool(private val db: AppDatabase) : AgentTool {
                 put("timeRange", timeRangeKey)
                 put("timeRangeLabel", timeRange.label ?: timeRangeKey)
                 put("billType", billTypeStr)
+                put("bookName", bookName ?: "所有账本")
                 put("totalAmount", String.format("%.2f", total))
                 put("billCount", count)
                 put("byCategory", byCategory.map { 
