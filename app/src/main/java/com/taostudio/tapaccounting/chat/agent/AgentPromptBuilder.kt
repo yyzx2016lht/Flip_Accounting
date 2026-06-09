@@ -57,43 +57,68 @@ $categoryList
 - params: {"limit": 5}
 - 示例: 用户问"最近几笔账单" -> {"tool":"bill.list_recent","params":{"limit":5}}
 
-### 6. 搜索账单
+### 6. 按日期查看账单
+- tool: "bill.list_by_date"
+- params: {"date":"2026-06-08","bookName":"法国账本"}
+- 示例: 用户问"昨天法国账本的账单" -> {"tool":"bill.list_by_date","params":{"date":"2026-06-08","bookName":"法国账本"}}
+
+### 7. 搜索账单
 - tool: "bill.search"
 - params: {"keyword":"关键词"}
 - 示例: 用户问"有没有买过咖啡" -> {"tool":"bill.search","params":{"keyword":"咖啡"}}
 
-### 7. 记账
+### 8. 查询是否买过某样东西
+- tool: "stats.query_existence"
+- params: {"keyword":"关键词","bookName":"账本名"}
+- 示例: 用户问"法国账本有没有买过红酒" -> {"tool":"stats.query_existence","params":{"keyword":"红酒","bookName":"法国账本"}}
+
+### 9. 记账
 - tool: "bill.create_from_text"
 - params: {"text":"记账描述"}
 - 示例: 用户说"午饭花了35" -> {"tool":"bill.create_from_text","params":{"text":"午饭花了35"}}
 
-### 8. 查询当前账本
+### 10. 修改账单
+- tool: "bill.modify_by_instruction"
+- params: {"instruction":"修改指令"}
+- 示例: 用户说"刚才那笔改成40" -> {"tool":"bill.modify_by_instruction","params":{"instruction":"刚才那笔改成40"}}
+
+### 11. 删除账单
+- tool: "bill.delete"
+- params: {"billId":123}
+- 示例: 用户说"删除账单123" -> {"tool":"bill.delete","params":{"billId":123}}
+
+### 12. 查询当前账本
 - tool: "book.get_current"
 - params: {}
 - 示例: 用户问"当前是什么账本" -> {"tool":"book.get_current","params":{}}
 
-### 9. 打开统计页
+### 13. 列出所有账本
+- tool: "book.list"
+- params: {}
+- 示例: 用户问"我有哪些账本" -> {"tool":"book.list","params":{}}
+
+### 14. 打开统计页
 - tool: "nav.open_stats"
 - params: {}
 - 示例: 用户说"打开统计页" -> {"tool":"nav.open_stats","params":{}}
 
-### 10. 查询设置
+### 15. 查询设置
 - tool: "pref.get"
 - params: {"key":"设置项名称"}
 - 可用key: ai_url, ai_model, current_book, show_ai_text, show_ai_voice, show_ai_image, multi_bill_enabled, vibrate_feedback, logging_enabled
 - 示例: 用户问"AI模型是什么" -> {"tool":"pref.get","params":{"key":"ai_model"}}
 
-### 11. 修改设置
+### 16. 修改设置
 - tool: "pref.set"
 - params: {"key":"设置项名称","value":值}
 - 示例: 用户说"关闭震动" -> {"tool":"pref.set","params":{"key":"vibrate_feedback","value":false}}
 
-### 12. 纯聊天
+### 17. 纯聊天
 - tool: "chat.reply"
 - params: {"message":"回复内容"}
 - 示例: 用户打招呼 -> {"tool":"chat.reply","params":{"message":"你好！有什么可以帮你的吗？"}}
 
-### 13. 追问
+### 18. 追问
 - tool: "agent.clarify"
 - params: {"question":"问题内容"}
 - 当用户信息不明确时使用

@@ -15,19 +15,27 @@ object AgentToolRegistrar {
         // 统计查询工具
         AgentToolRegistry.register(StatsQueryCategoryTool(db))
         AgentToolRegistry.register(StatsQuerySpendingTool(db))
+        AgentToolRegistry.register(StatsQueryMonthSummaryTool(db))
+        AgentToolRegistry.register(StatsQueryExistenceTool(db))
 
         // 资产工具
         AgentToolRegistry.register(AssetListTool(db))
         AgentToolRegistry.register(AssetGetBalanceTool(db))
+        AgentToolRegistry.register(AssetCountTool(db))
+        AgentToolRegistry.register(AssetGetNetWorthTool(db))
 
         // 账本工具
         AgentToolRegistry.register(BookGetCurrentTool())
+        AgentToolRegistry.register(BookListTool())
 
         // 记账工具
         AgentToolRegistry.register(BillListRecentTool(db))
         AgentToolRegistry.register(BillSearchTool(db))
         AgentToolRegistry.register(BillGetDetailTool(db))
         AgentToolRegistry.register(BillCreateFromTextTool(context, db))
+        AgentToolRegistry.register(BillModifyByInstructionTool(context, db))
+        AgentToolRegistry.register(BillDeleteTool(db))
+        AgentToolRegistry.register(BillListByDateTool(db))
 
         // 导航工具
         AgentToolRegistry.register(NavOpenStatsTool(context))
