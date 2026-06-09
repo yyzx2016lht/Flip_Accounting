@@ -73,15 +73,30 @@ class StatsQueryCategoryTool(private val db: AppDatabase) : AgentTool {
         )
 
         val billSource = RoomQueryBillSource(db)
-        val executor = QueryExecutor(billSource)
-        val result = executor.execute(action, context.queryContext)
+        val bills = billSource.loadBetween(
+            timeRange.startMillis ?: 0,
+            timeRange.endMillis ?: System.currentTimeMillis(),
+            null
+        ).filter { bill ->
+            val catName = resolvedCategory?.name ?: categoryName
+            bill.categoryName.contains(catName, ignoreCase = true) &&
+            when (billType) {
+                com.taostudio.tapaccounting.chat.query.QueryBillType.EXPENSE -> bill.type == 0 && bill.subType != 4
+                com.taostudio.tapaccounting.chat.query.QueryBillType.INCOME -> bill.type == 1
+                else -> true
+            }
+        }
+
+        val total = bills.sumOf { it.amount }
+        val count = bills.size
 
         return AgentToolResult.success(
             facts = JSONObject().apply {
                 put("category", resolvedCategory?.name ?: categoryName)
-                put("reply", result.reply)
-            },
-            userMessage = result.reply
+                put("timeRangeLabel", timeRange.label ?: timeRangeKey)
+                put("totalAmount", String.format("%.2f", total))
+                put("billCount", count)
+            }
         )
     }
 

@@ -33,6 +33,7 @@ class AssetGetBalanceTool(private val db: AppDatabase) : AgentTool {
         val asset = assets.find { it.name.contains(assetName, ignoreCase = true) }
 
         return if (asset != null) {
+            val formattedBalance = String.format("%.2f", asset.balance)
             AgentToolResult.success(
                 facts = JSONObject().apply {
                     put("assetId", asset.id)
@@ -40,7 +41,7 @@ class AssetGetBalanceTool(private val db: AppDatabase) : AgentTool {
                     put("balance", asset.balance)
                     put("currency", asset.currency)
                 },
-                userMessage = "${asset.name}的余额为 ${asset.balance} ${asset.currency}"
+                userMessage = "${asset.name}的余额是 $formattedBalance ${asset.currency}"
             )
         } else {
             AgentToolResult.failure("未找到名为「$assetName」的资产账户")

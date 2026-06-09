@@ -63,15 +63,41 @@ class StatsQuerySpendingTool(private val db: AppDatabase) : AgentTool {
 
         val billSource = RoomQueryBillSource(db)
         val executor = QueryExecutor(billSource)
-        val result = executor.execute(action, context.queryContext)
+        val bills = billSource.loadBetween(
+            timeRange.startMillis ?: 0,
+            timeRange.endMillis ?: System.currentTimeMillis(),
+            null
+        ).filter { bill ->
+            when (billType) {
+                QueryBillType.EXPENSE -> bill.type == 0 && bill.subType != 4
+                QueryBillType.INCOME -> bill.type == 1
+                QueryBillType.ANY -> true
+                else -> true
+            }
+        }
+
+        val total = bills.sumOf { it.amount }
+        val count = bills.size
+        val byCategory = bills.groupBy { it.categoryName.ifBlank { "未分类" } }
+            .mapValues { (_, rows) -> rows.sumOf { it.amount } }
+            .toList()
+            .sortedByDescending { it.second }
+            .take(5)
 
         return AgentToolResult.success(
             facts = JSONObject().apply {
                 put("timeRange", timeRangeKey)
+                put("timeRangeLabel", timeRange.label ?: timeRangeKey)
                 put("billType", billTypeStr)
-                put("reply", result.reply)
-            },
-            userMessage = result.reply
+                put("totalAmount", String.format("%.2f", total))
+                put("billCount", count)
+                put("byCategory", byCategory.map { 
+                    JSONObject().apply { 
+                        put("name", it.first)
+                        put("amount", String.format("%.2f", it.second))
+                    }
+                })
+            }
         )
     }
 

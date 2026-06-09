@@ -61,13 +61,79 @@ class ChatAgentOrchestrator(
         val sessionContext = buildSessionContext()
         val systemPrompt = AgentPromptBuilder.buildSystemPrompt(sessionContext)
 
+        // 第一步：让LLM选择工具
         val toolCallJson = callLlmForToolSelection(systemPrompt, userText)
             ?: return AgentToolResult.failure("无法理解您的请求，请重试")
 
         val toolCall = parseToolCall(toolCallJson)
             ?: return AgentToolResult.failure("无法解析工具调用")
 
-        return executeToolCall(toolCall, sessionContext)
+        // 如果是纯聊天或追问，直接返回
+        if (toolCall.toolId == "chat.reply") {
+            val message = toolCall.params.optString("message", "")
+            return AgentToolResult.success(userMessage = message)
+        }
+        if (toolCall.toolId == "agent.clarify") {
+            val question = toolCall.params.optString("question", "")
+            return AgentToolResult.success(userMessage = question)
+        }
+
+        // 第二步：执行工具
+        val toolResult = executeToolCall(toolCall, sessionContext)
+        if (!toolResult.success) return toolResult
+
+        // 第三步：用LLM生成自然语言回复
+        val naturalReply = generateNaturalReply(userText, toolResult)
+        return AgentToolResult.success(
+            facts = toolResult.facts,
+            userMessage = naturalReply,
+            uiAction = toolResult.uiAction
+        )
+    }
+
+    private suspend fun generateNaturalReply(userText: String, toolResult: AgentToolResult): String {
+        val factsStr = toolResult.facts?.toString(2) ?: "无数据"
+        val prompt = """
+用户问: $userText
+
+工具返回的数据:
+$factsStr
+
+请根据以上数据，用简洁自然的口语回复用户。要求:
+1. 直接回答用户的问题，不要说"根据数据"、"查询结果"等官方用语
+2. 金额保留2位小数
+3. 简洁明了，像朋友聊天一样
+4. 如果是余额查询，直接说"xx有xxx元"即可
+5. 如果是花销查询，说"xx花了xxx元"即可，不需要列出笔数
+""".trimIndent()
+
+        val reply = callLlmForChat(prompt)
+        return reply ?: toolResult.userMessage ?: "查询完成"
+    }
+
+    private suspend fun callLlmForChat(userText: String): String? {
+        val apiKey = Prefs.getAiKey(context)
+        if (apiKey.isEmpty()) return null
+
+        val model = AiModelSlots.resolveChatModel(context)
+        val messages = JsonArray().apply {
+            add(buildTextMessage("system", "你是一个记账助手，用简洁自然的口语回复用户。"))
+            add(buildTextMessage("user", userText))
+        }
+
+        val requestJson = JsonObject().apply {
+            addProperty("model", model)
+            addProperty("temperature", 0.5)
+            add("messages", messages)
+        }
+
+        return try {
+            val response = getApi().chatRaw("Bearer $apiKey", requestJson)
+            response.choices?.firstOrNull()?.message?.content
+        } catch (e: Exception) {
+            Logger.d(context, LOG_TAG, "callLlmForChat error: ${e.message}")
+            null
+        }
     }
 
     private suspend fun callLlmForToolSelection(
