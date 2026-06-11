@@ -3,6 +3,55 @@ package com.taostudio.tapaccounting
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 
+fun buildMultiTurnChatRequest(
+    model: String,
+    temperature: Double = 0.7,
+    systemPrompt: String,
+    historyTurns: List<ChatTurn>,
+    userText: String
+): JsonObject {
+    val messages = JsonArray().apply {
+        add(buildTextMessage("system", systemPrompt))
+        for (turn in historyTurns) {
+            add(buildTextMessage(turn.role, turn.content))
+        }
+        add(buildTextMessage("user", userText))
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages
+    )
+}
+
+fun adaptChatRequestForProvider(providerId: String, request: JsonObject): JsonObject {
+    val adapted = request.deepCopy()
+    when (providerId) {
+        AiProviderRegistry.PROVIDER_KIMI -> {
+            adapted.remove("enable_thinking")
+            if (!adapted.has("thinking")) {
+                adapted.add("thinking", JsonObject().apply { addProperty("type", "disabled") })
+            }
+            val temp = adapted.get("temperature")?.asDouble ?: 0.7
+            if (temp < 0.6) adapted.addProperty("temperature", 0.6)
+        }
+        AiProviderRegistry.PROVIDER_DEEPSEEK -> {
+            adapted.remove("enable_thinking")
+            if (!adapted.has("thinking")) {
+                adapted.add("thinking", JsonObject().apply { addProperty("type", "disabled") })
+            }
+            if (adapted.has("stream") && adapted.get("stream").asBoolean) {
+                adapted.add("stream_options", JsonObject().apply { addProperty("include_usage", true) })
+            }
+        }
+        AiProviderRegistry.PROVIDER_MIMO -> {
+            adapted.remove("enable_thinking")
+            adapted.remove("thinking")
+        }
+    }
+    return adapted
+}
+
 internal fun buildTextChatRequest(
     model: String,
     temperature: Double,

@@ -7,6 +7,10 @@ object AgentToolRegistry {
         tools[tool.id] = tool
     }
 
+    fun clear() {
+        tools.clear()
+    }
+
     fun findById(id: String): AgentTool? = tools[id]
 
     fun getByCategory(category: String): List<AgentTool> =

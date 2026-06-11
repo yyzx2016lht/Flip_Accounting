@@ -68,6 +68,11 @@ object PrefsChatSupport {
 
     fun getAiChatModel(ctx: Context): String =
         (prefs(ctx).getString(KEY_AI_CHAT_MODEL, "") ?: "").ifBlank { Prefs.getAiMultiModel(ctx) }
+
+    /** Raw stored value without fallback, used by AiModelSlots to determine if user explicitly set a chat model. */
+    fun getAiChatModelRaw(ctx: Context): String =
+        prefs(ctx).getString(KEY_AI_CHAT_MODEL, "") ?: ""
+
     fun setAiChatModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_CHAT_MODEL, value).apply()
 

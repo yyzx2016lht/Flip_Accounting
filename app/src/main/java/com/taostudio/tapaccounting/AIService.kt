@@ -153,7 +153,8 @@ object AIService {
         userInput: String,
         isMultiModeOverride: Boolean? = null,
         onProgress: ((String) -> Unit)? = null,
-        isFromChat: Boolean = false
+        isFromChat: Boolean = false,
+        chatTurns: List<ChatTurn>? = null
     ): JSONObject? {
         val safeUserInput = shortenForModel(userInput, MAX_ACCOUNTING_INPUT_CHARS)
         Logger.d(ctx, AI_IO_LOG_TAG, "[记账] USER: ${safeUserInput.take(2000)}")
@@ -267,7 +268,9 @@ object AIService {
         ctx: Context,
         audioFile: File,
         isMultiModeOverride: Boolean? = null,
-        onProgress: ((String) -> Unit)? = null
+        onProgress: ((String) -> Unit)? = null,
+        isFromChat: Boolean = false,
+        chatTurns: List<ChatTurn>? = null
     ): JSONObject? {
         require(audioFile.exists() && audioFile.length() > 44L) { "语音文件无效" }
         require(audioFile.length() <= MAX_AUDIO_INLINE_BYTES) { "语音文件过大，请缩短后再试" }
@@ -367,7 +370,7 @@ object AIService {
         }
     }
 
-    suspend fun analyzeReceiptByImage(ctx: Context, imageBase64: String, mimeType: String = "image/jpeg"): String {
+    suspend fun analyzeReceiptByImage(ctx: Context, imageBase64: String, mimeType: String = "image/jpeg", supplementText: String? = null): String {
         Logger.d(ctx, "AIService", "analyzeReceiptByImage: multimodal mode")
         Logger.d(ctx, AI_IO_LOG_TAG, "[票据图片] USER: [图片输入]")
         val apiKey = Prefs.getAiKey(ctx)
@@ -445,7 +448,12 @@ object AIService {
         ctx: Context,
         imageBase64: String,
         mimeType: String = "image/jpeg",
-        isMultiModeOverride: Boolean? = null
+        isMultiModeOverride: Boolean? = null,
+        sourceKind: String = "receipt_image",
+        supplementText: String? = null,
+        isFromChat: Boolean = false,
+        chatTurns: List<ChatTurn>? = null,
+        onProgress: ((String) -> Unit)? = null
     ): JSONObject? {
         Logger.d(ctx, "AIService", "analyzeScreenAccountingByImage: multimodal accounting mode")
         Logger.d(ctx, AI_IO_LOG_TAG, "[截图记账] USER: [屏幕截图]")
@@ -638,6 +646,15 @@ object AIService {
     suspend fun fetchModels(ctx: Context, apiKey: String): List<String> =
         fetchModelsWithDetails(Prefs.getAiUrl(ctx), apiKey)
 
+    suspend fun fetchModelsForProvider(preset: AiProviderPreset, apiKey: String): List<String> =
+        fetchModelsWithDetails(preset.baseUrl, apiKey)
+
+    fun extractAccountingAssistantReply(result: JSONObject): String {
+        return result.optString("reply", "")
+            .ifBlank { result.optString("assistant_reply", "") }
+            .ifBlank { result.optString("message", "") }
+    }
+
     suspend fun fetchModelsWithDetails(url: String, apiKey: String): List<String> {
         var baseUrl = url
         if (baseUrl.isEmpty()) baseUrl = "https://api.siliconflow.cn/"
@@ -813,6 +830,7 @@ object AIService {
         chatHistoryContext: String = "",
         requestNonce: String = "",
         replyGuideHint: String = "",
+        chatTurns: List<ChatTurn>? = null,
         onDelta: ((String) -> Unit)? = null
     ): StreamResult {
         val apiKey = Prefs.getAiKey(ctx)

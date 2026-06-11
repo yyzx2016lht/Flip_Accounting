@@ -57,7 +57,11 @@ data class Bill(
     val isSynced: Boolean = false,
 
     // 是否不计入统计
-    val excludeFromStats: Boolean = false
+    val excludeFromStats: Boolean = false,
+
+    // 资产余额快照
+    val accountBalanceAfter: Double? = null,   // 来源账户余额快照
+    val toAccountBalanceAfter: Double? = null  // 目标账户余额快照
 ) {
     companion object {
         const val TYPE_EXPENSE = 0

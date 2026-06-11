@@ -134,4 +134,29 @@
     <string name="ai_key_warning_title">AI 智能记账未配置</string>
     <string name="ai_key_warning_desc">点击配置密钥，开启一句话记账、语音记账等 AI 能力</string>
     <string name="ai_key_how_to_get">如何获取？前往 siliconflow.cn 注册即可免费获得密钥。</string>
+
+    <!-- 资产账单余额显示 -->
+    <string name="asset_bill_balance_sheet_title">资产账单余额</string>
+    <string name="asset_bill_balance_sheet_hint">选择是否在资产页面显示账单余额信息</string>
+    <string name="asset_bill_balance_show_switch">显示账单余额</string>
+    <string name="asset_bill_balance_from_date">起始日期</string>
+    <string name="asset_bill_balance_reset_create">重置为创建日期</string>
+
+    <!-- 小票图片补充 -->
+    <string name="receipt_image_supplement_title">补充小票信息</string>
+    <string name="receipt_image_supplement_hint">如果小票信息识别不完整，请补充说明</string>
+    <string name="receipt_image_supplement_placeholder">请输入补充信息…</string>
+    <string name="receipt_image_supplement_confirm">确认</string>
+
+    <!-- AI 服务商配置 -->
+    <string name="ai_provider_setup_hint">选择服务商并填写 API Key</string>
+    <string name="ai_provider_setup_title">配置 AI 服务商</string>
+    <string name="ai_provider_setup_success_fmt">配置成功，已加载 %d 个模型</string>
+    <string name="ai_provider_setup_success_no_models">配置成功</string>
+    <string name="ai_provider_get_key_fmt">前往 %s 获取 Key</string>
+    <string name="ai_provider_open_link_failed">无法打开链接</string>
+    <string name="ai_provider_testing">测试连接中…</string>
+    <string name="ai_provider_auth_failed_fmt">%s 认证失败，请检查 API Key</string>
+    <string name="ai_provider_network_failed">网络连接失败，请检查网络</string>
+    <string name="ai_provider_test_failed">测试连接失败</string>
 </resources>

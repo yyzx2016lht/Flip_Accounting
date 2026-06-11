@@ -47,6 +47,10 @@ object PrefsAiSupport {
     fun getAiKey(ctx: Context): String = prefs(ctx).getString(KEY_AI_KEY, "") ?: ""
     fun setAiKey(ctx: Context, key: String) = prefs(ctx).edit().putString(KEY_AI_KEY, key).apply()
 
+    // Per-provider key storage (delegates to single key for now)
+    fun getAiProviderKey(ctx: Context, providerId: String): String = getAiKey(ctx)
+    fun setAiProviderKey(ctx: Context, providerId: String, apiKey: String) = setAiKey(ctx, apiKey)
+
     fun getAiModel(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_MODEL, DEFAULT_MAIN_MODEL) ?: DEFAULT_MAIN_MODEL
     fun setAiModel(ctx: Context, value: String) =
@@ -176,14 +180,40 @@ object PrefsAiSupport {
         }
     }
 
-    fun getAiProvider(ctx: Context): String = "硅基流动"
+    fun isAiManualModelSelectionEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean("ai_manual_model_selection_enabled", false)
+    fun setAiManualModelSelectionEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean("ai_manual_model_selection_enabled", enabled).apply()
+
+    fun isAiChatModelFollowingMain(ctx: Context): Boolean =
+        prefs(ctx).getBoolean("ai_chat_model_following_main", true)
+    fun setAiChatModelFollowingMain(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean("ai_chat_model_following_main", enabled).apply()
+
+    fun resetChatModelOnProviderChange(ctx: Context) {
+        prefs(ctx).edit().putString("ai_chat_model", "").apply()
+    }
+
+    fun applyAiProviderConfigSync(ctx: Context, preset: AiProviderPreset, apiKey: String, modelsCache: List<String>?) {
+        val editor = prefs(ctx).edit()
+        editor.putString(KEY_AI_KEY, apiKey)
+        editor.putString(KEY_AI_PROVIDER, preset.id)
+        editor.putString(KEY_AI_URL, preset.baseUrl)
+        if (modelsCache != null) {
+            editor.putStringSet(KEY_AI_MODELS_CACHE, modelsCache.toSet())
+        }
+        editor.apply()
+    }
+
+    fun getAiProvider(ctx: Context): String =
+        prefs(ctx).getString(KEY_AI_PROVIDER, "硅基流动") ?: "硅基流动"
     fun setAiProvider(ctx: Context, value: String) =
-        prefs(ctx).edit().putString(KEY_AI_PROVIDER, "硅基流动").apply()
+        prefs(ctx).edit().putString(KEY_AI_PROVIDER, value).apply()
 
     fun getAiUrl(ctx: Context): String =
-        "https://api.siliconflow.cn"
+        prefs(ctx).getString(KEY_AI_URL, "https://api.siliconflow.cn") ?: "https://api.siliconflow.cn"
     fun setAiUrl(ctx: Context, url: String) =
-        prefs(ctx).edit().putString(KEY_AI_URL, "https://api.siliconflow.cn").apply()
+        prefs(ctx).edit().putString(KEY_AI_URL, url).apply()
 
     fun isReceiptOcrRefineEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_RECEIPT_OCR_REFINE_ENABLED, false)
@@ -293,4 +323,3 @@ object PrefsAiSupport {
         prefs(context).edit().putBoolean("enable_local_rule_override", enabled).apply()
     }
 }
-

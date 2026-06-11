@@ -1,21 +1,36 @@
 package com.taostudio.tapaccounting.chat.agent
 
-import org.json.JSONArray
+import com.taostudio.tapaccounting.chat.agent.skill.AgentSkillRegistry
 import org.json.JSONObject
 
 object AgentPromptBuilder {
 
-    fun buildSystemPrompt(context: AgentSessionContext): String {
+    fun buildSystemPrompt(
+        context: AgentSessionContext,
+        selectedSkillIds: List<String> = listOf("general"),
+        allowedTools: List<AgentTool> = emptyList()
+    ): String {
         val assetList = context.queryContext.assets.joinToString("\n") { "  - ${it.name} (ID:${it.id}, 币种:${it.currency})" }
         val categoryList = context.queryContext.categories.joinToString("\n") { "  - ${it.name} (ID:${it.id})" }
         val bookList = context.queryContext.availableBooks.joinToString("、")
+
+        // Build skill-specific instructions
+        val skillInstructions = selectedSkillIds.mapNotNull { id ->
+            val skill = AgentSkillRegistry.findById(id)
+            val instr = skill?.buildInstructions(context)
+            if (instr.isNullOrBlank()) null else "### ${skill.displayName}\n$instr"
+        }.joinToString("\n\n")
+
+        // Build tool descriptions from actual tool parameter schemas
+        val toolDescriptions = buildToolDescriptions(allowedTools)
 
         return """
 你是一个记账助手。用户会用自然语言和你对话，你需要选择合适的工具来完成任务。
 
 ## 输出规则
 你必须输出一个JSON对象，格式如下：
-{"tool":"工具ID","params":{...}}
+单步操作: {"tool":"工具ID","params":{...}}
+多步操作(最多5步): {"calls":[{"tool":"工具1","params":{...}},{"tool":"工具2","params":{...}}],"response_goal":"目标"}
 
 不要输出任何其他内容，只输出JSON。
 
@@ -29,107 +44,52 @@ $assetList
 ## 用户的记账分类
 $categoryList
 
+${if (skillInstructions.isNotBlank()) "## 当前模式说明\n$skillInstructions\n" else ""}
 ## 可用工具
+$toolDescriptions
 
-### 1. 查询资产余额
-- tool: "asset.get_balance"
-- params: {"assetName": "资产名称"}
-- 示例: 用户问"微信还有多少钱" -> {"tool":"asset.get_balance","params":{"assetName":"微信"}}
-
-### 2. 列出所有资产
-- tool: "asset.list"
-- params: {}
-- 示例: 用户问"我有哪些账户" -> {"tool":"asset.list","params":{}}
-
-### 3. 查询分类花销
-- tool: "stats.query_category"
-- params: {"categoryName":"分类名","timeRangeKey":"this_month"}
-- timeRangeKey可选值: today, yesterday, this_week, last_week, this_month, last_month, this_year
-- 示例: 用户问"本月餐饮花了多少" -> {"tool":"stats.query_category","params":{"categoryName":"餐饮","timeRangeKey":"this_month"}}
-
-### 4. 查询总花销
-- tool: "stats.query_spending"
-- params: {"timeRangeKey":"this_month"}
-- 示例: 用户问"这个月花了多少钱" -> {"tool":"stats.query_spending","params":{"timeRangeKey":"this_month"}}
-
-### 5. 查看最近账单
-- tool: "bill.list_recent"
-- params: {"limit": 5}
-- 示例: 用户问"最近几笔账单" -> {"tool":"bill.list_recent","params":{"limit":5}}
-
-### 6. 按日期查看账单
-- tool: "bill.list_by_date"
-- params: {"date":"2026-06-08","bookName":"法国账本"}
-- 示例: 用户问"昨天法国账本的账单" -> {"tool":"bill.list_by_date","params":{"date":"2026-06-08","bookName":"法国账本"}}
-
-### 7. 搜索账单
-- tool: "bill.search"
-- params: {"keyword":"关键词"}
-- 示例: 用户问"有没有买过咖啡" -> {"tool":"bill.search","params":{"keyword":"咖啡"}}
-
-### 8. 查询是否买过某样东西
-- tool: "stats.query_existence"
-- params: {"keyword":"关键词","bookName":"账本名"}
-- 示例: 用户问"法国账本有没有买过红酒" -> {"tool":"stats.query_existence","params":{"keyword":"红酒","bookName":"法国账本"}}
-
-### 9. 记账
-- tool: "bill.create_from_text"
-- params: {"text":"记账描述"}
-- 示例: 用户说"午饭花了35" -> {"tool":"bill.create_from_text","params":{"text":"午饭花了35"}}
-
-### 10. 修改账单
-- tool: "bill.modify_by_instruction"
-- params: {"instruction":"修改指令"}
-- 示例: 用户说"刚才那笔改成40" -> {"tool":"bill.modify_by_instruction","params":{"instruction":"刚才那笔改成40"}}
-
-### 11. 删除账单
-- tool: "bill.delete"
-- params: {"billId":123}
-- 示例: 用户说"删除账单123" -> {"tool":"bill.delete","params":{"billId":123}}
-
-### 12. 查询当前账本
-- tool: "book.get_current"
-- params: {}
-- 示例: 用户问"当前是什么账本" -> {"tool":"book.get_current","params":{}}
-
-### 13. 列出所有账本
-- tool: "book.list"
-- params: {}
-- 示例: 用户问"我有哪些账本" -> {"tool":"book.list","params":{}}
-
-### 14. 打开统计页
-- tool: "nav.open_stats"
-- params: {}
-- 示例: 用户说"打开统计页" -> {"tool":"nav.open_stats","params":{}}
-
-### 15. 查询设置
-- tool: "pref.get"
-- params: {"key":"设置项名称"}
-- 可用key: ai_url, ai_model, current_book, show_ai_text, show_ai_voice, show_ai_image, multi_bill_enabled, vibrate_feedback, logging_enabled
-- 示例: 用户问"AI模型是什么" -> {"tool":"pref.get","params":{"key":"ai_model"}}
-
-### 16. 修改设置
-- tool: "pref.set"
-- params: {"key":"设置项名称","value":值}
-- 示例: 用户说"关闭震动" -> {"tool":"pref.set","params":{"key":"vibrate_feedback","value":false}}
-
-### 17. 纯聊天
-- tool: "chat.reply"
-- params: {"message":"回复内容"}
-- 示例: 用户打招呼 -> {"tool":"chat.reply","params":{"message":"你好！有什么可以帮你的吗？"}}
-
-### 18. 追问
-- tool: "agent.clarify"
-- params: {"question":"问题内容"}
-- 当用户信息不明确时使用
-- 示例: 用户说"记一笔账"但没说金额 -> {"tool":"agent.clarify","params":{"question":"请问要记多少金额？"}}
-
-## 重要提示
-1. 资产名称要和上面列出的资产账户名称匹配，比如用户说"微信"就找资产列表中的"微信"
-2. 分类名称要和上面列出的分类名称匹配
+## 重要规则
+1. 资产名称要和上面列出的资产账户名称精确匹配
+2. 分类名称要和上面列出的分类名称精确匹配
 3. 金额、余额等数字必须来自工具结果，不要编造
 4. 只输出JSON，不要输出其他内容
+5. 多步操作最多5步
+6. 如果用户说"刚才那笔"、"上一笔"等，先搜索最近账单获取ID，再操作
+7. 如果用户请求的是软件操作，但当前可用工具无法可靠完成，调用 agent.unsupported，不要假装已经执行
+8. 普通知识问答、编程和闲聊仍使用 chat.reply，不要误判为软件功能未实现
 """.trimIndent()
+    }
+
+    private fun buildToolDescriptions(tools: List<AgentTool>): String {
+        if (tools.isEmpty()) return "(无可用工具)"
+
+        val sb = StringBuilder()
+        val grouped = tools.groupBy { it.category }
+        for ((category, categoryTools) in grouped) {
+            sb.appendLine("### $category")
+            for (tool in categoryTools) {
+                sb.appendLine("- ${tool.id}: ${tool.description}")
+                val schema = tool.parameterSchema
+                val props = schema.optJSONObject("properties")
+                if (props != null && props.length() > 0) {
+                    val paramDescs = mutableListOf<String>()
+                    for (key in props.keys()) {
+                        val prop = props.optJSONObject(key)
+                        val type = prop?.optString("type", "string") ?: "string"
+                        val desc = prop?.optString("description", "") ?: ""
+                        paramDescs.add("$key($type): $desc")
+                    }
+                    sb.appendLine("  参数: ${paramDescs.joinToString("; ")}")
+                }
+                val required = schema.optJSONArray("required")
+                if (required != null && required.length() > 0) {
+                    val reqList = (0 until required.length()).map { required.getString(it) }
+                    sb.appendLine("  必填: ${reqList.joinToString(", ")}")
+                }
+            }
+            sb.appendLine()
+        }
+        return sb.toString().trim()
     }
 
     fun buildToolJson(): String {

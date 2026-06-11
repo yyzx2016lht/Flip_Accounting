@@ -10,4 +10,8 @@ interface AgentTool {
     val parameterSchema: JSONObject
 
     suspend fun execute(params: JSONObject, context: AgentSessionContext): AgentToolResult
+
+    suspend fun validate(params: JSONObject, context: AgentSessionContext): AgentValidationResult {
+        return AgentValidationResult.success()
+    }
 }

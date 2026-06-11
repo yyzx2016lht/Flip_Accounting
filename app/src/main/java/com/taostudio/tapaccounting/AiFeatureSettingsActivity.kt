@@ -258,7 +258,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         btnManageAiRules.setOnClickListener {
             startActivity(Intent(this, AiRuleManageActivity::class.java))
         }
-        layoutAiKeyWarning.setOnClickListener { showSiliconFlowApiKeyDialog() }
+        layoutAiKeyWarning.setOnClickListener { showAiProviderSetupDialog() }
 
         btnAiDetailConfig = findViewById(R.id.btn_ai_detailed_config)
         updateAiDetailConfigButton()
@@ -324,105 +324,13 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         btnManageAiRules.text = getString(R.string.accounting_rules_btn)
     }
 
-    private fun showSiliconFlowApiKeyDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle(getString(R.string.ai_key_dialog_title))
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 8)
-        }
-        val tvHint = TextView(this).apply {
-            text = getString(R.string.ai_key_dialog_hint)
-            textSize = 13f
-            setTextColor(Color.parseColor("#9AA4B2"))
-            setPadding(0, 0, 0, 12)
-        }
-        val etKey = EditText(this).apply {
-            hint = "sk-xxxxxxxx"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setSingleLine()
-            setText(Prefs.getAiKey(this@AiFeatureSettingsActivity))
-        }
-        val tvHowToGet = TextView(this).apply {
-            text = getString(R.string.ai_key_how_to_get)
-            textSize = 12f
-            setTextColor(Color.parseColor("#5C6BC0"))
-            setPadding(0, 12, 0, 0)
-        }
-        layout.addView(tvHint)
-        layout.addView(etKey)
-        layout.addView(tvHowToGet)
-        builder.setView(layout)
-        builder.setPositiveButton(getString(R.string.save_and_test_btn), null)
-        builder.setNegativeButton(getString(R.string.cancel_btn), null)
-        val dialog = builder.create()
-        dialog.setOnShowListener {
-            val confirm = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-            confirm.setOnClickListener {
-                val input = etKey.text?.toString()?.trim().orEmpty()
-                if (input == "1433223") {
-                    Prefs.setAiDetailConfigUnlocked(this, true)
-                    updateAiDetailConfigButton()
-                    Utils.toast(this, getString(R.string.ai_config_unlocked))
-                    dialog.dismiss()
-                    return@setOnClickListener
-                }
-                if (!input.startsWith("sk-")) {
-                    etKey.error = "请输入 sk- 开头的硅基流动 API Key"
-                    return@setOnClickListener
-                }
-
-                confirm.isEnabled = false
-                confirm.text = "正在测试..."
-                CoroutineScope(Dispatchers.IO).launch {
-                    val result = runCatching {
-                        AIService.fetchModelsWithDetails(Prefs.getAiUrl(this@AiFeatureSettingsActivity), input)
-                    }
-                    withContext(Dispatchers.Main) {
-                        confirm.isEnabled = true
-                        confirm.text = getString(R.string.save_and_test_btn)
-                        result.onSuccess { models ->
-                            val cleanedModels = models.map { it.trim() }.filter { it.isNotEmpty() }
-                            Prefs.setAiKey(this@AiFeatureSettingsActivity, input)
-                            if (cleanedModels.isNotEmpty()) {
-                                Prefs.setAiModelsCache(this@AiFeatureSettingsActivity, cleanedModels)
-                            }
-                            updateAiDetailConfigButton()
-                            Utils.toast(
-                                this@AiFeatureSettingsActivity,
-                                if (cleanedModels.isNotEmpty()) {
-                                    "Key 已保存，连接成功，获取到 ${cleanedModels.size} 个模型"
-                                } else {
-                                    "Key 已保存，连接成功，但未获取到模型列表"
-                                }
-                            )
-                            dialog.dismiss()
-                        }.onFailure { error ->
-                            Utils.toast(this@AiFeatureSettingsActivity, aiKeyTestErrorMessage(error))
-                        }
-                    }
-                }
-            }
-        }
-        OverlayDialogs.showPageCenterDialog(
-            dialog = dialog,
-            ctx = this,
-            widthRatio = 0.86f,
-            cancelOnTouchOutside = true,
-            useSolidPanelBackground = true
-        )
-    }
-
-    private fun aiKeyTestErrorMessage(error: Throwable): String {
-        val msg = error.message.orEmpty()
-        return when {
-            msg.contains("401") || msg.contains("unauthorized", ignoreCase = true) ->
-                "认证失败：请检查硅基流动 API Key 是否正确"
-            msg.contains("timeout", ignoreCase = true) ||
-                msg.contains("Failed to connect", ignoreCase = true) ||
-                msg.contains("Unable to resolve host", ignoreCase = true) ->
-                "连接超时，请检查网络后重试"
-            else -> "连接失败，请稍后重试"
+    private fun showAiProviderSetupDialog() {
+        AiProviderSetupDialog.show(
+            activity = this,
+            initialProviderId = Prefs.getAiProvider(this),
+            cancelable = true
+        ) {
+            updateAiDetailConfigButton()
         }
     }
 
@@ -556,4 +464,3 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         }
     }
 }
-

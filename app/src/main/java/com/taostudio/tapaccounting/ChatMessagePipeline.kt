@@ -12,6 +12,7 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.chat.agent.AgentToolRegistrar
 import com.taostudio.tapaccounting.chat.agent.ChatAgentOrchestrator
+import com.taostudio.tapaccounting.chat.agent.ChatConversationMode
 import com.taostudio.tapaccounting.chat.agent.UiAction
 import java.util.ArrayDeque
 import java.io.File
@@ -54,7 +55,7 @@ class ChatMessagePipeline(
     private val getCurrentBookName: () -> String,
     private val getCurrentConversationId: () -> String
 ) {
-    private companion object {
+    companion object {
         private const val CHAT_ROUTE_LOG_TAG = "AiChatRoute"
         private const val REPEAT_REPLY_STATS_LOG_TAG = "RepeatReplyStats"
         private const val REPEAT_REPLY_WINDOW_SIZE = 3
@@ -65,6 +66,66 @@ class ChatMessagePipeline(
         private const val CHAT_HISTORY_MAX_TOTAL_CHARS = 48_000
         private const val MAX_CHAT_HISTORY_TURN_CHARS = 6000
         private const val MAX_CHAT_HISTORY_VOICE_CHARS = 400
+
+        fun mapAgentErrorToUserMessage(errorMessage: String?): String {
+            val msg = errorMessage ?: ""
+            return when {
+                msg.contains("401") || msg.contains("unauthorized", ignoreCase = true) ->
+                    "API 认证失败，请检查 API Key 是否正确"
+                msg.contains("429") || msg.contains("rate limit", ignoreCase = true) ->
+                    "请求过于频繁，请稍后重试"
+                msg.contains("timeout", ignoreCase = true) ||
+                    msg.contains("Connection timed out", ignoreCase = true) ->
+                    "请求超时，请稍后重试"
+                msg.contains("Unable to resolve host", ignoreCase = true) ||
+                    msg.contains("Failed to connect", ignoreCase = true) ->
+                    "网络连接失败，请检查网络设置"
+                msg.contains("500") || msg.contains("502") || msg.contains("503") ->
+                    "服务暂时不可用，请稍后重试"
+                msg.isBlank() -> "服务异常，请稍后重试"
+                else -> "操作失败，请稍后重试"
+            }
+        }
+
+        fun truncateHistory(messages: List<Pair<Int, String>>, maxTotalChars: Int): List<Pair<Int, String>> {
+            if (messages.isEmpty()) return emptyList()
+
+            // Calculate total chars
+            val totalChars = messages.sumOf { it.second.length }
+            if (totalChars <= maxTotalChars) return messages
+
+            // Drop oldest messages first, but keep at least one user message
+            var remaining = maxTotalChars
+            val result = mutableListOf<Pair<Int, String>>()
+            for (msg in messages.reversed()) {
+                val len = msg.second.length
+                if (remaining - len < 0 && result.isNotEmpty()) {
+                    // If this is a user message and result is empty, truncate instead of drop
+                    if (result.isEmpty() && msg.first in 0..2) {
+                        val truncated = msg.second.take((remaining - 1).coerceAtLeast(1)) + "…"
+                        result.add(0, msg.first to truncated)
+                        remaining = 0
+                    }
+                    break
+                }
+                if (remaining - len < 0 && msg.first in 0..2) {
+                    // Oversized user message: truncate
+                    val truncated = msg.second.take((remaining - 1).coerceAtLeast(1)) + "…"
+                    result.add(0, msg.first to truncated)
+                    remaining = 0
+                    break
+                }
+                result.add(0, msg)
+                remaining -= len
+            }
+
+            // Ensure first message is user type
+            if (result.isNotEmpty() && result.first().first !in 0..2) {
+                result.removeAt(0)
+            }
+
+            return result
+        }
     }
 
     private var isUserTextDispatching: Boolean = false
@@ -75,7 +136,13 @@ class ChatMessagePipeline(
     private var repeatInputExactMatches: Int = 0
     private var repeatInputHighSimilarityMatches: Int = 0
     private var agentOrchestrator: ChatAgentOrchestrator? = null
-    private var useAgent: Boolean = true
+    private var agentInitialized: Boolean = false
+
+    private fun isAgentMode(): Boolean {
+        if (!agentInitialized || agentOrchestrator == null) return false
+        val convId = getCurrentConversationId()
+        return ChatConversationMode.belongsTo(convId, ChatConversationMode.AGENT)
+    }
 
     init {
         initAgentOrchestrator()
@@ -91,11 +158,15 @@ class ChatMessagePipeline(
                 getCurrentConversationId = getCurrentConversationId,
                 onToolResult = { result ->
                     handleAgentResult(result)
+                },
+                getHistoryTurns = {
+                    buildChatHistoryTurns("")
                 }
             )
+            agentInitialized = true
         } catch (e: Exception) {
             Logger.d(context, "ChatMessagePipeline", "initAgentOrchestrator error: ${e.message}")
-            useAgent = false
+            agentInitialized = false
         }
     }
 
@@ -103,12 +174,17 @@ class ChatMessagePipeline(
         if (result.userMessage != null) {
             appendAiTextMessage(result.userMessage, false, getCurrentBookName(), getCurrentConversationId())
         }
-        if (result.uiAction is UiAction.Navigate) {
-            try {
-                context.startActivity(result.uiAction.intent)
-            } catch (e: Exception) {
-                Logger.d(context, "ChatMessagePipeline", "navigate error: ${e.message}")
+        when (val action = result.uiAction) {
+            is UiAction.Navigate -> {
+                try {
+                    context.startActivity(action.intent)
+                } catch (e: Exception) {
+                    Logger.d(context, "ChatMessagePipeline", "navigate error: ${e.message}")
+                }
             }
+            is UiAction.StartAccounting ->
+                callAiAccounting(action.text, appendUserBubble = false)
+            else -> Unit
         }
     }
 
@@ -188,7 +264,7 @@ class ChatMessagePipeline(
             return
         }
 
-        if (useAgent && agentOrchestrator != null) {
+        if (isAgentMode()) {
             handleWithAgent(text)
         } else {
             callAiAccounting(text, appendUserBubble = false)

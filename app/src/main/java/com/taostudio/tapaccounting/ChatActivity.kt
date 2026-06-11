@@ -61,6 +61,7 @@ import com.taostudio.tapaccounting.ui.common.StatusBarStyle
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
+import com.taostudio.tapaccounting.chat.agent.ChatConversationMode
 import com.taostudio.tapaccounting.logic.BillAssetImpactService
 import com.taostudio.tapaccounting.logic.BillMutationService
 import com.taostudio.tapaccounting.logic.CurrencyManager
@@ -96,6 +97,9 @@ class ChatActivity : AppCompatActivity() {
     )
 
     companion object {
+        const val MODE_ACCOUNTING = 0
+        const val MODE_AGENT = 1
+
         const val MSG_TYPE_USER_TEXT = 0
         const val MSG_TYPE_USER_IMAGE = 1
         const val MSG_TYPE_USER_VOICE = 2
@@ -109,6 +113,7 @@ class ChatActivity : AppCompatActivity() {
 
         const val EXTRA_SOURCE_BOOK = "extra_source_book"
         const val EXTRA_CONVERSATION_ID = "extra_conversation_id"
+        const val EXTRA_CHAT_MODE = "extra_chat_mode"
         private const val EXTRA_SCROLL_TO_MSG_ID = "scroll_to_msg_id"
 
         private const val REQ_PICK_IMAGE = 101
@@ -505,6 +510,7 @@ class ChatActivity : AppCompatActivity() {
 
     private var currentBookName: String = BookAccountManager.DEFAULT_BOOK
     private var currentConversationId: String = ""
+    private var entryConversationMode: ChatConversationMode = ChatConversationMode.ACCOUNTING
     private var pendingScrollToMessageId: Long = -1L
     private val deprecatedBillMessageIds = mutableSetOf<Long>()
     private var pendingHabitSuggestion: HabitRuleSuggestion? = null
@@ -542,6 +548,9 @@ class ChatActivity : AppCompatActivity() {
         StatusBarStyle.applyByColor(window, Color.parseColor("#F7F7F7"))
 
         currentBookName = resolveEntryBookName(intent)
+        entryConversationMode = ChatConversationMode.fromActivityMode(
+            intent?.getIntExtra(EXTRA_CHAT_MODE, MODE_ACCOUNTING) ?: MODE_ACCOUNTING
+        )
         pendingScrollToMessageId = intent?.getLongExtra(EXTRA_SCROLL_TO_MSG_ID, -1L) ?: -1L
 
         bindViews()
@@ -806,11 +815,23 @@ class ChatActivity : AppCompatActivity() {
         }
 
         val latest = db.chatMessageDao().getLatestConversationIdByBook(currentBookName).orEmpty()
-        currentConversationId = if (latest.isNotBlank()) latest else newConversationId()
+        currentConversationId = if (
+            latest.isNotBlank() &&
+            ChatConversationMode.modeOf(latest) == entryConversationMode
+        ) {
+            latest
+        } else {
+            newConversationId()
+        }
     }
 
-    private fun newConversationId(): String =
-        "conv_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}"
+    private fun newConversationId(): String {
+        val mode = currentConversationId
+            .takeIf { it.isNotBlank() }
+            ?.let { ChatConversationMode.modeOf(it) }
+            ?: entryConversationMode
+        return ChatConversationMode.createId(mode)
+    }
 
     private fun startNewConversation() {
         sessionController.startNewConversation()
@@ -1763,4 +1784,3 @@ data class HabitRuleSuggestion(
             targetAccount2?.takeIf { it.isNotBlank() }?.let { append("，目标账户：$it") }
         }
 }
-

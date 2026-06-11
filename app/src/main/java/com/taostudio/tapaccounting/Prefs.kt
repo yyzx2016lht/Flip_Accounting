@@ -172,12 +172,30 @@ object Prefs {
 
     fun getAiProvider(ctx: Context): String = PrefsAiSupport.getAiProvider(ctx)
     fun setAiProvider(ctx: Context, value: String) = PrefsAiSupport.setAiProvider(ctx, value)
+    fun getAiProviderKey(ctx: Context, providerId: String): String = PrefsAiSupport.getAiProviderKey(ctx, providerId)
 
     fun getAiUrl(ctx: Context): String = PrefsAiSupport.getAiUrl(ctx)
     fun setAiUrl(ctx: Context, url: String) = PrefsAiSupport.setAiUrl(ctx, url)
 
+    fun isAiManualModelSelectionEnabled(ctx: Context): Boolean =
+        PrefsAiSupport.isAiManualModelSelectionEnabled(ctx)
+    fun setAiManualModelSelectionEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiManualModelSelectionEnabled(ctx, enabled)
+
+    fun isAiChatModelFollowingMain(ctx: Context): Boolean =
+        PrefsAiSupport.isAiChatModelFollowingMain(ctx)
+    fun setAiChatModelFollowingMain(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setAiChatModelFollowingMain(ctx, enabled)
+
+    fun resetChatModelOnProviderChange(ctx: Context) =
+        PrefsAiSupport.resetChatModelOnProviderChange(ctx)
+
+    fun applyAiProviderConfigSync(ctx: Context, preset: AiProviderPreset, apiKey: String, modelsCache: List<String>? = null) =
+        PrefsAiSupport.applyAiProviderConfigSync(ctx, preset, apiKey, modelsCache)
+
     fun isReceiptOcrRefineEnabled(ctx: Context): Boolean =
         PrefsAiSupport.isReceiptOcrRefineEnabled(ctx)
+    fun isReceiptImageDraftConfirmEnabled(ctx: Context): Boolean = false // TODO: implement
     fun setReceiptOcrRefineEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setReceiptOcrRefineEnabled(ctx, enabled)
     // --- Bill cache management ---

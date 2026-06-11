@@ -22,7 +22,9 @@ data class Asset(
     val billingDay: Int = 0,         // 信用卡还款日（保留字段，暂不使用）
     val annualInterestRate: Double = 0.0, // 投资理财年化利率百分比，如 1.8 表示 1.8%
     val interestLastSettledAt: Long = System.currentTimeMillis(), // 最近一次自动结息时间
-    val isArchived: Boolean = false // 是否收纳，收纳后默认不出现在日常资产列表与记账选择器
+    val isArchived: Boolean = false, // 是否收纳，收纳后默认不出现在日常资产列表与记账选择器
+    val billBalanceFromTime: Long = 0L, // 账单余额起始时间
+    val showBillBalanceAfter: Boolean = false // 是否显示账单后余额
 ) {
     companion object {
         const val CATEGORY_FUND = "FUND"

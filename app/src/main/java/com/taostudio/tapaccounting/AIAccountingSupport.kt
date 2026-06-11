@@ -395,16 +395,16 @@ internal fun normalizeCategoryPath(input: String): String {
         .replace('＞', '>')
         .replace('—', '-')
         .replace('–', '-')
-        .replace(CATEGORY_SEPARATOR_REGEX, " - ")
-        .replace(Regex("( - )+"), " - ")
-        .trim { it == '-' || it.isWhitespace() }
+        .replace(CATEGORY_SEPARATOR_REGEX, "/::/")
+        .replace(Regex("(/::/)+"), "/::/")
+        .trim { it == '/' || it == ':' || it.isWhitespace() }
 }
 
 internal fun categoryLeafToken(value: String): String =
-    categoryToken(normalizeCategoryPath(value).substringAfterLast(" - "))
+    categoryToken(normalizeCategoryPath(value).substringAfterLast("/::/"))
 
 internal fun categoryCompactToken(value: String): String =
-    categoryToken(normalizeCategoryPath(value)).replace(" - ", "")
+    categoryToken(normalizeCategoryPath(value)).replace("/::/", "")
 
 internal fun categoryToken(value: String): String =
     value.lowercase(Locale.ROOT).replace(" ", "")

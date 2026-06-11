@@ -1,11 +1,12 @@
 package com.taostudio.tapaccounting.chat.agent.tool
 
 import android.content.Context
-import com.taostudio.tapaccounting.AIService
 import com.taostudio.tapaccounting.chat.agent.AgentTool
 import com.taostudio.tapaccounting.chat.agent.AgentToolResult
 import com.taostudio.tapaccounting.chat.agent.AgentSessionContext
+import com.taostudio.tapaccounting.chat.agent.AgentValidationResult
 import com.taostudio.tapaccounting.chat.agent.RiskLevel
+import com.taostudio.tapaccounting.chat.agent.UiAction
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import org.json.JSONObject
 
@@ -28,48 +29,34 @@ class BillCreateFromTextTool(
         put("required", org.json.JSONArray().apply { put("text") })
     }
 
+    override suspend fun validate(
+        params: JSONObject,
+        context: AgentSessionContext
+    ): AgentValidationResult {
+        val text = params.optString("text", "").trim()
+        if (text.isEmpty()) {
+            return AgentValidationResult.invalidParams("请提供记账描述", listOf("text"))
+        }
+        if (!containsAmount(text)) {
+            return AgentValidationResult.invalidParams("请补充金额，例如“西瓜14元”", listOf("text"))
+        }
+        return AgentValidationResult.success()
+    }
+
     override suspend fun execute(params: JSONObject, context: AgentSessionContext): AgentToolResult {
         val text = params.optString("text", "").trim()
         if (text.isEmpty()) {
             return AgentToolResult.failure("请提供记账描述")
         }
 
-        return try {
-            val result = AIService.analyzeAccounting(
-                ctx = this.context,
-                userInput = text,
-                isMultiModeOverride = true,
-                isFromChat = true
-            )
+        // The existing accounting pipeline owns parsing, preview, persistence,
+        // asset impact, and multi-bill handling. Do not duplicate that here.
+        return AgentToolResult.success(uiAction = UiAction.StartAccounting(text))
+    }
 
-            if (result == null) {
-                return AgentToolResult.failure("无法识别记账内容，请重试")
-            }
+    companion object {
+        private val AMOUNT_PATTERN = Regex("""(?<![\d.])\d+(?:\.\d{1,2})?(?![\d.])""")
 
-            val bills = result.optJSONArray("bills")
-            if (bills == null || bills.length() == 0) {
-                return AgentToolResult.failure("未识别到账单信息")
-            }
-
-            val firstBill = bills.optJSONObject(0)
-            val amount = firstBill?.optDouble("amount", 0.0) ?: 0.0
-            val categoryName = firstBill?.optString("categoryName", "其他") ?: "其他"
-            val type = firstBill?.optInt("type", 0) ?: 0
-            val typeName = when (type) {
-                0 -> "支出"
-                1 -> "收入"
-                2 -> "转账"
-                3 -> "还款"
-                4 -> "退款"
-                else -> "其他"
-            }
-
-            AgentToolResult.success(
-                facts = result,
-                userMessage = "已记录${typeName}：${categoryName} ${amount}元"
-            )
-        } catch (e: Exception) {
-            AgentToolResult.failure("记账失败：${e.message}")
-        }
+        fun containsAmount(text: String): Boolean = AMOUNT_PATTERN.containsMatchIn(text)
     }
 }

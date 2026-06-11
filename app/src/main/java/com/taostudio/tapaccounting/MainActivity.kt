@@ -393,6 +393,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(
                     Intent(this, ChatActivity::class.java)
                         .putExtra(ChatActivity.EXTRA_SOURCE_BOOK, BookAccountManager.getSelectedBook(this))
+                        .putExtra(ChatActivity.EXTRA_CHAT_MODE, ChatActivity.MODE_AGENT)
                 )
             } else {
                 showAddBillBottomSheet()
@@ -934,4 +935,3 @@ class MainActivity : AppCompatActivity() {
         return rawX >= left && rawX <= right && rawY >= top && rawY <= bottom
     }
 }
-

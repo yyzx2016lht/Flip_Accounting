@@ -23,7 +23,7 @@ import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
 
 @Database(
     entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class, DeletedBill::class],
-    version = 20,
+    version = 21,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -258,6 +258,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Asset: billBalanceFromTime, showBillBalanceAfter
+                database.execSQL("ALTER TABLE assets ADD COLUMN billBalanceFromTime INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE assets ADD COLUMN showBillBalanceAfter INTEGER NOT NULL DEFAULT 0")
+                // Bill: accountBalanceAfter, toAccountBalanceAfter (nullable)
+                database.execSQL("ALTER TABLE bills ADD COLUMN accountBalanceAfter REAL")
+                database.execSQL("ALTER TABLE bills ADD COLUMN toAccountBalanceAfter REAL")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -281,7 +292,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_16_17,
                         MIGRATION_17_18,
                         MIGRATION_18_19,
-                        MIGRATION_19_20
+                        MIGRATION_19_20,
+                        MIGRATION_20_21
                     )
                     .build()
                 INSTANCE = instance
@@ -290,4 +302,3 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
-
