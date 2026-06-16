@@ -100,6 +100,36 @@
     <string name="webdav_password_hint">建议使用坚果云应用密码</string>
     <string name="cloud_sync_manual_desc">只在点击时上传/下载，不自动同步</string>
 
+    <!-- 备份 Kotlin 代码 -->
+    <string name="backup_lite_hint">轻量备份不含聊天资源，体积小，适合日常同步</string>
+    <string name="backup_full_hint">完整备份包含聊天资源，体积最大，适合归档</string>
+    <string name="backup_pin_force_desc">勾选 AI 服务配置时要求输入 PIN</string>
+    <string name="backup_pin_none_desc">不对 API Key 加密，请注意安全风险</string>
+    <string name="backup_retain_policy_desc">每台设备保留最近 10 份轻量 + 3 份完整备份</string>
+    <string name="restore_merge_desc">只补充不存在的数据，不删除现有记录</string>
+    <string name="restore_overwrite_desc">清空当前数据后恢复备份内容</string>
+    <string name="backup_pin_setup_prompt">检测到 AI 配置含 API Key，请设置 4 位 PIN</string>
+    <string name="backup_pin_verify_prompt">该备份已用 PIN 保护，请输入 4 位 PIN</string>
+    <string name="backup_pin_match_prompt">当前备份已启用 PIN，请输入同一 PIN 验证</string>
+
+    <!-- 个人页 Kotlin 代码 -->
+    <string name="gesture_permission_prompt">已开启快捷手势，请先授予悬浮窗权限</string>
+    <string name="tap_onboarding_hint">用指尖快速敲击手机背面两次，即可唤起记账</string>
+    <string name="battery_optimize_prompt">请允许应用忽略电池优化，保证后台不被休眠</string>
+
+    <!-- 记账 Kotlin 代码 -->
+    <string name="rule_save_prompt">你修改了 AI 识别结果，是否保存为规则？</string>
+    <string name="rule_conflict_prompt">关键词已有规则，是否覆盖？</string>
+
+    <!-- 分类排序 -->
+    <string name="category_sort_hint">长按一级分类卡片排序，点击进入子分类</string>
+    <string name="category_sub_sort_hint">只排序当前一级分类下的子分类</string>
+
+    <!-- AI 提供商 -->
+    <string name="provider_deepseek_notice">DeepSeek 仅支持文本，不支持图片和云端语音</string>
+    <string name="provider_kimi_notice">Kimi 支持文本与图片，不支持云端语音转写</string>
+    <string name="provider_siliconflow_key_hint">请输入 API Key（一般为 sk- 开头）</string>
+
     <!-- Agent 模式 -->
     <string name="agent_mode_title">AI 助手</string>
     <string name="chat_mode_accounting">记账</string>

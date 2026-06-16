@@ -568,7 +568,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         if (!isAdded) return
         val dialog = AlertDialog.Builder(requireContext())
             .setTitle("需要悬浮窗权限")
-            .setMessage("已开启快捷手势。请先授予悬浮窗权限，否则无法正常弹出记账界面。")
+            .setMessage(getString(R.string.gesture_permission_prompt))
             .setPositiveButton("去开启") { _, _ ->
                 val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                     data = Uri.parse("package:${requireContext().packageName}")
@@ -590,11 +590,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         Prefs.setDoubleTapGuideSeen(requireContext())
         val dialog = AlertDialog.Builder(requireContext())
             .setTitle("双击背板记账已开启")
-            .setMessage("用指尖快速敲击手机背面两次，即可唤起记账界面。\n\n" +
-                    "提示：\n" +
-                    "• 请用指尖敲击，力度适中\n" +
-                    "• 如果检测不灵敏，可尝试调整敲击位置\n" +
-                    "• 手机壳过厚可能影响检测效果")
+            .setMessage(getString(R.string.tap_onboarding_hint))
             .setPositiveButton("知道了", null)
             .create()
         OverlayDialogs.showPageCenterDialog(
@@ -868,7 +864,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         if (!powerManager.isIgnoringBatteryOptimizations(requireContext().packageName)) {
             val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("需要忽略电池优化")
-                .setMessage("为了保证敲敲记账在后台不被系统休眠中断，请允许应用忽略电池优化。")
+                .setMessage(getString(R.string.battery_optimize_prompt))
                 .setPositiveButton("去设置") { _, _ ->
                     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                         data = Uri.parse("package:" + requireContext().packageName)

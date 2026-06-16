@@ -475,11 +475,11 @@ class BackupActivity : AppCompatActivity() {
             BackupPreset.LITE -> {
                 setAll(true)
                 findViewById<MaterialCheckBox>(R.id.cb_chat_media).isChecked = false
-                hint.text = "轻量备份默认不含聊天资源，体积更小，适合日常同步。"
+                hint.text = getString(R.string.backup_lite_hint)
             }
             BackupPreset.FULL -> {
                 setAll(true)
-                hint.text = "完整备份会包含聊天资源，体积最大，适合做完整归档。"
+                hint.text = getString(R.string.backup_full_hint)
             }
             BackupPreset.CUSTOM -> {
                 hint.text = "自定义模式已开启：请按需勾选更细的模块。"
@@ -489,9 +489,9 @@ class BackupActivity : AppCompatActivity() {
 
     private fun updatePinModeHint() {
         findViewById<TextView>(R.id.tv_backup_pin_hint).text = when (currentPinMode()) {
-            BackupPinMode.AUTO -> "PIN 自动：首次备份 AI 服务配置时会设置 PIN；覆盖已加密备份时需验证同一 PIN。"
-            BackupPinMode.FORCE -> "PIN 强制：只要勾选 AI 服务配置，就要求输入 PIN。"
-            BackupPinMode.PLAIN -> "不加密：不会对 API Key 做 PIN 加密，请注意安全风险。"
+            BackupPinMode.AUTO -> getString(R.string.backup_pin_auto_desc)
+            BackupPinMode.FORCE -> getString(R.string.backup_pin_force_desc)
+            BackupPinMode.PLAIN -> getString(R.string.backup_pin_none_desc)
         }
     }
 
@@ -566,11 +566,7 @@ class BackupActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_show_cleanup_policy).setOnClickListener {
             val dialog = AlertDialog.Builder(this)
                 .setTitle("云端保留策略")
-                .setMessage(
-                    "每台设备保留最近 10 份轻量 + 最近 3 份完整备份。\n" +
-                        "超出数量会自动删除最老版本。\n\n" +
-                        "当前建议手动同步，避免后台持续增长占用空间。"
-                )
+                .setMessage(getString(R.string.backup_retain_policy_desc))
                 .setPositiveButton("我知道了", null)
                 .create()
             OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
@@ -985,9 +981,9 @@ class BackupActivity : AppCompatActivity() {
 
             rgRestoreMode.setOnCheckedChangeListener { _, checkedId ->
                 tvModeHint.text = if (checkedId == R.id.rb_restore_merge) {
-                    "合并模式：只补充不存在的数据，不删除现有记录，不回退资产余额。"
+                    getString(R.string.restore_merge_desc)
                 } else {
-                    "覆盖模式：清空当前数据后恢复备份内容，请确认后继续。"
+                    getString(R.string.restore_overwrite_desc)
                 }
             }
 
@@ -1378,7 +1374,7 @@ class BackupActivity : AppCompatActivity() {
         container.addView(etPinConfirm)
         val dialog = AlertDialog.Builder(this)
             .setTitle("设置备份 PIN")
-            .setMessage("检测到要备份 AI 服务配置，其中包含 API Key。请设置 4 位数字 PIN 用于加密。")
+            .setMessage(getString(R.string.backup_pin_setup_prompt))
             .setView(container)
             .setPositiveButton("确认") { _, _ ->
                 val pin = etPin.text?.toString().orEmpty().trim()
@@ -1402,7 +1398,7 @@ class BackupActivity : AppCompatActivity() {
         }
         val dialog = AlertDialog.Builder(this)
             .setTitle("输入备份 PIN")
-            .setMessage("该备份中的 API Key 已用 PIN 保护，请输入 4 位数字 PIN。")
+            .setMessage(getString(R.string.backup_pin_verify_prompt))
             .setView(etPin)
             .setPositiveButton("继续恢复") { _, _ ->
                 val pin = etPin.text?.toString().orEmpty().trim()
@@ -1502,7 +1498,7 @@ class BackupActivity : AppCompatActivity() {
         }
         val dialog = AlertDialog.Builder(this)
             .setTitle("验证备份 PIN")
-            .setMessage("检测到当前默认备份已启用 PIN 保护。请输入同一 PIN，验证一致后继续覆盖。")
+            .setMessage(getString(R.string.backup_pin_match_prompt))
             .setView(etPin)
             .setPositiveButton("验证并继续", null)
             .setNegativeButton("取消", null)
