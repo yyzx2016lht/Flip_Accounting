@@ -45,6 +45,12 @@
     <string name="receipt_image_supplement_title">补充图片信息</string>
     <string name="receipt_image_supplement_hint">补充支付方式、时间等信息（可选）</string>
     <string name="reply_style_custom_hint">如：可爱搭子，1-2句话，可带颜文字</string>
+    <string name="reply_style_custom_tip">支持自然描述，如"温柔一点""一句话回复"</string>
+    <string name="reply_style_scope_hint">只影响账单后的自然回复，不影响账单提取</string>
+    <string name="edit_rule_hint">把常见口语绑定记账偏好，命中时更准确</string>
+    <string name="edit_rule_keyword_hint">多个关键词用逗号或空格分隔</string>
+    <string name="edit_rule_disable_hint">关闭后保留规则，但暂不参与匹配</string>
+    <string name="edit_ai_profile_hint">如：擅长记账和陪伴聊天的助手</string>
     <string name="receipt_image_supplement_placeholder">例如：微信支付 / 招商银行储蓄卡</string>
     <string name="receipt_image_supplement_confirm">开始识别</string>
     <string name="ai_screen_accounting_desc">开启后可通过敲击背板截屏识别账单。</string>

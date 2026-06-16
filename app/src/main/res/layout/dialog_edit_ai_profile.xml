@@ -79,7 +79,7 @@
         android:layout_height="80dp"
         android:background="@drawable/bg_chat_input"
         android:gravity="top"
-        android:hint="例如：擅长记账和陪伴聊天的助手"
+        android:hint="@string/edit_ai_profile_hint"
         android:inputType="textMultiLine"
         android:paddingHorizontal="14dp"
         android:paddingVertical="10dp"

@@ -47,7 +47,7 @@
         android:background="@drawable/bg_dialog_action_item"
         android:paddingHorizontal="12dp"
         android:paddingVertical="10dp"
-        android:text="小提示：可以写“像元气一点的记账助手”“温柔一点”“回复控制在一句话”这种自然描述。"
+        android:text="@string/reply_style_custom_tip"
         android:textColor="#7E8BA0"
         android:textSize="12sp" />
 

@@ -39,7 +39,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:lineSpacingExtra="2dp"
-            android:text="把一句常见口语固定成你的记账偏好，下次命中时就能更准确。"
+            android:text="@string/edit_rule_hint"
             android:textColor="@color/dialog_subtitle"
             android:textSize="@dimen/dialog_subtitle_size" />
 
@@ -123,7 +123,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="支持多个关键词，用逗号分隔。也可以写成“拉面 微信”这种组合命中。"
+            android:text="@string/edit_rule_keyword_hint"
             android:textColor="#9AA7B9"
             android:textSize="11sp" />
 
@@ -261,7 +261,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="关闭后会保留这条习惯，但暂时不参与匹配。"
+                    android:text="@string/edit_rule_disable_hint"
                     android:textColor="#8A98AD"
                     android:textSize="11sp" />
             </LinearLayout>
