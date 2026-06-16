@@ -428,7 +428,7 @@ class AssetStatsActivity : AppCompatActivity() {
                     loadAssetAndBills()
                     Toast.makeText(
                         this@AssetStatsActivity,
-                        "已删除 ${targets.size} 条账单",
+                        getString(R.string.deleted_bills_fmt, targets.size),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -441,10 +441,10 @@ class AssetStatsActivity : AppCompatActivity() {
             OverlayDialogs.showGridAssetPicker(
                 this,
                 sourceAsset.name,
-                "选择目标资产"
+                getString(R.string.select_target_asset)
             ) { selectedName ->
                 if (selectedName == sourceAsset.name) {
-                    Toast.makeText(this, "已在当前资产中", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.already_in_asset), Toast.LENGTH_SHORT).show()
                     return@showGridAssetPicker
                 }
                 lifecycleScope.launch {
@@ -467,7 +467,7 @@ class AssetStatsActivity : AppCompatActivity() {
                         categoryBreakdownCache.clear()
                         loadAssetAndBills()
                     }
-                    Toast.makeText(this@AssetStatsActivity, "已移动 $result 条账单", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@AssetStatsActivity, getString(R.string.moved_bills_fmt, result), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -478,8 +478,8 @@ class AssetStatsActivity : AppCompatActivity() {
         val active = billAdapter.isMultiSelectMode
         layoutMultiSelectActions.visibility = if (active) View.VISIBLE else View.GONE
         val hasSelection = selectedCount > 0
-        btnMsCancel.text = "退出多选"
-        btnMsDelete.text = if (selectedCount > 0) "删除($selectedCount)" else "删除"
+        btnMsCancel.text = getString(R.string.exit_multi_select)
+        btnMsDelete.text = if (selectedCount > 0) getString(R.string.delete_fmt, selectedCount) else getString(R.string.delete_label)
         btnMsDelete.isEnabled = hasSelection
         btnMsMove.isEnabled = hasSelection
         btnMsDelete.alpha = if (hasSelection) 1f else 0.45f
@@ -534,7 +534,7 @@ class AssetStatsActivity : AppCompatActivity() {
         barChart.description.isEnabled = false
         barChart.axisRight.isEnabled = false
         barChart.legend.isEnabled = false
-        barChart.setNoDataText("暂无图表数据")
+        barChart.setNoDataText(getString(R.string.no_chart_data))
         barChart.setNoDataTextColor(Color.parseColor("#9AA0A6"))
         barChart.setDrawGridBackground(false)
         barChart.setTouchEnabled(true)
@@ -606,7 +606,7 @@ class AssetStatsActivity : AppCompatActivity() {
         pieChart.isRotationEnabled = true
         pieChart.setEntryLabelColor(Color.TRANSPARENT)
         pieChart.setExtraOffsets(20f, 14f, 20f, 16f)
-        pieChart.setNoDataText("暂无图表数据")
+        pieChart.setNoDataText(getString(R.string.no_chart_data))
         pieChart.setNoDataTextColor(Color.parseColor("#9AA0A6"))
         pieChart.setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
             override fun onValueSelected(e: Entry?, h: Highlight?) {
@@ -744,14 +744,14 @@ class AssetStatsActivity : AppCompatActivity() {
         OverlayDialogs.showGridAssetPicker(
             this,
             currentAsset?.name.orEmpty(),
-            "选择资产"
+            getString(R.string.select_asset)
         ) { selectedName ->
             lifecycleScope.launch {
                 val selected = withContext(Dispatchers.IO) {
                     db.assetDao().getAssetByName(selectedName)
                 }
                 if (selected == null) {
-                    Toast.makeText(this@AssetStatsActivity, "未找到资产", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@AssetStatsActivity, getString(R.string.asset_not_found), Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 assetId = selected.id
@@ -1030,12 +1030,12 @@ class AssetStatsActivity : AppCompatActivity() {
                     forcedEndTime = customEnd
                 }
                 customStart != null && customEnd != null -> {
-                    forcedLabel = "自定义"
+                    forcedLabel = getString(R.string.filter_custom)
                     forcedStartTime = customStart
                     forcedEndTime = customEnd
                 }
                 customStart != null || customEnd != null -> {
-                    Toast.makeText(this, "请先选择完整的开始和结束日期", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.select_date_range), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 else -> {
@@ -1084,7 +1084,7 @@ class AssetStatsActivity : AppCompatActivity() {
         if (billAdapter.isMultiSelectMode) {
             billAdapter.clearSelection()
         }
-        tvToolbarTitle.text = "资产统计-${asset.name}"
+        tvToolbarTitle.text = getString(R.string.asset_stats_title_fmt, asset.name)
         val periodText = if (periodMode == PeriodMode.YEAR) {
             String.format(Locale.getDefault(), "%04d年", selectedYear)
         } else {
@@ -1092,9 +1092,9 @@ class AssetStatsActivity : AppCompatActivity() {
         }
         val filterText = buildFilterLabel()
         tvPeriodLabel.text = if (filterText.isNotBlank()) {
-            "$periodText｜$filterText（点击可切换资产）"
+            "$periodText｜$filterText${getString(R.string.period_switch_hint)}"
         } else {
-            "$periodText（点击可切换资产）"
+            "$periodText${getString(R.string.period_switch_hint)}"
         }
 
         dateStripAdapter.submit(dateChips, periodMode, selectedYear, selectedMonth)
@@ -1161,8 +1161,8 @@ class AssetStatsActivity : AppCompatActivity() {
         val label = forcedLabel
         if (!label.isNullOrBlank()) {
             val timePart = when {
-                label == "全部" -> "全部时间"
-                label == "自定义" && forcedStartTime != null && forcedEndTime != null ->
+                label == "全部" -> getString(R.string.filter_all_time)
+                label == getString(R.string.filter_custom) && forcedStartTime != null && forcedEndTime != null ->
                     formatDateRangeLabel(forcedStartTime!!, forcedEndTime!!)
                 else -> label
             }
@@ -1171,11 +1171,11 @@ class AssetStatsActivity : AppCompatActivity() {
             parts += formatDateRangeLabel(forcedStartTime!!, forcedEndTime!!)
         }
         val typePart = when (forcedBillType) {
-            FilterBillType.EXPENSE -> "支出"
-            FilterBillType.INCOME -> "收入"
-            FilterBillType.TRANSFER -> "转账"
-            FilterBillType.REPAYMENT -> "还款"
-            FilterBillType.REFUND -> "退款"
+            FilterBillType.EXPENSE -> getString(R.string.expense_label)
+            FilterBillType.INCOME -> getString(R.string.income_label)
+            FilterBillType.TRANSFER -> getString(R.string.transfer_label)
+            FilterBillType.REPAYMENT -> getString(R.string.repayment_label)
+            FilterBillType.REFUND -> getString(R.string.refund_label)
             FilterBillType.ANY -> ""
         }
         if (typePart.isNotBlank()) parts += typePart
@@ -1224,7 +1224,7 @@ class AssetStatsActivity : AppCompatActivity() {
             forcedStartTime = minOf(start, end)
             forcedEndTime = maxOf(start, end)
             if (forcedLabel.isNullOrBlank()) {
-                forcedLabel = "自定义"
+                forcedLabel = getString(R.string.filter_custom)
             }
         }
         intent.getStringExtra(EXTRA_FILTER_LABEL)?.trim()?.takeIf { it.isNotBlank() }?.let {
@@ -1540,7 +1540,7 @@ class AssetStatsActivity : AppCompatActivity() {
                 day
             )
         }
-        val modeText = if (barMode == ChartMode.EXPENSE) "支出" else "收入"
+        val modeText = if (barMode == ChartMode.EXPENSE) getString(R.string.expense_label) else getString(R.string.income_label)
         return "$firstLine\n$modeText: $symbol${String.format(Locale.getDefault(), "%,.2f", value)}"
     }
 
@@ -1782,7 +1782,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private fun showPieLoadingState() {
         pieChart.clearAnimation()
         pieChart.animate().cancel()
-        pieChart.setNoDataText("数据加载中...")
+        pieChart.setNoDataText(getString(R.string.data_loading))
         pieChart.clear()
         pieChart.invalidate()
     }
@@ -1790,7 +1790,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private fun showPieEmptyState() {
         pieChart.clearAnimation()
         pieChart.animate().cancel()
-        pieChart.setNoDataText("暂无图表数据")
+        pieChart.setNoDataText(getString(R.string.no_chart_data))
         pieChart.clear()
         pieChart.invalidate()
     }
@@ -2025,7 +2025,7 @@ class AssetStatsActivity : AppCompatActivity() {
         val mode = pieMode
         val categoryBills = getBillsForCategory(categoryName, mode)
         if (categoryBills.isEmpty()) {
-            Toast.makeText(this, "暂无该分类账单", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_category_bills), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -2053,7 +2053,7 @@ class AssetStatsActivity : AppCompatActivity() {
             if (!supportFragmentManager.isStateSaved) {
                 val bills = getBillsForSubCategory(categoryName, subCategory, mode)
                 if (bills.isEmpty()) {
-                    Toast.makeText(this, "暂无该分类账单", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.no_category_bills), Toast.LENGTH_SHORT).show()
                 } else {
                     BillListBottomSheet(subCategory, bills)
                         .show(supportFragmentManager, "asset_sub_category_bills")
@@ -2125,7 +2125,7 @@ class AssetStatsActivity : AppCompatActivity() {
             bill.type == Bill.TYPE_EXPENSE && bill.accountId == ownerAssetId -> {
                 val refundedAmount = refundedAmountInBillCurrency(bill)
                 if (refundedAmount > 0.0) {
-                    "退款${BillDisplayFormatter.formatMoney(refundedAmount, bill.currency)}，实际支出${BillDisplayFormatter.formatMoney(bill.amount, bill.currency)}"
+                    getString(R.string.refund_deduct_formula_simple, BillDisplayFormatter.formatMoney(refundedAmount, bill.currency), BillDisplayFormatter.formatMoney(bill.amount, bill.currency))
                 } else {
                     BillDisplayFormatter.buildCrossCurrencyDetailFormula(bill, "CNY")
                 }
@@ -2173,9 +2173,9 @@ class AssetStatsActivity : AppCompatActivity() {
 
             fun bind(item: DateChipItem, selected: Boolean) {
                 tvChip.text = if (item.type == DateChipType.YEAR) {
-                    "${item.year}年"
+                    tvChip.context.getString(R.string.year_format, item.year)
                 } else {
-                    "${item.month}月"
+                    tvChip.context.getString(R.string.month_format, item.month)
                 }
                 tvChip.background = if (selected) {
                     itemView.context.getDrawable(R.drawable.bg_stats_date_capsule)
@@ -2381,7 +2381,7 @@ class AssetStatsActivity : AppCompatActivity() {
             fun bind(item: SectionHeaderRow, position: Int) {
                 val symbol = CurrencyManager.getSymbol(currencyProvider())
                 tvTitle.text = item.title
-                tvSummary.text = "收:${symbol}${String.format(Locale.getDefault(), "%.2f", item.income)} 支:${symbol}${String.format(Locale.getDefault(), "%.2f", item.expense)}"
+                tvSummary.text = tvSummary.context.getString(R.string.income_expense_summary_fmt, symbol, String.format(Locale.getDefault(), "%.2f", item.income), String.format(Locale.getDefault(), "%.2f", item.expense))
                 updateMode(position)
             }
 
@@ -2462,9 +2462,9 @@ class AssetStatsActivity : AppCompatActivity() {
                 tvTime.visibility = View.GONE
 
                 val categoryText = when {
-                    isRepayment -> "还款"
-                    isTransfer -> "转账"
-                    else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { "未分类" }
+                    isRepayment -> itemView.context.getString(R.string.repayment_label)
+                    isTransfer -> itemView.context.getString(R.string.transfer_label)
+                    else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { itemView.context.getString(R.string.uncategorized) }
                 }
 
                 val suffix = if (isTransfer) "${bill.accountName}->${bill.toAccountName}" else bill.accountName

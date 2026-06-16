@@ -23,7 +23,7 @@
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:src="@drawable/ic_chevron_left"
-                android:contentDescription="返回"
+                android:contentDescription="@string/back"
                 android:padding="2dp"
                 android:background="?attr/selectableItemBackgroundBorderless" />
 
@@ -34,7 +34,7 @@
                 android:layout_weight="1"
                 android:layout_marginStart="10dp"
                 android:background="@drawable/bg_search_box"
-                android:hint="搜索金额/备注/分类/账户"
+                android:hint="@string/hint_search_bill"
                 android:imeOptions="actionSearch"
                 android:inputType="text"
                 android:maxLines="1"
@@ -55,7 +55,7 @@
             android:paddingBottom="6dp"
             android:textColor="#8A93A0"
             android:textSize="@dimen/text_size_13"
-            android:text="全部账本" />
+            android:text="@string/all_books" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_bill_search_results"
@@ -73,7 +73,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:padding="24dp"
-            android:text="没有匹配的账单"
+            android:text="@string/no_matching_bills"
             android:textColor="#9AA1AA"
             android:textSize="@dimen/text_size_14"
             android:visibility="gone" />
@@ -98,7 +98,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="#666666"
             android:textSize="@dimen/text_size_16" />
 
@@ -110,7 +110,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="全选"
+            android:text="@string/select_all"
             android:textColor="#333333"
             android:textSize="@dimen/text_size_16" />
 
@@ -122,7 +122,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="移动"
+            android:text="@string/move"
             android:textColor="#4080FF"
             android:textSize="@dimen/text_size_16" />
 
@@ -134,7 +134,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline_red"
             android:gravity="center"
-            android:text="删除"
+            android:text="@string/delete"
             android:textColor="#FF5252"
             android:textSize="@dimen/text_size_16" />
     </LinearLayout>

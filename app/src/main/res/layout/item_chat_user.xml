@@ -75,7 +75,7 @@
             android:background="@drawable/bg_chat_image_thumb"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="查看大图"
+            android:contentDescription="@string/view_large_image"
             android:visibility="gone" />
 
         <!-- 语音标签 -->
@@ -146,7 +146,7 @@
                     android:id="@+id/tv_voice_transcript_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="转文字"
+                    android:text="@string/to_text"
                     android:textColor="#71819D"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -171,7 +171,7 @@
                 android:padding="1dp"
                 android:src="@drawable/ic_copy"
                 app:tint="#6F7F99"
-                android:contentDescription="复制转写文本" />
+                android:contentDescription="@string/copy_transcript" />
         </LinearLayout>
     </LinearLayout>
 
@@ -186,7 +186,7 @@
         android:padding="1dp"
         android:clickable="true"
         android:focusable="true"
-        android:contentDescription="用户头像"
+        android:contentDescription="@string/user_avatar"
         android:layout_gravity="top" />
     </LinearLayout>
 

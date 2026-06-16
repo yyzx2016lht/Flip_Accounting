@@ -28,7 +28,7 @@ class AssetAdapter(
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = list[position]
         holder.tvName.text = item.name
-        holder.tvType.text = "${item.type} 路 ${item.currency}"
+        holder.tvType.text = holder.itemView.context.getString(R.string.asset_type_currency, item.type, item.currency)
 
         Glide.with(holder.itemView)
             .load(AssetIconDefaults.withDefault(item.icon))

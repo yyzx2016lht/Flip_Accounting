@@ -54,7 +54,7 @@ class ChatUiHelperController(
         dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
 
         val btnCancel = view.findViewById<TextView>(R.id.btn_followup_confirm_cancel)
-        btnCancel.text = "取消"
+        btnCancel.text = context.getString(R.string.cancel)
         btnCancel.setOnClickListener {
             dialog.dismiss()
         }

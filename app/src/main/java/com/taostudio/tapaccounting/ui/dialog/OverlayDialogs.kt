@@ -560,7 +560,7 @@ object OverlayDialogs {
         }
 
         val tip = TextView(themeContext).apply {
-            text = "长按分类直接拖动排序。子分类可点「移出一级」单独拿出来，拖动时会保持和资产选择器一样的动画手感。"
+            text = ctx.getString(R.string.category_sort_tip)
             setTextColor(Color.parseColor("#8A8A8A"))
             textSize = 12f
             setPadding(8, 0, 8, 18)
@@ -606,7 +606,7 @@ object OverlayDialogs {
                 }
                 val promote = TextView(themeContext).apply {
                     id = android.R.id.button1
-                    text = "移出一级"
+                    text = ctx.getString(R.string.promote_to_top_level)
                     textSize = 11f
                     setTextColor(Color.parseColor("#5E86FF"))
                     setPadding(14, 8, 14, 8)
@@ -679,10 +679,10 @@ object OverlayDialogs {
         }).attachToRecyclerView(rv)
 
         val dialog = AlertDialog.Builder(themeContext)
-            .setTitle("排序分类")
+            .setTitle(ctx.getString(R.string.sort_category))
             .setView(container)
-            .setPositiveButton("保存", null)
-            .setNegativeButton("取消", null)
+            .setPositiveButton(ctx.getString(R.string.save), null)
+            .setNegativeButton(ctx.getString(R.string.cancel), null)
             .create()
 
         CoroutineScope(Dispatchers.Main).launch {
@@ -727,7 +727,7 @@ object OverlayDialogs {
     fun showMigrationTargetPicker(
         ctx: Context,
         excludeIds: Set<Long>,
-        title: String = "选择迁移目标分类",
+        title: String = ctx.getString(R.string.select_migration_target),
         dbType: Int,
         onConfirm: (CategoryNode) -> Unit
     ) {
@@ -814,7 +814,7 @@ object OverlayDialogs {
         view.findViewById<Button>(R.id.btn_confirm_category).setOnClickListener {
             val chosen = selectedSub ?: selectedParent
             if (chosen == null) {
-                Toast.makeText(ctx, "请先选择一个分类", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, ctx.getString(R.string.please_select_category), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             onConfirm(chosen)
@@ -1187,8 +1187,8 @@ object OverlayDialogs {
 
                 when (item) {
                     is AssetPickerItem.ArchivedGroup -> {
-                        tv.text = if (item.expanded) "收起资产" else "已收纳资产"
-                        tvType?.text = "${item.count} 个"
+                        tv.text = if (item.expanded) ctx.getString(R.string.collapse_assets) else ctx.getString(R.string.archived_assets)
+                        tvType?.text = ctx.getString(R.string.count_format, item.count)
                         tvType?.visibility = View.VISIBLE
                         tv.setTextColor(Color.parseColor("#6E7D94"))
                         holder.itemView.alpha = 0.92f
@@ -1203,7 +1203,7 @@ object OverlayDialogs {
                     is AssetPickerItem.AssetItem -> {
                         val asset = item.asset
                         tv.text = asset.name
-                        tvType?.text = if (asset.isArchived) "已收纳" else ""
+                        tvType?.text = if (asset.isArchived) ctx.getString(R.string.archived) else ""
                         tvType?.visibility = if (asset.isArchived) View.VISIBLE else View.GONE
                         tv.setTextColor(if (asset.name == currentSelection) Color.parseColor("#5C6BC0") else Color.parseColor("#333333"))
                         holder.itemView.alpha = when {
@@ -1316,10 +1316,10 @@ object OverlayDialogs {
 
     fun showShizukuPrompt(ctx: Context) {
         val themeContext = ContextThemeWrapper(ctx, R.style.Theme_TapAccounting)
-        val dialog = AlertDialog.Builder(themeContext).setTitle("需要 Shizuku 授权").setMessage("使用白名单功能需要先完成 Shizuku 授权。") .setPositiveButton("去授权") { d, _ ->
+        val dialog = AlertDialog.Builder(themeContext).setTitle(ctx.getString(R.string.shizuku_auth_required)).setMessage(ctx.getString(R.string.shizuku_auth_message)) .setPositiveButton(ctx.getString(R.string.go_authorize)) { d, _ ->
             d.dismiss()
-            try { ctx.startActivity(ctx.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Toast.makeText(ctx, "无法启动 Shizuku，请检查是否已安装", Toast.LENGTH_SHORT).show() }
-        }.setNegativeButton("取消", null).create()
+            try { ctx.startActivity(ctx.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Toast.makeText(ctx, ctx.getString(R.string.cannot_launch_shizuku), Toast.LENGTH_SHORT).show() }
+        }.setNegativeButton(ctx.getString(R.string.cancel), null).create()
         showStyledDialog(dialog = dialog, ctx = ctx, widthRatio = 0.84f)
     }
 
@@ -1363,7 +1363,7 @@ object OverlayDialogs {
                 val sVal = etSource.text.toString().toDoubleOrNull() ?: 0.0
                 val rVal = etRate.text.toString().toDoubleOrNull() ?: 0.0
                 val tVal = etTarget.text.toString().toDoubleOrNull() ?: 0.0
-                tvFormula.text = "换算：${String.format("%.2f", sVal)} $sourceCurrency × ${String.format("%.4f", rVal)} = ${String.format("%.2f", tVal)} $targetCurrency"
+                tvFormula.text = ctx.getString(R.string.currency_conversion, "${String.format("%.2f", sVal)} $sourceCurrency × ${String.format("%.4f", rVal)} = ${String.format("%.2f", tVal)} $targetCurrency")
             }
             updateFormula()
 
@@ -1498,7 +1498,7 @@ object OverlayDialogs {
                     .toList()
 
                 if (sortedRefundCandidates.isEmpty()) {
-                    android.widget.Toast.makeText(ctx, "暂无可退款的支出账单", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(ctx, ctx.getString(R.string.no_refundable_bills), android.widget.Toast.LENGTH_SHORT).show()
                     return@withContext
                 }
 
@@ -1517,7 +1517,7 @@ object OverlayDialogs {
 
                 // —— 标题区 ——
                 val tvTitle = android.widget.TextView(themeContext).apply {
-                    text = "选择退款来源账单"
+                    text = ctx.getString(R.string.refund_source_bill_title)
                     textSize = 16f
                     setTypeface(null, android.graphics.Typeface.BOLD)
                     setTextColor(android.graphics.Color.parseColor("#1A1A1A"))
@@ -1551,7 +1551,7 @@ object OverlayDialogs {
                     cornerRadius = (10 * dp)
                 }
                 val etSearch = android.widget.EditText(themeContext).apply {
-                    hint = "搜索分类或备注"
+                    hint = ctx.getString(R.string.search_category_or_remark)
                     textSize = 13f
                     maxLines = 1
                     inputType = android.text.InputType.TYPE_CLASS_TEXT
@@ -1603,7 +1603,7 @@ object OverlayDialogs {
 
                     if (filtered.isEmpty()) {
                         listLayout.addView(android.widget.TextView(themeContext).apply {
-                            text = "未找到匹配账单"
+                            text = ctx.getString(R.string.no_matching_bill)
                             textSize = 13f
                             gravity = android.view.Gravity.CENTER
                             setTextColor(android.graphics.Color.parseColor("#BBBBBB"))
@@ -1656,7 +1656,7 @@ object OverlayDialogs {
                         }
 
                         val tvCat = android.widget.TextView(themeContext).apply {
-                            text = bill.categoryName.ifEmpty { "未分类" }
+                            text = bill.categoryName.ifEmpty { ctx.getString(R.string.uncategorized) }
                             textSize = 14f
                             setTypeface(null, android.graphics.Typeface.BOLD)
                             setTextColor(android.graphics.Color.parseColor("#1A1A1A"))
@@ -1762,7 +1762,7 @@ object OverlayDialogs {
                     }
 
                     val btnCancel = android.widget.Button(themeContext).apply {
-                        text = "取消"
+                        text = ctx.getString(R.string.cancel)
                         textSize = 14f
                         setTextColor(android.graphics.Color.parseColor("#888888"))
                         background = makeBtnBg(android.graphics.Color.parseColor("#F2F2F2"))
@@ -1775,7 +1775,7 @@ object OverlayDialogs {
                         setOnClickListener { alertDialog.dismiss() }
                     }
                     val btnConfirm = android.widget.Button(themeContext).apply {
-                        text = "确认"
+                        text = ctx.getString(R.string.confirm)
                         textSize = 14f
                         setTextColor(android.graphics.Color.parseColor("#FFFFFF"))
                         setTypeface(null, android.graphics.Typeface.BOLD)
@@ -1789,7 +1789,7 @@ object OverlayDialogs {
                         setOnClickListener {
                             val chosen = selectedBill
                             if (chosen == null) {
-                                android.widget.Toast.makeText(ctx, "请先选择一条账单", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(ctx, ctx.getString(R.string.please_select_bill), android.widget.Toast.LENGTH_SHORT).show()
                             } else {
                                 alertDialog.dismiss()
                                 onConfirm(chosen)

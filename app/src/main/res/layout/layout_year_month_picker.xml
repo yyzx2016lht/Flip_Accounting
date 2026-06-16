@@ -17,7 +17,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="显示方式"
+            android:text="@string/display_mode"
             android:textColor="@color/dialog_title"
             android:fontFamily="sans-serif-medium"
             android:textSize="@dimen/dialog_title_size"
@@ -27,7 +27,7 @@
             android:id="@+id/tv_mode_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="按月"
+            android:text="@string/by_month"
             android:textColor="@color/text_tertiary"
             android:fontFamily="sans-serif-medium"
             android:textSize="@dimen/dialog_title_size" />
@@ -96,7 +96,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:lineSpacingExtra="2dp"
-            android:text="在首页加载【当前账本】下所有时间范围内的数据"
+            android:text="@string/load_all_data_hint"
             android:textColor="@color/text_tertiary"
             android:textSize="14sp" />
 
@@ -107,7 +107,7 @@
             android:layout_marginTop="14dp"
             android:background="@drawable/bg_dialog_button_primary"
             android:gravity="center"
-            android:text="确定"
+            android:text="@string/confirm_action"
             android:textColor="@color/dialog_button_primary_text"
             android:fontFamily="sans-serif-medium"
             android:textSize="15sp"

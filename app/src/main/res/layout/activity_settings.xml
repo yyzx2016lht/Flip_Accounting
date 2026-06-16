@@ -41,7 +41,7 @@
                 android:button="@null"
                 android:checked="true"
                 android:gravity="center"
-                android:text="支出"
+                android:text="@string/expense"
                 android:textColor="@color/selector_tab_text"
                 android:textSize="@dimen/text_size_15"
                 android:textStyle="bold" />
@@ -54,7 +54,7 @@
                 android:background="@drawable/selector_tab_bg"
                 android:button="@null"
                 android:gravity="center"
-                android:text="收入"
+                android:text="@string/income"
                 android:textColor="@color/selector_tab_text"
                 android:textSize="@dimen/text_size_15"
                 android:textStyle="bold" />
@@ -79,7 +79,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="长按分类卡片并拖动即可调整顺序"
+            android:text="@string/drag_sort_hint"
             android:textColor="#7B8698"
             android:textSize="@dimen/text_size_12" />
 
@@ -90,7 +90,7 @@
             android:background="@drawable/bg_segmented_container"
             android:gravity="center"
             android:paddingHorizontal="14dp"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="#718096"
             android:textSize="@dimen/text_size_13"
             android:textStyle="bold" />
@@ -103,7 +103,7 @@
             android:background="@drawable/bg_rule_primary_action"
             android:gravity="center"
             android:paddingHorizontal="14dp"
-            android:text="保存"
+            android:text="@string/save"
             android:textColor="#FFFFFF"
             android:textSize="@dimen/text_size_13"
             android:textStyle="bold" />

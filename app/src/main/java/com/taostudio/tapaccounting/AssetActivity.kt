@@ -100,9 +100,9 @@ class AssetActivity : AppCompatActivity() {
     }
 
     private fun showAssetActionMenu(asset: Asset) {
-        val options = arrayOf("编辑账户", "删除账户")
+        val options = arrayOf(getString(R.string.edit_account), getString(R.string.delete_account_title))
         val dialog = AlertDialog.Builder(this)
-            .setTitle("操作“${asset.name}”")
+            .setTitle(getString(R.string.operate_asset_title, asset.name))
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
@@ -119,22 +119,17 @@ class AssetActivity : AppCompatActivity() {
 
     private fun showDeleteAssetConfirm(asset: Asset) {
         val dialog = AlertDialog.Builder(this)
-            .setTitle("删除账户")
-            .setMessage(
-                "确定删除账户吗？相关账单将失去账户关联。\n" +
-                    "1. 会删除该账户本身；\n" +
-                    "2. 与该账户相关的转账、收款、还款会解除账户关联；\n" +
-                    "3. 不会删除该账户下历史收支账单，仅保留账户名快照。"
-            )
-            .setPositiveButton("删除") { _, _ ->
+            .setTitle(getString(R.string.delete_account_title))
+            .setMessage(getString(R.string.delete_account_confirm))
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     assetRepository.deleteAssetWithCleanup(asset)
                     withContext(Dispatchers.Main) {
-                        Utils.toast(this@AssetActivity, "账户“${asset.name}”已删除")
+                        Utils.toast(this@AssetActivity, getString(R.string.account_deleted_fmt, asset.name))
                     }
                 }
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog, this)
     }
@@ -176,7 +171,7 @@ class AssetActivity : AppCompatActivity() {
                 val tvRemark = row.findViewById<TextView>(R.id.tv_asset_remark)
                 if (!asset.includeInNetAsset) {
                     tvRemark.visibility = View.VISIBLE
-                    tvRemark.text = "不计入总资产"
+                    tvRemark.text = getString(R.string.exclude_total_asset)
                 } else {
                     tvRemark.visibility = View.GONE
                 }

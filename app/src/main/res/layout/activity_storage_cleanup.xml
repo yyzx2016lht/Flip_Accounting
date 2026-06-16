@@ -43,7 +43,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="扫描结果"
+                        android:text="@string/scan_result"
                         android:textColor="@color/settings_item_title"
                         android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
@@ -65,7 +65,7 @@
                         android:layout_marginTop="10dp"
                         android:elevation="0dp"
                         android:stateListAnimator="@null"
-                        android:text="重新扫描"
+                        android:text="@string/rescan"
                         android:textColor="#44556E"
                         app:backgroundTint="#EAF0FB"
                         app:cornerRadius="10dp" />
@@ -90,7 +90,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                    android:text="选择要清理的内容"
+                    android:text="@string/select_cleanup_content"
                     android:textColor="@color/settings_item_title"
                     android:textSize="@dimen/text_size_16"
                         android:textStyle="bold" />
@@ -100,7 +100,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="仅统计并清理 30 天前的语音和图片"
+                        android:text="@string/cleanup_30day_hint"
                         android:textColor="#5A6B84"
                         android:textSize="12sp"
                         app:buttonTint="#5C80EA" />
@@ -111,7 +111,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:checked="true"
-                        android:text="聊天语音文件"
+                        android:text="@string/chat_voice_files"
                         android:textColor="#23324A"
                         android:textSize="14sp"
                         app:buttonTint="#5C80EA" />
@@ -131,7 +131,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:checked="true"
-                        android:text="聊天图片（给 AI 的账单图）"
+                        android:text="@string/chat_image_files"
                         android:textColor="#23324A"
                         android:textSize="14sp"
                         app:buttonTint="#5C80EA" />
@@ -151,7 +151,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:checked="false"
-                        android:text="聊天头像（默认不清理）"
+                        android:text="@string/chat_avatar_files"
                         android:textColor="#23324A"
                         android:textSize="14sp"
                         app:buttonTint="#5C80EA" />
@@ -171,7 +171,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:checked="false"
-                        android:text="账本封面与背景（默认不清理）"
+                        android:text="@string/book_cover_bg"
                         android:textColor="#23324A"
                         android:textSize="14sp"
                         app:buttonTint="#5C80EA" />
@@ -191,7 +191,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:checked="true"
-                        android:text="临时与缓存文件"
+                        android:text="@string/temp_cache_files"
                         android:textColor="#23324A"
                         android:textSize="14sp"
                         app:buttonTint="#5C80EA" />
@@ -209,7 +209,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="不会删除账单、分类、资产和设置等核心数据。"
+                        android:text="@string/cleanup_safe_hint"
                         android:textColor="#5A6B84"
                         android:textSize="12sp" />
 
@@ -221,7 +221,7 @@
                         android:layout_marginTop="12dp"
                         android:elevation="0dp"
                         android:stateListAnimator="@null"
-                        android:text="预览待删文件"
+                        android:text="@string/preview_files"
                         android:textColor="#44556E"
                         app:backgroundTint="#EAF0FB"
                         app:cornerRadius="10dp" />
@@ -234,7 +234,7 @@
                         android:elevation="0dp"
                         android:maxLines="1"
                         android:stateListAnimator="@null"
-                        android:text="清理所选内容"
+                        android:text="@string/cleanup_selected"
                         app:backgroundTint="#D1495B"
                         app:cornerRadius="10dp"
                         app:icon="@android:drawable/ic_menu_delete"
@@ -269,7 +269,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="回收站"
+                            android:text="@string/trash"
                             android:textColor="@color/settings_item_title"
                             android:textSize="@dimen/text_size_16"
                             android:textStyle="bold" />
@@ -279,7 +279,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="查看已删除的账单"
+                            android:text="@string/view_deleted_bills"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
                     </LinearLayout>

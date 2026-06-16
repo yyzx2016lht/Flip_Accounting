@@ -28,7 +28,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:text="添加记账习惯"
+            android:text="@string/add_ai_rule"
             android:textColor="@color/dialog_title"
             android:textSize="@dimen/dialog_title_size"
             android:textStyle="bold" />
@@ -56,7 +56,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="参考文本"
+                android:text="@string/reference_text"
                 android:textColor="#6F7E95"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -78,7 +78,7 @@
                 android:layout_marginTop="12dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
-                android:text="AI 帮我提取关键词"
+                android:text="@string/ai_extract_keywords"
                 android:textAllCaps="false"
                 android:textColor="#2A3A53"
                 android:textSize="14sp"
@@ -90,7 +90,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="匹配关键词"
+            android:text="@string/match_keywords"
             android:textColor="#75839A"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -99,7 +99,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="例如：豆浆 早点"
+            android:hint="@string/hint_keywords"
             app:boxBackgroundColor="#F7FAFF"
             app:boxBackgroundMode="outline"
             app:boxCornerRadiusBottomEnd="16dp"
@@ -142,7 +142,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="目标类型"
+                    android:text="@string/target_type"
                     android:textColor="#75839A"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -170,7 +170,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="目标分类"
+                    android:text="@string/target_category"
                     android:textColor="#75839A"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -183,7 +183,7 @@
                     android:background="@drawable/bg_model_search_field"
                     android:gravity="center_vertical"
                     android:paddingHorizontal="12dp"
-                    android:text="点击选择分类"
+                    android:text="@string/tap_select_category"
                     android:textColor="#25344A"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -194,7 +194,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="账户"
+            android:text="@string/account"
             android:textColor="#75839A"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -219,7 +219,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="目标账户"
+                android:text="@string/target_account"
                 android:textColor="#75839A"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -252,7 +252,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="立即启用"
+                    android:text="@string/enable_now"
                     android:textColor="#25344A"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -288,7 +288,7 @@
                 android:background="@drawable/bg_dialog_action_item_danger"
                 android:gravity="center"
                 android:paddingHorizontal="16dp"
-                android:text="删除"
+                android:text="@string/delete"
                 android:textColor="@color/danger_color"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -305,7 +305,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/bg_dialog_button_cancel"
                 android:gravity="center"
-                android:text="取消"
+                android:text="@string/cancel"
                 android:textColor="@color/dialog_button_cancel_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -321,7 +321,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/bg_dialog_button_primary"
                 android:gravity="center"
-                android:text="保存"
+                android:text="@string/save"
                 android:textColor="@color/dialog_button_primary_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />

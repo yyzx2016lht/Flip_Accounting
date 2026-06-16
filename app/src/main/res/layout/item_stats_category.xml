@@ -38,7 +38,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="分类"
+                android:text="@string/category_label"
                 android:textColor="@color/stats_segmented_text_active"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />

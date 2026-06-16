@@ -117,7 +117,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.02"
-                    android:text="入口与流程"
+                    android:text="@string/entry_and_card"
                     android:textColor="@color/settings_section_title"
                     android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold" />
@@ -348,7 +348,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.02"
-                    android:text="策略与规则"
+                    android:text="@string/strategy_and_rules"
                     android:textColor="@color/settings_section_title"
                     android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold" />
@@ -384,7 +384,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="启用本地规则"
+                            android:text="@string/enable_local_rules"
                             android:textColor="#1F2A3D"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
@@ -416,7 +416,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.02"
-                    android:text="识别能力"
+                    android:text="@string/recognition_capability"
                     android:textColor="@color/settings_section_title"
                     android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold" />
@@ -556,7 +556,7 @@
                                     android:id="@+id/tv_asr_model_status"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="模型状态"
+                                    android:text="@string/model_status"
                                     android:textColor="#5F6B7A"
                                     android:textSize="@dimen/text_size_13"
                                     android:textStyle="bold" />
@@ -568,7 +568,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="36dp"
                                 android:minHeight="0dp"
-                                android:text="下载模型"
+                                android:text="@string/download_model"
                                 android:textColor="#5C6BC0"
                                 android:textSize="@dimen/text_size_12" />
                         </LinearLayout>

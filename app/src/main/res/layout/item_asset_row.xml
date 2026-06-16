@@ -37,7 +37,7 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="不计入总资产"
+            android:text="@string/exclude_total_asset"
             android:textColor="@color/asset_row_remark"
             android:textSize="@dimen/asset_row_remark_size"
             android:visibility="gone"/>

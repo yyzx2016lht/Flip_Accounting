@@ -41,7 +41,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_dialog_button_cancel"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="@color/dialog_button_cancel_text"
             android:textSize="14sp"
             android:textStyle="bold" />

@@ -14,7 +14,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="设定入账时间"
+        android:text="@string/set_entry_time"
         android:gravity="center"
         android:textColor="@color/dialog_title"
         android:textSize="@dimen/dialog_title_size"
@@ -31,13 +31,13 @@
         android:gravity="center">
 
         <NumberPicker android:id="@+id/np_year" android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1.2" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="年" android:textSize="@dimen/text_size_12" android:textColor="@color/brand_primary" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/year_label" android:textSize="@dimen/text_size_12" android:textColor="@color/brand_primary" android:textStyle="bold"/>
 
         <NumberPicker android:id="@+id/np_month" android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="月" android:textSize="@dimen/text_size_12" android:textColor="@color/brand_primary" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/month_label" android:textSize="@dimen/text_size_12" android:textColor="@color/brand_primary" android:textStyle="bold"/>
 
         <NumberPicker android:id="@+id/np_day" android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="日" android:textSize="@dimen/text_size_12" android:textColor="@color/brand_primary" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/day_label" android:textSize="@dimen/text_size_12" android:textColor="@color/brand_primary" android:textStyle="bold"/>
     </LinearLayout>
 
     <View
@@ -57,10 +57,10 @@
         android:paddingHorizontal="12dp">
 
         <NumberPicker android:id="@+id/np_hour" android:layout_width="50dp" android:layout_height="120dp" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="时" android:textSize="@dimen/text_size_14" android:textColor="@color/brand_primary" android:textStyle="bold" android:layout_marginEnd="12dp"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/hour_label" android:textSize="@dimen/text_size_14" android:textColor="@color/brand_primary" android:textStyle="bold" android:layout_marginEnd="12dp"/>
 
         <NumberPicker android:id="@+id/np_minute" android:layout_width="50dp" android:layout_height="120dp" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="分" android:textSize="@dimen/text_size_14" android:textColor="@color/brand_primary" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/minute_label" android:textSize="@dimen/text_size_14" android:textColor="@color/brand_primary" android:textStyle="bold"/>
     </LinearLayout>
 
     <LinearLayout
@@ -76,7 +76,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_dialog_button_cancel"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textSize="14sp"
             android:textColor="@color/dialog_button_cancel_text"
             android:textStyle="bold" />
@@ -89,7 +89,7 @@
             android:layout_marginStart="10dp"
             android:background="@drawable/bg_dialog_button_primary"
             android:gravity="center"
-            android:text="确定"
+            android:text="@string/confirm_action"
             android:textSize="14sp"
             android:textStyle="bold"
             android:textColor="@color/dialog_button_primary_text" />

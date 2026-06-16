@@ -52,7 +52,7 @@ class ChatPanelController(
                     showCustomReplyStyleDialog()
                 } else {
                     Prefs.setAiChatReplyStyle(context, value)
-                    Utils.toast(context, if (value == "off") "已关闭自然回复" else "已切换为$title")
+                    Utils.toast(context, if (value == "off") context.getString(R.string.toast_natural_reply_off) else context.getString(R.string.toast_reply_style_changed, title))
                     dialog.dismiss()
                 }
             }
@@ -147,12 +147,12 @@ class ChatPanelController(
             val prompt = input.text?.toString().orEmpty().trim()
             Prefs.setAiChatReplyStyleCustomPrompt(context, prompt)
             Prefs.setAiChatReplyStyle(context, "custom")
-            Utils.toast(context, "已切换为自定义风格")
+            Utils.toast(context, context.getString(R.string.toast_custom_style))
             dialog.dismiss()
         }
         btnTurnOff.setOnClickListener {
             Prefs.setAiChatReplyStyle(context, "off")
-            Utils.toast(context, "已关闭自然回复")
+            Utils.toast(context, context.getString(R.string.toast_natural_reply_off))
             dialog.dismiss()
         }
         btnCancel.setOnClickListener { dialog.dismiss() }

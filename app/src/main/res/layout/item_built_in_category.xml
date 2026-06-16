@@ -31,7 +31,7 @@
         android:layout_marginTop="3dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="名称"
+        android:text="@string/name_label"
         android:textColor="#66758B"
         android:textSize="11sp" />
 </LinearLayout>

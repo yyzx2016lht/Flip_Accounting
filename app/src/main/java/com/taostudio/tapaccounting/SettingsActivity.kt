@@ -403,7 +403,7 @@ class SettingsActivity : AppCompatActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.item_category_grid, null)
         view.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         view.setBackgroundResource(R.drawable.bg_category_manage_item)
-        view.findViewById<TextView>(R.id.tv_category_name).text = "\u6dfb\u52a0\u5b50\u7c7b"
+        view.findViewById<TextView>(R.id.tv_category_name).text = getString(R.string.add_subcategory)
         val iv = view.findViewById<ImageView>(R.id.iv_category_icon)
         iv.setImageResource(android.R.drawable.ic_menu_add)
         iv.setColorFilter(Color.parseColor("#2C74FF"), PorterDuff.Mode.SRC_IN)
@@ -427,8 +427,8 @@ class SettingsActivity : AppCompatActivity() {
         val options = buildList<OptionItem> {
             add(
                 OptionItem(
-                    title = "修改分类",
-                    desc = "编辑分类名称与图标"
+                    title = getString(R.string.modify_category),
+                    desc = getString(R.string.edit_category_desc)
                 ) {
                     val intent = Intent(this@SettingsActivity, AddCategoryActivity::class.java)
                     intent.putExtra("type", currentType)
@@ -442,8 +442,8 @@ class SettingsActivity : AppCompatActivity() {
             )
             add(
                 OptionItem(
-                    title = "删除分类",
-                    desc = "删除前可选择账单迁移或一并删除",
+                    title = getString(R.string.delete_category),
+                    desc = getString(R.string.delete_category_desc),
                     highRisk = true
                 ) {
                     handleDeleteCategory(target, parent)
@@ -451,8 +451,8 @@ class SettingsActivity : AppCompatActivity() {
             )
             add(
                 OptionItem(
-                    title = "排序分类",
-                    desc = if (isSubCategory) "进入子分类排序模式" else "进入一级分类排序模式"
+                    title = getString(R.string.sort_category),
+                    desc = if (isSubCategory) getString(R.string.enter_sub_sort_mode) else getString(R.string.enter_parent_sort_mode)
                 ) {
                     enterSortMode(if (isSubCategory) parent?.id else null)
                 }
@@ -460,8 +460,8 @@ class SettingsActivity : AppCompatActivity() {
             if (isSubCategory) {
                 add(
                     OptionItem(
-                        title = "升级为一级分类",
-                        desc = "将当前子分类提升为独立一级分类"
+                        title = getString(R.string.promote_to_parent),
+                        desc = getString(R.string.promote_to_parent_desc)
                     ) {
                         showPromoteConfirm(target)
                     }
@@ -469,8 +469,8 @@ class SettingsActivity : AppCompatActivity() {
             } else if (target.subs.isEmpty()) {
                 add(
                     OptionItem(
-                        title = "调整为子分类",
-                        desc = "将当前一级分类挂到其它一级分类下"
+                        title = getString(R.string.demote_to_child),
+                        desc = getString(R.string.demote_to_child_desc)
                     ) {
                         showDemoteDialog(target, allCats)
                     }
@@ -479,8 +479,8 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         showOptionDialog(
-            title = "操作：${target.name}",
-            desc = "请选择要执行的操作",
+            title = getString(R.string.operate_category_fmt, target.name),
+            desc = getString(R.string.select_operation),
             options = options
         )
     }
@@ -490,9 +490,9 @@ class SettingsActivity : AppCompatActivity() {
     // 1. 一级分类有子分类时，禁止删除
         if (parent == null && target.subs.isNotEmpty()) {
             showCustomConfirmDialog(
-                title = "无法删除",
-                message = "“${target.name}”下还有 ${target.subs.size} 个子分类，请先处理完子分类后再删除。",
-                confirmText = "我知道了",
+                title = getString(R.string.cannot_delete),
+                message = getString(R.string.cannot_delete_has_sub_fmt, target.name, target.subs.size),
+                confirmText = getString(R.string.got_it),
                 onConfirm = {}
             )
             return
@@ -500,7 +500,7 @@ class SettingsActivity : AppCompatActivity() {
 
     // 2. 查询该分类下的账单数量，再弹出处理方式选择
         lifecycleScope.launch {
-            val loading = showLoadingDialog("正在统计关联账单...")
+            val loading = showLoadingDialog(getString(R.string.counting_related_bills))
             val billCount = withContext(Dispatchers.IO) {
                 categoryRepository.countBillsUnderCategory(target.id)
             }
@@ -513,7 +513,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun showDeleteWithBillHandlingDialog(target: CategoryNode, billCount: Int) {
         val dbType = if (currentType == Prefs.TYPE_INCOME) 1 else 0
         if (billCount <= 0) {
-            showFinalDeleteConfirm(target, "无所属账单，直接删除") {
+            showFinalDeleteConfirm(target, getString(R.string.no_bills_direct_delete)) {
                 lifecycleScope.launch(Dispatchers.IO) {
                     categoryRepository.deleteCategoryAndMigrateBills(target.id, null)
                     withContext(Dispatchers.Main) {
@@ -526,21 +526,21 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         showOptionDialog(
-            title = "所属账单如何处理？",
-            desc = "“${target.name}”下有 $billCount 条账单，请先选择处理方式",
+            title = getString(R.string.bill_handling_title),
+            desc = getString(R.string.bill_handling_desc_fmt, target.name, billCount),
             options = listOf(
                 OptionItem(
-                    title = "迁移到新的分类",
-                    desc = "保留账单并迁移到目标分类"
+                    title = getString(R.string.migrate_to_new_category),
+                    desc = getString(R.string.migrate_to_new_category_desc)
                 ) {
                     showSelectTargetCategoryDialog(target, dbType)
                 },
                 OptionItem(
-                    title = "连同账单一起删除",
-                    desc = "删除分类与其所属账单，可在回收站恢复",
+                    title = getString(R.string.delete_with_bills),
+                    desc = getString(R.string.delete_with_bills_desc),
                     highRisk = true
                 ) {
-                    showFinalDeleteConfirm(target, "连同账单一起删除") {
+                    showFinalDeleteConfirm(target, getString(R.string.delete_with_bills)) {
                         lifecycleScope.launch(Dispatchers.IO) {
                             categoryRepository.deleteCategoryAndBills(target.id, AppDatabase.getDatabase(this@SettingsActivity))
                             withContext(Dispatchers.Main) {
@@ -564,7 +564,7 @@ class SettingsActivity : AppCompatActivity() {
             val candidates = allCats.filter { it.id != target.id && it.parentId != target.id }
 
             if (candidates.isEmpty()) {
-                Utils.toast(this@SettingsActivity, "没有可迁移的目标分类，账单将清除分类关联")
+                Utils.toast(this@SettingsActivity, getString(R.string.no_migration_target))
                 lifecycleScope.launch(Dispatchers.IO) {
                     categoryRepository.deleteCategoryAndMigrateBills(target.id, null)
                     withContext(Dispatchers.Main) {
@@ -584,10 +584,10 @@ class SettingsActivity : AppCompatActivity() {
             com.taostudio.tapaccounting.ui.dialog.OverlayDialogs.showMigrationTargetPicker(
                 ctx = this@SettingsActivity,
                 excludeIds = excludeIds,
-                title = "选择迁移目标分类",
+                title = getString(R.string.select_migration_target_title),
                 dbType = dbType
             ) { targetCat ->
-                showFinalDeleteConfirm(target, "迁移账单到“${targetCat.name}”") {
+                showFinalDeleteConfirm(target, getString(R.string.migrate_to_target_fmt, targetCat.name)) {
                     lifecycleScope.launch(Dispatchers.IO) {
                         categoryRepository.deleteCategoryAndMigrateBills(target.id, targetCat.id)
                         withContext(Dispatchers.Main) {
@@ -603,7 +603,7 @@ class SettingsActivity : AppCompatActivity() {
     /** 最终确认删除 */
     private fun showFinalDeleteConfirm(target: CategoryNode, handling: String, onConfirm: () -> Unit) {
         lifecycleScope.launch {
-            val loading = showLoadingDialog("正在加载关联账单...")
+            val loading = showLoadingDialog(getString(R.string.loading_related_bills))
             val relatedBills = withContext(Dispatchers.IO) {
                 val dao = AppDatabase.getDatabase(this@SettingsActivity).billDao()
                 val byId = dao.getBillsByCategoryIdList(target.id)
@@ -660,8 +660,8 @@ class SettingsActivity : AppCompatActivity() {
         onConfirm: () -> Unit
     ) {
         val panel = LayoutInflater.from(this).inflate(R.layout.dialog_delete_followup_confirm, null, false)
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = "确定删除“${target.name}”？"
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "处理方式：$handling\n删除后可在回收站恢复。"
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = getString(R.string.confirm_delete_category_fmt, target.name)
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = getString(R.string.handling_method_fmt, handling)
 
         if (relatedBills.isNotEmpty()) {
             val root = panel as LinearLayout
@@ -669,7 +669,7 @@ class SettingsActivity : AppCompatActivity() {
             root.removeView(actionRow)
 
             val previewTitle = TextView(this).apply {
-                text = "关联账单（${relatedBills.size} 条）"
+                text = getString(R.string.related_bills_count_fmt, relatedBills.size)
                 setTextColor(Color.parseColor("#374151"))
                 textSize = 12f
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -707,8 +707,8 @@ class SettingsActivity : AppCompatActivity() {
                     val amount = row.findViewById<TextView>(R.id.tv_delete_bill_amount)
                     val time = row.findViewById<TextView>(R.id.tv_delete_bill_time)
 
-                    title.text = bill.remark.ifBlank { bill.categoryName.ifBlank { "未分类" } }
-                    subtitle.text = bill.categoryName.ifBlank { "未分类" }
+                    title.text = bill.remark.ifBlank { bill.categoryName.ifBlank { getString(R.string.uncategorized) } }
+                    subtitle.text = bill.categoryName.ifBlank { getString(R.string.uncategorized) }
                     val amountPrefix = when (bill.type) {
                         Bill.TYPE_INCOME -> "+"
                         Bill.TYPE_TRANSFER -> ""
@@ -764,7 +764,7 @@ class SettingsActivity : AppCompatActivity() {
             dialog.dismiss()
         }
         panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
-            text = "确定删除"
+            text = getString(R.string.confirm_delete_btn)
             setBackgroundResource(R.drawable.bg_delete_followup_danger_btn)
             setOnClickListener {
                 dialog.dismiss()
@@ -783,9 +783,9 @@ class SettingsActivity : AppCompatActivity() {
     /** 确认将二级分类提升为一级 */
     private fun showPromoteConfirm(target: CategoryNode) {
         showCustomConfirmDialog(
-            title = "升级为一级分类",
-            message = "将“${target.name}”升级为独立的一级分类？",
-            confirmText = "确定",
+            title = getString(R.string.promote_to_parent),
+            message = getString(R.string.promote_confirm_fmt, target.name),
+            confirmText = getString(R.string.confirm_action),
             onConfirm = {
                 lifecycleScope.launch(Dispatchers.IO) {
                     categoryRepository.promoteToParent(target.id)
@@ -803,21 +803,21 @@ class SettingsActivity : AppCompatActivity() {
     // 候选父分类：其他一级分类（不能是自己）
         val candidates = allCats.filter { it.id != target.id }
         if (candidates.isEmpty()) {
-            Utils.toast(this, "没有其它一级分类可作为父分类")
+            Utils.toast(this, getString(R.string.no_other_parent_category))
             return
         }
         showOptionDialog(
-            title = "选择所属的一级分类",
-            desc = "将“${target.name}”调整到以下一级分类",
+            title = getString(R.string.select_parent_category),
+            desc = getString(R.string.select_parent_category_desc, target.name),
             options = candidates.map { newParent ->
                 OptionItem(
-                    title = "调整到「${newParent.name}」",
-                    desc = "变更后将成为该分类的子分类"
+                    title = getString(R.string.adjust_to_subcategory, newParent.name),
+                    desc = getString(R.string.adjust_to_subcategory_desc)
                 ) {
                     showCustomConfirmDialog(
-                        title = "调整为子分类",
-                        message = "将“${target.name}”调整为“${newParent.name}”的子分类？",
-                        confirmText = "确定"
+                        title = getString(R.string.adjust_to_subcategory_confirm),
+                        message = getString(R.string.adjust_to_subcategory_confirm_fmt, target.name, newParent.name),
+                        confirmText = getString(R.string.confirm_action)
                     ) {
                         lifecycleScope.launch(Dispatchers.IO) {
                             categoryRepository.demoteToChild(target.id, newParent.id)
@@ -876,7 +876,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun showCustomConfirmDialog(
         title: String,
         message: String,
-        confirmText: String = "确定",
+        confirmText: String = getString(R.string.confirm_action),
         isDanger: Boolean = false,
         onConfirm: () -> Unit
     ) {

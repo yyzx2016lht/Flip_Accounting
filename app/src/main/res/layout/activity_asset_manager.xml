@@ -31,7 +31,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:text="净资产"
+                    android:text="@string/net_asset"
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_14" />
             </RelativeLayout>
@@ -62,7 +62,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="总资产"
+                        android:text="@string/total_asset"
                         android:textColor="#999999"
                         android:textSize="@dimen/text_size_12" />
                     <TextView
@@ -89,14 +89,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="总负债"
+                        android:text="@string/total_liability"
                         android:textColor="#999999"
                         android:textSize="@dimen/text_size_12" />
                     <TextView
                         android:id="@+id/tv_total_debt"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="无"
+                        android:text="@string/none"
                         android:textColor="#333333"
                         android:textStyle="bold" />
                 </LinearLayout>

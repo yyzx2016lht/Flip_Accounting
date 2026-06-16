@@ -15,8 +15,8 @@
             android:id="@+id/secondary_header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:headerSubtitle="长按卡片拖动排序"
-            app:headerTitle="排序分类" />
+            app:headerSubtitle="@string/long_press_sort_hint"
+            app:headerTitle="@string/sort_category" />
 
         <RadioGroup
             android:id="@+id/rg_sort_type"
@@ -36,7 +36,7 @@
                 android:button="@null"
                 android:checked="true"
                 android:gravity="center"
-                android:text="支出"
+                android:text="@string/expense"
                 android:textColor="@color/selector_tab_text"
                 android:textSize="15sp"
                 android:textStyle="bold" />
@@ -49,7 +49,7 @@
                 android:background="@drawable/selector_tab_bg"
                 android:button="@null"
                 android:gravity="center"
-                android:text="收入"
+                android:text="@string/income"
                 android:textColor="@color/selector_tab_text"
                 android:textSize="15sp"
                 android:textStyle="bold" />
@@ -62,7 +62,7 @@
         android:layout_marginStart="18dp"
         android:layout_marginTop="14dp"
         android:layout_marginBottom="8dp"
-        android:text="分类列表"
+        android:text="@string/category_list"
         android:textColor="#5A6880"
         android:textSize="13sp"
         android:textStyle="bold" />
@@ -97,7 +97,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_segmented_container"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="#718096"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -110,7 +110,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_rule_primary_action"
             android:gravity="center"
-            android:text="保存排序"
+            android:text="@string/save_sort"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold" />

@@ -111,15 +111,15 @@ class ChatVoiceController(
     fun playVoiceMessage(item: ChatDisplayItem) {
         val voice = item.voice ?: parseVoicePayload(item.content)
         val path = voice.audioPath.takeIf { it.isNotBlank() } ?: run {
-            Utils.toast(context, "未找到语音文件")
+            Utils.toast(context, context.getString(R.string.toast_voice_not_found))
             return
         }
         val file = File(path)
         if (!file.exists()) {
             if (voice.transcript.trim().isNotBlank()) {
-                Utils.toast(context, "语音文件已不存在，可查看已缓存转写")
+                Utils.toast(context, context.getString(R.string.toast_voice_gone_cached))
             } else {
-                Utils.toast(context, "语音文件已不存在")
+                Utils.toast(context, context.getString(R.string.toast_voice_gone))
             }
             return
         }
@@ -231,9 +231,9 @@ class ChatVoiceController(
         val itemKeys = items.map { selectionKey(it) }.toSet()
         val persistedIds = items.mapNotNull { it.dbId.takeIf { id -> id > 0L } }.distinct()
         showCustomConfirmDialog(
-            "删除消息",
+            context.getString(R.string.delete),
             "确定删除选中的消息吗？",
-            "删除",
+            context.getString(R.string.delete),
             true,
             {
                 lifecycleScope.launch {
@@ -272,7 +272,7 @@ class ChatVoiceController(
         if (idx >= 0) {
             adapterProvider().notifyItemChanged(idx)
         }
-        Utils.toast(context, "已收起转写文本")
+        Utils.toast(context, context.getString(R.string.toast_transcript_collapsed))
     }
 
     fun transcribeVoiceMessage(item: ChatDisplayItem, showResult: Boolean, force: Boolean = false) {
@@ -290,9 +290,9 @@ class ChatVoiceController(
         }
         val path = voice.audioPath.takeIf { it.isNotBlank() } ?: run {
             if (cachedTranscript.isNotBlank()) {
-                Utils.toast(context, "未找到语音文件，已保留缓存转写")
+                Utils.toast(context, context.getString(R.string.toast_voice_gone_cached))
             } else {
-                Utils.toast(context, "未找到语音文件")
+                Utils.toast(context, context.getString(R.string.toast_voice_not_found))
             }
             return
         }
@@ -305,9 +305,9 @@ class ChatVoiceController(
                     adapterProvider().notifyItemChanged(idx)
                     scrollToBottom()
                 }
-                Utils.toast(context, "语音文件已不存在，已使用缓存转写")
+                Utils.toast(context, context.getString(R.string.toast_voice_gone_cached))
             } else {
-                Utils.toast(context, "语音文件已不存在")
+                Utils.toast(context, context.getString(R.string.toast_voice_gone))
             }
             return
         }
@@ -327,7 +327,7 @@ class ChatVoiceController(
             }
 
             if (text.isBlank()) {
-                Utils.toast(context, "转文字失败，请稍后重试")
+                Utils.toast(context, context.getString(R.string.toast_transcribe_failed))
                 return@launch
             }
             val updatedVoice = voice.copy(transcript = text)
@@ -359,7 +359,7 @@ class ChatVoiceController(
         val layoutVoiceSelectionBar = layoutVoiceSelectionBarProvider()
         val tvVoiceSelectionCount = tvVoiceSelectionCountProvider()
         layoutVoiceSelectionBar.visibility = if (isVoiceSelectionMode) View.VISIBLE else View.GONE
-        tvVoiceSelectionCount.text = "已选择 ${selectedVoiceMessageIds.size} 条消息"
+        tvVoiceSelectionCount.text = context.getString(R.string.selected_message_count, selectedVoiceMessageIds.size)
     }
 
     private fun notifySelectionRowsChanged() {

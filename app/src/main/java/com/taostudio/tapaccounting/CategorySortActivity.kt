@@ -84,9 +84,9 @@ class CategorySortActivity : AppCompatActivity() {
                 val childCount = childCountByParentId[item.id] ?: 0
                 holder.subtitle.visibility = View.VISIBLE
                 holder.subtitle.text = if (childCount > 0) {
-                    "$childCount 个子分类"
+                    getString(R.string.child_category_count_fmt, childCount)
                 } else {
-                    "暂无子分类"
+                    getString(R.string.no_child_category)
                 }
                 holder.arrow.visibility = View.VISIBLE
                 holder.dragHint.visibility = View.GONE
@@ -102,7 +102,7 @@ class CategorySortActivity : AppCompatActivity() {
                 }
             } else {
                 holder.subtitle.visibility = View.VISIBLE
-                holder.subtitle.text = "长按卡片拖动排序"
+                holder.subtitle.text = getString(R.string.long_press_sort_hint)
                 holder.arrow.visibility = View.GONE
                 holder.dragHint.visibility = View.VISIBLE
                 holder.itemView.setOnClickListener(null)
@@ -181,11 +181,11 @@ class CategorySortActivity : AppCompatActivity() {
                 currentType = if (checkedId == R.id.rb_sort_income) Prefs.TYPE_INCOME else Prefs.TYPE_EXPENSE
                 loadData()
             }
-            secondaryHeader.setTitle("排序分类")
+            secondaryHeader.setTitle(getString(R.string.sort_category))
             secondaryHeader.setSubtitle(getString(R.string.category_sort_hint))
         } else {
             rgType.visibility = View.GONE
-            secondaryHeader.setTitle(parentName ?: "排序子分类")
+            secondaryHeader.setTitle(parentName ?: getString(R.string.sort_subcategory))
             secondaryHeader.setSubtitle(getString(R.string.category_sub_sort_hint))
         }
 
@@ -223,7 +223,7 @@ class CategorySortActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             repo.saveOrderedCategories(items.toList())
             withContext(Dispatchers.Main) {
-                Utils.toast(this@CategorySortActivity, "排序已保存")
+                Utils.toast(this@CategorySortActivity, getString(R.string.sort_saved))
                 finish()
             }
         }

@@ -40,7 +40,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="分类编辑"
+                    android:text="@string/category_edit"
                     android:textColor="#142033"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -50,7 +50,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="新增分类"
+                    android:text="@string/category_add"
                     android:textColor="#7B8698"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -89,7 +89,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="分类名称"
+                    android:text="@string/category_name"
                     android:textColor="#7B8698"
                     android:textSize="12sp" />
 
@@ -99,7 +99,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:background="@null"
-                    android:hint="输入分类名称"
+                    android:hint="@string/hint_input_category_name"
                     android:importantForAutofill="no"
                     android:inputType="text"
                     android:maxLines="1"
@@ -120,7 +120,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:text="搜索图标"
+            android:text="@string/search_icon"
             android:textColor="#7B8698"
             android:textSize="12sp" />
 
@@ -132,7 +132,7 @@
             android:background="@null"
             android:drawableStart="@drawable/ic_search_outline"
             android:drawablePadding="8dp"
-            android:hint="搜索图标"
+            android:hint="@string/hint_search_icon"
             android:maxLines="1"
             android:padding="0dp"
             android:textColor="#22324A"
@@ -152,7 +152,7 @@
         android:layout_marginStart="18dp"
         android:layout_marginTop="14dp"
         android:layout_marginBottom="8dp"
-        android:text="选择图标"
+        android:text="@string/select_icon"
         android:textColor="#5A6880"
         android:textSize="13sp"
         android:textStyle="bold" />
@@ -180,7 +180,7 @@
             android:id="@+id/btn_create_category"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="保存分类"
+            android:text="@string/save_category"
             android:textColor="@android:color/white"
             android:textSize="16sp"
             android:textStyle="bold"

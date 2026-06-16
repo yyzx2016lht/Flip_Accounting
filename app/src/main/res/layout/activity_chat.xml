@@ -193,7 +193,7 @@
                     android:id="@+id/tv_voice_record_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="正在录音..."
+                    android:text="@string/recording_voice"
                     android:textColor="#FFFFFF"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -203,7 +203,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="松开发送，上滑取消"
+                    android:text="@string/release_send_slide_cancel"
                     android:textColor="#E6FFFFFF"
                     android:textSize="11sp" />
             </LinearLayout>
@@ -256,7 +256,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="已选择 0 条语音"
+                    android:text="@string/voice_selected_count"
                     android:textColor="@color/chat_bill_category_text"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -267,7 +267,7 @@
                     android:layout_height="wrap_content"
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="6dp"
-                    android:text="取消"
+                    android:text="@string/cancel"
                     android:textColor="@color/chat_bill_detail_text"
                     android:textSize="13sp" />
 
@@ -279,7 +279,7 @@
                     android:background="@drawable/bg_dialog_action_item_danger"
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="8dp"
-                    android:text="删除"
+                    android:text="@string/delete"
                     android:textColor="@color/chat_bill_action_danger_text"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -303,7 +303,7 @@
                     android:background="@drawable/bg_chat_voice_hint"
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="8dp"
-                    android:text="当前模型不支持直接语音识别，已改为先转文本再发送，可能存在一点误差。"
+                    android:text="@string/voice_model_warning"
                     android:textColor="@color/chat_bill_detail_text"
                     android:textSize="12sp"
                     android:visibility="gone" />
@@ -332,7 +332,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="已选择 1 张图片"
+                            android:text="@string/selected_image_count_simple"
                             android:textColor="@color/chat_bill_category_text"
                             android:textSize="12sp"
                             android:textStyle="bold" />
@@ -343,7 +343,7 @@
                             android:layout_height="wrap_content"
                             android:paddingHorizontal="8dp"
                             android:paddingVertical="4dp"
-                            android:text="清空"
+                            android:text="@string/clear"
                             android:textColor="@color/chat_bill_detail_text"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -390,7 +390,7 @@
                         android:layout_weight="1"
                         android:layout_marginHorizontal="8dp"
                         android:background="@drawable/bg_chat_input"
-                        android:hint="说点什么，我来帮你记账"
+                        android:hint="@string/chat_hint"
                         android:textSize="15sp"
                         android:textColor="@color/chat_bill_category_text"
                         android:textColorHint="@color/chat_input_hint"
@@ -408,7 +408,7 @@
                         android:layout_height="42dp"
                         android:layout_weight="1"
                         android:layout_marginHorizontal="8dp"
-                        android:text="按住说话"
+                        android:text="@string/hold_to_talk"
                         android:textSize="14sp"
                         android:textAllCaps="false"
                         app:cornerRadius="18dp"
@@ -429,7 +429,7 @@
                         android:src="@drawable/ic_chat_image"
                         android:background="@drawable/bg_input_icon_btn"
                         app:tint="#456387"
-                        android:contentDescription="选择图片"
+                        android:contentDescription="@string/select_image_cd"
                         android:clickable="true"
                         android:focusable="true"
                         android:layout_gravity="center_vertical" />

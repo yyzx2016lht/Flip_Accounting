@@ -26,7 +26,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="账单显示效果"
+            android:text="@string/bill_display_settings"
             android:textColor="@color/settings_item_title"
             android:textSize="@dimen/text_size_18"
             android:textStyle="bold" />
@@ -49,7 +49,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="10dp"
-                android:text="示例账单"
+                android:text="@string/sample_bill"
                 android:textColor="#8F98A6"
                 android:textSize="@dimen/text_size_15" />
 
@@ -99,7 +99,7 @@
                             android:id="@+id/tv_preview_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="晚餐"
+                            android:text="@string/sample_dinner"
                             android:textColor="#202A39"
                             android:textSize="@dimen/text_size_15" />
 
@@ -110,7 +110,7 @@
                             android:layout_marginTop="2dp"
                             android:ellipsize="end"
                             android:maxLines="1"
-                            android:text="陪爸妈一起聚餐"
+                            android:text="@string/sample_remark"
                             android:textColor="#7B8696"
                             android:textSize="@dimen/text_size_11" />
                     </LinearLayout>
@@ -153,7 +153,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="分类图标"
+                            android:text="@string/category_icon"
                             android:textColor="#1A2744"
                             android:textSize="@dimen/text_size_15"
                             android:textStyle="bold" />
@@ -187,7 +187,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="完整分类"
+                            android:text="@string/full_category"
                             android:textColor="#1A2744"
                             android:textSize="@dimen/text_size_15"
                             android:textStyle="bold" />
@@ -221,7 +221,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="备注优先"
+                            android:text="@string/remark_first"
                             android:textColor="#1A2744"
                             android:textSize="@dimen/text_size_15"
                             android:textStyle="bold" />
@@ -259,7 +259,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="独立详情页"
+                                android:text="@string/standalone_detail"
                                 android:textColor="#1A2744"
                                 android:textSize="@dimen/text_size_15"
                                 android:textStyle="bold" />
@@ -268,7 +268,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="开启后账单详情使用独立页面而非弹窗"
+                                android:text="@string/standalone_detail_hint"
                                 android:textColor="#9AA4B2"
                                 android:textSize="@dimen/text_size_11" />
                         </LinearLayout>

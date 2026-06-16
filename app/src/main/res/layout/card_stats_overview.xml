@@ -22,7 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="收支总览"
+            android:text="@string/income_expense_overview"
             android:textColor="@color/stats_segmented_text_active"
             android:textSize="@dimen/text_size_16"
             android:textStyle="bold" />
@@ -45,7 +45,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="总支出"
+                    android:text="@string/total_expense"
                     android:textColor="@color/stats_header_label"
                     android:textSize="@dimen/text_size_11" />
 
@@ -76,7 +76,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="总收入"
+                    android:text="@string/total_income"
                     android:textColor="@color/stats_header_label"
                     android:textSize="@dimen/text_size_11" />
 
@@ -108,7 +108,7 @@
                     android:id="@+id/tv_daily_avg_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="日均支出"
+                    android:text="@string/daily_avg_expense"
                     android:textColor="@color/stats_header_label"
                     android:textSize="@dimen/text_size_11" />
 
@@ -158,7 +158,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="转账"
+                        android:text="@string/transfer"
                         android:textColor="@color/stats_header_label"
                         android:textSize="@dimen/text_size_11" />
 
@@ -193,7 +193,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="还款"
+                        android:text="@string/repayment"
                         android:textColor="@color/stats_header_label"
                         android:textSize="@dimen/text_size_11" />
 
@@ -228,7 +228,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="退款"
+                        android:text="@string/refund"
                         android:textColor="@color/stats_header_label"
                         android:textSize="@dimen/text_size_11" />
 

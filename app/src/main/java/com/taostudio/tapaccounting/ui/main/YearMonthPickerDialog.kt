@@ -179,7 +179,12 @@ object YearMonthPickerDialog {
         }
 
         val applyMode = {
-            tvModeValue.text = currentMode.label
+            tvModeValue.text = when (currentMode) {
+                DisplayMode.MONTH -> context.getString(R.string.display_mode_month)
+                DisplayMode.YEAR -> context.getString(R.string.display_mode_year)
+                DisplayMode.ALL -> context.getString(R.string.display_mode_all)
+                else -> currentMode.label
+            }
             panelMonth.visibility = if (currentMode == DisplayMode.MONTH) View.VISIBLE else View.GONE
             rvYearGrid.visibility = if (currentMode == DisplayMode.YEAR) View.VISIBLE else View.GONE
             panelAll.visibility = if (currentMode == DisplayMode.ALL) View.VISIBLE else View.GONE
@@ -269,7 +274,7 @@ object YearMonthPickerDialog {
             private val tvYear = view.findViewById<TextView>(R.id.tv_year_entry)
 
             fun bind(year: Int, selected: Boolean) {
-                tvYear.text = "${year}年"
+                tvYear.text = itemView.context.getString(R.string.year_format, year)
                 tvYear.setBackgroundResource(
                     if (selected) R.drawable.bg_year_month_selected_pill else android.R.color.transparent
                 )
@@ -313,7 +318,7 @@ object YearMonthPickerDialog {
             private val tvMonth = view.findViewById<TextView>(R.id.tv_month_entry)
 
             fun bind(month: Int, selected: Boolean) {
-                tvMonth.text = "${month}月"
+                tvMonth.text = itemView.context.getString(R.string.month_format, month)
                 tvMonth.setTextColor(
                     if (selected) 0xFF5C6BC0.toInt() else 0xFF1F2937.toInt()
                 )

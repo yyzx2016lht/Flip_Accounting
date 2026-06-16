@@ -104,17 +104,17 @@ class ScreenCaptureActivity : AppCompatActivity() {
 
         when {
             Prefs.isShizukuModeEnabled(this) && ShizukuSafe.isReady(this) -> {
-                tvStatus.text = "正在通过 Shizuku 截屏..."
+                tvStatus.text = getString(R.string.shizuku_capturing)
                 Logger.d(this, "ScreenCaptureActivity", "Using Shizuku silent screencap path")
                 startShizukuCapture()
             }
             cachedProjectionResultCode != null && cachedProjectionData != null -> {
-                tvStatus.text = "正在识别屏幕中..."
+                tvStatus.text = getString(R.string.recognizing_screen)
                 Logger.d(this, "ScreenCaptureActivity", "Reusing cached screen capture permission")
                 startMediaProjectionCapture()
             }
             else -> {
-                tvStatus.text = "正在请求截屏权限..."
+                tvStatus.text = getString(R.string.requesting_capture_permission)
                 Logger.d(this, "ScreenCaptureActivity", "Requesting screen capture permission")
                 capturePermissionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
             }
@@ -134,24 +134,24 @@ class ScreenCaptureActivity : AppCompatActivity() {
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap == null) {
                     Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap decode returned null")
-                    withContext(Dispatchers.Main) { fail("截屏失败，请稍后重试") }
+                    withContext(Dispatchers.Main) { fail(getString(R.string.screenshot_failed)) }
                     return@launch
                 }
                 Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap succeeded. bytes=${bytes.size}, size=${bitmap.width}x${bitmap.height}")
                 submitBitmapForRecognition(bitmap)
             } catch (e: Exception) {
                 Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap failed: ${e.message}")
-                withContext(Dispatchers.Main) { fail("截屏失败，请稍后重试") }
+                withContext(Dispatchers.Main) { fail(getString(R.string.screenshot_failed)) }
             }
         }
     }
 
     private fun fallbackToMediaProjection() {
         if (cachedProjectionResultCode != null && cachedProjectionData != null) {
-            tvStatus.text = "正在识别屏幕中..."
+            tvStatus.text = getString(R.string.recognizing_screen)
             startMediaProjectionCapture()
         } else {
-            tvStatus.text = "正在请求截屏权限..."
+            tvStatus.text = getString(R.string.requesting_capture_permission)
             capturePermissionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
         }
     }
@@ -161,7 +161,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
         val resultData = cachedProjectionData
         if (resultCode == null || resultData == null) {
             Logger.d(this, "ScreenCaptureActivity", "startMediaProjectionCapture aborted: missing permission payload")
-            fail("未获取到截屏权限")
+            fail(getString(R.string.screenshot_perm_not_obtained))
             return
         }
 
@@ -171,7 +171,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
             Logger.d(this, "ScreenCaptureActivity", "getMediaProjection failed: ${it.message}")
             cachedProjectionResultCode = null
             cachedProjectionData = null
-            fail("截屏权限已失效，请重新授权")
+            fail(getString(R.string.screenshot_perm_expired))
             return
         }
 
@@ -197,7 +197,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
             "ScreenCaptureActivity",
             "Virtual display created: ${metrics.widthPixels}x${metrics.heightPixels}@${metrics.densityDpi}"
         )
-        tvStatus.text = "正在识别屏幕中..."
+        tvStatus.text = getString(R.string.recognizing_screen)
         mainHandler.postDelayed({ tryAcquireImage(0) }, 260L)
     }
 
@@ -206,7 +206,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
         if (image == null) {
             Logger.d(this, "ScreenCaptureActivity", "No screenshot image yet. retry=$retryCount")
             if (retryCount >= 8) {
-                fail("截屏失败，请稍后重试")
+                fail(getString(R.string.screenshot_failed))
             } else {
                 mainHandler.postDelayed({ tryAcquireImage(retryCount + 1) }, 120L)
             }
@@ -224,7 +224,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "AI screen recognition failed: ${e.message}")
-                    fail(e.message ?: "截屏识别失败，请稍后重试")
+                    fail(e.message ?: getString(R.string.screenshot_failed))
                 }
             }
         }
@@ -244,7 +244,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
             isMultiModeOverride = isMultiMode
         ) ?: JSONObject().apply {
             put("no_bill", true)
-            put("reply", "未识别到可记账内容")
+            put("reply", getString(R.string.toast_no_bill_found))
         }
         withContext(Dispatchers.Main) {
             Logger.d(

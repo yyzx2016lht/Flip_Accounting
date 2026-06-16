@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:paddingHorizontal="8dp"
         android:paddingTop="4dp"
-        android:text="回复风格"
+        android:text="@string/reply_style"
         android:textColor="#25344A"
         android:textSize="17sp"
         android:textStyle="bold" />
@@ -39,7 +39,7 @@
         android:layout_marginTop="12dp"
         android:gravity="center"
         android:paddingVertical="10dp"
-        android:text="取消"
+        android:text="@string/cancel"
         android:textColor="#6F7E95"
         android:textSize="14sp" />
 

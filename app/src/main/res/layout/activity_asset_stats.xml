@@ -50,7 +50,7 @@
                         android:id="@+id/tv_toolbar_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="资产统计"
+                        android:text="@string/asset_stats"
                         android:textColor="@color/text_primary"
                         android:textSize="@dimen/text_size_15"
                         android:textStyle="bold" />
@@ -132,7 +132,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="总支出"
+                                android:text="@string/total_expense"
                                 android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
@@ -156,7 +156,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="总收入"
+                                android:text="@string/total_income"
                                 android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
@@ -180,7 +180,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="结余"
+                                android:text="@string/balance"
                                 android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
@@ -211,7 +211,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="转账/还款"
+                                android:text="@string/transfer_repayment"
                                 android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
@@ -235,7 +235,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="退款"
+                                android:text="@string/refund"
                                 android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
@@ -259,7 +259,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="总笔数"
+                                android:text="@string/total_count"
                                 android:textColor="@color/stats_header_label"
                                 android:textSize="@dimen/text_size_14" />
 
@@ -298,7 +298,7 @@
                             android:layout_height="30dp"
                             android:background="@drawable/bg_stats_toggle_selected"
                             android:gravity="center"
-                            android:text="支出"
+                            android:text="@string/expense"
                             android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
@@ -308,7 +308,7 @@
                             android:layout_width="74dp"
                             android:layout_height="30dp"
                             android:gravity="center"
-                            android:text="收入"
+                            android:text="@string/income"
                             android:textColor="@color/text_tertiary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
@@ -325,7 +325,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:gravity="center"
-                        android:text="可手指旋转饼图查看，小于2%不会显示"
+                        android:text="@string/pie_chart_hint"
                         android:textColor="@color/text_tertiary"
                         android:textSize="@dimen/text_size_12" />
 
@@ -346,7 +346,7 @@
                             android:layout_height="30dp"
                             android:background="@drawable/bg_stats_toggle_selected"
                             android:gravity="center"
-                            android:text="支出"
+                            android:text="@string/expense"
                             android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
@@ -356,7 +356,7 @@
                             android:layout_width="74dp"
                             android:layout_height="30dp"
                             android:gravity="center"
-                            android:text="收入"
+                            android:text="@string/income"
                             android:textColor="@color/text_tertiary"
                             android:textSize="@dimen/text_size_14"
                             android:textStyle="bold" />
@@ -375,7 +375,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="点击分类可查看对应账单明细"
+                            android:text="@string/tap_category_hint"
                             android:textColor="@color/stats_daily_header_text"
                             android:textSize="@dimen/text_size_12" />
                     </LinearLayout>
@@ -427,7 +427,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="退出多选"
+            android:text="@string/exit_multi_select"
             android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_size_16" />
 
@@ -439,7 +439,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="全选"
+            android:text="@string/select_all"
             android:textColor="@color/text_primary"
             android:textSize="@dimen/text_size_16" />
 
@@ -451,7 +451,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="移动"
+            android:text="@string/move"
             android:textColor="@color/brand_primary"
             android:textSize="@dimen/text_size_16" />
 
@@ -463,7 +463,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline_red"
             android:gravity="center"
-            android:text="删除"
+            android:text="@string/delete"
             android:textColor="@color/danger_color"
             android:textSize="@dimen/text_size_16" />
     </LinearLayout>

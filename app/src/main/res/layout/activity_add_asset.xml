@@ -27,7 +27,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="添加账户"
+            android:text="@string/add_account"
             android:textSize="@dimen/text_size_18"
             android:textStyle="bold"
             android:textColor="@color/text_primary"/>
@@ -38,7 +38,7 @@
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:gravity="center"
-            android:text="保存"
+            android:text="@string/save"
             android:textColor="@color/brand_primary"
             android:textSize="@dimen/text_size_14"
             android:textStyle="bold"
@@ -82,7 +82,7 @@
                         <TextView
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:text="账户类型"
+                            android:text="@string/account_type"
                             android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_16"/>
                         <LinearLayout
@@ -100,7 +100,7 @@
                                 android:id="@+id/tv_type_name"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="请选择"
+                                android:text="@string/please_select"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="@dimen/text_size_16"
                                 android:layout_marginEnd="4dp"/>
@@ -121,7 +121,7 @@
                         <TextView
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:text="账户名称"
+                            android:text="@string/account_name"
                             android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_16"/>
                         <EditText
@@ -130,7 +130,7 @@
                             android:layout_height="match_parent"
                             android:layout_marginEnd="20dp"
                             android:background="@null"
-                            android:hint="请输入名称"
+                            android:hint="@string/hint_input_name"
                             android:textColor="@color/brand_primary"
                             android:gravity="end|center_vertical"
                             android:textSize="@dimen/text_size_16"
@@ -146,7 +146,7 @@
                         <TextView
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:text="账户余额"
+                            android:text="@string/account_balance"
                             android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_16"/>
                         <EditText
@@ -174,7 +174,7 @@
                         <TextView
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:text="年利率"
+                            android:text="@string/annual_interest_rate"
                             android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_16"/>
                         <LinearLayout
@@ -195,7 +195,7 @@
                                     android:layout_height="32dp"
                                     android:minWidth="96dp"
                                     android:background="@null"
-                                    android:hint="选填"
+                                    android:hint="@string/optional"
                                     android:inputType="numberDecimal|numberSigned"
                                     android:textColor="@color/brand_primary"
                                     android:textColorHint="@color/text_secondary"
@@ -214,7 +214,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:gravity="end"
-                                android:text="留空不结息，自动收益仅作估算"
+                                android:text="@string/interest_rate_hint"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="@dimen/text_size_12"
                                 android:maxLines="1"
@@ -233,7 +233,7 @@
                         <TextView
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:text="资产类别"
+                            android:text="@string/asset_category"
                             android:textColor="@color/text_primary"
                             android:textSize="@dimen/text_size_16"/>
                         <LinearLayout
@@ -245,7 +245,7 @@
                                 android:id="@+id/tv_asset_category"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="资金"
+                                android:text="@string/fund"
                                 android:textColor="@color/brand_primary"
                                 android:textSize="@dimen/text_size_16"
                                 android:layout_marginEnd="4dp"/>
@@ -291,7 +291,7 @@
                             <TextView
                                 android:layout_width="100dp"
                                 android:layout_height="wrap_content"
-                                android:text="币种"
+                                android:text="@string/currency"
                                 android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"/>
                             <LinearLayout
@@ -318,7 +318,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="此资产下的账单，将会以此币种为单位来记录"
+                            android:text="@string/currency_hint"
                             android:textColor="@color/text_secondary"
                             android:textSize="@dimen/text_size_12"
                             android:layout_marginTop="4dp"/>
@@ -340,7 +340,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_centerVertical="true"
-                                android:text="计入总资产"
+                                android:text="@string/include_total_asset"
                                 android:textColor="@color/text_primary"
                                 android:textSize="@dimen/text_size_16"/>
                             <androidx.appcompat.widget.SwitchCompat
@@ -356,7 +356,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="16dp"
                             android:layout_marginEnd="16dp"
-                            android:text="关闭后不计入净资产，流水仍正常记录"
+                            android:text="@string/include_total_asset_hint"
                             android:textColor="@color/text_secondary"
                             android:textSize="@dimen/text_size_12"
                             android:maxLines="1"
@@ -378,7 +378,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="56dp"
                     android:background="@null"
-                    android:hint="备注"
+                    android:hint="@string/remark"
                     android:paddingHorizontal="16dp"
                     android:paddingVertical="12dp"
                     android:textSize="@dimen/text_size_16"
@@ -410,7 +410,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
                 android:layout_centerVertical="true"
-                android:hint="搜索账户类型..."
+                android:hint="@string/hint_search_account_type"
                 android:paddingHorizontal="16dp"
                 android:background="@android:drawable/edit_text"
                 android:textSize="@dimen/text_size_14"/>

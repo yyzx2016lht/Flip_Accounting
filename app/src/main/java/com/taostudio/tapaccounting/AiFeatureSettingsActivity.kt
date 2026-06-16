@@ -134,14 +134,14 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             if (mode == Prefs.ASR_MODE_WHISPER) {
                 layoutAsrModel.visibility = View.VISIBLE
                 if (LocalAsrService.isModelReady(this@AiFeatureSettingsActivity)) {
-                    tvAsrModelStatus.text = "已安装·SenseVoice离线模型 (约140MB)"
+                    tvAsrModelStatus.text = getString(R.string.asr_model_installed)
                     tvAsrModelStatus.setTextColor(Color.parseColor("#5C6BC0"))
-                    btnAsrModelAction.text = "删除模型"
+                    btnAsrModelAction.text = getString(R.string.delete_model)
                     btnAsrModelAction.setOnClickListener {
                         val dialog = AlertDialog.Builder(this@AiFeatureSettingsActivity)
-                            .setTitle("删除模型")
-                            .setMessage("确定要删除本地模型数据释放空间吗？")
-                            .setPositiveButton("删除") { _, _ ->
+                            .setTitle(R.string.delete_model_title)
+                            .setMessage(R.string.delete_model_confirm)
+                            .setPositiveButton(R.string.delete) { _, _ ->
                                 LocalAsrService.deleteModel(this@AiFeatureSettingsActivity)
                                 val supportsCloudSpeech = AiProviderRegistry
                                     .resolvePreset(this@AiFeatureSettingsActivity)
@@ -152,7 +152,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                                 )
                                 updateAsrUi()
                             }
-                            .setNegativeButton("取消", null)
+                            .setNegativeButton(R.string.cancel, null)
                             .create()
                         OverlayDialogs.showPageCenterDialog(
                             dialog = dialog,
@@ -162,23 +162,23 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                         )
                     }
                 } else {
-                    tvAsrModelStatus.text = "未安装离线模型 (约140MB，需联网下载)"
+                    tvAsrModelStatus.text = getString(R.string.asr_model_not_installed)
                     tvAsrModelStatus.setTextColor(Color.parseColor("#607D8B"))
-                    btnAsrModelAction.text = "下载模型"
+                    btnAsrModelAction.text = getString(R.string.download_model)
                     btnAsrModelAction.setOnClickListener {
                         val dialog = AlertDialog.Builder(this@AiFeatureSettingsActivity)
-                            .setTitle("安装离线模型")
-                            .setMessage("在线下载: 约140MB\n本地导入: 选择手机中的模型压缩文件")
-                            .setPositiveButton("在线下载") { _, _ ->
+                            .setTitle(R.string.install_offline_model)
+                            .setMessage(R.string.install_model_options)
+                            .setPositiveButton(R.string.online_download) { _, _ ->
                                 LocalAsrService.downloadModelWithUI(this@AiFeatureSettingsActivity) {
                                     runOnUiThread { updateAsrUi() }
                                 }
                             }
-                            .setNeutralButton("本地导入") { _, _ ->
+                            .setNeutralButton(R.string.local_import) { _, _ ->
                                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply { type = "*/*" }
                                 startActivityForResult(intent, 2001)
                             }
-                            .setNegativeButton("取消", null)
+                            .setNegativeButton(R.string.cancel, null)
                             .create()
                         OverlayDialogs.showPageCenterDialog(
                             dialog = dialog,
@@ -397,7 +397,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
     private fun showOcrDebugRecordsDialog() {
         val records = Prefs.getOcrDebugRecords(this)
         if (records.isEmpty()) {
-            Utils.toast(this, "暂无 OCR 原文记录")
+            Utils.toast(this, getString(R.string.no_ocr_record))
             return
         }
 
@@ -409,14 +409,14 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         }.toTypedArray()
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("OCR 原文记录（共 ${records.size} 条）")
+            .setTitle(getString(R.string.ocr_record_title, records.size))
             .setItems(items) { _, which ->
                 showSingleOcrDebugRecordDialog(records, which)
             }
-            .setPositiveButton("关闭", null)
-            .setNeutralButton("清空记录") { _, _ ->
+            .setPositiveButton(R.string.close, null)
+            .setNeutralButton(R.string.clear_records) { _, _ ->
                 Prefs.clearOcrDebugRecords(this)
-                Utils.toast(this, "已清空 OCR 记录")
+                Utils.toast(this, getString(R.string.ocr_cleared))
             }
             .create()
         OverlayDialogs.showPageCenterDialog(
@@ -434,8 +434,8 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val item = records[index]
         val formatter = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
         val content = buildString {
-            append("时间：${formatter.format(java.util.Date(item.timestamp))}\n")
-            append("来源：${item.source}\n\n")
+            append("${getString(R.string.time)}：${formatter.format(java.util.Date(item.timestamp))}\n")
+            append("${getString(R.string.remark)}：${item.source}\n\n")
             append(item.text)
         }
 
@@ -448,19 +448,19 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val scrollView = ScrollView(this).apply { addView(textView) }
 
         val builder = AlertDialog.Builder(this)
-            .setTitle("OCR 记录 ${index + 1}/${records.size}")
+            .setTitle(getString(R.string.ocr_record_index, index + 1, records.size))
             .setView(scrollView)
-            .setPositiveButton("复制这条") { _, _ ->
+            .setPositiveButton(R.string.copy_this) { _, _ ->
                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 cm.setPrimaryClip(android.content.ClipData.newPlainText("ocr_debug_record_$index", item.text))
-                Utils.toast(this, "已复制第 ${index + 1} 条")
+                Utils.toast(this, getString(R.string.copied_index_fmt, index + 1))
             }
-            .setNegativeButton("返回列表") { _, _ ->
+            .setNegativeButton(R.string.back_to_list) { _, _ ->
                 showOcrDebugRecordsDialog()
             }
 
         if (index < records.lastIndex) {
-            builder.setNeutralButton("下一条") { _, _ ->
+            builder.setNeutralButton(R.string.next_record) { _, _ ->
                 showSingleOcrDebugRecordDialog(records, index + 1)
             }
         }

@@ -40,7 +40,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:text="设置中心"
+                android:text="@string/settings_center"
                 android:textColor="@color/settings_item_title"
                 android:textSize="@dimen/text_size_18"
                 android:textStyle="bold" />
@@ -101,7 +101,7 @@
                             android:id="@+id/tv_profile_user_name"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="我"
+                            android:text="@string/profile_me"
                             android:textColor="#1A2744"
                             android:textSize="@dimen/text_size_16"
                             android:textStyle="bold" />
@@ -170,7 +170,7 @@
                                 android:id="@+id/tv_overlay_reminder_title"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="快捷记账还差一步"
+                                android:text="@string/quick_accounting_one_step"
                                 android:textColor="#7A4B00"
                                 android:textSize="@dimen/text_size_14"
                                 android:textStyle="bold" />
@@ -197,7 +197,7 @@
                             android:layout_width="0dp"
                             android:layout_height="38dp"
                             android:layout_weight="1"
-                            android:text="立即开启"
+                            android:text="@string/enable_now"
                             android:textColor="#FFFFFF"
                             android:textSize="@dimen/text_size_12"
                             app:backgroundTint="#E8A000"
@@ -211,7 +211,7 @@
                             android:layout_width="0dp"
                             android:layout_height="38dp"
                             android:layout_weight="1"
-                            android:text="显示悬浮窗"
+                            android:text="@string/show_floating_window"
                             android:textColor="#B26A00"
                             android:textSize="@dimen/text_size_12"
                             app:strokeColor="#E8A000"
@@ -241,7 +241,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="数据与基础设置"
+                    android:text="@string/data_and_basic"
                     android:textColor="@color/settings_section_title"
                     android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold"
@@ -301,14 +301,14 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="收支分类管理"
+                                    android:text="@string/category_management"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="自定义支出与收入分类"
+                                    android:text="@string/category_management_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -369,14 +369,14 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="账单显示效果"
+                                    android:text="@string/bill_display_effect"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="分类图标、分类层级与备注展示策略"
+                                    android:text="@string/bill_display_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -438,14 +438,14 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="多币种与汇率"
+                                    android:text="@string/multi_currency_rate"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="设置货币单位及实时汇率"
+                                    android:text="@string/multi_currency_desc_setting"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -506,14 +506,14 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="快捷记账"
+                                    android:text="@string/quick_accounting"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="翻转、敲击背板、动作选择和后台稳定性"
+                                    android:text="@string/quick_accounting_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -574,14 +574,14 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="备份与恢复"
+                                    android:text="@string/backup_restore"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="导出或导入本地账单数据"
+                                    android:text="@string/backup_restore_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -646,7 +646,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="同步远程配置"
+                                    android:text="@string/sync_remote_config"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -655,7 +655,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="2dp"
-                                    android:text="从云端拉取最新API配置"
+                                    android:text="@string/sync_remote_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -725,7 +725,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="管理图片记账、语音识别等 AI 能力"
+                                    android:text="@string/ai_feature_manage_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -786,7 +786,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="存储清理"
+                                    android:text="@string/storage_cleanup"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -794,7 +794,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="预览语音与图片占用后，再选择清理"
+                                    android:text="@string/storage_cleanup_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -832,7 +832,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="手势与交互"
+                    android:text="@string/gesture_and_interaction"
                     android:textColor="@color/settings_section_title"
                     android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold"
@@ -892,7 +892,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="使用快捷手势"
+                                    android:text="@string/use_quick_gesture"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -900,7 +900,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="通过翻转手机或敲击背板快速启动记账"
+                                    android:text="@string/gesture_desc_setting"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -957,7 +957,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="显示账本入口"
+                                    android:text="@string/show_book_entry"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -966,7 +966,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="在翻转记账面板中显示传统表单账本入口"
+                                    android:text="@string/book_entry_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -1023,7 +1023,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="记账时启用资产功能"
+                                    android:text="@string/enable_asset_feature"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -1089,7 +1089,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="显示首页趋势卡片"
+                                    android:text="@string/show_trend_card"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -1098,7 +1098,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="在首页展示近期开销变化趋势"
+                                    android:text="@string/trend_card_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -1149,14 +1149,14 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="启用 AI 功能"
+                                    android:text="@string/enable_ai_feature"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="开启后显示 AI 功能入口"
+                                    android:text="@string/ai_feature_entry_hint"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -1257,7 +1257,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="1dp"
-                            android:text="进入独立页面配置 AI 记账与识别能力"
+                            android:text="@string/ai_config_entry"
                             android:textColor="#9AA4B2"
                             android:textSize="@dimen/text_size_11" />
                     </LinearLayout>
@@ -1292,7 +1292,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="高级与调试"
+                    android:text="@string/advanced_debug"
                     android:textColor="@color/settings_section_title"
                     android:textSize="@dimen/settings_section_title_size"
                     android:textStyle="bold"
@@ -1353,14 +1353,14 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Shizuku 模式"
+                                    android:text="@string/shizuku_mode"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="开启后才显示白名单模式"
+                                    android:text="@string/shizuku_mode_hint"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -1421,7 +1421,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Shizuku 自动恢复"
+                                    android:text="@string/shizuku_auto_restore"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -1487,7 +1487,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="启用多币种功能"
+                                    android:text="@string/enable_multi_currency"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -1552,7 +1552,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="开发者日志"
+                                    android:text="@string/developer_log"
                                     android:textColor="#1A2744"
                                     android:textSize="@dimen/text_size_15"
                                     android:textStyle="bold" />
@@ -1565,7 +1565,7 @@
                                     android:layout_marginStart="-8dp"
                                     android:minHeight="0dp"
                                     android:paddingVertical="0dp"
-                                    android:text="查看日志内容 →"
+                                    android:text="@string/view_log"
                                     android:textColor="#5C6BC0"
                                     android:textSize="@dimen/text_size_11"
                                     android:visibility="gone" />

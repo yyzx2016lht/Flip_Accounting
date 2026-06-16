@@ -41,6 +41,7 @@ import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.repository.BackupRepository
 import com.taostudio.tapaccounting.data.repository.MergeRestoreResult
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
+import com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.io.FileOutputStream
@@ -87,7 +88,7 @@ class BackupActivity : AppCompatActivity() {
             .onFailure { Log.w("BackupActivity", "持久化备份目录权限失败", it) }
         saveBackupTreeUri(uri)
         updateBackupModeHint()
-        Utils.toast(this, "默认备份目录已更新")
+        Utils.toast(this, getString(R.string.backup_dir_updated))
     }
 
     private val saveBackupAsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -144,7 +145,7 @@ class BackupActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_backup_save_as).setOnClickListener {
             val treeUri = getBackupTreeUri()
             if (treeUri == null) {
-                Utils.toast(this, "请先点击“更换默认目录”设置备份位置")
+                Utils.toast(this, getString(R.string.backup_set_dir_first))
             } else {
                 performBackupToDefaultTree(treeUri)
             }
@@ -266,20 +267,20 @@ class BackupActivity : AppCompatActivity() {
     private fun updateAutoBackupStatus() {
         val tv = findViewById<TextView>(R.id.tv_auto_backup_status)
         if (!AutoBackupWorker.isEnabled(this)) {
-            tv.text = "自动备份已关闭"
+            tv.text = getString(R.string.auto_backup_disabled)
             return
         }
         val lastTime = AutoBackupWorker.getLastBackupTime(this)
         val lastResult = AutoBackupWorker.getLastBackupResult(this)
         val interval = AutoBackupWorker.getIntervalHours(this)
-        val mode = if (AutoBackupWorker.getBackupMode(this) == "full") "完整" else "轻量"
-        val cloud = if (AutoBackupWorker.isCloudEnabled(this)) " + 云端" else ""
+        val mode = if (AutoBackupWorker.getBackupMode(this) == "full") getString(R.string.backup_full) else getString(R.string.backup_lite)
+        val cloud = if (AutoBackupWorker.isCloudEnabled(this)) getString(R.string.auto_backup_cloud_suffix) else ""
 
         tv.text = if (lastTime > 0) {
             val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
-            "上次自动备份：${sdf.format(Date(lastTime))}\n$lastResult\n当前：每${interval}小时 · ${mode}${cloud}"
+            getString(R.string.backup_status_with_history_fmt, sdf.format(Date(lastTime)), lastResult, interval, mode, cloud)
         } else {
-            "当前：每${interval}小时 · ${mode}${cloud}\n等待首次自动备份…"
+            getString(R.string.backup_status_no_history_fmt, interval, mode, cloud)
         }
     }
 
@@ -310,7 +311,7 @@ class BackupActivity : AppCompatActivity() {
         showDatePicker(startDate, true) { startMs ->
             showDatePicker(endDate, false) { endMs ->
                 if (endMs < startMs) {
-                    Utils.toast(this, "结束日期不能早于开始日期")
+                    Utils.toast(this, getString(R.string.invalid_date_range))
                     return@showDatePicker
                 }
                 val endOfDay = endMs + 86400000L - 1
@@ -320,19 +321,18 @@ class BackupActivity : AppCompatActivity() {
                     val sum = db.billDao().sumAmountBetweenTimes(startMs, endOfDay)
                     withContext(Dispatchers.Main) {
                         if (count == 0) {
-                            Utils.toast(this@BackupActivity, "该日期范围内没有账单")
+                            Utils.toast(this@BackupActivity, getString(R.string.no_bills_in_range))
                             return@withContext
                         }
                         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                         confirmCleanup(
-                            title = "清理日期范围内的账单",
-                            message = "将删除 ${sdf.format(Date(startMs))} 至 ${sdf.format(Date(endMs))} 的 $count 条账单" +
-                                "（合计 ${String.format("%.2f", sum)}）。\n\n此操作不可撤销，不进回退资产余额。",
+                            title = getString(R.string.cleanup_date_range_title),
+                            message = getString(R.string.cleanup_date_range_message_fmt, sdf.format(Date(startMs)), sdf.format(Date(endMs)), count, String.format("%.2f", sum)),
                             onConfirm = {
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     db.billDao().deleteBillsBetweenTimes(startMs, endOfDay)
                                     withContext(Dispatchers.Main) {
-                                        Utils.toast(this@BackupActivity, "已清理 $count 条账单")
+                                        Utils.toast(this@BackupActivity, getString(R.string.cleaned_count_fmt, count))
                                     }
                                 }
                             }
@@ -349,30 +349,30 @@ class BackupActivity : AppCompatActivity() {
             val books = db.billDao().getAllBookNames()
             withContext(Dispatchers.Main) {
                 if (books.isEmpty()) {
-                    Utils.toast(this@BackupActivity, "没有账本数据")
+                    Utils.toast(this@BackupActivity, getString(R.string.no_book_data))
                     return@withContext
                 }
                 var selectedIndex = 0
                 val dialog = AlertDialog.Builder(this@BackupActivity)
-                    .setTitle("选择要清空的账本")
+                    .setTitle(R.string.select_book_to_clear)
                     .setSingleChoiceItems(books.toTypedArray(), 0) { _, which -> selectedIndex = which }
-                    .setPositiveButton("下一步") { _, _ ->
+                    .setPositiveButton(R.string.next_step) { _, _ ->
                         val book = books[selectedIndex]
                         lifecycleScope.launch(Dispatchers.IO) {
                             val count = db.billDao().countBillsByBookName(book)
                             withContext(Dispatchers.Main) {
                                 if (count == 0) {
-                                    Utils.toast(this@BackupActivity, "「$book」没有账单")
+                                    Utils.toast(this@BackupActivity, getString(R.string.book_no_bills_fmt, book))
                                     return@withContext
                                 }
                                 confirmCleanup(
-                                    title = "清空账本「$book」",
-                                    message = "将删除该账本下的全部 $count 条账单。\n\n此操作不可撤销，不进回收站，不回退资产余额。",
+                                    title = getString(R.string.clear_book_title_fmt, book),
+                                    message = getString(R.string.clear_book_message_fmt, count),
                                     onConfirm = {
                                         lifecycleScope.launch(Dispatchers.IO) {
                                             db.billDao().deleteAllByBookName(book)
                                             withContext(Dispatchers.Main) {
-                                                Utils.toast(this@BackupActivity, "已清空「$book」的 $count 条账单")
+                                                Utils.toast(this@BackupActivity, getString(R.string.book_cleared_fmt, book, count))
                                             }
                                         }
                                     }
@@ -380,7 +380,7 @@ class BackupActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    .setNegativeButton("取消", null)
+                    .setNegativeButton(R.string.cancel, null)
                     .create()
                 OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
             }
@@ -393,17 +393,17 @@ class BackupActivity : AppCompatActivity() {
             val count = db.billDao().getAllBillsList().size
             withContext(Dispatchers.Main) {
                 if (count == 0) {
-                    Utils.toast(this@BackupActivity, "没有账单数据")
+                    Utils.toast(this@BackupActivity, getString(R.string.no_bill_data))
                     return@withContext
                 }
                 confirmCleanup(
-                    title = "清空全部账单",
-                    message = "将删除所有账本下的全部 $count 条账单。\n\n此操作不可撤销，不进回收站，不回退资产余额。建议先备份。",
+                    title = getString(R.string.clear_all_bills_title),
+                    message = getString(R.string.clear_all_bills_message_fmt, count),
                     onConfirm = {
                         lifecycleScope.launch(Dispatchers.IO) {
                             db.billDao().deleteAll()
                             withContext(Dispatchers.Main) {
-                                Utils.toast(this@BackupActivity, "已清空全部 $count 条账单")
+                                Utils.toast(this@BackupActivity, getString(R.string.all_cleared_fmt, count))
                             }
                         }
                     }
@@ -413,25 +413,19 @@ class BackupActivity : AppCompatActivity() {
     }
 
     private fun showDatePicker(initialMs: Long, isStart: Boolean, onPicked: (Long) -> Unit) {
-        val cal = Calendar.getInstance().apply { timeInMillis = initialMs }
-        val label = if (isStart) "开始日期" else "结束日期"
-        val dialog = android.app.DatePickerDialog(this, { _, year, month, day ->
-            val picked = Calendar.getInstance().apply {
-                set(year, month, day, 0, 0, 0)
-                set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            onPicked(picked)
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
-        dialog.setTitle(label)
-        dialog.show()
+        ElegantDatePickerSheet.show(
+            context = this,
+            initialTimeMillis = initialMs,
+            onDateSelected = onPicked
+        )
     }
 
     private fun confirmCleanup(title: String, message: String, onConfirm: () -> Unit) {
         val dialog = AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage(message)
-            .setPositiveButton("确认清理") { _, _ -> onConfirm() }
-            .setNegativeButton("取消", null)
+            .setPositiveButton(R.string.confirm_cleanup) { _, _ -> onConfirm() }
+            .setNegativeButton(R.string.cancel, null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
@@ -482,7 +476,7 @@ class BackupActivity : AppCompatActivity() {
                 hint.text = getString(R.string.backup_full_hint)
             }
             BackupPreset.CUSTOM -> {
-                hint.text = "自定义模式已开启：请按需勾选更细的模块。"
+                hint.text = getString(R.string.backup_custom_hint)
             }
         }
     }
@@ -530,7 +524,7 @@ class BackupActivity : AppCompatActivity() {
         loadCloudSettings()
         findViewById<MaterialButton>(R.id.btn_save_cloud_settings).setOnClickListener {
             saveCloudSettings()
-            Utils.toast(this, "云端设置已保存")
+            Utils.toast(this, getString(R.string.cloud_saved))
         }
         findViewById<MaterialButton>(R.id.btn_test_cloud_connection).setOnClickListener {
             saveCloudSettings()
@@ -538,9 +532,9 @@ class BackupActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     WebDavClient.testConnection(config)
-                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "连接成功") }
+                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, getString(R.string.connection_success)) }
                 } catch (e: Exception) {
-                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "连接失败，请检查网络或 WebDAV 配置") }
+                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, getString(R.string.connection_failed)) }
                 }
             }
         }
@@ -550,7 +544,7 @@ class BackupActivity : AppCompatActivity() {
             val options = collectBackupOptions()
             val modeTag = currentBackupModeTag()
             if (!options.hasAnyModuleSelected()) {
-                Utils.toast(this, "请至少选择一个备份模块")
+                Utils.toast(this, getString(R.string.select_module))
                 return@setOnClickListener
             }
             resolvePinForBackup(options, existingBackupEncryptedApi = false, existingBackupUri = null) { pin ->
@@ -565,9 +559,9 @@ class BackupActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.btn_show_cleanup_policy).setOnClickListener {
             val dialog = AlertDialog.Builder(this)
-                .setTitle("云端保留策略")
+                .setTitle(R.string.cloud_retention_title)
                 .setMessage(getString(R.string.backup_retain_policy_desc))
-                .setPositiveButton("我知道了", null)
+                .setPositiveButton(R.string.i_know, null)
                 .create()
             OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
         }
@@ -601,15 +595,15 @@ class BackupActivity : AppCompatActivity() {
 
         return when {
             url.isBlank() -> {
-                Utils.toast(this, "请填写 WebDAV 地址")
+                Utils.toast(this, getString(R.string.input_webdav_url))
                 null
             }
             user.isBlank() -> {
-                Utils.toast(this, "请填写 WebDAV 账号")
+                Utils.toast(this, getString(R.string.input_webdav_account))
                 null
             }
             pass.isBlank() -> {
-                Utils.toast(this, "请填写 WebDAV 应用密码")
+                Utils.toast(this, getString(R.string.input_webdav_password))
                 null
             }
             else -> CloudBackupConfig(
@@ -639,11 +633,11 @@ class BackupActivity : AppCompatActivity() {
                 WebDavClient.uploadBackup(config, fileName, tempFile.readBytes())
                 runCatching { WebDavClient.cleanupBackups(config) }
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "已上传到云端：$fileName")
+                    Utils.toast(this@BackupActivity, getString(R.string.uploaded_fmt, fileName))
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "云端上传失败，请检查网络后重试")
+                    Utils.toast(this@BackupActivity, getString(R.string.upload_failed))
                 }
             } finally {
                 runCatching { tempFile.delete() }
@@ -660,12 +654,12 @@ class BackupActivity : AppCompatActivity() {
                 val tempFile = File(cacheDir, "temp_cloud_restore_${latest.timestamp}.bak")
                 FileOutputStream(tempFile).use { it.write(bytes) }
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "已下载：${latest.name}")
+                    Utils.toast(this@BackupActivity, getString(R.string.downloaded_fmt, latest.name))
                 }
                 showRestoreDialogFromFile(tempFile)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "云端下载失败，请检查网络后重试")
+                    Utils.toast(this@BackupActivity, getString(R.string.download_failed))
                 }
             }
         }
@@ -673,8 +667,8 @@ class BackupActivity : AppCompatActivity() {
 
     private fun showCsvQuickActionDialog() {
         val dialog = AlertDialog.Builder(this)
-            .setTitle("CSV 工具")
-            .setItems(arrayOf("导出 CSV", "导入账单", "修复历史资产绑定")) { _, which ->
+            .setTitle(R.string.csv_tools_title)
+            .setItems(arrayOf(getString(R.string.export_csv), getString(R.string.import_bills), getString(R.string.fix_asset_binding))) { _, which ->
                 when (which) {
                     0 -> findViewById<MaterialButton>(R.id.btn_export_csv).performClick()
                     1 -> findViewById<MaterialButton>(R.id.btn_import_csv).performClick()
@@ -688,7 +682,7 @@ class BackupActivity : AppCompatActivity() {
     private fun performBackup(uri: Uri) {
         val options = collectBackupOptions()
         if (!options.hasAnyModuleSelected()) {
-            Utils.toast(this, "请至少选择一个备份模块")
+            Utils.toast(this, getString(R.string.select_module))
             return
         }
         resolvePinForBackup(options, existingBackupEncryptedApi = false, existingBackupUri = null) { pin ->
@@ -743,21 +737,21 @@ class BackupActivity : AppCompatActivity() {
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
         if (hasLastPin) {
-            labels += "沿用上次 PIN"
+            labels += getString(R.string.backup_pin_reuse)
             actions += onUseLastPin
         }
-        labels += "设置新 PIN"
+        labels += getString(R.string.backup_pin_set_new)
         actions += onSetNewPin
         if (allowPlain) {
-            labels += "本次不加密"
+            labels += getString(R.string.backup_pin_skip)
             actions += onSkipEncryption
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("备份加密方式")
-            .setMessage("检测到将备份 AI 服务配置（含 API Key），请选择本次加密方式。")
+            .setTitle(R.string.backup_encryption_title)
+            .setMessage(R.string.backup_encryption_message)
             .setItems(labels.toTypedArray()) { _, which -> actions[which].invoke() }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.cancel, null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
@@ -774,18 +768,18 @@ class BackupActivity : AppCompatActivity() {
         if (targetFolder == null || !targetFolder.exists() || !targetFolder.canWrite()) {
             clearBackupTreeUri()
             updateBackupModeHint()
-            Utils.toast(this, "默认目录不可写，请重新选择")
+            Utils.toast(this, getString(R.string.dir_not_writable))
             return
         }
         val options = collectBackupOptions()
         if (!options.hasAnyModuleSelected()) {
-            Utils.toast(this, "请至少选择一个备份模块")
+            Utils.toast(this, getString(R.string.select_module))
             return
         }
         val existingDoc = targetFolder.findFile(LATEST_BACKUP_FILE_NAME)
         val backupDoc = existingDoc ?: targetFolder.createFile("application/octet-stream", LATEST_BACKUP_FILE_NAME)
         if (backupDoc == null) {
-            Utils.toast(this, "无法创建默认备份文件")
+            Utils.toast(this, getString(R.string.create_file_failed))
             return
         }
 
@@ -845,13 +839,13 @@ class BackupActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     Utils.toast(
                         this@BackupActivity,
-                        if (settingsPin.isNullOrBlank()) "备份已保存" else "备份已保存，敏感信息已用 PIN 加密"
+                        if (settingsPin.isNullOrBlank()) getString(R.string.backup_saved) else getString(R.string.backup_saved_encrypted)
                     )
                     if (isQuickOneShot()) finish()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "备份失败，请稍后重试")
+                    Utils.toast(this@BackupActivity, getString(R.string.backup_failed))
                 }
             } finally {
                 runCatching { tempFile.delete() }
@@ -911,9 +905,9 @@ class BackupActivity : AppCompatActivity() {
     private fun updateBackupModeHint() {
         val hasDefaultDir = getBackupTreeUri() != null
         findViewById<TextView>(R.id.tv_backup_mode_hint).text = if (hasDefaultDir) {
-            "默认目录已设置：点击“覆盖”会覆盖同名文件。"
+            getString(R.string.backup_dir_set_hint)
         } else {
-            "默认目录未设置：请先点击“更换默认目录”。"
+            getString(R.string.backup_dir_not_set_hint)
         }
     }
 
@@ -937,7 +931,7 @@ class BackupActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("BackupActivity", "解析备份文件失败", e)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "无法读取备份文件，文件可能已损坏")
+                    Utils.toast(this@BackupActivity, getString(R.string.file_corrupted))
                 }
             }
         }
@@ -1031,13 +1025,13 @@ class BackupActivity : AppCompatActivity() {
             )
 
             if (!hasModules) {
-                Utils.toast(this@BackupActivity, "这个备份文件里没有可恢复的数据模块")
+                Utils.toast(this@BackupActivity, getString(R.string.no_restorable_module))
                 return@withContext
             }
 
             val dialog = AlertDialog.Builder(this@BackupActivity)
                 .setView(view)
-                .setPositiveButton("开始恢复") { _, _ ->
+                .setPositiveButton(R.string.start_restore) { _, _ ->
                     val isMerge = rgRestoreMode.checkedRadioButtonId == R.id.rb_restore_merge
 
                     val options = RestoreOptions(
@@ -1071,7 +1065,7 @@ class BackupActivity : AppCompatActivity() {
                         if (options.restoreSettingsAiCore && settingsNeedsPin) promptPinForRestore(action) else action(null)
                     }
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(R.string.cancel, null)
                 .create()
             OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.92f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
         }
@@ -1135,13 +1129,13 @@ class BackupActivity : AppCompatActivity() {
                 syncRestoredRuntimeState(options)
 
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "数据恢复成功")
+                    Utils.toast(this@BackupActivity, getString(R.string.restore_success))
                     if (isQuickOneShot()) finish()
                 }
             } catch (e: Exception) {
                 Log.e("BackupActivity", "恢复数据失败", e)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "恢复失败，请检查备份文件后重试")
+                    Utils.toast(this@BackupActivity, getString(R.string.restore_failed))
                 }
             }
         }
@@ -1205,15 +1199,15 @@ class BackupActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     val msg = buildString {
-                        append("合并恢复完成")
+                        append(getString(R.string.merge_restore_complete))
                         if (result.insertedBills > 0 || result.skippedBills > 0) {
-                            append("\n账单：新增 ${result.insertedBills}，跳过 ${result.skippedBills}")
+                            append("\n${getString(R.string.merge_restore_bill_fmt, result.insertedBills, result.skippedBills)}")
                         }
                         if (result.insertedAssets > 0 || result.skippedAssets > 0) {
-                            append("\n资产：新增 ${result.insertedAssets}，跳过 ${result.skippedAssets}")
+                            append("\n${getString(R.string.merge_restore_asset_fmt, result.insertedAssets, result.skippedAssets)}")
                         }
                         if (result.insertedCategories > 0 || result.skippedCategories > 0) {
-                            append("\n分类：新增 ${result.insertedCategories}，跳过 ${result.skippedCategories}")
+                            append("\n${getString(R.string.merge_restore_category_fmt, result.insertedCategories, result.skippedCategories)}")
                         }
                     }
                     Utils.toast(this@BackupActivity, msg)
@@ -1222,7 +1216,7 @@ class BackupActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("BackupActivity", "合并恢复失败", e)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "恢复失败，请检查备份文件后重试")
+                    Utils.toast(this@BackupActivity, getString(R.string.restore_failed))
                 }
             }
         }
@@ -1361,54 +1355,54 @@ class BackupActivity : AppCompatActivity() {
             setPadding(p, p / 2, p, 0)
         }
         val etPin = EditText(this).apply {
-            hint = "输入4位PIN"
+            hint = getString(R.string.input_4digit_pin)
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             filters = arrayOf(InputFilter.LengthFilter(4))
         }
         val etPinConfirm = EditText(this).apply {
-            hint = "再次输入4位PIN"
+            hint = getString(R.string.confirm_4digit_pin)
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             filters = arrayOf(InputFilter.LengthFilter(4))
         }
         container.addView(etPin)
         container.addView(etPinConfirm)
         val dialog = AlertDialog.Builder(this)
-            .setTitle("设置备份 PIN")
+            .setTitle(R.string.set_backup_pin)
             .setMessage(getString(R.string.backup_pin_setup_prompt))
             .setView(container)
-            .setPositiveButton("确认") { _, _ ->
+            .setPositiveButton(R.string.confirm) { _, _ ->
                 val pin = etPin.text?.toString().orEmpty().trim()
                 val confirm = etPinConfirm.text?.toString().orEmpty().trim()
                 when {
-                    !pin.matches(Regex("^\\d{4}$")) -> Utils.toast(this, "PIN 必须是 4 位数字")
-                    pin != confirm -> Utils.toast(this, "两次输入的 PIN 不一致")
+                    !pin.matches(Regex("^\\d{4}$")) -> Utils.toast(this, getString(R.string.pin_must_4digit))
+                    pin != confirm -> Utils.toast(this, getString(R.string.pin_mismatch))
                     else -> onPinConfirmed(pin)
                 }
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.cancel, null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
     private fun promptPinForRestore(onPinConfirmed: (String) -> Unit) {
         val etPin = EditText(this).apply {
-            hint = "输入4位PIN"
+            hint = getString(R.string.input_4digit_pin)
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             filters = arrayOf(InputFilter.LengthFilter(4))
         }
         val dialog = AlertDialog.Builder(this)
-            .setTitle("输入备份 PIN")
+            .setTitle(R.string.input_backup_pin)
             .setMessage(getString(R.string.backup_pin_verify_prompt))
             .setView(etPin)
-            .setPositiveButton("继续恢复") { _, _ ->
+            .setPositiveButton(R.string.continue_restore) { _, _ ->
                 val pin = etPin.text?.toString().orEmpty().trim()
                 if (!pin.matches(Regex("^\\d{4}$"))) {
-                    Utils.toast(this, "PIN 必须是 4 位数字")
+                    Utils.toast(this, getString(R.string.pin_must_4digit))
                 } else {
                     onPinConfirmed(pin)
                 }
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.cancel, null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
@@ -1419,11 +1413,11 @@ class BackupActivity : AppCompatActivity() {
                 val bills = AppDatabase.getDatabase(this@BackupActivity).billDao().getAllBillsList()
                 contentResolver.openOutputStream(uri)?.use { CsvManager.export(bills, it) }
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "已导出 ${bills.size} 条账单")
+                    Utils.toast(this@BackupActivity, getString(R.string.exported_bills_fmt, bills.size))
                     if (intent?.getStringExtra(EXTRA_OPEN_SECTION) == SECTION_CSV && isQuickOneShot()) finish()
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "导出失败，请稍后重试") }
+                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, getString(R.string.export_failed)) }
             }
         }
     }
@@ -1431,20 +1425,20 @@ class BackupActivity : AppCompatActivity() {
     private fun performCsvImport(uri: Uri) {
         val books = BookAccountManager.getBookAccounts(this)
         if (books.isEmpty()) {
-            Utils.toast(this, "未找到可用账本，请先创建账本")
+            Utils.toast(this, getString(R.string.no_available_book))
             return
         }
         val selectedBook = BookAccountManager.getSelectedBook(this, books)
         var selectedIndex = books.indexOf(selectedBook).coerceAtLeast(0)
         val dialog = AlertDialog.Builder(this)
-            .setTitle("选择导入账本")
+            .setTitle(R.string.select_import_book)
             .setSingleChoiceItems(books.toTypedArray(), selectedIndex) { _, which -> selectedIndex = which }
-            .setMessage("当 CSV 中缺少 bookName 时，将导入到你选择的账本。")
-            .setPositiveButton("继续") { _, _ ->
+            .setMessage(R.string.csv_import_hint)
+            .setPositiveButton(R.string.continue_btn) { _, _ ->
                 val targetBook = books.getOrNull(selectedIndex) ?: BookAccountManager.getDefaultBook(this)
                 performCsvImportInternal(uri, targetBook)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.cancel, null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
@@ -1454,60 +1448,60 @@ class BackupActivity : AppCompatActivity() {
             try {
                 val bills = contentResolver.openInputStream(uri)?.use { CsvManager.import(it, fallbackBookName = targetBook) } ?: emptyList()
                 if (bills.isEmpty()) {
-                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "未解析到有效账单，请检查文件格式") }
+                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, getString(R.string.parse_failed)) }
                     return@launch
                 }
                 withContext(Dispatchers.Main) {
                     val dialog = AlertDialog.Builder(this@BackupActivity)
-                        .setTitle("确认导入")
-                        .setMessage("共解析到 ${bills.size} 条账单，导入后将追加到现有数据（不会清空原有账单）。\n\n缺失账本字段将落到：$targetBook\n是否继续？")
-                        .setPositiveButton("导入") { _, _ ->
+                        .setTitle(R.string.confirm_import_title)
+                        .setMessage(getString(R.string.confirm_import_message, bills.size, targetBook))
+                        .setPositiveButton(R.string.import_btn) { _, _ ->
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     val db = AppDatabase.getDatabase(this@BackupActivity)
                                     val importResult = importCsvBills(db, bills)
                                     withContext(Dispatchers.Main) {
                                         val assetHint = if (importResult.createdAssetNames.isNotEmpty()) {
-                                            "，已补充 ${importResult.createdAssetNames.size} 个临时资产，请到资产管理确认"
+                                            getString(R.string.import_asset_hint_fmt, importResult.createdAssetNames.size)
                                         } else {
                                             ""
                                         }
-                                        Utils.toast(this@BackupActivity, "成功导入 ${importResult.billCount} 条账单$assetHint")
+                                        Utils.toast(this@BackupActivity, getString(R.string.import_success_fmt, importResult.billCount, assetHint))
                                         if (intent?.getStringExtra(EXTRA_OPEN_SECTION) == SECTION_CSV && isQuickOneShot()) finish()
                                     }
                                 } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "导入失败，请检查 CSV 文件格式") }
+                                    withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, getString(R.string.import_failed)) }
                                 }
                             }
                         }
-                        .setNegativeButton("取消", null)
+                        .setNegativeButton(R.string.cancel, null)
                         .create()
                     OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, "无法解析 CSV 文件，请检查文件格式") }
+                withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, getString(R.string.csv_parse_failed)) }
             }
         }
     }
 
     private fun promptPinVerifyForOverwrite(existingBackupUri: Uri, onPinConfirmed: (String) -> Unit) {
         val etPin = EditText(this).apply {
-            hint = "输入现有备份PIN"
+            hint = getString(R.string.input_existing_pin)
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             filters = arrayOf(InputFilter.LengthFilter(4))
         }
         val dialog = AlertDialog.Builder(this)
-            .setTitle("验证备份 PIN")
+            .setTitle(R.string.verify_backup_pin)
             .setMessage(getString(R.string.backup_pin_match_prompt))
             .setView(etPin)
-            .setPositiveButton("验证并继续", null)
-            .setNegativeButton("取消", null)
+            .setPositiveButton(R.string.verify_and_continue, null)
+            .setNegativeButton(R.string.cancel, null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val pin = etPin.text?.toString().orEmpty().trim()
             if (!pin.matches(Regex("^\\d{4}$"))) {
-                Utils.toast(this, "PIN 必须是 4 位数字")
+                Utils.toast(this, getString(R.string.pin_must_4digit))
                 return@setOnClickListener
             }
             lifecycleScope.launch(Dispatchers.IO) {
@@ -1517,7 +1511,7 @@ class BackupActivity : AppCompatActivity() {
                         dialog.dismiss()
                         onPinConfirmed(pin)
                     } else {
-                        Utils.toast(this@BackupActivity, "PIN 与当前备份不一致")
+                        Utils.toast(this@BackupActivity, getString(R.string.pin_not_match))
                     }
                 }
             }
@@ -1572,11 +1566,11 @@ class BackupActivity : AppCompatActivity() {
                 val result = repairMissingAssetBindings(db)
                 withContext(Dispatchers.Main) {
                     val message = if (result.updatedBillCount == 0 && result.createdAssetNames.isEmpty()) {
-                        "未发现需要修复的资产绑定"
+                        getString(R.string.fix_binding_none)
                     } else {
-                        "已修复 ${result.updatedBillCount} 条账单资产绑定" +
+                        getString(R.string.fix_binding_result_fmt, result.updatedBillCount) +
                             if (result.createdAssetNames.isNotEmpty()) {
-                                "，补充 ${result.createdAssetNames.size} 个临时资产，请到资产管理确认"
+                                getString(R.string.fix_binding_created_assets_fmt, result.createdAssetNames.size)
                             } else {
                                 ""
                             }
@@ -1585,7 +1579,7 @@ class BackupActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, "修复失败，请稍后重试")
+                    Utils.toast(this@BackupActivity, getString(R.string.fix_failed))
                 }
             }
         }

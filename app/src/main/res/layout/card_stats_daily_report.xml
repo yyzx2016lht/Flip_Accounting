@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="日报表"
+            android:text="@string/daily_report"
             android:textColor="@color/stats_segmented_text_active"
             android:textSize="@dimen/text_size_16"
             android:textStyle="bold" />
@@ -50,7 +50,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1.2"
                 android:gravity="center"
-                android:text="日期"
+                android:text="@string/date"
                 android:textColor="@color/stats_daily_header_text"
                 android:textSize="@dimen/text_size_12"
                 android:textStyle="bold" />
@@ -60,7 +60,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:text="收入"
+                android:text="@string/income"
                 android:textColor="@color/stats_daily_header_text"
                 android:textSize="@dimen/text_size_12"
                 android:textStyle="bold" />
@@ -70,7 +70,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:text="支出"
+                android:text="@string/expense"
                 android:textColor="@color/stats_daily_header_text"
                 android:textSize="@dimen/text_size_12"
                 android:textStyle="bold" />
@@ -80,7 +80,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:text="结余"
+                android:text="@string/balance"
                 android:textColor="@color/stats_daily_header_text"
                 android:textSize="@dimen/text_size_12"
                 android:textStyle="bold" />

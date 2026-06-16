@@ -18,7 +18,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:paddingTop="80dp"
-        android:text="回收站为空"
+        android:text="@string/trash_empty"
         android:textColor="#999999"
         android:textSize="15sp"
         android:visibility="gone" />
@@ -51,7 +51,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_delete_followup_primary_btn"
             android:gravity="center"
-            android:text="恢复"
+            android:text="@string/restore"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -64,7 +64,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_delete_followup_danger_btn"
             android:gravity="center"
-            android:text="永久删除"
+            android:text="@string/permanent_delete"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold" />

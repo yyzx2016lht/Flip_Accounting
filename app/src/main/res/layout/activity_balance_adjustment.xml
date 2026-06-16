@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="平账记录"
+            android:text="@string/title_balance_adjustment"
             android:textSize="@dimen/text_size_18"
             android:textStyle="bold"
             android:textColor="#333333"/>
@@ -58,7 +58,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="平账记录："
+                        android:text="@string/balance_adjustment_label"
                         android:textColor="#333333"
                         android:textStyle="bold"
                         android:textSize="@dimen/text_size_14"/>
@@ -66,14 +66,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="手动修改资产余额后，可以选择是否生成一笔修改记录。"
+                        android:text="@string/balance_adjustment_desc"
                         android:textColor="#666666"
                         android:textSize="@dimen/text_size_13"/>
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
-                        android:text="操作："
+                        android:text="@string/operation_label"
                         android:textColor="#333333"
                         android:textStyle="bold"
                         android:textSize="@dimen/text_size_14"/>
@@ -81,7 +81,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="- 仅修改资产余额：只会更改资产余额，不会生成账单记录；\n- 生成记录：自动增加一笔收入或者支出类型的账单，默认会计入收支统计中，可以通过「账单标记」来不计入统计。"
+                        android:text="@string/balance_adjustment_detail"
                         android:textColor="#666666"
                         android:textSize="@dimen/text_size_13"/>
                 </LinearLayout>
@@ -104,7 +104,7 @@
                         android:paddingHorizontal="16dp"
                         android:paddingTop="14dp"
                         android:paddingBottom="8dp"
-                        android:text="账单内容"
+                        android:text="@string/bill_content"
                         android:textColor="#999999"
                         android:textSize="@dimen/text_size_13"/>
 
@@ -123,7 +123,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_centerVertical="true"
-                                android:text="差额"
+                                android:text="@string/difference"
                                 android:textColor="#333333"
                                 android:textSize="@dimen/text_size_16"/>
                             <TextView
@@ -159,7 +159,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
-                            android:text="类型"
+                            android:text="@string/type_label"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_16"/>
                         <TextView
@@ -168,7 +168,7 @@
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
-                            android:text="收入"
+                            android:text="@string/income"
                             android:textColor="#2196F3"
                             android:textSize="@dimen/text_size_16"/>
                     </RelativeLayout>
@@ -186,7 +186,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
-                            android:text="分类"
+                            android:text="@string/category_label"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_16"/>
                         <LinearLayout
@@ -200,7 +200,7 @@
                                 android:id="@+id/tv_category"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="其它"
+                                android:text="@string/other_category"
                                 android:textColor="#2196F3"
                                 android:textSize="@dimen/text_size_16"/>
                             <ImageView
@@ -225,7 +225,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
-                            android:text="账单标记"
+                            android:text="@string/bill_mark"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_16"/>
                         <LinearLayout
@@ -239,7 +239,7 @@
                                 android:id="@+id/tv_tag"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="未选择"
+                                android:text="@string/not_selected"
                                 android:textColor="#999999"
                                 android:textSize="@dimen/text_size_16"/>
                             <ImageView
@@ -264,7 +264,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="备注"
+                            android:text="@string/remark"
                             android:textColor="#999999"
                             android:textSize="@dimen/text_size_12"/>
                         <EditText
@@ -301,7 +301,7 @@
             android:id="@+id/btn_generate"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="生成记录"
+            android:text="@string/generate_record"
             android:textSize="@dimen/text_size_16"
             android:textColor="@android:color/white"
             app:cornerRadius="26dp"
@@ -312,7 +312,7 @@
             android:id="@+id/btn_no_record"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="仅修改资产余额"
+            android:text="@string/modify_balance_only"
             android:textSize="@dimen/text_size_16"
             android:textColor="#2196F3"
             app:cornerRadius="26dp"

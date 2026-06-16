@@ -364,7 +364,7 @@ class OverlayService : Service() {
             overlayManager = OverlayManager(this)
             isFlipEnabled = Prefs.isFlipEnabled(this)
             isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
-            promoteToForeground("双击检测运行中")
+            promoteToForeground(getString(R.string.notif_double_tap_running))
             keepAliveManager.attach()
 
             if (isFlipEnabled) {
@@ -404,7 +404,7 @@ class OverlayService : Service() {
             ACTION_START_FLIP -> {
                 isFlipEnabled = true
                 cancelRestart()
-                promoteToForeground("快速手势运行中")
+                promoteToForeground(getString(R.string.notif_quick_gesture_running))
                 startFlipDetectionIfAllowed("user-start-flip")
             }
             ACTION_STOP_FLIP -> {
@@ -415,7 +415,7 @@ class OverlayService : Service() {
             ACTION_START_DOUBLE_TAP -> {
                 isDoubleTapEnabled = true
                 cancelRestart()
-                promoteToForeground("双击检测运行中")
+                promoteToForeground(getString(R.string.notif_double_tap_running))
                 startTapDetectionIfAllowed("user-start")
                 scheduleKeepAliveWork()
             }
@@ -436,7 +436,7 @@ class OverlayService : Service() {
                 isDoubleTapEnabled = Prefs.isDoubleTapEnabled(this)
                 if (isDoubleTapEnabled) {
                     cancelRestart()
-                    promoteToForeground("双击检测运行中")
+                    promoteToForeground(getString(R.string.notif_double_tap_running))
                     keepAliveManager.restartDetector("settings-restart")
                     scheduleKeepAliveWork()
                 } else {
@@ -594,7 +594,7 @@ class OverlayService : Service() {
         if (actionId.isEmpty()) {
             triggerTapFeedback("tap-$tapCount-detected-no-action")
             Logger.d(this, "OverlayService", "Tap $tapCount detected but no action configured")
-            Utils.toast(this, "已识别敲击，但还没有配置触发动作")
+            Utils.toast(this, getString(R.string.toast_tap_no_action))
             return
         }
         val action = com.taostudio.tapaccounting.tap.TapActionRegistry.findById(actionId)
@@ -606,7 +606,7 @@ class OverlayService : Service() {
         } else {
             triggerTapFeedback("tap-$tapCount-detected-unknown-action")
             Logger.d(this, "OverlayService", "Tap $tapCount detected but action id is unknown: $actionId")
-            Utils.toast(this, "已识别敲击，但动作配置已失效")
+            Utils.toast(this, getString(R.string.toast_tap_action_expired))
         }
     }
 
@@ -622,13 +622,13 @@ class OverlayService : Service() {
         val actionId = Prefs.getFlipAction(this)
         if (actionId.isEmpty()) {
             Logger.d(this, "OverlayService", "Flip detected but no action configured")
-            Utils.toast(this, "已识别翻转，但还没有配置触发动作")
+            Utils.toast(this, getString(R.string.toast_flip_no_action))
             return
         }
         val action = com.taostudio.tapaccounting.tap.TapActionRegistry.findById(actionId)
         if (action == null) {
             Logger.d(this, "OverlayService", "Flip detected but action id is unknown: $actionId")
-            Utils.toast(this, "已识别翻转，但动作配置已失效")
+            Utils.toast(this, getString(R.string.toast_flip_action_expired))
             return
         }
         Logger.d(this, "OverlayService", "Flip detected, executing: ${action.displayName}")
@@ -678,7 +678,7 @@ class OverlayService : Service() {
         return try {
             startForeground(
                 NOTIF_ID,
-                OverlayServiceNotifications.build(this, CHANNEL_ID, "录音中..."),
+                OverlayServiceNotifications.build(this, CHANNEL_ID, getString(R.string.notif_recording)),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             )
@@ -693,7 +693,7 @@ class OverlayService : Service() {
     fun exitMicrophoneMode() {
         try {
             if (isDoubleTapEnabled) {
-                promoteToForeground("双击检测运行中")
+                promoteToForeground(getString(R.string.notif_double_tap_running))
                 Logger.d(this, "OverlayService", "exitMicrophoneMode: restored SPECIAL_USE foreground")
             } else {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE)

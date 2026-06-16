@@ -240,7 +240,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="20dp"
-                            android:text="还没有账单"
+                            android:text="@string/no_bills_yet"
                             android:textColor="@color/home_empty_title"
                             android:textSize="@dimen/text_size_18"
                             android:textStyle="bold"
@@ -250,7 +250,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="记录每一笔收支，掌控财务从现在开始"
+                            android:text="@string/no_bills_hint"
                             android:textColor="@color/home_empty_subtitle"
                             android:textSize="@dimen/text_size_13"
                             android:letterSpacing="0.02" />
@@ -262,7 +262,7 @@
                             android:layout_marginTop="24dp"
                             android:background="@drawable/bg_home_empty_action"
                             android:gravity="center"
-                            android:text="记一笔"
+                            android:text="@string/record_one"
                             android:textColor="#FFFFFF"
                             android:textSize="@dimen/text_size_15"
                             android:textStyle="bold"
@@ -332,7 +332,7 @@
                         android:layout_centerVertical="true"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
-                        android:contentDescription="搜索账单"
+                        android:contentDescription="@string/search_bills"
                         android:focusable="true"
                         android:padding="7dp"
                         android:src="@drawable/ic_home_search"
@@ -361,7 +361,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline"
                 android:gravity="center"
-                android:text="退出多选"
+                android:text="@string/exit_multi_select"
                 android:textColor="#666666"
                 android:textSize="@dimen/text_size_16" />
 
@@ -373,7 +373,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline"
                 android:gravity="center"
-                android:text="全选"
+                android:text="@string/select_all"
                 android:textColor="#333333"
                 android:textSize="@dimen/text_size_16" />
 
@@ -385,7 +385,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline"
                 android:gravity="center"
-                android:text="移动"
+                android:text="@string/move"
                 android:textColor="#4080FF"
                 android:textSize="@dimen/text_size_16" />
 
@@ -397,7 +397,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline_red"
                 android:gravity="center"
-                android:text="删除"
+                android:text="@string/delete"
                 android:textColor="#FF5252"
                 android:textSize="@dimen/text_size_16" />
         </LinearLayout>
@@ -447,7 +447,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="账本"
+                        android:text="@string/book"
                         android:textColor="#15294B"
                         android:textSize="21sp"
                         android:textStyle="bold" />
@@ -456,7 +456,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="管理与切换记账空间"
+                        android:text="@string/manage_book_space"
                         android:textColor="#8E9CAF"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -469,7 +469,7 @@
                     android:gravity="center"
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
-                    android:text="📊 总览"
+                    android:text="@string/overview"
                     android:textColor="#4F75E2"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -502,7 +502,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="14dp"
                     android:layout_marginBottom="6dp"
-                    android:text="我的账本"
+                    android:text="@string/my_books"
                     android:textColor="#8E9CAF"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -542,7 +542,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:layout_marginBottom="6dp"
-                    android:text="快速创建"
+                    android:text="@string/quick_create"
                     android:textColor="#8E9CAF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -553,7 +553,7 @@
                     android:layout_height="48dp"
                     android:background="@drawable/bg_book_item_selected"
                     android:gravity="center"
-                    android:text="+ 新增账本"
+                    android:text="@string/add_new_book"
                     android:textColor="#3D67DA"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -576,7 +576,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:background="@android:color/transparent"
-                        android:hint="输入账本名称"
+                        android:hint="@string/hint_book_name"
                         android:imeOptions="actionDone"
                         android:inputType="textCapWords"
                         android:maxLines="1"
@@ -617,7 +617,7 @@
                     android:gravity="center"
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
-                    android:text="创建后设为默认账本 · 未开启"
+                    android:text="@string/set_default_hint"
                     android:textColor="#6E7D94"
                     android:textSize="12sp"
                     android:textStyle="bold"

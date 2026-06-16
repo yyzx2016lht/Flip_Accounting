@@ -55,7 +55,7 @@ class ChatAudioRecordController(
             setIsRecording(true)
             setRecordingStartAt(System.currentTimeMillis())
             val btnVoiceHold = btnVoiceHoldProvider()
-            btnVoiceHold.text = "松开发送"
+            btnVoiceHold.text = context.getString(R.string.release_to_send)
             btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#E6E6E6"))
             startRecordingButtonPulse()
             showVoiceRecordOverlay(false)

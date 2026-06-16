@@ -58,7 +58,7 @@
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="日常账本"
+                    android:text="@string/daily_book"
                     android:textColor="#FFFFFF"
                     android:textSize="17sp"
                     android:textStyle="bold" />
@@ -73,7 +73,7 @@
                     android:paddingEnd="8dp"
                     android:paddingTop="3dp"
                     android:paddingBottom="3dp"
-                    android:text="当前"
+                    android:text="@string/current"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -104,7 +104,7 @@
                     android:id="@+id/tvBookExpenseLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="月支出"
+                    android:text="@string/monthly_expense"
                     android:textColor="#8E98A6"
                     android:textSize="12sp" />
 
@@ -137,7 +137,7 @@
                     android:id="@+id/tvBookIncomeLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="月收入"
+                    android:text="@string/monthly_income"
                     android:textColor="#8E98A6"
                     android:textSize="12sp" />
 

@@ -61,7 +61,7 @@ class RefundActivity : AppCompatActivity() {
         billId = intent.getLongExtra(BILL_ID, -1L)
         editingRefundId = intent.getLongExtra(EDITING_REFUND_ID, -1L)
         if (billId == -1L) {
-            Toast.makeText(this, "账单不存在", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.bill_not_exist), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -102,7 +102,7 @@ class RefundActivity : AppCompatActivity() {
             val existingRefund = if (editingRefundId > 0L) app.billRepository.getBillById(editingRefundId) else null
             withContext(Dispatchers.Main) {
                 if (sourceBill == null) {
-                    Toast.makeText(this@RefundActivity, "账单不存在", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RefundActivity, getString(R.string.bill_not_exist), Toast.LENGTH_SHORT).show()
                     finish()
                     return@withContext
                 }
@@ -114,16 +114,16 @@ class RefundActivity : AppCompatActivity() {
     }
 
     private fun displayBillData(sourceBill: Bill, existingRefund: Bill?) {
-        tvTitle.text = if (existingRefund == null) "退款" else "编辑退款"
-        tvOrigCategory.text = sourceBill.categoryName.ifBlank { "未分类" }
-        tvOrigAmount.text = "原支出 ${formatMoney(sourceBill.amount)}"
+        tvTitle.text = if (existingRefund == null) getString(R.string.refund_label) else getString(R.string.edit_refund_label)
+        tvOrigCategory.text = sourceBill.categoryName.ifBlank { getString(R.string.uncategorized) }
+        tvOrigAmount.text = getString(R.string.original_expense_fmt, formatMoney(sourceBill.amount))
         tvRefundCategoryInitial.text = buildInitial(tvOrigCategory.text.toString())
 
         refundAmount = String.format(Locale.getDefault(), "%.2f", existingRefund?.amount ?: sourceBill.amount)
         tvRefundAmount.text = "+${formatMoney(refundAmount.toDoubleOrNull() ?: 0.0)}"
 
         selectedAccount = existingRefund?.accountName ?: sourceBill.accountName
-        tvRefundAccount.text = selectedAccount.ifBlank { "选择账户" }
+        tvRefundAccount.text = selectedAccount.ifBlank { getString(R.string.select_refund_account_label) }
 
         val existingTime = existingRefund?.time
         selectedTimeStr = if (existingTime != null) {
@@ -134,7 +134,7 @@ class RefundActivity : AppCompatActivity() {
         tvRefundTime.text = selectedTimeStr
 
         etRemark.setText(
-            existingRefund?.remark ?: "退款：${sourceBill.categoryName}"
+            existingRefund?.remark ?: getString(R.string.refund_prefix) + sourceBill.categoryName
         )
 
         loadCategoryIcon(sourceBill)
@@ -149,9 +149,9 @@ class RefundActivity : AppCompatActivity() {
     }
 
     private fun showAssetPicker() {
-        OverlayDialogs.showGridAssetPicker(this, selectedAccount, "选择退款入账账户") { selected ->
+        OverlayDialogs.showGridAssetPicker(this, selectedAccount, getString(R.string.select_refund_account)) { selected ->
             selectedAccount = selected
-            tvRefundAccount.text = selected.ifBlank { "选择账户" }
+            tvRefundAccount.text = selected.ifBlank { getString(R.string.select_refund_account_label) }
         }
     }
 
@@ -174,15 +174,15 @@ class RefundActivity : AppCompatActivity() {
 
         val amount = refundAmount.toDoubleOrNull() ?: 0.0
         if (amount <= 0) {
-            Toast.makeText(this, "退款金额必须大于0", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.refund_amount_invalid), Toast.LENGTH_SHORT).show()
             return
         }
-        if (selectedAccount.isBlank() || selectedAccount == "选择账户") {
-            Toast.makeText(this, "请选择退款入账账户", Toast.LENGTH_SHORT).show()
+        if (selectedAccount.isBlank() || selectedAccount == getString(R.string.select_refund_account_label)) {
+            Toast.makeText(this, getString(R.string.select_refund_entry_account), Toast.LENGTH_SHORT).show()
             return
         }
 
-        val remark = etRemark.text.toString().trim().ifBlank { "退款：${sourceBill.categoryName}" }
+        val remark = etRemark.text.toString().trim().ifBlank { getString(R.string.refund_prefix) + sourceBill.categoryName }
         val refundTimeLong = runCatching {
             pickerFormat.parse("$selectedTimeStr:00")?.time ?: System.currentTimeMillis()
         }.getOrDefault(System.currentTimeMillis())
@@ -213,21 +213,21 @@ class RefundActivity : AppCompatActivity() {
                 )
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RefundActivity, if (editingRefund == null) "退款已保存" else "退款已更新", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RefundActivity, if (editingRefund == null) getString(R.string.refund_saved) else getString(R.string.refund_updated), Toast.LENGTH_SHORT).show()
                     setResult(RESULT_OK)
                     finish()
                 }
             } catch (e: IllegalArgumentException) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RefundActivity, "退款金额不能大于剩余支出", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RefundActivity, getString(R.string.refund_exceed), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: IllegalStateException) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RefundActivity, "原账单不存在或不可退款", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RefundActivity, getString(R.string.refund_invalid), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RefundActivity, "退款失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RefundActivity, getString(R.string.refund_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }

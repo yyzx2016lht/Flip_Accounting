@@ -99,10 +99,10 @@ class AiAssistant(private val ctx: Context) {
         btnIdentify.setOnClickListener {
             val text = etInput.text.toString().trim()
             if (text.isEmpty()) {
-                Utils.toast(ctx, "请输入记账内容")
+                Utils.toast(ctx, ctx.getString(R.string.toast_input_content))
                 return@setOnClickListener
             }
-            updatePanelState(MODE_LOADING, "正在分析语义...")
+            updatePanelState(MODE_LOADING, ctx.getString(R.string.analyzing_semantic))
             startAnalysis(text, isMultiMode, onResult)
         }
 
@@ -142,7 +142,7 @@ class AiAssistant(private val ctx: Context) {
                 layoutInput.visibility = View.GONE
                 layoutLoading.visibility = View.VISIBLE
                 layoutResult.visibility = View.GONE
-                tvThinkingLog?.text = if (!text.isNullOrEmpty()) "正在听：$text" else "倾听中..."
+                tvThinkingLog?.text = if (!text.isNullOrEmpty()) ctx.getString(R.string.listening_to, text) else ctx.getString(R.string.listening)
                 tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
                 tvRecordedTextPreview?.visibility = View.GONE
                 progressAiLoading?.visibility = View.VISIBLE
@@ -156,7 +156,7 @@ class AiAssistant(private val ctx: Context) {
                 layoutInput.visibility = View.GONE
                 layoutLoading.visibility = View.VISIBLE
                 layoutResult.visibility = View.GONE
-                tvThinkingLog?.text = "松开即可取消"
+                tvThinkingLog?.text = ctx.getString(R.string.release_to_cancel_overlay)
                 tvThinkingLog?.setTextColor(android.graphics.Color.RED)
                 tvRecordedTextPreview?.visibility = View.GONE
                 progressAiLoading?.visibility = View.VISIBLE
@@ -171,7 +171,7 @@ class AiAssistant(private val ctx: Context) {
                 layoutLoading.visibility = View.VISIBLE
                 layoutResult.visibility = View.GONE
                 tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
-                tvThinkingLog?.text = text ?: "正在处理..."
+                tvThinkingLog?.text = text ?: ctx.getString(R.string.processing)
                 tvRecordedTextPreview?.visibility = View.GONE
                 progressAiLoading?.visibility = View.VISIBLE
                 btnExpandPreview?.visibility = View.GONE
@@ -208,7 +208,7 @@ class AiAssistant(private val ctx: Context) {
     }
 
     private fun overlayHiddenStreamStatus(): String =
-        "正在整理账单...\n正在提取金额、分类和账户"
+        ctx.getString(R.string.overlay_hidden_stream_status)
 
     private fun buildOverlayStreamingPreview(raw: String, previous: String): String? {
         return StreamingBillPreview.formatOverlayPreview(raw, previous) { remark, category, amount, currency ->
@@ -232,7 +232,7 @@ class AiAssistant(private val ctx: Context) {
             }
             streamState.lastPreview = candidate
             streamState.lastUpdateMs = android.os.SystemClock.elapsedRealtime()
-            updateLoadingText("正在整理账单...")
+            updateLoadingText(ctx.getString(R.string.organizing_bills))
             updateLoadingPreview(candidate)
             if (!streamState.spinnerHidden) {
                 progressAiLoading?.visibility = View.GONE
@@ -274,17 +274,17 @@ class AiAssistant(private val ctx: Context) {
                 onResult(bills.getJSONObject(0))
                 return
             }
-            updateLoadingText("识别完成，共 ${bills.length()} 条")
+            updateLoadingText(ctx.getString(R.string.recognition_complete_count, bills.length()))
             progressAiLoading?.visibility = View.GONE
             updateLoadingPreview(formatOverlayFinalBillPreview(bills))
             btnExpandPreview?.apply {
                 visibility = if (bills.length() > 8) View.VISIBLE else View.GONE
-                text = "展开全部"
+                text = ctx.getString(R.string.expand_all)
                 var expanded = false
                 setOnClickListener {
                     expanded = !expanded
                     updateLoadingPreview(formatOverlayFinalBillPreview(bills, expanded))
-                    text = if (expanded) "收起" else "展开全部"
+                    text = if (expanded) ctx.getString(R.string.collapse) else ctx.getString(R.string.expand_all)
                 }
             }
             btnStartRecordNow?.apply {
@@ -306,7 +306,7 @@ class AiAssistant(private val ctx: Context) {
         val limit = if (expanded) bills.length() else 8
         for (i in 0 until minOf(bills.length(), limit)) {
             val bill = bills.optJSONObject(i) ?: continue
-            val remark = bill.optString("remarks", bill.optString("remark", "")).ifBlank { "未命名账单" }
+            val remark = bill.optString("remarks", bill.optString("remark", "")).ifBlank { ctx.getString(R.string.unnamed_bill) }
             val category = bill.optString("category_name", "")
             val amount = bill.optDouble("amount", Double.NaN).takeUnless { it.isNaN() }
             val currency = bill.optString("currency", "")
@@ -317,7 +317,7 @@ class AiAssistant(private val ctx: Context) {
                 currency = currency
             )
         }
-        lines += "共识别到 ${bills.length()} 条账单"
+        lines += ctx.getString(R.string.recognized_bills_count, bills.length())
         return lines.joinToString("\n")
     }
 
@@ -328,7 +328,7 @@ class AiAssistant(private val ctx: Context) {
         currency: String
     ): String {
         val amountText = amount?.let { formatMoneyWithSymbol(it, currency) }.orEmpty()
-        val categoryText = category.ifBlank { "分类识别中" }
+        val categoryText = category.ifBlank { ctx.getString(R.string.category_recognizing) }
         return listOf(remark, categoryText, amountText)
             .filter { it.isNotBlank() }
             .joinToString("  ")
@@ -388,7 +388,7 @@ class AiAssistant(private val ctx: Context) {
                 })
                 withContext(Dispatchers.Main) {
                     if (result == null) {
-                        Utils.toast(ctx, "识别失败：AI 返回内容无法解析")
+                        Utils.toast(ctx, ctx.getString(R.string.toast_parse_failed))
                         updatePanelState(MODE_INPUT, text)
                         return@withContext
                     }
@@ -416,12 +416,12 @@ class AiAssistant(private val ctx: Context) {
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(ctx, "已取消")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_canceled))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Utils.toast(ctx, "AI 服务请求失败，请稍后重试")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_ai_request_failed))
                     updatePanelState(MODE_INPUT, text)
                 }
             }
@@ -448,15 +448,15 @@ class AiAssistant(private val ctx: Context) {
             val bills = result.getJSONArray("bills")
             val count = bills.length()
 
-            tvResMoney.text = "识别到 $count 条账单"
+            tvResMoney.text = ctx.getString(R.string.recognition_complete_count, count)
             tvResMoney.setTextColor(android.graphics.Color.parseColor("#5C6BC0"))
 
             if (count > 0) {
                 val first = bills.getJSONObject(0)
                 val firstAmt = first.optDouble("amount", 0.0)
                 val firstCat = formatCategoryDisplay(first.optString("category_name", ""))
-                val firstRemark = first.optString("remarks", first.optString("remark", "")).ifBlank { "未填写备注" }
-                tvResCate.text = "首笔分类: ${firstCat.ifBlank { "待确认" }}"
+                val firstRemark = first.optString("remarks", first.optString("remark", "")).ifBlank { ctx.getString(R.string.remark_not_filled) }
+                tvResCate.text = ctx.getString(R.string.first_category_label, firstCat.ifBlank { ctx.getString(R.string.pending_confirm) })
                 tvResSummary.text = buildMultiBillSummary(bills, firstAmt, firstRemark)
                 if (assetFeatureEnabled) {
                     tvResAsset.visibility = View.VISIBLE
@@ -465,8 +465,8 @@ class AiAssistant(private val ctx: Context) {
                     tvResAsset.visibility = View.GONE
                 }
             } else {
-                tvResCate.text = "识别结果待确认"
-                tvResSummary.text = "请确认后继续处理。"
+                tvResCate.text = ctx.getString(R.string.recognition_pending_confirm)
+                tvResSummary.text = ctx.getString(R.string.confirm_to_continue)
                 tvResAsset.visibility = View.GONE
             }
             tvResTime.visibility = View.GONE
@@ -486,33 +486,33 @@ class AiAssistant(private val ctx: Context) {
             )
 
             val timeStr = result.optString("time", "")
-            tvResTime.text = if (timeStr.isNotEmpty()) "时间: $timeStr" else "时间: 现在"
+            tvResTime.text = if (timeStr.isNotEmpty()) ctx.getString(R.string.time_label, timeStr) else ctx.getString(R.string.time_now)
             tvResTime.visibility = View.VISIBLE
-            val remark = result.optString("remarks", result.optString("remark", "")).ifBlank { "未填写备注" }
+            val remark = result.optString("remarks", result.optString("remark", "")).ifBlank { ctx.getString(R.string.remark_not_filled) }
 
             when (type) {
                 2 -> {
-                    tvResCate.text = "转入账户: ${result.optString("to_asset_name", "--")}"
+                    tvResCate.text = ctx.getString(R.string.transfer_to_account_label, result.optString("to_asset_name", "--"))
                     tvResSummary.text = remark
                     tvResAsset.visibility = View.VISIBLE
-                    tvResAsset.text = "转出账户: ${result.optString("asset_name", "--")}"
+                    tvResAsset.text = ctx.getString(R.string.from_account) + ": ${result.optString("asset_name", "--")}"
                 }
 
                 3 -> {
-                    tvResCate.text = "还款给: ${result.optString("to_asset_name", "--")}"
+                    tvResCate.text = ctx.getString(R.string.repay_to_label, result.optString("to_asset_name", "--"))
                     tvResSummary.text = remark
                     tvResAsset.visibility = View.VISIBLE
-                    tvResAsset.text = "支付方: ${result.optString("asset_name", "--")}"
+                    tvResAsset.text = ctx.getString(R.string.payer_label, result.optString("asset_name", "--"))
                 }
 
                 else -> {
                     val cat = formatCategoryDisplay(result.optString("category_name", ""))
-                    tvResCate.text = "分类: ${cat.ifBlank { "待确认" }}"
+                    tvResCate.text = ctx.getString(R.string.category_label_fmt, cat.ifBlank { ctx.getString(R.string.pending_confirm) })
                     tvResSummary.text = remark
                     if (assetFeatureEnabled) {
                         val assetName = result.optString("asset_name", "")
                         tvResAsset.visibility = View.VISIBLE
-                        tvResAsset.text = "账户: ${if (assetName.isEmpty()) "未识别" else assetName}"
+                        tvResAsset.text = ctx.getString(R.string.account_label_fmt, if (assetName.isEmpty()) ctx.getString(R.string.not_recognized) else assetName)
                     } else {
                         tvResAsset.visibility = View.GONE
                     }
@@ -541,10 +541,10 @@ class AiAssistant(private val ctx: Context) {
 
     private fun buildMultiBillSummary(bills: JSONArray, firstAmount: Double, firstRemark: String): String {
         val previewLines = mutableListOf<String>()
-        previewLines += "首笔: $firstRemark  ¥${String.format("%.2f", firstAmount)}"
+        previewLines += ctx.getString(R.string.first_bill_preview, firstRemark, "¥${String.format("%.2f", firstAmount)}")
         val remaining = bills.length() - 1
         if (remaining > 0) {
-            previewLines += "其余 $remaining 笔会在确认后继续处理。"
+            previewLines += ctx.getString(R.string.remaining_bills_hint, remaining)
         }
         return previewLines.joinToString("\n")
     }
@@ -559,11 +559,11 @@ class AiAssistant(private val ctx: Context) {
         }
         return when {
             targets.isNotEmpty() && assets.isNotEmpty() ->
-                "账户: ${assets.joinToString("、")}  ->  ${targets.joinToString("、")}"
+                ctx.getString(R.string.account_transfer_label, assets.joinToString("、"), targets.joinToString("、"))
             assets.isNotEmpty() ->
-                "账户: ${assets.joinToString("、")}"
+                ctx.getString(R.string.account_label_fmt, assets.joinToString("、"))
             else ->
-                "确认后将继续逐条处理"
+                ctx.getString(R.string.confirm_then_process)
         }
     }
 
@@ -621,9 +621,9 @@ class AiAssistant(private val ctx: Context) {
         btnStartRecordNow?.visibility = View.GONE
         btnExpandPreview?.visibility = View.GONE
 
-        etInput.hint = "补充信息（可选，如支付方式、时间等）"
+        etInput.hint = ctx.getString(R.string.hint_supplement_info)
         etInput.setText("")
-        btnIdentify.text = "开始识别"
+        btnIdentify.text = ctx.getString(R.string.start_recognition)
         btnIdentify.setOnClickListener {
             val supplement = etInput.text.toString().trim()
             dispatchImageAccounting(imageUri, supplement, naturalLanguage, onResult)
@@ -670,7 +670,7 @@ class AiAssistant(private val ctx: Context) {
         btnStartRecordNow?.visibility = View.GONE
         btnExpandPreview?.visibility = View.GONE
         progressAiLoading?.visibility = View.VISIBLE
-        tvThinkingLog?.text = "正在直接从图片生成账单..."
+        tvThinkingLog?.text = ctx.getString(R.string.generating_from_image)
         tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
         dialog.setCancelable(true)
 
@@ -686,7 +686,7 @@ class AiAssistant(private val ctx: Context) {
                 val streamedRaw = StringBuilder()
                 val streamState = OverlayStreamUiState()
                 withContext(Dispatchers.Main) {
-                    updateLoadingText("正在分析图片中的交易...")
+                    updateLoadingText(ctx.getString(R.string.analyzing_image_transactions))
                 }
                 val result = AIService.analyzeScreenAccountingByImage(
                     ctx = ctx,
@@ -700,19 +700,19 @@ class AiAssistant(private val ctx: Context) {
                             if (status.startsWith("AI_STREAM_TEXT::")) {
                                 applyOverlayStreamProgress(status, streamedRaw, streamState)
                             } else if (!streamState.started) {
-                                updateLoadingText("正在分析图片中的交易...")
+                                updateLoadingText(ctx.getString(R.string.analyzing_image_transactions))
                             }
                         }
                     }
                 )
                 withContext(Dispatchers.Main) {
                     if (result == null) {
-                        Utils.toast(ctx, "识别失败：AI 返回内容无法解析")
+                        Utils.toast(ctx, ctx.getString(R.string.toast_parse_failed))
                         dismiss()
                         return@withContext
                     }
                     if (result.optBoolean("no_bill", false)) {
-                        Utils.toast(ctx, result.optString("reply", "未识别到可记账内容"))
+                        Utils.toast(ctx, result.optString("reply", ctx.getString(R.string.toast_no_bill_found)))
                         dismiss()
                         return@withContext
                     }
@@ -721,13 +721,13 @@ class AiAssistant(private val ctx: Context) {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
                     dismiss()
-                    Utils.toast(ctx, "已取消")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_canceled))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
                     dismiss()
-                    Utils.toast(ctx, "图片解析失败，请换一张更清晰的图片再试")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_image_parse_failed))
                 }
             }
         }
@@ -753,7 +753,7 @@ class AiAssistant(private val ctx: Context) {
         btnStartRecordNow?.visibility = View.GONE
         btnExpandPreview?.visibility = View.GONE
         progressAiLoading?.visibility = View.VISIBLE
-        tvThinkingLog?.text = "正在发送图片给视觉模型..."
+        tvThinkingLog?.text = ctx.getString(R.string.sending_to_vision)
         tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
 
         view.findViewById<View>(R.id.btn_close)?.setOnClickListener {
@@ -774,13 +774,13 @@ class AiAssistant(private val ctx: Context) {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
                     dismiss()
-                    Utils.toast(ctx, "已取消")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_canceled))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
                     dismiss()
-                    Utils.toast(ctx, "图片解析失败，请换一张更清晰的图片再试")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_image_parse_failed))
                 }
             }
         }
@@ -797,18 +797,18 @@ class AiAssistant(private val ctx: Context) {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
                     dismiss()
-                    Utils.toast(ctx, "已取消")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_canceled))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Utils.toast(ctx, "小票解析失败，请换一张更清晰的图片再试")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_receipt_parse_failed))
                     val dialog = currentDialog ?: return@withContext
                     val v = dialog.findViewById<View>(android.R.id.content) ?: return@withContext
                     v.findViewById<View>(R.id.layout_loading)?.visibility = View.GONE
                     v.findViewById<View>(R.id.layout_input)?.visibility = View.VISIBLE
                     v.findViewById<View>(R.id.btn_close)?.visibility = View.VISIBLE
-                    tvThinkingLog?.text = "解析失败，请修改后重试"
+                    tvThinkingLog?.text = ctx.getString(R.string.parse_failed_retry)
                     dialog.setCancelable(true)
                 }
             }
@@ -834,17 +834,17 @@ class AiAssistant(private val ctx: Context) {
         val mergedSummary = ReceiptImageInputHelper.mergeSupplementWithSummary(summary, supplementText)
         etInput.setText(mergedSummary)
         etInput.setSelection(mergedSummary.length)
-        etInput.hint = "请核对小票内容，可补充时间、账户等信息"
+        etInput.hint = ctx.getString(R.string.verify_receipt_hint)
 
-        btnIdentify.text = "生成账单"
+        btnIdentify.text = ctx.getString(R.string.generate_bill)
         btnIdentify.setOnClickListener {
             val text = etInput.text.toString().trim()
             if (text.isEmpty()) {
-                Utils.toast(ctx, "请输入内容")
+                Utils.toast(ctx, ctx.getString(R.string.toast_input_content))
                 return@setOnClickListener
             }
             bindLoadingPanelViews(view)
-            updatePanelState(MODE_LOADING, "正在生成结构化账单...")
+            updatePanelState(MODE_LOADING, ctx.getString(R.string.generating_structured_bill))
             val accountingInput = ReceiptImageInputHelper.buildAccountingInputFromImageDraft(
                 text,
                 supplementText
@@ -870,7 +870,7 @@ class AiAssistant(private val ctx: Context) {
         view.findViewById<View>(R.id.layout_result)?.visibility = View.GONE
         view.findViewById<View>(R.id.btn_close)?.visibility = View.GONE
         tvRecordedTextPreview?.visibility = View.GONE
-        tvThinkingLog?.text = "正在使用视觉模型重试..."
+        tvThinkingLog?.text = ctx.getString(R.string.retrying_with_vision)
         tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
         dialog.setCancelable(false)
 
@@ -888,7 +888,7 @@ class AiAssistant(private val ctx: Context) {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
                     dismiss()
-                    Utils.toast(ctx, "已取消")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_canceled))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -897,7 +897,7 @@ class AiAssistant(private val ctx: Context) {
                     view.findViewById<View>(R.id.layout_input)?.visibility = View.VISIBLE
                     view.findViewById<View>(R.id.btn_close)?.visibility = View.VISIBLE
                     dialog.setCancelable(true)
-                    Utils.toast(ctx, "图片识别失败，请稍后重试")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_image_recognition_failed))
                 }
             }
         }
@@ -1015,7 +1015,7 @@ class AiAssistant(private val ctx: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         if (Settings.canDrawOverlays(ctx)) return true
 
-        Utils.toast(ctx, "请先开启悬浮窗权限后再使用智能识别")
+        Utils.toast(ctx, ctx.getString(R.string.toast_overlay_permission))
         runCatching {
             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                 data = Uri.parse("package:${ctx.packageName}")

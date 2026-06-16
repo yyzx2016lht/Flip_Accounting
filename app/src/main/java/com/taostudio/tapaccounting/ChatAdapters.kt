@@ -175,7 +175,7 @@ class ChatAdapter(
                         .into(ivImage)
                     ivImage.isClickable = true
                     ivImage.isFocusable = true
-                    ivImage.contentDescription = "查看大图"
+                    ivImage.contentDescription = context.getString(R.string.view_large_image)
                     ivImage.setOnClickListener {
                         onOpenImagePreview(item)
                     }
@@ -552,8 +552,8 @@ class ChatAdapter(
                 val remarkPriority = Prefs.isBillRemarkPriority(context)
 
                 val categoryText = when (bill.type) {
-                    Bill.TYPE_TRANSFER -> "转账"
-                    else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifBlank { "未分类" }
+                    Bill.TYPE_TRANSFER -> context.getString(R.string.transfer)
+                    else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifBlank { context.getString(R.string.uncategorized) }
                 }
                 val (primaryText, secondaryText) = BillDisplayFormatter.resolvePrimarySecondaryText(
                     categoryText = categoryText,
@@ -688,12 +688,12 @@ class ChatAdapter(
                             btnDelete.visibility = View.VISIBLE
                             when (item.billInteractionMode) {
                                 ChatActivity.BILL_INTERACTION_SELECT_TARGET -> {
-                                    btnEdit.text = "选这笔"
-                                    btnDelete.text = "取消"
+                                    btnEdit.text = context.getString(R.string.select_this_bill)
+                                    btnDelete.text = context.getString(R.string.cancel)
                                 }
                                 ChatActivity.BILL_INTERACTION_CONFIRM_MODIFICATION -> {
-                                    btnEdit.text = "确认修改"
-                                    btnDelete.text = "取消"
+                                    btnEdit.text = context.getString(R.string.confirm_edit)
+                                    btnDelete.text = context.getString(R.string.cancel)
                                 }
                             }
                             btnEdit.setOnClickListener {
@@ -757,7 +757,7 @@ class ChatAdapter(
                 fun startInlineAmountEdit() {
                     if (deprecated || savingAmount) return
                     if (getInlineAmountEditingBillId() != null && getInlineAmountEditingBillId() != bill.id) {
-                        Utils.toast(context, "请先完成当前金额编辑")
+                        Utils.toast(context, context.getString(R.string.toast_finish_amount_edit))
                         return
                     }
                     setInlineAmountEditingBillId(bill.id)
@@ -775,7 +775,7 @@ class ChatAdapter(
                     val value = etAmount.text?.toString().orEmpty().trim()
                     val editedAmount = value.toDoubleOrNull()
                     if (editedAmount == null || !editedAmount.isFinite() || editedAmount <= 0.0) {
-                        Utils.toast(context, "请输入有效金额")
+                        Utils.toast(context, context.getString(R.string.toast_invalid_amount))
                         etAmount.requestFocus()
                         return
                     }
@@ -904,9 +904,9 @@ class ChatAdapter(
                         }
                     }
                     showCustomConfirmDialog(
-                        "确认删除",
+                        context.getString(R.string.confirm_delete),
                         "删除后可在回收站恢复，是否继续？\n删除聊天记录不会删除附带账单。",
-                        "确认删除",
+                        context.getString(R.string.confirm_delete),
                         true
                     ) {
                         finalDelete()
@@ -1232,7 +1232,7 @@ class DrawerSearchResultAdapter(
                 else -> msg.content.trim().ifBlank { "(空内容)" }.take(100)
             }
             if (tvContent.text.contains("/") || tvContent.text.contains("\\") || tvContent.text.contains("base64", true)) {
-                tvContent.text = "[内容已隐藏]"
+                tvContent.text = itemView.context.getString(R.string.content_hidden)
             }
             itemView.setOnClickListener { onClick(msg) }
         }

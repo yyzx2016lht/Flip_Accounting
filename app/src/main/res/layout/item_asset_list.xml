@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/space_8"
         android:layout_marginStart="@dimen/space_4"
-        android:text="资金"
+        android:text="@string/fund"
         android:textColor="@color/text_tertiary"
         android:textSize="@dimen/text_size_12"
         android:visibility="gone"/>

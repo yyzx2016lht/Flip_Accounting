@@ -205,10 +205,10 @@ object LocalAsrService {
         cancelDownload = false
 
         val dialog = AlertDialog.Builder(ContextThemeWrapper(ctx, R.style.Theme_TapAccounting))
-            .setTitle("导入本地模型")
-            .setMessage("正在准备解压...")
+            .setTitle(ctx.getString(R.string.import_local_model))
+            .setMessage(ctx.getString(R.string.preparing_extract))
             .setCancelable(false)
-            .setNegativeButton("取消") { _, _ -> cancelDownload = true }
+            .setNegativeButton(ctx.getString(R.string.cancel)) { _, _ -> cancelDownload = true }
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -220,13 +220,13 @@ object LocalAsrService {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                withContext(Dispatchers.Main) { dialog.setMessage("正在读取文件...") }
+                withContext(Dispatchers.Main) { dialog.setMessage(ctx.getString(R.string.reading_file)) }
 
                 val inputStream = ctx.contentResolver.openInputStream(uri)
                 if (inputStream == null) {
                     withContext(Dispatchers.Main) {
                         dialog.dismiss()
-                        Utils.toast(ctx, "无法读取所选文件")
+                        Utils.toast(ctx, ctx.getString(R.string.cannot_read_file))
                     }
                     return@launch
                 }
@@ -254,12 +254,12 @@ object LocalAsrService {
                     targetDir.deleteRecursively()
                     withContext(Dispatchers.Main) {
                         dialog.dismiss()
-                        Utils.toast(ctx, "已取消导入")
+                        Utils.toast(ctx, ctx.getString(R.string.import_canceled))
                     }
                     return@launch
                 }
 
-                withContext(Dispatchers.Main) { dialog.setMessage("正在解压模型文件，请稍候...") }
+                withContext(Dispatchers.Main) { dialog.setMessage(ctx.getString(R.string.extracting_model)) }
                 targetDir.deleteRecursively()
                 targetDir.mkdirs()
 
@@ -272,21 +272,21 @@ object LocalAsrService {
                     targetDir.deleteRecursively()
                     withContext(Dispatchers.Main) {
                         dialog.dismiss()
-                        Utils.toast(ctx, "已取消导入")
+                        Utils.toast(ctx, ctx.getString(R.string.import_canceled))
                     }
                     return@launch
                 }
 
-                withContext(Dispatchers.Main) { dialog.setMessage("正在初始化模型...") }
+                withContext(Dispatchers.Main) { dialog.setMessage(ctx.getString(R.string.initializing_model)) }
                 val ok = initModel(ctx, allowAutoDownload = false)
 
                 withContext(Dispatchers.Main) {
                     dialog.dismiss()
                     if (ok) {
-                        Utils.toast(ctx, "离线语音模型已准备完成")
+                        Utils.toast(ctx, ctx.getString(R.string.model_ready))
                         onComplete()
                     } else {
-                        Utils.toast(ctx, "导入完成但初始化失败: ${lastInitError ?: "未知错误"}")
+                        Utils.toast(ctx, ctx.getString(R.string.init_failed_fmt, lastInitError ?: ctx.getString(R.string.unknown_error)))
                     }
                 }
             } catch (e: Throwable) {
@@ -301,7 +301,7 @@ object LocalAsrService {
                 lastInitError = "导入失败: ${e.message ?: e.javaClass.simpleName}"
                 withContext(Dispatchers.Main) {
                     dialog.dismiss()
-                    Utils.toast(ctx, lastInitError ?: "导入失败")
+                    Utils.toast(ctx, lastInitError ?: ctx.getString(R.string.import_failed))
                 }
             }
         }
@@ -537,10 +537,10 @@ object LocalAsrService {
         slowPromptShown = false
 
         val dialog = AlertDialog.Builder(ContextThemeWrapper(ctx, R.style.Theme_TapAccounting))
-            .setTitle("下载离线语音模型")
-            .setMessage("正在连接...")
+            .setTitle(ctx.getString(R.string.download_offline_model))
+            .setMessage(ctx.getString(R.string.connecting))
             .setCancelable(false)
-            .setNegativeButton("取消") { _, _ -> cancelDownload = true }
+            .setNegativeButton(ctx.getString(R.string.cancel)) { _, _ -> cancelDownload = true }
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -558,10 +558,10 @@ object LocalAsrService {
                 if (slowPromptShown) return@downloadModelWithProgress
                 slowPromptShown = true
                 val slowDialog = AlertDialog.Builder(ContextThemeWrapper(ctx, R.style.Theme_TapAccounting))
-                    .setTitle("下载较慢")
-                    .setMessage("当前 GitHub 下载 1 分钟仅完成 ${progress}%，可能对国内用户较慢。是否切换到非 GitHub 镜像源继续下载？")
-                    .setPositiveButton("切换") { _, _ -> requestSwitch() }
-                    .setNegativeButton("继续等待", null)
+                    .setTitle(ctx.getString(R.string.download_slow_title))
+                    .setMessage(ctx.getString(R.string.download_slow_message_fmt, progress))
+                    .setPositiveButton(ctx.getString(R.string.switch_source)) { _, _ -> requestSwitch() }
+                    .setNegativeButton(ctx.getString(R.string.keep_waiting), null)
                     .create()
                 OverlayDialogs.showPageCenterDialog(
                     dialog = slowDialog,
@@ -573,12 +573,12 @@ object LocalAsrService {
             },
             onComplete = {
                 dialog.dismiss()
-                Utils.toast(ctx, "离线语音模型已准备完成")
+                Utils.toast(ctx, ctx.getString(R.string.model_ready))
                 onComplete()
             },
             onError = { err ->
                 dialog.dismiss()
-                Utils.toast(ctx, "下载失败: $err")
+                Utils.toast(ctx, ctx.getString(R.string.download_failed_fmt, err))
             }
         )
     }
@@ -592,7 +592,7 @@ object LocalAsrService {
         onError: (String) -> Unit
     ) {
         if (isDownloading) {
-            onError("正在下载中，请稍候")
+            onError(ctx.getString(R.string.already_downloading))
             return
         }
 
@@ -603,7 +603,7 @@ object LocalAsrService {
             val preferredSource = DownloadSource.fromPrefValue(Prefs.getAsrDownloadSource(ctx))
 
             try {
-                withContext(Dispatchers.Main) { onProgress(0, "正在连接...") }
+                withContext(Dispatchers.Main) { onProgress(0, ctx.getString(R.string.connecting)) }
 
                 val sourceUsed = downloadWithFallbackStrategy(
                     ctx = ctx,
@@ -617,12 +617,12 @@ object LocalAsrService {
                 if (cancelDownload) {
                     tarFile.delete()
                     extractedDir.deleteRecursively()
-                    withContext(Dispatchers.Main) { onError("已取消下载") }
+                    withContext(Dispatchers.Main) { onError(ctx.getString(R.string.download_canceled)) }
                     return@launch
                 }
 
                 if (sourceUsed == DownloadSource.GITHUB_ARCHIVE) {
-                    withContext(Dispatchers.Main) { onProgress(100, "正在解压模型文件，请稍候...") }
+                    withContext(Dispatchers.Main) { onProgress(100, ctx.getString(R.string.extracting_model)) }
                     targetDir.deleteRecursively()
                     targetDir.mkdirs()
                     FileInputStream(tarFile).use { fis ->
@@ -639,14 +639,14 @@ object LocalAsrService {
 
                 if (cancelDownload) {
                     targetDir.deleteRecursively()
-                    withContext(Dispatchers.Main) { onError("已取消解压") }
+                    withContext(Dispatchers.Main) { onError(ctx.getString(R.string.extract_canceled)) }
                     return@launch
                 }
 
-                withContext(Dispatchers.Main) { onProgress(100, "正在初始化模型...") }
+                withContext(Dispatchers.Main) { onProgress(100, ctx.getString(R.string.initializing_model)) }
                 val ok = initModel(ctx, allowAutoDownload = false)
                 if (!ok) {
-                    val msg = lastInitError ?: "模型初始化失败"
+                    val msg = lastInitError ?: ctx.getString(R.string.model_init_failed)
                     withContext(Dispatchers.Main) { onError(msg) }
                     return@launch
                 }
@@ -665,7 +665,7 @@ object LocalAsrService {
                 tarFile.delete()
                 extractedDir.deleteRecursively()
                 withContext(Dispatchers.Main) {
-                    onError(lastInitError ?: "未知错误")
+                    onError(lastInitError ?: ctx.getString(R.string.unknown_error))
                 }
             } finally {
                 isDownloading = false
@@ -689,27 +689,29 @@ object LocalAsrService {
 
         return if (preferredSource == DownloadSource.MIRROR_FILES) {
             runCatching {
-                withContext(Dispatchers.Main) { onProgress(0, "正在连接上次成功的镜像源...") }
-                downloadMirrorFiles(extractedDir, onProgress)
+                withContext(Dispatchers.Main) { onProgress(0, ctx.getString(R.string.connecting_mirror)) }
+                downloadMirrorFiles(ctx, extractedDir, onProgress)
                 DownloadSource.MIRROR_FILES
             }.getOrElse {
                 if (cancelDownload) return DownloadSource.MIRROR_FILES
                 extractedDir.deleteRecursively()
-                withContext(Dispatchers.Main) { onProgress(0, "镜像源暂不可用，正在切换 GitHub...") }
+                withContext(Dispatchers.Main) { onProgress(0, ctx.getString(R.string.mirror_unavailable_switch_github)) }
                 val githubDone = downloadGithubArchive(
+                    ctx = ctx,
                     tarFile = tarFile,
                     onProgress = onProgress,
                     onSlowGithub = onSlowGithub
                 )
                 if (githubDone || cancelDownload) DownloadSource.GITHUB_ARCHIVE
                 else {
-                    withContext(Dispatchers.Main) { onProgress(0, "GitHub 较慢，正在切换非 GitHub 镜像源...") }
-                    downloadMirrorFiles(extractedDir, onProgress)
+                    withContext(Dispatchers.Main) { onProgress(0, ctx.getString(R.string.github_slow_switch_mirror)) }
+                    downloadMirrorFiles(ctx, extractedDir, onProgress)
                     DownloadSource.MIRROR_FILES
                 }
             }
         } else {
             val githubDone = downloadGithubArchive(
+                ctx = ctx,
                 tarFile = tarFile,
                 onProgress = onProgress,
                 onSlowGithub = onSlowGithub
@@ -717,14 +719,15 @@ object LocalAsrService {
             if (githubDone || cancelDownload) {
                 DownloadSource.GITHUB_ARCHIVE
             } else {
-                withContext(Dispatchers.Main) { onProgress(0, "正在切换非 GitHub 镜像源...") }
-                downloadMirrorFiles(extractedDir, onProgress)
+                withContext(Dispatchers.Main) { onProgress(0, ctx.getString(R.string.switching_to_mirror)) }
+                downloadMirrorFiles(ctx, extractedDir, onProgress)
                 DownloadSource.MIRROR_FILES
             }
         }
     }
 
     private suspend fun downloadGithubArchive(
+        ctx: Context,
         tarFile: File,
         onProgress: (Int, String) -> Unit,
         onSlowGithub: ((Int, () -> Unit) -> Unit)?
@@ -755,7 +758,7 @@ object LocalAsrService {
                             if (progress != lastProgress) {
                                 lastProgress = progress
                                 withContext(Dispatchers.Main) {
-                                    onProgress(progress, "正在下载模型... $progress%")
+                                    onProgress(progress, ctx.getString(R.string.downloading_progress_fmt, progress))
                                 }
                             }
                             if (!slowPromptShown &&
@@ -783,6 +786,7 @@ object LocalAsrService {
     }
 
     private suspend fun downloadMirrorFiles(
+        ctx: Context,
         extractedDir: File,
         onProgress: (Int, String) -> Unit
     ) {
@@ -829,7 +833,7 @@ object LocalAsrService {
                                 if (progress != lastProgress) {
                                     lastProgress = progress
                                     withContext(Dispatchers.Main) {
-                                        onProgress(progress, "正在从镜像源下载模型... $progress%")
+                                        onProgress(progress, ctx.getString(R.string.downloading_from_mirror_fmt, progress))
                                     }
                                 }
                             }

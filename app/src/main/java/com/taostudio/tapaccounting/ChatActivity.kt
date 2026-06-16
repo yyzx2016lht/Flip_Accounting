@@ -771,7 +771,7 @@ class ChatActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQ_IMAGE_PERMISSION) {
             if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                Utils.toast(this, "未授予完整相册权限，仍可在系统选择器中选择图片")
+                Utils.toast(this, getString(R.string.toast_album_permission))
             }
             mediaController.pickImages()
         }
@@ -1157,9 +1157,9 @@ class ChatActivity : AppCompatActivity() {
 
     private fun requestDeleteFromLongPressMenu(item: ChatDisplayItem) {
         uiHelperController.showCustomConfirmDialog(
-            "确认删除",
+            getString(R.string.confirm_delete),
             "删除后可在回收站恢复，是否继续？\n删除聊天记录不会删除附带账单。",
-            "继续删除",
+            getString(R.string.delete),
             true
         ) {
             deleteVoiceMessages(listOf(item))
@@ -1289,7 +1289,7 @@ class ChatActivity : AppCompatActivity() {
 
     private fun onImageReady(uri: Uri, base64: String, mime: String) {
         if (ChatImageComposer.isAtLimit(pendingImages.size)) {
-            Utils.toast(this, "最多选择 ${ChatImageComposer.MAX_PENDING_IMAGES} 张图片")
+            Utils.toast(this, getString(R.string.toast_max_images, ChatImageComposer.MAX_PENDING_IMAGES))
             return
         }
         pendingImages.add(PendingImage(uri, base64, mime))
@@ -1308,7 +1308,7 @@ class ChatActivity : AppCompatActivity() {
         }
 
         layoutPendingImages.visibility = View.VISIBLE
-        tvPendingImageCount.text = "已选择 ${pendingImages.size} 张图片"
+        tvPendingImageCount.text = getString(R.string.selected_image_count, pendingImages.size)
         updateAgentEmptyState()
 
         val density = resources.displayMetrics.density
@@ -1617,12 +1617,12 @@ class ChatActivity : AppCompatActivity() {
 
     private fun formatBillBrief(bill: Bill): String {
         val typeLabel = when (bill.type) {
-            Bill.TYPE_INCOME -> "收入"
-            Bill.TYPE_TRANSFER -> if (bill.subType == Bill.SUBTYPE_REPAYMENT) "还款" else "转账"
-            else -> "支出"
+            Bill.TYPE_INCOME -> getString(R.string.income)
+            Bill.TYPE_TRANSFER -> if (bill.subType == Bill.SUBTYPE_REPAYMENT) getString(R.string.repayment) else getString(R.string.transfer)
+            else -> getString(R.string.expense)
         }
         val amountText = String.format(Locale.getDefault(), "%.2f", bill.amount)
-        val category = bill.categoryName.ifBlank { "未分类" }
+        val category = bill.categoryName.ifBlank { getString(R.string.uncategorized) }
         val main = bill.remark.ifBlank { category }
         return "$typeLabel $amountText ${bill.currency} · $main"
     }
@@ -1844,11 +1844,11 @@ class ChatActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_TapAccounting))
             .setTitle(getString(R.string.duplicate_rule_dialog_title))
             .setMessage(getString(R.string.duplicate_rule_dialog_message, keyword, existingCount.toString()))
-            .setPositiveButton("继续并覆盖") { d, _ ->
+            .setPositiveButton(getString(R.string.continue_and_overwrite)) { d, _ ->
                 d.dismiss()
                 if (cont.isActive) cont.resume(true)
             }
-            .setNegativeButton("取消保存") { d, _ ->
+            .setNegativeButton(getString(R.string.cancel_save)) { d, _ ->
                 d.dismiss()
                 if (cont.isActive) cont.resume(false)
             }

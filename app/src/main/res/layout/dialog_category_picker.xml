@@ -16,7 +16,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:gravity="start"
-        android:text="选择分类"
+        android:text="@string/select_category"
         android:textColor="@color/dialog_title"
         android:textSize="@dimen/dialog_title_size"
         android:textStyle="bold" />
@@ -26,7 +26,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
-        android:text="长按图标直接拖动排序"
+        android:text="@string/long_press_icon_sort"
         android:textColor="@color/dialog_subtitle"
         android:textSize="@dimen/dialog_subtitle_size"
         android:visibility="gone" />
@@ -58,7 +58,7 @@
         android:layout_height="@dimen/dialog_button_height"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_dialog_button_primary"
-        android:text="确认"
+        android:text="@string/confirm"
         android:textColor="@color/dialog_button_primary_text"
         android:textSize="15sp"
         android:textStyle="bold"

@@ -211,7 +211,7 @@ class AddAssetActivity : AppCompatActivity() {
 
             Toast.makeText(
                 this,
-                "该账户将不计入总资产，余额变化不影响净资产；相关流水仍会正常记录。",
+                getString(R.string.net_asset_tip),
                 Toast.LENGTH_LONG
             ).show()
             assetUiPrefs.edit().putBoolean(KEY_SKIP_NET_ASSET_TIP_SHOWN, true).apply()
@@ -268,7 +268,7 @@ class AddAssetActivity : AppCompatActivity() {
     }
 
     private fun loadAssetData() {
-        findViewById<TextView>(R.id.tv_title).text = "修改账户"
+        findViewById<TextView>(R.id.tv_title).text = getString(R.string.edit_account_title)
         lifecycleScope.launch {
             val asset = db.assetDao().getAssetById(assetId)
             asset?.let {
@@ -330,7 +330,7 @@ class AddAssetActivity : AppCompatActivity() {
         }
 
         if (name.isEmpty()) {
-            Toast.makeText(this, "请输入账户名称", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.input_account_name), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -342,7 +342,7 @@ class AddAssetActivity : AppCompatActivity() {
             }
             if (isDuplicate) {
                 withContext(Dispatchers.Main) {
-                    etName.error = "该名称已被其他账户使用"
+                    etName.error = getString(R.string.name_already_used)
                     etName.requestFocus()
                 }
                 return@launch
@@ -359,7 +359,7 @@ class AddAssetActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@AddAssetActivity,
-                        "修改币种后，请确认新币种下的当前余额",
+                        getString(R.string.currency_changed_confirm_balance),
                         Toast.LENGTH_SHORT
                     ).show()
                     etBalance.requestFocus()
@@ -390,8 +390,8 @@ class AddAssetActivity : AppCompatActivity() {
             if (shouldCreateOpeningLot) {
                 withContext(Dispatchers.Main) {
                     showInvestmentScheduleDialog(
-                        title = if (assetId == -1L) "设置初始本金收益时间" else "设置转为理财后的收益时间",
-                        message = "这笔当前余额会作为一笔理财本金单独计算收益。"
+                        title = if (assetId == -1L) getString(R.string.set_initial_principal_time) else getString(R.string.set_convert_to_investment_time),
+                        message = getString(R.string.investment_principal_hint)
                     ) { schedule ->
                         saveAsset(
                             skipCurrencyConfirm = skipCurrencyConfirm,
@@ -631,7 +631,7 @@ class AddAssetActivity : AppCompatActivity() {
         }
 
         showOptionPickerDialog(
-            title = "选择币种",
+            title = getString(R.string.select_currency),
             options = options,
             selectedIndex = selectedIndex,
             widthRatio = 0.9f
@@ -662,14 +662,14 @@ class AddAssetActivity : AppCompatActivity() {
             Asset.CATEGORY_INVESTMENT
         )
         val options = listOf(
-            DialogOption(title = "资金（普通账户）", subtitle = "用于现金、储蓄、借记卡等日常账户"),
-            DialogOption(title = "信用卡", subtitle = "用于记录信用消费与还款"),
-            DialogOption(title = "充值账户", subtitle = "用于余额钱包、礼品卡、平台储值"),
-            DialogOption(title = "投资理财", subtitle = "用于基金、股票等投资类账户")
+            DialogOption(title = getString(R.string.asset_fund_title), subtitle = getString(R.string.asset_fund_subtitle)),
+            DialogOption(title = getString(R.string.asset_credit_card), subtitle = getString(R.string.asset_credit_subtitle)),
+            DialogOption(title = getString(R.string.asset_recharge_title), subtitle = getString(R.string.asset_recharge_subtitle)),
+            DialogOption(title = getString(R.string.asset_investment_title), subtitle = getString(R.string.asset_investment_subtitle))
         )
         val currentIndex = categories.indexOf(selectedAssetCategory).takeIf { it >= 0 } ?: 0
         showOptionPickerDialog(
-            title = "选择资产类别",
+            title = getString(R.string.select_asset_category),
             options = options,
             selectedIndex = currentIndex,
             widthRatio = 0.9f
@@ -746,13 +746,10 @@ class AddAssetActivity : AppCompatActivity() {
     ) {
         val themeContext = ContextThemeWrapper(this, R.style.Theme_TapAccounting)
         val dialog = AlertDialog.Builder(themeContext)
-            .setTitle("确认修改币种")
-            .setMessage(
-                "确定要把这个资产的币种从 $oldCurrency 改成 $newCurrency 吗？\n\n" +
-                    "这会按当前汇率同步换算当前余额，并更新该资产关联历史账单的币种与统计结果。"
-            )
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确定") { _, _ -> onConfirm() }
+            .setTitle(R.string.confirm_change_currency_title)
+            .setMessage(getString(R.string.confirm_change_currency_message, oldCurrency, newCurrency))
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.confirm) { _, _ -> onConfirm() }
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -793,7 +790,7 @@ class AddAssetActivity : AppCompatActivity() {
             textSize = 16f
             setTextColor(Color.parseColor("#1F2A38"))
             setPadding(0, dp(16), 0, dp(8))
-            bindRow(this, "开始计算收益", startEarningAt)
+            bindRow(this, getString(R.string.start_earning), startEarningAt)
             setOnClickListener {
                 ElegantDatePickerSheet.show(
                     context = this@AddAssetActivity,
@@ -802,8 +799,8 @@ class AddAssetActivity : AppCompatActivity() {
                 ) { selected ->
                     startEarningAt = InvestmentInterestService.startOfDay(selected)
                     firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
-                    bindRow(startRow, "开始计算收益", startEarningAt)
-                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                    bindRow(startRow, getString(R.string.start_earning), startEarningAt)
+                    bindRow(payoutRow, getString(R.string.earning_payout), firstPayoutAt)
                 }
             }
         }
@@ -811,7 +808,7 @@ class AddAssetActivity : AppCompatActivity() {
             textSize = 16f
             setTextColor(Color.parseColor("#1F2A38"))
             setPadding(0, dp(16), 0, dp(8))
-            bindRow(this, "收益到账", firstPayoutAt)
+            bindRow(this, getString(R.string.earning_payout), firstPayoutAt)
             setOnClickListener {
                 ElegantDatePickerSheet.show(
                     context = this@AddAssetActivity,
@@ -819,14 +816,14 @@ class AddAssetActivity : AppCompatActivity() {
                     minTimeMillis = InvestmentInterestService.plusDays(startEarningAt, 1)
                 ) { selected ->
                     firstPayoutAt = InvestmentInterestService.startOfDay(selected)
-                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                    bindRow(payoutRow, getString(R.string.earning_payout), firstPayoutAt)
                 }
             }
         }
         content.addView(startRow)
         content.addView(payoutRow)
         content.addView(TextView(themeContext).apply {
-            text = "默认收益到账为开始计算收益的后一天，也可以手动调整。"
+            text = getString(R.string.earning_default_hint)
             setTextColor(Color.parseColor("#8A9099"))
             textSize = 12f
             setPadding(0, dp(10), 0, 0)
@@ -835,8 +832,8 @@ class AddAssetActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(themeContext)
             .setTitle(title)
             .setView(content)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确定") { _, _ ->
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.confirm) { _, _ ->
                 onConfirm(
                     InvestmentInterestService.InvestmentSchedule(
                         startEarningAt = startEarningAt,

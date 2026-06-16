@@ -61,7 +61,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="账单模式"
+                android:text="@string/bill_mode"
                 android:textColor="#666666"
                 android:textSize="@dimen/text_size_13" />
 
@@ -78,7 +78,7 @@
                     android:layout_height="32dp"
                     android:buttonTint="#5C6BC0"
                     android:minHeight="0dp"
-                    android:text="单笔"
+                    android:text="@string/single_bill"
                     android:textColor="#5C6BC0"
                     android:textSize="@dimen/text_size_13" />
 
@@ -89,7 +89,7 @@
                     android:layout_marginStart="12dp"
                     android:buttonTint="#5C6BC0"
                     android:minHeight="0dp"
-                    android:text="多笔"
+                    android:text="@string/multi_bill"
                     android:textColor="#5C6BC0"
                     android:textSize="@dimen/text_size_13" />
             </RadioGroup>
@@ -154,7 +154,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:text="选择资产"
+                        android:text="@string/select_asset_dialog"
                         android:textColor="#333333" />
 
                     <TextView
@@ -209,7 +209,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:text="转入账户"
+                        android:text="@string/to_account"
                         android:textColor="#333333" />
 
                     <TextView
@@ -229,7 +229,7 @@
                 android:layout_gravity="center"
                 android:background="@drawable/bg_swap_center_button"
                 android:clickable="true"
-                android:contentDescription="互换转出与转入账户"
+                android:contentDescription="@string/swap_accounts"
                 android:elevation="3dp"
                 android:focusable="true"
                 android:gravity="center"
@@ -275,7 +275,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="选择分类"
+                android:text="@string/select_category"
                 android:textColor="#333333" />
 
             <TextView
@@ -290,7 +290,7 @@
                 android:paddingTop="3dp"
                 android:paddingEnd="10dp"
                 android:paddingBottom="3dp"
-                android:text="账单退款"
+                android:text="@string/bill_refund"
                 android:textColor="#E53935"
                 android:textSize="@dimen/text_size_13"
                 android:visibility="gone" />
@@ -319,7 +319,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="选择退款账单"
+                android:text="@string/select_refund_bill"
                 android:textColor="#888888" />
 
             <TextView
@@ -334,7 +334,7 @@
                 android:paddingTop="3dp"
                 android:paddingEnd="10dp"
                 android:paddingBottom="3dp"
-                android:text="取消退款"
+                android:text="@string/cancel_refund"
                 android:textColor="#999999"
                 android:textSize="@dimen/text_size_13" />
         </LinearLayout>
@@ -359,7 +359,7 @@
                 android:layout_height="match_parent"
                 android:layout_marginStart="12dp"
                 android:background="@null"
-                android:hint="手续费（默认0）"
+                android:hint="@string/hint_fee"
                 android:inputType="numberDecimal"
                 android:textSize="@dimen/text_size_14" />
         </LinearLayout>
@@ -410,7 +410,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                    android:text="日常账本"
+                    android:text="@string/daily_book"
                 android:textColor="#333333" />
         </LinearLayout>
 
@@ -421,7 +421,7 @@
             android:layout_marginTop="10dp"
             android:background="@drawable/shape_edit_bg"
             android:gravity="top"
-            android:hint="输入备注信息..."
+            android:hint="@string/hint_remark"
             android:paddingHorizontal="12dp"
             android:paddingVertical="10dp"
             android:textSize="@dimen/text_size_14" />
@@ -466,7 +466,7 @@
                     android:padding="2dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
-                    android:contentDescription="截屏识别"
+                    android:contentDescription="@string/screenshot_recognition"
                     android:focusable="true"
                     android:src="@drawable/ic_screenshot"
                     android:visibility="gone" />
@@ -478,7 +478,7 @@
                     android:layout_marginEnd="6dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
-                    android:contentDescription="图片记账"
+                    android:contentDescription="@string/image_accounting"
                     android:focusable="true"
                     android:src="@drawable/ic_picture_button"
                     android:visibility="gone" />
@@ -490,7 +490,7 @@
                     android:layout_marginEnd="6dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
-                    android:contentDescription="语音输入"
+                    android:contentDescription="@string/voice_input"
                     android:focusable="true"
                     android:src="@android:drawable/ic_btn_speak_now" />
 
@@ -511,7 +511,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="智能识别"
+                        android:text="@string/smart_recognition"
                         android:textColor="#673AB7"
                         android:textSize="@dimen/text_size_15"
                         android:textStyle="bold" />
@@ -521,7 +521,7 @@
                         android:layout_width="@dimen/icon_size_28"
                         android:layout_height="@dimen/icon_size_28"
                         android:layout_marginStart="4dp"
-                        android:contentDescription="AI助手"
+                        android:contentDescription="@string/ai_assistant_btn"
                         android:src="@drawable/ic_ai_robot" />
                 </LinearLayout>
             </LinearLayout>
@@ -540,7 +540,7 @@
                 android:layout_width="0dp"
                 android:layout_height="46dp"
                 android:layout_weight="1"
-                android:text="取消"
+                android:text="@string/cancel"
                 android:textColor="#666666"
                 app:cornerRadius="14dp"
                 app:strokeColor="#D8E0EA" />
@@ -551,7 +551,7 @@
                 android:layout_height="46dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1.5"
-                android:text="保存并记账"
+                android:text="@string/save_and_record"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
                 app:backgroundTint="#4F6EDB"
@@ -564,7 +564,7 @@
             android:layout_width="match_parent"
             android:layout_height="44dp"
             android:layout_marginTop="10dp"
-            android:text="切换到 AI 对话记账"
+            android:text="@string/switch_to_ai_chat"
             android:textColor="#1A73E8"
             android:textSize="13sp"
             android:visibility="gone"

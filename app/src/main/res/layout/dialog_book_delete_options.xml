@@ -55,7 +55,7 @@
         android:gravity="center"
         android:minHeight="44dp"
         android:paddingHorizontal="14dp"
-        android:text="取消"
+        android:text="@string/cancel"
         android:textColor="#5A677C"
         android:textSize="14sp"
         android:textStyle="bold" />

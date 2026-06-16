@@ -100,9 +100,9 @@ class HistoryBillActivity : AppCompatActivity() {
             if (billsToRestore.isEmpty()) return@setOnClickListener
 
             showConfirmDialog(
-                title = "恢复账单",
-                message = "确定要恢复选中的 ${billsToRestore.size} 条账单吗？",
-                confirmText = "确认恢复",
+                title = getString(R.string.restore_bill_title),
+                message = getString(R.string.restore_bills_confirm_fmt, billsToRestore.size),
+                confirmText = getString(R.string.confirm_restore),
                 isDanger = false
             ) {
                 restoreBills(billsToRestore)
@@ -114,9 +114,9 @@ class HistoryBillActivity : AppCompatActivity() {
             if (billsToDelete.isEmpty()) return@setOnClickListener
 
             showConfirmDialog(
-                title = "永久删除",
-                message = "确定要永久删除选中的 ${billsToDelete.size} 条账单吗？此操作不可恢复。",
-                confirmText = "永久删除",
+                title = getString(R.string.delete_bill_title),
+                message = getString(R.string.delete_bills_confirm_fmt, billsToDelete.size),
+                confirmText = getString(R.string.permanent_delete),
                 isDanger = true
             ) {
                 permanentlyDeleteBills(billsToDelete)
@@ -185,8 +185,8 @@ class HistoryBillActivity : AppCompatActivity() {
     private fun showBillActionDialog(bill: DeletedBill) {
         val themeCtx = ContextThemeWrapper(this, R.style.Theme_TapAccounting)
         val panel = LayoutInflater.from(this).inflate(R.layout.dialog_delete_followup_confirm, null, false)
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = "账单操作"
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "选择对此账单的操作"
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = getString(R.string.bill_action_title)
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = getString(R.string.bill_action_message)
 
         val dialog = AlertDialog.Builder(themeCtx)
             .setView(panel)
@@ -196,14 +196,14 @@ class HistoryBillActivity : AppCompatActivity() {
         val btnOk = panel.findViewById<TextView>(R.id.btn_followup_confirm_ok)
         val btnCancel = panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel)
 
-        btnCancel.text = "恢复"
+        btnCancel.text = getString(R.string.restore)
         btnCancel.setBackgroundResource(R.drawable.bg_delete_followup_primary_btn)
         btnCancel.setOnClickListener {
             dialog.dismiss()
             restoreBill(bill)
         }
 
-        btnOk.text = "永久删除"
+        btnOk.text = getString(R.string.permanent_delete)
         btnOk.setBackgroundResource(R.drawable.bg_delete_followup_danger_btn)
         btnOk.setOnClickListener {
             dialog.dismiss()
@@ -221,9 +221,9 @@ class HistoryBillActivity : AppCompatActivity() {
 
     private fun restoreBill(bill: DeletedBill) {
         showConfirmDialog(
-            title = "恢复账单",
-            message = "确定要恢复此账单吗？",
-            confirmText = "确认恢复",
+            title = getString(R.string.restore_bill_title),
+            message = getString(R.string.restore_bill_confirm),
+            confirmText = getString(R.string.confirm_restore),
             isDanger = false
         ) {
             restoreBills(listOf(bill))
@@ -237,7 +237,7 @@ class HistoryBillActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 exitSelectMode()
                 loadDeletedBills()
-                val tip = if (bills.size == 1) "已恢复账单" else "已恢复 ${bills.size} 条账单"
+                val tip = if (bills.size == 1) getString(R.string.restored_single) else getString(R.string.restored_count_fmt, bills.size)
                 Toast.makeText(this@HistoryBillActivity, tip, Toast.LENGTH_SHORT).show()
             }
         }
@@ -245,9 +245,9 @@ class HistoryBillActivity : AppCompatActivity() {
 
     private fun permanentlyDeleteBill(bill: DeletedBill) {
         showConfirmDialog(
-            title = "永久删除",
-            message = "确定要永久删除此账单吗？此操作不可恢复。",
-            confirmText = "永久删除",
+            title = getString(R.string.delete_bill_title),
+            message = getString(R.string.delete_bill_confirm),
+            confirmText = getString(R.string.permanent_delete),
             isDanger = true
         ) {
             permanentlyDeleteBills(listOf(bill))
@@ -261,7 +261,7 @@ class HistoryBillActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 exitSelectMode()
                 loadDeletedBills()
-                val tip = if (bills.size == 1) "已永久删除账单" else "已永久删除 ${bills.size} 条账单"
+                val tip = if (bills.size == 1) getString(R.string.deleted_single) else getString(R.string.deleted_count_fmt, bills.size)
                 Toast.makeText(this@HistoryBillActivity, tip, Toast.LENGTH_SHORT).show()
             }
         }
@@ -337,8 +337,8 @@ class HistoryBillActivity : AppCompatActivity() {
         } else {
             layoutBottomActions.visibility = View.VISIBLE
             val hasSelection = selectedDeletedBillIds.isNotEmpty()
-            btnRestore.text = "恢复(${selectedDeletedBillIds.size})"
-            btnPermanentDelete.text = "永久删除(${selectedDeletedBillIds.size})"
+            btnRestore.text = getString(R.string.restore_count_fmt, selectedDeletedBillIds.size)
+            btnPermanentDelete.text = getString(R.string.permanent_delete_count_fmt, selectedDeletedBillIds.size)
             btnRestore.isEnabled = hasSelection
             btnPermanentDelete.isEnabled = hasSelection
             btnRestore.alpha = if (hasSelection) 1f else 0.45f
@@ -349,27 +349,27 @@ class HistoryBillActivity : AppCompatActivity() {
     private fun updateHeaderUi() {
         val hasBills = currentDeletedBills.isNotEmpty()
         if (!hasBills) {
-            header.setTitle("回收站")
+            header.setTitle(getString(R.string.trash))
             header.setActionText(null)
             return
         }
 
         if (!isSelectMode) {
-            header.setTitle("回收站")
-            header.setActionText("选择")
+            header.setTitle(getString(R.string.trash))
+            header.setActionText(getString(R.string.select_action))
             return
         }
 
         val allIds = currentDeletedBills.map { it.id }.toSet()
         val allSelected = allIds.isNotEmpty() && allIds.all { selectedDeletedBillIds.contains(it) }
-        header.setTitle("已选择 ${selectedDeletedBillIds.size} 项")
-        header.setActionText(if (allSelected) "取消全选" else "全选")
+        header.setTitle(getString(R.string.selected_items_fmt, selectedDeletedBillIds.size))
+        header.setActionText(if (allSelected) getString(R.string.deselect_all) else getString(R.string.select_all_label))
     }
 
     private fun showConfirmDialog(
         title: String,
         message: String,
-        confirmText: String = "确定",
+        confirmText: String = getString(R.string.confirm),
         isDanger: Boolean = false,
         onConfirm: () -> Unit
     ) {
@@ -546,8 +546,8 @@ class HistoryBillActivity : AppCompatActivity() {
                 itemView.setBackgroundResource(R.drawable.bg_history_bill_item)
 
                 val categoryName = when {
-                    isTransfer -> "转账"
-                    bill.categoryName.isBlank() -> "未分类"
+                    isTransfer -> itemView.context.getString(R.string.transfer_label)
+                    bill.categoryName.isBlank() -> itemView.context.getString(R.string.uncategorized)
                     else -> BillDisplayFormatter.stripRefundPrefix(bill.categoryName)
                 }
                 tvCategory.text = categoryName

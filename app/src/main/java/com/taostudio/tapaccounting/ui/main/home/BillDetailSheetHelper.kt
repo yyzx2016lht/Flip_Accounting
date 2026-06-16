@@ -86,12 +86,12 @@ object BillDetailSheetHelper {
         view.findViewById<LinearLayout>(R.id.layout_original_bill_section).visibility = View.GONE
 
         if (isTransfer) {
-            tvTitle.text = if (isRepayment) "还款详情" else "转账详情"
+            tvTitle.text = if (isRepayment) context.getString(R.string.repayment_detail) else context.getString(R.string.transfer_detail)
             tvAmount.setTextColor(Color.parseColor("#1A1A1A"))
             layoutCategory.visibility = View.GONE
             lineCategory.visibility = View.GONE
-            tvAccountLabel.text = "账户"
-            tvTimeLabel.text = "时间"
+            tvAccountLabel.text = context.getString(R.string.account)
+            tvTimeLabel.text = context.getString(R.string.time)
 
             if (!isRepayment && bill.fee > 0.0) {
                 layoutFeeDetail.visibility = View.VISIBLE
@@ -105,14 +105,14 @@ object BillDetailSheetHelper {
             lifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(context)
                 val toAsset = db.assetDao().getAssetById(bill.toAccountId ?: -1)
-                val toName = toAsset?.name ?: "未知账户"
+                val toName = toAsset?.name ?: context.getString(R.string.account)
                 val toAssetCurrency = toAsset?.currency ?: "CNY"
                 withContext(Dispatchers.Main) {
                     tvAccount.text = "${bill.accountName} -> $toName"
                     val sourceCurrency = bill.currency
                     val isCrossCurrency = !isRepayment && sourceCurrency != toAssetCurrency && bill.exchangeRate != 1.0
                     if (isCrossCurrency) {
-                        tvAmountLabel.text = "转出金额"
+                        tvAmountLabel.text = context.getString(R.string.from_amount)
                         val sourceSymbol = CurrencyManager.getSymbol(sourceCurrency)
                         tvAmount.text = "$sourceSymbol${String.format(Locale.getDefault(), "%.2f", bill.amount)}"
                         val targetAmount = bill.amount * bill.exchangeRate
@@ -121,7 +121,7 @@ object BillDetailSheetHelper {
                         lineIncoming.visibility = View.VISIBLE
                         tvIncomingAmount.text = "$toSymbol${String.format(Locale.getDefault(), "%.2f", targetAmount)}"
                     } else {
-                        tvAmountLabel.text = if (isRepayment) "还款金额" else "转账金额"
+                        tvAmountLabel.text = if (isRepayment) context.getString(R.string.repayment_amount) else context.getString(R.string.transfer_amount_label)
                         tvAmount.text = HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)
                     }
                 }
@@ -129,17 +129,17 @@ object BillDetailSheetHelper {
         } else {
             layoutFeeDetail.visibility = View.GONE
             lineFeeDetail.visibility = View.GONE
-            tvTitle.text = "详情"
-            tvAmountLabel.text = "金额"
+            tvTitle.text = context.getString(R.string.detail)
+            tvAmountLabel.text = context.getString(R.string.amount)
             layoutCategory.visibility = View.VISIBLE
             lineCategory.visibility = View.VISIBLE
-            tvCategory.text = BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { "未分类" }
+            tvCategory.text = BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { context.getString(R.string.uncategorized) }
 
             if (isRefund) {
                 tvAmount.text = HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)
                 tvAmount.setTextColor(Color.parseColor("#9AA1AA"))
-                tvAccountLabel.text = "入账账户"
-                tvTimeLabel.text = "入账时间"
+                tvAccountLabel.text = context.getString(R.string.entry_account)
+                tvTimeLabel.text = context.getString(R.string.entry_time)
                 tvAccount.text = bill.accountName
 
                 lifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -153,8 +153,8 @@ object BillDetailSheetHelper {
                     }
                 }
             } else {
-                tvAccountLabel.text = "账户"
-                tvTimeLabel.text = "时间"
+                tvAccountLabel.text = context.getString(R.string.account)
+                tvTimeLabel.text = context.getString(R.string.time)
                 tvAccount.text = bill.accountName
 
                 if (bill.type == Bill.TYPE_EXPENSE) {
@@ -167,7 +167,7 @@ object BillDetailSheetHelper {
                         )
                         tvAmountFormula.visibility = View.VISIBLE
                         tvAmountFormula.text =
-                            "退款${HomeBillFormatHelper.formatMoney(refundedAmount, bill.currency)}，实际支出${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
+                            context.getString(R.string.refund_deduct_formula_simple, HomeBillFormatHelper.formatMoney(refundedAmount, bill.currency), HomeBillFormatHelper.formatMoney(bill.amount, bill.currency))
                         renderRefundRecords(view, bill, context, lifecycleOwner, onRefund)
                     } else {
                         tvAmount.text = "-${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
@@ -202,9 +202,9 @@ object BillDetailSheetHelper {
         view.findViewById<TextView>(R.id.tv_detail_time).text = timeStr
 
         val recordTimeStr = dfDetailTime.format(Date(bill.time))
-        view.findViewById<TextView>(R.id.tv_detail_record_time).text = "记录于 $recordTimeStr"
+        view.findViewById<TextView>(R.id.tv_detail_record_time).text = context.getString(R.string.recorded_at_fmt, recordTimeStr)
         val tvRemark = view.findViewById<TextView>(R.id.tv_detail_remark)
-        tvRemark.text = bill.remark.ifEmpty { "无备注" }
+        tvRemark.text = bill.remark.ifEmpty { context.getString(R.string.no_remark) }
         view.findViewById<TextView>(R.id.tv_detail_book_name).text =
             bill.bookName.ifEmpty { BookAccountManager.getDefaultBook(context) }
 
@@ -228,11 +228,11 @@ object BillDetailSheetHelper {
 
         fun updateExcludeStatsButton() {
             if (currentExcludeFromStats) {
-                btnExcludeStats.text = "不计入"
+                btnExcludeStats.text = context.getString(R.string.exclude)
                 btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_outline)
                 btnExcludeStats.setTextColor(context.getColor(R.color.text_secondary))
             } else {
-                btnExcludeStats.text = "计入"
+                btnExcludeStats.text = context.getString(R.string.include)
                 btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_primary)
                 btnExcludeStats.setTextColor(context.getColor(R.color.dialog_button_primary_text))
             }
@@ -312,8 +312,8 @@ object BillDetailSheetHelper {
         bottomSheet: BottomSheetDialog
     ) {
         val panel = LayoutInflater.from(context).inflate(R.layout.dialog_delete_followup_confirm, null, false)
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = "确认删除"
-        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "删除后可在回收站恢复，是否继续？"
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = context.getString(R.string.confirm_delete)
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = context.getString(R.string.confirm_delete_message)
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(
             androidx.appcompat.view.ContextThemeWrapper(context, R.style.Theme_TapAccounting)
@@ -326,7 +326,7 @@ object BillDetailSheetHelper {
             dialog.dismiss()
         }
         panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
-            text = "确认删除"
+            text = context.getString(R.string.confirm_delete)
             setBackgroundResource(R.drawable.bg_delete_followup_danger_btn)
             setOnClickListener {
                 dialog.dismiss()
@@ -335,7 +335,7 @@ object BillDetailSheetHelper {
                     val db = AppDatabase.getDatabase(context)
                     com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.deleted), Toast.LENGTH_SHORT).show()
                     }
                 }
             }

@@ -22,7 +22,7 @@ class BuiltInPickerActivity : AppCompatActivity() {
         // 3. 设置适配器
         rv.adapter = BuiltInCategoryAdapter(data) { selected ->
             // 这里处理选择后的逻辑，例如返回给上一级页面
-            Utils.toast(this, "选择了: ${selected.name}")
+            Utils.toast(this, getString(R.string.selected_fmt, selected.name))
             // intent.putExtra("name", selected.name)
             // intent.putExtra("icon", selected.icon)
             // setResult(RESULT_OK, intent)

@@ -43,35 +43,31 @@ class CloudBackupActivity : AppCompatActivity() {
 
         findViewById<MaterialButton>(R.id.btn_save_cloud_settings).setOnClickListener {
             saveSettings()
-            Utils.toast(this, "云端设置已保存")
+            Utils.toast(this, getString(R.string.cloud_settings_saved))
         }
 
         findViewById<MaterialButton>(R.id.btn_test_cloud_connection).setOnClickListener {
             saveSettings()
-            Utils.toast(this, "连接测试功能将在 WebDAV 接入后启用")
+            Utils.toast(this, getString(R.string.connection_test_pending))
         }
 
         findViewById<MaterialButton>(R.id.btn_manual_upload).setOnClickListener {
             saveSettings()
             val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val fileName = "backup_${etDevice.text.toString().trim().ifBlank { "device" }}_lite_$ts.bak"
-            Utils.toast(this, "手动上传已触发（预留）：$fileName")
+            Utils.toast(this, getString(R.string.upload_triggered_fmt, fileName))
         }
 
         findViewById<MaterialButton>(R.id.btn_manual_download).setOnClickListener {
             saveSettings()
-            Utils.toast(this, "手动下载已触发（预留）")
+            Utils.toast(this, getString(R.string.download_triggered))
         }
 
         findViewById<MaterialButton>(R.id.btn_show_cleanup_policy).setOnClickListener {
             val dialog = AlertDialog.Builder(this)
-                .setTitle("云端保留策略")
-                .setMessage(
-                    "每台设备保留最近 10 份轻量备份 + 3 份完整备份。\n" +
-                        "超出数量自动删除最老文件。\n\n" +
-                        "当前为手动同步模式，不会后台自动上传。"
-                )
-                .setPositiveButton("我知道了", null)
+                .setTitle(getString(R.string.cloud_retention_title))
+                .setMessage(getString(R.string.backup_retain_policy_desc))
+                .setPositiveButton(getString(R.string.got_it), null)
                 .create()
             OverlayDialogs.showPageCenterDialog(
                 dialog = dialog,

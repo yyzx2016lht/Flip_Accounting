@@ -71,7 +71,7 @@ object RuleDialogHelper {
         }
 
         btnAiExtract.setOnClickListener {
-            Toast.makeText(ctx, "AI正在为你提取规则...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, ctx.getString(R.string.extracting_rules), Toast.LENGTH_SHORT).show()
             CoroutineScope(Dispatchers.IO).launch {
                 val remark = referenceText ?: ""
                 val prompt = DEFAULT_RULE_PROMPT
@@ -85,7 +85,7 @@ object RuleDialogHelper {
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(ctx, "关键词提取失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(ctx, ctx.getString(R.string.extract_failed), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -113,7 +113,7 @@ object RuleDialogHelper {
                 .filterNot { it.isArchived }
                 .map { it.name }
             withContext(Dispatchers.Main) {
-                val accAdapter = ArrayAdapter<String>(ctx, android.R.layout.simple_spinner_item, (listOf("无") + accounts).toTypedArray()).apply {
+                val accAdapter = ArrayAdapter<String>(ctx, android.R.layout.simple_spinner_item, (listOf(ctx.getString(R.string.none)) + accounts).toTypedArray()).apply {
                     setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                 }
                 spAccount1.adapter = accAdapter
@@ -148,10 +148,10 @@ object RuleDialogHelper {
             etKeyword.setText(rule.keyword)
         }
 
-        view.findViewById<TextView>(R.id.tv_dialog_title).text = if (rule == null) "添加记账习惯" else "编辑记账习惯"
+        view.findViewById<TextView>(R.id.tv_dialog_title).text = if (rule == null) ctx.getString(R.string.add_rule_title) else ctx.getString(R.string.edit_rule_title)
         view.findViewById<TextView>(R.id.tv_dialog_subtitle).text =
-            if (rule == null) "当文本命中关键词时，自动帮你补上分类、类型和账户。"
-            else "你可以微调关键词、分类和账户，让这条习惯更贴近你的记账方式。"
+            if (rule == null) ctx.getString(R.string.add_rule_subtitle)
+            else ctx.getString(R.string.edit_rule_subtitle)
 
         val dialog = AlertDialog.Builder(themeCtx)
             .setView(view)
@@ -173,16 +173,16 @@ object RuleDialogHelper {
         btnSaveRule.setOnClickListener {
             val keyword = etKeyword.text.toString().trim()
             if (keyword.isEmpty()) {
-                Toast.makeText(ctx, "关键词不能为空", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, ctx.getString(R.string.keyword_empty), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             val finalType = spType.selectedItemPosition
-            val finalCat = tvCategory.text.toString().takeIf { it != "点击选择分类" && it.isNotBlank() }
+            val finalCat = tvCategory.text.toString().takeIf { it != ctx.getString(R.string.tap_select_category) && it.isNotBlank() }
             val finalAcc1Str = spAccount1.selectedItem?.toString()
-            val finalAcc1 = if (finalAcc1Str == "无" || finalAcc1Str == null) null else finalAcc1Str
+            val finalAcc1 = if (finalAcc1Str == ctx.getString(R.string.none) || finalAcc1Str == null) null else finalAcc1Str
             val finalAcc2Str = spAccount2.selectedItem?.toString()
-            val finalAcc2 = if (finalAcc2Str == "无" || finalAcc2Str == null || (finalType != 2 && finalType != 3)) null else finalAcc2Str
+            val finalAcc2 = if (finalAcc2Str == ctx.getString(R.string.none) || finalAcc2Str == null || (finalType != 2 && finalType != 3)) null else finalAcc2Str
 
             val keywords = keyword.split("，", ",").map { it.trim() }.filter { it.isNotEmpty() }
             for (kw in keywords) {

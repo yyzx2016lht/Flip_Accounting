@@ -22,7 +22,7 @@ class QuickStartTileService : TileService() {
         } catch (e: Exception) {
             Logger.d(this, "QuickStartTile", "Error starting service: ${e.message}")
             e.printStackTrace()
-            Utils.toast(this, "无法唤起悬浮窗，请检查权限设置")
+            Utils.toast(this, getString(R.string.overlay_permission))
         }
         
         // Android 12 (API 31) 以上禁止在后台发送 ACTION_CLOSE_SYSTEM_DIALOGS，

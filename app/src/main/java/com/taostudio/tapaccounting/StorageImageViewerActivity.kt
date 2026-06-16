@@ -52,7 +52,7 @@ class StorageImageViewerActivity : AppCompatActivity() {
 
     private fun bind() {
         if (imagePaths.isEmpty()) {
-            tvTitle.text = "暂无图片"
+            tvTitle.text = getString(R.string.no_image)
             ivImage.setImageDrawable(null)
             btnPrev.isEnabled = false
             btnNext.isEnabled = false

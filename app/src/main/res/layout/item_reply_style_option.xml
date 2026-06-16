@@ -40,7 +40,7 @@
         android:background="@drawable/bg_model_selected_tag"
         android:paddingHorizontal="8dp"
         android:paddingVertical="3dp"
-        android:text="当前"
+        android:text="@string/current"
         android:textColor="#2F5BDA"
         android:textSize="11sp"
         android:visibility="gone" />

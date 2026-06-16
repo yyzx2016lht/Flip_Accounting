@@ -17,7 +17,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="图表设置"
+        android:text="@string/chart_settings"
         android:textColor="@color/dialog_title"
         android:textSize="@dimen/dialog_title_size"
         android:textStyle="bold"
@@ -26,7 +26,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="时间范围"
+        android:text="@string/time_range"
         android:textColor="@color/dialog_subtitle"
         android:textSize="@dimen/dialog_subtitle_size"
         android:layout_marginBottom="4dp" />
@@ -51,7 +51,7 @@
             android:paddingHorizontal="0dp"
             android:paddingVertical="0dp"
             android:textSize="@dimen/text_size_11"
-            android:text="近7日" />
+            android:text="@string/last_7_days" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRange15Days"
@@ -64,7 +64,7 @@
             android:paddingHorizontal="0dp"
             android:paddingVertical="0dp"
             android:textSize="@dimen/text_size_11"
-            android:text="近15日" />
+            android:text="@string/last_15_days" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRangeWeek"
@@ -77,7 +77,7 @@
             android:paddingHorizontal="0dp"
             android:paddingVertical="0dp"
             android:textSize="@dimen/text_size_11"
-            android:text="本周" />
+            android:text="@string/this_week" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRangeMonth"
@@ -90,13 +90,13 @@
             android:paddingHorizontal="0dp"
             android:paddingVertical="0dp"
             android:textSize="@dimen/text_size_11"
-            android:text="本月" />
+            android:text="@string/this_month" />
     </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="收支类型"
+        android:text="@string/income_expense_type"
         android:textColor="@color/dialog_subtitle"
         android:textSize="@dimen/dialog_subtitle_size"
         android:layout_marginBottom="4dp" />
@@ -120,7 +120,7 @@
             android:paddingHorizontal="0dp"
             android:paddingVertical="0dp"
             android:textSize="@dimen/text_size_11"
-            android:text="仅支出" />
+            android:text="@string/expense_only" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTypeIncome"
@@ -133,7 +133,7 @@
             android:paddingHorizontal="0dp"
             android:paddingVertical="0dp"
             android:textSize="@dimen/text_size_11"
-            android:text="仅收入" />
+            android:text="@string/income_only" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTypeBoth"
@@ -146,7 +146,7 @@
             android:paddingHorizontal="0dp"
             android:paddingVertical="0dp"
             android:textSize="@dimen/text_size_11"
-            android:text="收支对比" />
+            android:text="@string/income_expense_compare" />
     </com.google.android.material.button.MaterialButtonToggleGroup>
 
 </LinearLayout>

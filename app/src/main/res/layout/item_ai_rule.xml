@@ -45,7 +45,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_status_active"
-                android:text="生效中"
+                android:text="@string/active"
                 android:textColor="#3F8F4E"
                 android:textSize="12sp" />
 

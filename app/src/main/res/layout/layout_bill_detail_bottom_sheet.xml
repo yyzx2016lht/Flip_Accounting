@@ -25,7 +25,7 @@
             android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="详情"
+            android:text="@string/detail"
             android:textColor="@color/dialog_title"
             android:textSize="@dimen/dialog_title_size"
             android:textStyle="bold"
@@ -48,7 +48,7 @@
                 android:background="@drawable/bg_dialog_button_primary"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
-                android:text="计入"
+                android:text="@string/include"
                 android:textColor="@color/dialog_button_primary_text"
                 android:textSize="@dimen/text_size_13" />
 
@@ -60,7 +60,7 @@
                 android:background="@drawable/bg_dialog_button_outline"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
-                android:text="退款"
+                android:text="@string/refund"
                 android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_13" />
 
@@ -72,7 +72,7 @@
                 android:background="@drawable/bg_dialog_button_outline"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
-                android:text="修改"
+                android:text="@string/edit"
                 android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_13" />
 
@@ -84,7 +84,7 @@
                 android:background="@drawable/bg_dialog_button_danger"
                 android:gravity="center"
                 android:paddingHorizontal="14dp"
-                android:text="删除"
+                android:text="@string/delete"
                 android:textColor="@color/dialog_button_danger_text"
                 android:textSize="@dimen/text_size_13" />
         </LinearLayout>
@@ -120,7 +120,7 @@
                     android:id="@+id/tv_detail_amount_label"
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
-                    android:text="金额"
+                    android:text="@string/amount"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -173,7 +173,7 @@
                     android:id="@+id/tv_detail_incoming_label"
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
-                    android:text="转入金额"
+                    android:text="@string/transfer_amount"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -208,7 +208,7 @@
                 <TextView
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
-                    android:text="手续费"
+                    android:text="@string/fee"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -241,7 +241,7 @@
                 <TextView
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
-                    android:text="分类"
+                    android:text="@string/category_tag"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -274,7 +274,7 @@
                     android:id="@+id/tv_detail_account_label"
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
-                    android:text="账户"
+                    android:text="@string/account_tag"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -306,7 +306,7 @@
                     android:id="@+id/tv_detail_time_label"
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
-                    android:text="时间"
+                    android:text="@string/time_tag"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -352,7 +352,7 @@
                 <TextView
                     android:layout_width="72dp"
                     android:layout_height="wrap_content"
-                    android:text="备注"
+                    android:text="@string/remark_tag"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -382,7 +382,7 @@
                 <TextView
                     android:layout_width="80dp"
                     android:layout_height="wrap_content"
-                    android:text="账本"
+                    android:text="@string/book"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -410,7 +410,7 @@
                     android:layout_height="wrap_content"
                     android:background="#F2F4F7"
                     android:padding="12dp"
-                    android:text="退款记录"
+                    android:text="@string/refund_records"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_16"
                     android:textStyle="bold" />
@@ -443,7 +443,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="原账单"
+                        android:text="@string/original_bill"
                         android:textColor="@color/text_primary"
                         android:textSize="@dimen/text_size_13"
                         android:textStyle="bold" />
@@ -452,7 +452,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:text="退款来源"
+                        android:text="@string/refund_source_bill_label"
                         android:textColor="@color/text_secondary"
                         android:textSize="@dimen/text_size_12" />
                 </LinearLayout>

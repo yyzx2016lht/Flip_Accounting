@@ -26,7 +26,7 @@ class QuickStartActivity : Activity() {
         } catch (e: Exception) {
             Logger.d(this, "QuickStartActivity", "Error starting service: ${e.message}")
             e.printStackTrace()
-            Utils.toast(this, "无法唤起悬浮窗，请检查权限设置")
+            Utils.toast(this, getString(R.string.overlay_permission))
         }
         
         // 瞬间完成并退出，不留下界面

@@ -32,7 +32,7 @@
             android:layout_weight="1"
             android:layout_marginHorizontal="4dp"
             android:background="@drawable/bg_search_box"
-            android:hint="搜索聊天记录..."
+            android:hint="@string/hint_search_chat"
             android:textSize="14sp"
             android:paddingHorizontal="12dp"
             android:singleLine="true"
@@ -43,7 +43,7 @@
             android:id="@+id/btn_search_confirm"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="搜索"
+            android:text="@string/search"
             android:textColor="#1A73E8"
             android:textSize="14sp"
             android:paddingHorizontal="8dp" />
@@ -65,7 +65,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:padding="32dp"
-        android:text="暂无结果，试试其它关键词"
+        android:text="@string/no_search_result"
         android:textColor="#AAAAAA"
         android:textSize="14sp"
         android:visibility="gone" />

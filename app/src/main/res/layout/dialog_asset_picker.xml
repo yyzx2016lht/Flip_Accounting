@@ -21,7 +21,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="选择资产"
+            android:text="@string/select_asset_dialog"
             android:textSize="@dimen/dialog_title_size"
             android:textStyle="bold"
             android:textColor="@color/dialog_title"/>
@@ -30,7 +30,7 @@
             android:id="@+id/tv_asset_picker_hint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="长按拖动排序"
+            android:text="@string/long_press_sort"
             android:textSize="@dimen/dialog_subtitle_size"
             android:textColor="@color/dialog_subtitle"/>
     </LinearLayout>
@@ -48,7 +48,7 @@
         android:layout_height="@dimen/dialog_button_height"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_dialog_button_primary"
-        android:text="确 认"
+        android:text="@string/confirm"
         android:textColor="@color/dialog_button_primary_text"
         android:textStyle="bold"
         android:textSize="15sp"

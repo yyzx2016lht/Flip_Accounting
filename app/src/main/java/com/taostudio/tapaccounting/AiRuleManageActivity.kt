@@ -137,10 +137,10 @@ class AiRuleManageActivity : AppCompatActivity() {
             rule.targetAccount1.orEmpty(),
             rule.targetAccount2.orEmpty(),
             when (rule.targetType) {
-                0 -> "支出"
-                1 -> "收入"
-                2 -> "转账"
-                3 -> "还款"
+                0 -> getString(R.string.type_expense)
+                1 -> getString(R.string.type_income)
+                2 -> getString(R.string.type_transfer)
+                3 -> getString(R.string.type_repayment)
                 else -> ""
             }
         ).joinToString(" ").lowercase()
@@ -196,14 +196,14 @@ class AiRuleManageActivity : AppCompatActivity() {
 
     private fun updateMultiSelectUi() {
         layoutRuleMultiActions.visibility = if (isMultiSelectMode) View.VISIBLE else View.GONE
-        tvRuleSelectedCount.text = "已选择 ${selectedRuleIds.size} 条"
+        tvRuleSelectedCount.text = getString(R.string.selected_count, selectedRuleIds.size)
 
         val visibleIds = adapter.currentItems.map { it.id }.toSet()
         btnRuleSelectAll.text =
             if (visibleIds.isNotEmpty() && selectedRuleIds.containsAll(visibleIds) && selectedRuleIds.size == visibleIds.size) {
-                "取消全选"
+                getString(R.string.cancel_select_all)
             } else {
-                "全选"
+                getString(R.string.select_all_rules)
             }
     }
 
@@ -242,15 +242,15 @@ class AiRuleManageActivity : AppCompatActivity() {
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("删除记账习惯")
-            .setMessage("确定删除选中的 ${toDelete.size} 条记账习惯吗？")
-            .setPositiveButton("删除") { _, _ ->
+            .setTitle(R.string.delete_rule_title)
+            .setMessage(getString(R.string.delete_rule_confirm, toDelete.size))
+            .setPositiveButton(R.string.delete) { _, _ ->
                 lifecycleScope.launch {
                     toDelete.forEach { db.aiRuleDao().deleteRule(it) }
                     exitMultiSelectMode()
                 }
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.cancel, null)
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -272,9 +272,9 @@ class AiRuleManageActivity : AppCompatActivity() {
                         editingRuleId = rule?.id
                     )
                     when (outcome) {
-                        RuleSaveOutcome.SAVED -> Utils.toast(this@AiRuleManageActivity, "规则保存成功")
-                        RuleSaveOutcome.OVERWRITTEN -> Utils.toast(this@AiRuleManageActivity, "已覆盖同关键词旧规则")
-                        RuleSaveOutcome.CANCELED -> Utils.toast(this@AiRuleManageActivity, "已取消规则保存")
+                        RuleSaveOutcome.SAVED -> Utils.toast(this@AiRuleManageActivity, getString(R.string.rule_saved))
+                        RuleSaveOutcome.OVERWRITTEN -> Utils.toast(this@AiRuleManageActivity, getString(R.string.rule_overwritten))
+                        RuleSaveOutcome.CANCELED -> Utils.toast(this@AiRuleManageActivity, getString(R.string.rule_save_canceled))
                     }
                 }
             },
@@ -330,13 +330,13 @@ class AiRuleManageActivity : AppCompatActivity() {
             return@suspendCancellableCoroutine
         }
         val dialog = AlertDialog.Builder(this)
-            .setTitle("检测到同关键词规则")
-            .setMessage("关键词“$keyword”已有 $existingCount 条规则。\n\n继续保存将覆盖旧规则，是否继续？")
-            .setPositiveButton("继续并覆盖") { d, _ ->
+            .setTitle(R.string.duplicate_keyword_title)
+            .setMessage(getString(R.string.duplicate_rule_dialog_message, keyword, existingCount))
+            .setPositiveButton(R.string.continue_and_overwrite) { d, _ ->
                 d.dismiss()
                 if (cont.isActive) cont.resume(true)
             }
-            .setNegativeButton("取消保存") { d, _ ->
+            .setNegativeButton(R.string.cancel_save) { d, _ ->
                 d.dismiss()
                 if (cont.isActive) cont.resume(false)
             }
@@ -387,11 +387,11 @@ class AiRuleManageActivity : AppCompatActivity() {
             holder.tvKeyword.text = rule.keyword
 
             if (rule.isEnabled) {
-                holder.tvStatus.text = "已启用"
+                holder.tvStatus.text = holder.itemView.context.getString(R.string.status_enabled)
                 holder.tvStatus.setTextColor(Color.parseColor("#4CAF50"))
                 holder.tvStatus.setBackgroundResource(R.drawable.bg_status_active)
             } else {
-                holder.tvStatus.text = "已停用"
+                holder.tvStatus.text = holder.itemView.context.getString(R.string.status_disabled)
                 holder.tvStatus.setTextColor(Color.parseColor("#9E9E9E"))
                 holder.tvStatus.setBackgroundResource(R.drawable.bg_status_inactive)
             }
@@ -409,21 +409,22 @@ class AiRuleManageActivity : AppCompatActivity() {
                 sb.setSpan(ForegroundColorSpan(Color.parseColor("#7A8598")), labelStart, valueStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
 
+            val ctx = holder.itemView.context
             rule.targetType?.let {
                 val typeStr = when (it) {
-                    0 -> "支出"
-                    1 -> "收入"
-                    2 -> "转账"
-                    3 -> "还款"
-                    else -> "未知"
+                    0 -> ctx.getString(R.string.type_expense)
+                    1 -> ctx.getString(R.string.type_income)
+                    2 -> ctx.getString(R.string.type_transfer)
+                    3 -> ctx.getString(R.string.type_repayment)
+                    else -> ctx.getString(R.string.type_unknown)
                 }
-                appendAction("类型", typeStr)
+                appendAction(ctx.getString(R.string.label_type), typeStr)
             }
-            appendAction("分类", rule.targetCategory)
-            appendAction("账户", rule.targetAccount1)
-            appendAction("目标账户", rule.targetAccount2)
+            appendAction(ctx.getString(R.string.label_category), rule.targetCategory)
+            appendAction(ctx.getString(R.string.label_account), rule.targetAccount1)
+            appendAction(ctx.getString(R.string.label_target_account), rule.targetAccount2)
 
-            holder.tvActions.text = if (sb.isEmpty()) "未设置自动填充动作" else sb
+            holder.tvActions.text = if (sb.isEmpty()) ctx.getString(R.string.no_auto_fill_action) else sb
             holder.cbSelect.visibility = if (isMultiSelectMode()) View.VISIBLE else View.GONE
             holder.cbSelect.isChecked = isSelected(rule)
             holder.itemView.alpha = if (isMultiSelectMode() && isSelected(rule)) 0.82f else 1f

@@ -80,9 +80,9 @@ class LogViewerActivity : AppCompatActivity() {
         switchDevFullLogging.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setDeveloperFullLoggingEnabled(this, isChecked)
             if (isChecked) {
-                Utils.toast(this, "已开启完整日志记录（开发者模式）")
+                Utils.toast(this, getString(R.string.dev_log_on))
             } else {
-                Utils.toast(this, "已关闭完整日志记录")
+                Utils.toast(this, getString(R.string.dev_log_off))
             }
         }
     }
@@ -101,12 +101,12 @@ class LogViewerActivity : AppCompatActivity() {
     private fun loadCurrentLog() {
         val file = if (showingCrash) Logger.getCrashFile(this) else Logger.getLogFile(this)
         loadFileContent(tvContent, file,
-            emptyHint = if (showingCrash) "尚无崩溃记录 🎉" else "尚无运行日志")
+            emptyHint = if (showingCrash) getString(R.string.no_crash_log_hint) else getString(R.string.no_runtime_log_hint))
     }
 
     private fun loadFileContent(view: TextView, file: File, emptyHint: String) {
         val generation = ++loadGeneration
-        view.text = "正在加载…"
+        view.text = getString(R.string.loading)
         lifecycleScope.launch {
             val content = withContext(Dispatchers.IO) {
                 readDisplayContent(file, emptyHint)
@@ -137,13 +137,13 @@ class LogViewerActivity : AppCompatActivity() {
                 text.trim().takeLast(MAX_DISPLAY_CHARS)
             }
             val prefix = if (omittedHead) {
-                "仅显示最新日志（文件较大，已省略前面的内容）\n\n"
+                getString(R.string.log_omitted_hint) + "\n\n"
             } else {
                 ""
             }
             prefix + content.ifBlank { emptyHint }
         } catch (e: Exception) {
-            "读取失败: ${e.message}"
+            getString(R.string.read_failed_fmt, e.message ?: "")
         }
     }
 
@@ -182,7 +182,7 @@ class LogViewerActivity : AppCompatActivity() {
     private fun shareLogs() {
         val file = if (showingCrash) Logger.getCrashFile(this) else Logger.getLogFile(this)
         if (!file.exists() || file.length() == 0L) {
-            Utils.toast(this, "当前没有日志内容")
+            Utils.toast(this, getString(R.string.no_log_content))
             return
         }
         try {
@@ -192,9 +192,9 @@ class LogViewerActivity : AppCompatActivity() {
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(intent, "分享${if (showingCrash) "崩溃" else "运行"}日志"))
+            startActivity(Intent.createChooser(intent, if (showingCrash) getString(R.string.share_crash_log) else getString(R.string.share_runtime_log)))
         } catch (e: Exception) {
-            Utils.toast(this, "分享失败，请稍后重试")
+            Utils.toast(this, getString(R.string.share_failed))
         }
     }
 }

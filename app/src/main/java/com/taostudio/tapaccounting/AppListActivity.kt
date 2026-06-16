@@ -96,7 +96,7 @@ class AppListActivity : AppCompatActivity() {
         // 6. 保存逻辑
         findViewById<MaterialButton>(R.id.btn_save).setOnClickListener {
             Prefs.setAppWhiteList(this, selectedPackageNames)
-            Utils.toast(this, "白名单已保存 (${selectedPackageNames.size}个应用)")
+            Utils.toast(this, getString(R.string.whitelist_saved_fmt, selectedPackageNames.size))
             finish()
         }
     }
@@ -121,9 +121,9 @@ class AppListActivity : AppCompatActivity() {
     // ... checkShizukuStatus 保持不变 ...
     private fun checkShizukuStatus() {
         if (!ShizukuSafe.isBinderAlive()) {
-            Utils.toast(this, "Shizuku 未运行，白名单功能将失效")
+            Utils.toast(this, getString(R.string.shizuku_not_running))
         } else if (!ShizukuSafe.hasPermission(this)) {
-            Utils.toast(this, "尚未获得 Shizuku 授权")
+            Utils.toast(this, getString(R.string.shizuku_unauthorized))
         }
     }
 }

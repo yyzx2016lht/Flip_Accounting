@@ -132,7 +132,7 @@ class StoragePreviewActivity : AppCompatActivity() {
                 allFiles = dedup
                 imageFiles = images
                 audioFiles = audios
-                tvSummary.text = "共 ${allFiles.size} 个文件 · 图片 ${imageFiles.size} · 语音 ${audioFiles.size}"
+                tvSummary.text = getString(R.string.preview_summary_fmt, allFiles.size, imageFiles.size, audioFiles.size)
                 switchTab(if (imageFiles.isNotEmpty()) PreviewTab.IMAGES else PreviewTab.AUDIOS)
             }
         }
@@ -149,14 +149,14 @@ class StoragePreviewActivity : AppCompatActivity() {
                 recyclerView.adapter = imageAdapter
                 imageAdapter.submit(imageFiles)
                 tvEmpty.visibility = if (imageFiles.isEmpty()) View.VISIBLE else View.GONE
-                tvEmpty.text = "当前没有可预览的图片"
+                tvEmpty.text = getString(R.string.no_preview_image)
             }
             PreviewTab.AUDIOS -> {
                 recyclerView.layoutManager = LinearLayoutManager(this)
                 recyclerView.adapter = audioAdapter
                 audioAdapter.submit(audioFiles, playingPath)
                 tvEmpty.visibility = if (audioFiles.isEmpty()) View.VISIBLE else View.GONE
-                tvEmpty.text = "当前没有可试听的语音"
+                tvEmpty.text = getString(R.string.no_preview_audio)
             }
         }
     }
@@ -211,7 +211,7 @@ class StoragePreviewActivity : AppCompatActivity() {
             audioAdapter.submit(audioFiles, playingPath)
         }.onFailure {
             runCatching { player.release() }
-            Utils.toast(this, "播放失败，文件可能已损坏")
+            Utils.toast(this, getString(R.string.play_failed))
         }
     }
 
@@ -327,10 +327,10 @@ class StoragePreviewActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val file = data[position]
-            val modified = if (file.lastModified() > 0) dateFormat.format(Date(file.lastModified())) else "未知时间"
+            val modified = if (file.lastModified() > 0) dateFormat.format(Date(file.lastModified())) else getString(R.string.unknown_time)
             holder.tvTitle.text = file.name
             holder.tvMeta.text = "${formatBytes(file.length())} · $modified"
-            holder.btnPlay.text = if (file.absolutePath == currentPlayingPath) "停止" else "播放"
+            holder.btnPlay.text = if (file.absolutePath == currentPlayingPath) getString(R.string.stop) else getString(R.string.play)
             holder.btnPlay.setOnClickListener { onPlayClick(file) }
         }
 

@@ -190,7 +190,7 @@ class SensitivityActivity : AppCompatActivity() {
             }
             startServiceCompat(intent)
             if (isChecked) {
-                handleGestureEnabled("翻转手机")
+                handleGestureEnabled(getString(R.string.flip_phone))
                 if (!Prefs.hasSeenFlipGuide(this@SensitivityActivity)) {
                     Prefs.setFlipGuideSeen(this@SensitivityActivity)
                     cardFlipSensitivity.post { showFlipSecondaryGuide() }
@@ -218,7 +218,7 @@ class SensitivityActivity : AppCompatActivity() {
                         tvTapActionDoubleName.text = getVisibleTapActionName("show_overlay")
                     }
                 }
-                handleGestureEnabled("敲击背板")
+                handleGestureEnabled(getString(R.string.tap_back))
                 if (!Prefs.hasSeenDoubleTapGuide(this@SensitivityActivity)) {
                     Prefs.setDoubleTapGuideSeen(this@SensitivityActivity)
                     cardTapSensitivity.post { showTapSecondaryGuide() }
@@ -289,7 +289,7 @@ class SensitivityActivity : AppCompatActivity() {
         RecentTasksHelper.applyHideRecentsPreference(this)
         Toast.makeText(
             this,
-            if (enabled) "已尝试隐藏后台卡片" else "已恢复后台卡片显示",
+            if (enabled) getString(R.string.hide_recents_on) else getString(R.string.hide_recents_off),
             Toast.LENGTH_SHORT
         ).show()
     }
@@ -328,7 +328,7 @@ class SensitivityActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btn_flip_action).setOnClickListener {
             showTapActionDialog(
-                title = "翻转动作",
+                title = getString(R.string.flip_action_title),
                 currentActionId = Prefs.getFlipAction(this),
                 targetView = tvFlipActionName,
                 onSelected = { Prefs.setFlipAction(this, it) }
@@ -390,8 +390,8 @@ class SensitivityActivity : AppCompatActivity() {
             val models = TapModel.values()
             val currentIdx = models.indexOf(TapModel.resolve(this)).coerceAtLeast(0)
             showSelectionDialog(
-                title = "选择模型（设备尺寸）",
-                items = models.map { SelectionItem(it.displayName, "${it.screenInches} 寸") },
+                title = getString(R.string.model_selection_title),
+                items = models.map { SelectionItem(it.displayName, getString(R.string.model_inches_fmt, it.screenInches)) },
                 selectedIndex = currentIdx
             ) { which ->
                 Prefs.setTapModel(this, models[which].path)
@@ -434,7 +434,7 @@ class SensitivityActivity : AppCompatActivity() {
         tvTapActionDoubleName.text = getVisibleTapActionName(doubleActionId)
         findViewById<View>(R.id.btn_tap_action_double).setOnClickListener {
             showTapActionDialog(
-                title = "双击动作",
+                title = getString(R.string.double_tap_action_title),
                 currentActionId = Prefs.getTapActionDouble(this),
                 targetView = tvTapActionDoubleName,
                 onSelected = { Prefs.setTapActionDouble(this, it) }
@@ -446,7 +446,7 @@ class SensitivityActivity : AppCompatActivity() {
         tvTapActionTripleName.text = getVisibleTapActionName(tripleActionId)
         findViewById<View>(R.id.btn_tap_action_triple).setOnClickListener {
             showTapActionDialog(
-                title = "三击动作",
+                title = getString(R.string.triple_tap_action_title),
                 currentActionId = Prefs.getTapActionTriple(this),
                 targetView = tvTapActionTripleName,
                 onSelected = { Prefs.setTapActionTriple(this, it) }
@@ -462,9 +462,9 @@ class SensitivityActivity : AppCompatActivity() {
         }
 
     private fun getVisibleTapActionName(actionId: String): String {
-        val action = TapActionRegistry.findById(actionId) ?: return "未设置"
+        val action = TapActionRegistry.findById(actionId) ?: return getString(R.string.unset)
         if (action.id == SCREEN_CAPTURE_ACTION_ID && !isScreenAccountingAvailableForTapAction()) {
-            return "未设置"
+            return getString(R.string.unset)
         }
         return action.displayName
     }
@@ -484,7 +484,7 @@ class SensitivityActivity : AppCompatActivity() {
     ) {
         val actions = getVisibleTapActions()
         val ids = listOf("") + actions.map { it.id }
-        val items = listOf(SelectionItem("无", "不执行任何操作")) +
+        val items = listOf(SelectionItem(getString(R.string.action_none), getString(R.string.action_none_desc))) +
             actions.map { SelectionItem(it.displayName, it.description) }
         val currentIdx = ids.indexOf(currentActionId).coerceAtLeast(0)
         showSelectionDialog(
@@ -595,7 +595,7 @@ class SensitivityActivity : AppCompatActivity() {
                     ignoreWhitelistToggle = false
                 }
                 layoutWhitelistManage.visibility = View.GONE
-                Toast.makeText(this, "请先在设置中开启 Shizuku 模式", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.enable_shizuku_first), Toast.LENGTH_SHORT).show()
                 return@setOnCheckedChangeListener
             }
             if (isChecked && !ShizukuSafe.isReady(this)) {
@@ -605,18 +605,18 @@ class SensitivityActivity : AppCompatActivity() {
                     ignoreWhitelistToggle = false
                 }
                 layoutWhitelistManage.visibility = View.GONE
-                Toast.makeText(this, "白名单模式需要先完成 Shizuku 授权", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.whitelist_need_shizuku), Toast.LENGTH_SHORT).show()
                 OverlayDialogs.showShizukuPrompt(this)
                 return@setOnCheckedChangeListener
             }
             layoutWhitelistManage.visibility = if (isChecked) View.VISIBLE else View.GONE
             restartTapDetection()
-            Toast.makeText(this, if (isChecked) "已开启白名单模式" else "已恢复全局模式", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, if (isChecked) getString(R.string.whitelist_enabled) else getString(R.string.whitelist_disabled), Toast.LENGTH_SHORT).show()
         }
 
         btnManageWhitelist.setOnClickListener {
             if (!ShizukuSafe.isBinderAlive()) {
-                Toast.makeText(this, "请先完成 Shizuku 授权", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.shizuku_auth_first), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             if (!ShizukuSafe.hasPermission(this)) {
@@ -646,7 +646,7 @@ class SensitivityActivity : AppCompatActivity() {
             if (isChecked) {
                 requestNotificationPermissionOrOpenSettings()
             } else {
-                Toast.makeText(this, "请在系统通知设置中关闭通知权限", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.disable_notification), Toast.LENGTH_SHORT).show()
                 openNotificationSettings()
             }
         }
@@ -657,8 +657,8 @@ class SensitivityActivity : AppCompatActivity() {
 
         fun refreshAccessibilityStatus() {
             val isEnabled = KeepAliveAccessibilityService.isServiceEnabled()
-            tvAccessibilityStatus?.text = if (isEnabled) "已开启" else "用于截屏记账和后台保活"
-            (btnAccessibility as? MaterialButton)?.text = if (isEnabled) "已开启" else "去开启"
+            tvAccessibilityStatus?.text = if (isEnabled) getString(R.string.accessibility_status_on) else getString(R.string.accessibility_desc)
+            (btnAccessibility as? MaterialButton)?.text = if (isEnabled) getString(R.string.accessibility_status_on) else getString(R.string.go_enable)
         }
 
         btnAccessibility?.setOnClickListener {
@@ -666,7 +666,7 @@ class SensitivityActivity : AppCompatActivity() {
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                 startActivity(intent)
             } catch (e: Exception) {
-                Toast.makeText(this, "无法打开无障碍设置", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.accessibility_failed), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -681,8 +681,8 @@ class SensitivityActivity : AppCompatActivity() {
         val tvAccessibilityStatus = findViewById<TextView>(R.id.tv_accessibility_status)
         val btnAccessibility = findViewById<View>(R.id.btn_accessibility_service)
         val isEnabled = KeepAliveAccessibilityService.isServiceEnabled()
-        tvAccessibilityStatus?.text = if (isEnabled) "已开启" else "用于截屏记账和后台保活"
-        (btnAccessibility as? MaterialButton)?.text = if (isEnabled) "已开启" else "去开启"
+        tvAccessibilityStatus?.text = if (isEnabled) getString(R.string.accessibility_status_on) else getString(R.string.accessibility_desc)
+        (btnAccessibility as? MaterialButton)?.text = if (isEnabled) getString(R.string.accessibility_status_on) else getString(R.string.go_enable)
 
         refreshNotificationStatus()
         refreshWhitelistUi()
@@ -711,7 +711,7 @@ class SensitivityActivity : AppCompatActivity() {
     private fun refreshNotificationStatus() {
         val notificationReady = isNotificationPermissionReady()
         findViewById<TextView>(R.id.tv_notification_status)?.text =
-            if (notificationReady) "通知权限已开启，可显示前台服务和录音状态" else "通知权限已关闭；开启后可显示服务状态"
+            if (notificationReady) getString(R.string.notification_status_on) else getString(R.string.notification_status_off)
         if (::switchNotificationPermission.isInitialized) {
             isUpdatingNotificationSwitch = true
             switchNotificationPermission.isChecked = notificationReady
@@ -751,7 +751,7 @@ class SensitivityActivity : AppCompatActivity() {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "无法打开通知设置", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.notification_settings_failed), Toast.LENGTH_SHORT).show()
             refreshNotificationStatus()
         }
     }
@@ -771,25 +771,25 @@ class SensitivityActivity : AppCompatActivity() {
 
     private fun updateFlipUI(level: Int) {
         val label = when (level) {
-            in 0..19 -> "非常稳"
-            in 20..39 -> "偏稳"
-            in 40..60 -> "中等"
-            in 61..80 -> "灵敏"
-            else -> "非常灵敏"
+            in 0..19 -> getString(R.string.level_very_stable)
+            in 20..39 -> getString(R.string.level_stable)
+            in 40..60 -> getString(R.string.level_medium)
+            in 61..80 -> getString(R.string.level_sensitive)
+            else -> getString(R.string.level_very_sensitive)
         }
-        tvFlipCurrentValue.text = "当前等级：$label（$level）"
+        tvFlipCurrentValue.text = getString(R.string.current_flip_level_fmt, label, level)
     }
 
     private fun updateTapUI(level: Int) {
         val label = when (level) {
-            in 0..1 -> "非常低"
-            in 2..3 -> "低"
-            in 4..5 -> "中等"
-            in 6..7 -> "高"
-            in 8..10 -> "非常高"
-            else -> "中等"
+            in 0..1 -> getString(R.string.level_very_low)
+            in 2..3 -> getString(R.string.level_low)
+            in 4..5 -> getString(R.string.level_medium)
+            in 6..7 -> getString(R.string.level_high)
+            in 8..10 -> getString(R.string.level_very_high)
+            else -> getString(R.string.level_medium)
         }
-        tvTapCurrentValue.text = "当前等级：$label"
+        tvTapCurrentValue.text = getString(R.string.current_tap_level_fmt, label)
     }
 
     private fun updateLowPowerDependencies() {
@@ -804,9 +804,9 @@ class SensitivityActivity : AppCompatActivity() {
         groupTapNnapi.visibility = visibility
         groupTapLowPower.visibility = visibility
         tvTapAdvancedSummary.text = if (tapAdvancedExpanded) {
-            "已展开模型、功耗和推理参数"
+            getString(R.string.advanced_expanded)
         } else {
-            "模型、功耗和推理参数"
+            getString(R.string.advanced_collapsed)
         }
         ivTapAdvancedChevron.rotation = if (tapAdvancedExpanded) 90f else 0f
     }

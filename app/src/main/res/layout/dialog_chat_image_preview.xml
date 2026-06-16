@@ -13,7 +13,7 @@
         android:id="@+id/tv_pick_preview_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="图片预览"
+        android:text="@string/image_preview"
         android:textColor="#1F2937"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -33,7 +33,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:lineSpacingExtra="2dp"
-        android:text="确认后进入裁剪"
+        android:text="@string/confirm_to_crop"
         android:textColor="#6B7280"
         android:textSize="14sp" />
 
@@ -52,7 +52,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_delete_dialog_cancel_btn"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="#5A677C"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -65,7 +65,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_delete_followup_primary_btn"
             android:gravity="center"
-            android:text="确定"
+            android:text="@string/confirm"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:textStyle="bold" />

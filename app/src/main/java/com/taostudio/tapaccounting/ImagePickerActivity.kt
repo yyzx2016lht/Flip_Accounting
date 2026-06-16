@@ -36,7 +36,7 @@ class ImagePickerActivity : Activity() {
             type = "image/*"
             addCategory(Intent.CATEGORY_OPENABLE)
         }
-        startActivityForResult(Intent.createChooser(intent, "选择小票图片"), REQUEST_PICK_IMAGE)
+        startActivityForResult(Intent.createChooser(intent, getString(R.string.pick_receipt_image)), REQUEST_PICK_IMAGE)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -47,7 +47,7 @@ class ImagePickerActivity : Activity() {
                 val stableUri = runCatching { copyImageToCache(uri) }
                     .getOrElse { err ->
                         err.printStackTrace()
-                        Toast.makeText(this, "读取图片失败，请重试", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.image_read_failed), Toast.LENGTH_SHORT).show()
                         onPickCancelled?.invoke()
                         finish()
                         return

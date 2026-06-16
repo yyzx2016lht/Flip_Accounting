@@ -143,27 +143,27 @@ class AiConfigActivity : AppCompatActivity() {
         fun updateThinkingUi() {
             val binding = thinkingBindingForMode(currentMode)
             val modeTitle = when (currentMode) {
-                "text" -> "主文本模型"
-                "vision" -> "视觉模型"
-                "speech" -> "语音识别"
-                else -> "当前模式"
+                "text" -> getString(R.string.text_model_label)
+                "vision" -> getString(R.string.vision_model_label)
+                "speech" -> getString(R.string.speech_model_label)
+                else -> getString(R.string.current_mode_label)
             }
             updatingThinkingUi = true
             when (binding) {
                 ThinkingBinding.FIXED_OFF -> {
                     switchEnableThinkingCurrent.isEnabled = false
                     switchEnableThinkingCurrent.isChecked = false
-                    switchEnableThinkingCurrent.text = "$modeTitle：思考固定关闭"
-                    tvThinkingScopeHint.text = "该模式当前固定关闭思考，避免额外耗时。"
+                    switchEnableThinkingCurrent.text = getString(R.string.thinking_fixed_off, modeTitle)
+                    tvThinkingScopeHint.text = getString(R.string.thinking_fixed_off_hint)
                 }
 
                 else -> {
                     switchEnableThinkingCurrent.isEnabled = true
                     switchEnableThinkingCurrent.isChecked = isThinkingEnabled(binding)
-                    switchEnableThinkingCurrent.text = "$modeTitle：启用思考"
+                    switchEnableThinkingCurrent.text = getString(R.string.thinking_enabled, modeTitle)
                     tvThinkingScopeHint.text = when (binding) {
-                        ThinkingBinding.TEXT -> "会同时影响记账、多账单、修改账单、二段分类、规则生成和 OCR 整理。"
-                        ThinkingBinding.VISION -> "会同时影响小票图片识别、视觉重试和截屏识别。"
+                        ThinkingBinding.TEXT -> getString(R.string.thinking_scope_text)
+                        ThinkingBinding.VISION -> getString(R.string.thinking_scope_vision)
                         ThinkingBinding.FIXED_OFF -> ""
                     }
                 }
@@ -190,7 +190,7 @@ class AiConfigActivity : AppCompatActivity() {
                 setPadding(48, 32, 48, 16)
             }
             val etSearch = EditText(this).apply {
-                hint = "搜索 AI 模型"
+                hint = getString(R.string.search_ai_model)
                 setSingleLine()
             }
             val listView = ListView(this).apply {
@@ -209,7 +209,7 @@ class AiConfigActivity : AppCompatActivity() {
             listView.adapter = listAdapter
 
             val dialog = AlertDialog.Builder(this)
-                .setTitle("选择 AI 模型")
+                .setTitle(R.string.select_ai_model)
                 .setView(dialogLayout)
                 .create()
 
@@ -352,7 +352,7 @@ class AiConfigActivity : AppCompatActivity() {
                     val models = AIService.fetchModelsForProvider(currentPreset, key)
                     withContext(Dispatchers.Main) {
                         btnTest.isEnabled = true
-                        btnTest.text = "刷新并测试模型连接"
+                        btnTest.text = getString(R.string.refresh_test_model)
                         Prefs.setAiKey(this@AiConfigActivity, key)
                         if (models.isNotEmpty()) {
                             val cleanedModels = models.map { it.trim() }.filter { it.isNotEmpty() }
@@ -361,26 +361,26 @@ class AiConfigActivity : AppCompatActivity() {
                             allModelsList.addAll(cleanedModels)
                             syncModeModelsFromPrefs()
                             updateUI()
-                            Utils.toast(this@AiConfigActivity, "连接成功，已加载 ${cleanedModels.size} 个可用模型")
+                            Utils.toast(this@AiConfigActivity, getString(R.string.model_loaded_fmt, cleanedModels.size))
                         } else {
                             Prefs.setAiModelsCache(this@AiConfigActivity, emptyList())
                             allModelsList.clear()
                             syncModeModelsFromPrefs()
                             updateUI()
-                            Utils.toast(this@AiConfigActivity, "连接成功，但未找到可用模型")
+                            Utils.toast(this@AiConfigActivity, getString(R.string.no_model_found))
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         btnTest.isEnabled = true
-                        btnTest.text = "刷新并测试模型连接"
+                        btnTest.text = getString(R.string.refresh_test_model)
                         val msg = e.message.orEmpty()
                         Utils.toast(
                             this@AiConfigActivity,
                             when {
-                                msg.contains("timeout") || msg.contains("Failed to connect") || msg.contains("Unable to resolve host") -> "连接超时，请检查网络或 API 地址"
-                                msg.contains("401") -> "认证失败：API Key 可能错误或已过期"
-                                else -> "连接失败，请稍后重试"
+                                msg.contains("timeout") || msg.contains("Failed to connect") || msg.contains("Unable to resolve host") -> getString(R.string.timeout_or_network_error)
+                                msg.contains("401") -> getString(R.string.auth_failed)
+                                else -> getString(R.string.connection_test_failed)
                             }
                         )
                     }
@@ -440,7 +440,7 @@ class AiConfigActivity : AppCompatActivity() {
             }
             Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
 
-            Utils.toast(this, "所有 AI 配置已保存")
+            Utils.toast(this, getString(R.string.ai_config_saved))
             finish()
         }
 
@@ -497,8 +497,8 @@ class AiConfigActivity : AppCompatActivity() {
     }
 
     private fun defaultLabelForUnsupportedMode(mode: String): String = when (mode) {
-        "vision" -> if (!currentPreset.supportsVision) "（当前提供商不支持）" else ""
-        "speech" -> if (!currentPreset.supportsCloudSpeech) "（当前提供商不支持）" else ""
+        "vision" -> if (!currentPreset.supportsVision) getString(R.string.unsupported_provider_hint) else ""
+        "speech" -> if (!currentPreset.supportsCloudSpeech) getString(R.string.unsupported_provider_hint) else ""
         else -> ""
     }
 

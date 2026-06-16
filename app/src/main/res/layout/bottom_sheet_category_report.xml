@@ -18,7 +18,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="详情"
+        android:text="@string/detail"
         android:textColor="@color/dialog_title"
         android:textSize="@dimen/dialog_title_size"
         android:textStyle="bold" />

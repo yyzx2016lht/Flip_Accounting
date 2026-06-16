@@ -27,7 +27,7 @@
             android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="账单详情"
+            android:text="@string/bill_detail"
             android:textColor="#1A2744"
             android:textSize="18sp"
             android:textStyle="bold"
@@ -43,7 +43,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:gravity="center"
             android:paddingHorizontal="8dp"
-            android:text="保存"
+            android:text="@string/save"
             android:textColor="#1F5FC8"
             android:textSize="15sp"
             android:textStyle="bold"
@@ -112,7 +112,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="14dp"
                     android:layout_weight="1"
-                    android:text="未分类"
+                    android:text="@string/uncategorized"
                     android:textColor="#18191B"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -148,7 +148,7 @@
                         android:id="@+id/tv_amount_label"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="账单金额"
+                        android:text="@string/bill_amount"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -206,7 +206,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="手续费"
+                        android:text="@string/fee"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -240,7 +240,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="到账金额"
+                        android:text="@string/received_amount"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -274,7 +274,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="账单日期"
+                        android:text="@string/bill_date"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -311,7 +311,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="账单属性"
+                        android:text="@string/bill_property"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -335,7 +335,7 @@
                             android:layout_height="match_parent"
                             android:background="@drawable/bg_bill_detail_type_selected"
                             android:gravity="center"
-                            android:text="支出"
+                            android:text="@string/expense"
                             android:textColor="#FFFFFF"
                             android:textSize="13sp"
                             android:textStyle="bold" />
@@ -345,7 +345,7 @@
                             android:layout_width="60dp"
                             android:layout_height="match_parent"
                             android:gravity="center"
-                            android:text="收入"
+                            android:text="@string/income"
                             android:textColor="#6E737D"
                             android:textSize="13sp"
                             android:textStyle="bold" />
@@ -372,7 +372,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="所属资产"
+                        android:text="@string/belonging_asset"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -383,7 +383,7 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:text="未选择"
+                        android:text="@string/not_selected"
                         android:textColor="#6E737D"
                         android:textSize="14sp" />
 
@@ -414,7 +414,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="账本"
+                        android:text="@string/book"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -425,7 +425,7 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:text="默认账本"
+                        android:text="@string/default_book"
                         android:textColor="#6E737D"
                         android:textSize="14sp" />
 
@@ -455,7 +455,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="备注"
+                        android:text="@string/remark"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -467,7 +467,7 @@
                         android:layout_weight="1"
                         android:background="@android:color/transparent"
                         android:gravity="end|center_vertical"
-                        android:hint="点击输入备注"
+                        android:hint="@string/hint_input_remark"
                         android:inputType="textCapSentences|textMultiLine"
                         android:maxLines="2"
                         android:padding="0dp"
@@ -498,7 +498,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="不计入统计"
+                        android:text="@string/exclude_stats"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -527,7 +527,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="记录日期"
+                        android:text="@string/record_date"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -558,7 +558,7 @@
                     android:layout_height="wrap_content"
                     android:paddingHorizontal="16dp"
                     android:paddingVertical="12dp"
-                    android:text="退款记录"
+                    android:text="@string/refund_record"
                     android:textColor="#1A2744"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -584,7 +584,7 @@
                     android:layout_height="wrap_content"
                     android:paddingHorizontal="16dp"
                     android:paddingVertical="12dp"
-                    android:text="原账单 · 退款来源"
+                    android:text="@string/original_bill_refund_source"
                     android:textColor="#1A2744"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -603,7 +603,7 @@
                 android:layout_marginTop="14dp"
                 android:background="@drawable/bg_bill_detail_outline_blue"
                 android:gravity="center"
-                android:text="退款"
+                android:text="@string/refund"
                 android:textColor="#1F5FC8"
                 android:textSize="16sp"
                 android:textStyle="bold"
@@ -616,7 +616,7 @@
                 android:layout_marginTop="16dp"
                 android:background="@drawable/bg_bill_detail_delete"
                 android:gravity="center"
-                android:text="删除"
+                android:text="@string/delete"
                 android:textColor="#FF6B61"
                 android:textSize="16sp"
                 android:textStyle="bold" />

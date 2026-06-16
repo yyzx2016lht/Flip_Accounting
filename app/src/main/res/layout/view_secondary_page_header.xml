@@ -14,7 +14,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_centerVertical="true"
-            android:contentDescription="返回"
+            android:contentDescription="@string/back"
             android:padding="8dp"
             android:src="@drawable/ic_chevron_left"
             app:tint="#333333" />
@@ -67,7 +67,7 @@
                     android:layout_height="match_parent"
                     android:background="@drawable/bg_segmented_selected"
                     android:gravity="center"
-                    android:text="月"
+                    android:text="@string/month_label"
                     android:textColor="#4080FF"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -78,7 +78,7 @@
                     android:layout_height="match_parent"
                     android:background="@android:color/transparent"
                     android:gravity="center"
-                    android:text="年"
+                    android:text="@string/year_label"
                     android:textColor="#888888"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -98,7 +98,7 @@
                 android:id="@+id/btn_header_action_secondary"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:contentDescription="次要操作"
+                android:contentDescription="@string/secondary_action"
                 android:padding="8dp"
                 android:visibility="gone"
                 app:tint="#333333" />
@@ -107,7 +107,7 @@
                 android:id="@+id/btn_header_action"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:contentDescription="更多操作"
+                android:contentDescription="@string/more_actions_btn"
                 android:padding="8dp"
                 android:visibility="gone"
                 app:tint="#333333" />

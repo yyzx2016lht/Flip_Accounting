@@ -29,7 +29,7 @@ class CategoryManagerAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         // 逻辑：如果位置是列表最后一位，显示“添加”按钮
         if (position == categories.size) {
-            holder.name.text = "添加"
+            holder.name.text = holder.itemView.context.getString(R.string.add)
             // 使用系统自带的加号图标
             holder.icon.setImageResource(android.R.drawable.ic_menu_add)
             holder.icon.setPadding(20, 20, 20, 20) // 让加号小一点

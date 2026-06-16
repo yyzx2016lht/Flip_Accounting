@@ -61,7 +61,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             saveUserAvatar(uri)
         } else {
             val error = result.data?.let { UCrop.getError(it) }
-            if (error != null) Utils.toast(requireContext(), "头像裁剪失败，请重新选择图片")
+            if (error != null) Utils.toast(requireContext(), getString(R.string.avatar_crop_failed))
         }
     }
 
@@ -298,9 +298,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     action = OverlayService.ACTION_SHOW_OVERLAY
                 }
                 OverlayService.startCompat(requireContext(), intent)
-                Utils.toast(requireContext(), "悬浮窗已开启")
+                Utils.toast(requireContext(), getString(R.string.overlay_enabled))
             } else {
-                Utils.toast(requireContext(), "请先授予悬浮窗权限")
+                Utils.toast(requireContext(), getString(R.string.overlay_permission_needed))
             }
         }
 
@@ -347,7 +347,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             CoroutineScope(Dispatchers.IO).launch {
                 val ok = RemoteConfigManager.syncIfConfigured(requireContext())
                 withContext(Dispatchers.Main) {
-                    Utils.toast(requireContext(), if (ok) "远程配置已同步" else "远程配置同步失败，请检查网络")
+                    Utils.toast(requireContext(), if (ok) getString(R.string.remote_config_synced) else getString(R.string.remote_config_failed))
                 }
             }
         }
@@ -397,7 +397,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     view.findViewById<CompoundButton>(R.id.switch_shizuku_persistence)?.isChecked = false
                     ShizukuRecoveryService.stop(requireContext())
                 } else if (!ShizukuSafe.isReady(requireContext())) {
-                    Utils.toast(requireContext(), "Shizuku 高级模式已开启，还需完成授权才能使用白名单")
+                    Utils.toast(requireContext(), getString(R.string.shizuku_advanced_on))
                 }
                 updateShizukuPersistenceVisibility(view, isChecked)
                 updateDoubleTapService(Prefs.isDoubleTapEnabled(requireContext()))
@@ -449,12 +449,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked && !switchShizukuMode.isChecked) {
                     post { this.isChecked = false }
-                    Utils.toast(requireContext(), "请先开启 Shizuku 高级模式")
+                    Utils.toast(requireContext(), getString(R.string.shizuku_first_enable))
                     return@setOnCheckedChangeListener
                 }
                 if (isChecked && !ShizukuSafe.isReady(requireContext())) {
                     post { this.isChecked = false }
-                    Utils.toast(requireContext(), "自动恢复需要先启动并授权 Shizuku")
+                    Utils.toast(requireContext(), getString(R.string.shizuku_auth_needed))
                     com.taostudio.tapaccounting.ui.dialog.OverlayDialogs.showShizukuPrompt(requireContext())
                     return@setOnCheckedChangeListener
                 }
@@ -463,11 +463,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     val started = ShizukuRecoveryService.ensureStarted(requireContext())
                     Utils.toast(
                         requireContext(),
-                        if (started) "已开启 Shizuku 自动恢复" else "自动恢复启动失败，请检查 Shizuku"
+                        if (started) getString(R.string.shizuku_auto_restore_on) else getString(R.string.shizuku_auto_restore_failed)
                     )
                 } else {
                     ShizukuRecoveryService.stop(requireContext())
-                    Utils.toast(requireContext(), "已关闭 Shizuku 自动恢复")
+                    Utils.toast(requireContext(), getString(R.string.shizuku_auto_restore_off))
                 }
             }
         }
@@ -544,16 +544,16 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
 
         card.visibility = View.VISIBLE
-        tvTitle?.text = "快捷记账还差一步"
+        tvTitle?.text = getString(R.string.shortcut_one_step)
 
         tvDesc?.text = when {
-            !hasOverlayPermission -> "开启悬浮窗后，翻转或敲击才能弹出记账面板。"
-            !batteryReady -> "把后台运行设为不受限制后，手势会更稳定。"
-            else -> "完成准备项后，翻转和敲击会更稳定。"
+            !hasOverlayPermission -> getString(R.string.overlay_hint)
+            !batteryReady -> getString(R.string.battery_hint)
+            else -> getString(R.string.permission_hint)
         }
         btnRequestOverlay?.isEnabled = true
         btnRequestOverlay?.alpha = 1f
-        btnRequestOverlay?.text = "查看准备项"
+        btnRequestOverlay?.text = getString(R.string.view_prepare)
         btnShowOverlay?.visibility = View.GONE
     }
 
@@ -567,15 +567,15 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private fun promptOverlayPermissionDialog() {
         if (!isAdded) return
         val dialog = AlertDialog.Builder(requireContext())
-            .setTitle("需要悬浮窗权限")
+            .setTitle(getString(R.string.need_overlay_permission))
             .setMessage(getString(R.string.gesture_permission_prompt))
-            .setPositiveButton("去开启") { _, _ ->
+            .setPositiveButton(getString(R.string.go_enable)) { _, _ ->
                 val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                     data = Uri.parse("package:${requireContext().packageName}")
                 }
                 requireActivity().startActivity(intent)
             }
-            .setNegativeButton("稍后", null)
+            .setNegativeButton(getString(R.string.later), null)
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -589,9 +589,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         if (!isAdded) return
         Prefs.setDoubleTapGuideSeen(requireContext())
         val dialog = AlertDialog.Builder(requireContext())
-            .setTitle("双击背板记账已开启")
+            .setTitle(getString(R.string.double_tap_guide_title))
             .setMessage(getString(R.string.tap_onboarding_hint))
-            .setPositiveButton("知道了", null)
+            .setPositiveButton(getString(R.string.got_it), null)
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -642,14 +642,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             changed = true
             refreshSyncRemoteConfigVisibility()
             showApiKeyDialog()
-            Utils.toast(ctx, "API配置已解锁")
+            Utils.toast(ctx, getString(R.string.api_unlocked))
         }
         if (rawDesc.contains("shizuku")) {
             clean = clean.replace("shizuku", "")
             Prefs.setShizukuUnlocked(ctx, true)
             changed = true
             refreshShizukuVisibility()
-            Utils.toast(ctx, "Shizuku 模式已解锁")
+            Utils.toast(ctx, getString(R.string.shizuku_unlocked))
         }
 
         return if (changed && clean.isBlank()) "" else clean.trim()
@@ -684,7 +684,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             Prefs.setShizukuUnlocked(ctx, newState)
             refreshSyncRemoteConfigVisibility()
             refreshShizukuVisibility()
-            Utils.toast(ctx, if (newState) "隐藏功能已全部解锁" else "隐藏功能已全部锁定")
+            Utils.toast(ctx, if (newState) getString(R.string.all_features_unlocked) else getString(R.string.all_features_locked))
         }
     }
 
@@ -733,14 +733,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     val models = AIService.fetchModelsWithDetails(url, key)
                     withContext(Dispatchers.Main) {
                         if (models.isNotEmpty()) {
-                            Utils.toast(ctx, "连接成功，获取到 ${models.size} 个模型")
+                            Utils.toast(ctx, getString(R.string.connection_success_models_fmt, models.size))
                         } else {
-                            Utils.toast(ctx, "连接成功，但未获取到模型列表")
+                            Utils.toast(ctx, getString(R.string.connection_success_no_models))
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Utils.toast(ctx, "连接失败，请检查 API 地址和 Key")
+                        Utils.toast(ctx, getString(R.string.connection_failed))
                     }
                 }
             }
@@ -764,10 +764,10 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val etDesc = view.findViewById<EditText>(R.id.et_user_profile_desc)
         pendingEditUserAvatarView = ivAvatar
 
-        val currentName = Prefs.getUserChatName(ctx).ifBlank { "我" }
+        val currentName = Prefs.getUserChatName(ctx).ifBlank { getString(R.string.default_name) }
         etName.setText(currentName)
         etName.setSelection(currentName.length)
-        val currentDesc = Prefs.getUserProfileDesc(ctx).ifBlank { "点击设置名字和头像" }
+        val currentDesc = Prefs.getUserProfileDesc(ctx).ifBlank { getString(R.string.default_profile_desc) }
         etDesc.setText(currentDesc)
         etDesc.setSelection(currentDesc.length)
 
@@ -788,16 +788,16 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         ivAvatar.setOnClickListener { pickUserAvatarLauncher.launch("image/*") }
 
         val dialog = AlertDialog.Builder(ctx)
-            .setTitle("编辑个人资料")
+            .setTitle(getString(R.string.edit_profile_title))
             .setView(view)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("保存") { _, _ ->
+            .setNegativeButton(getString(R.string.cancel), null)
+            .setPositiveButton(getString(R.string.save_label)) { _, _ ->
                 val rawDesc = etDesc.text?.toString().orEmpty()
                 val cleanDesc = processProfilePassword(rawDesc)
                 Prefs.setUserChatName(ctx, etName.text?.toString().orEmpty())
                 Prefs.setUserProfileDesc(ctx, cleanDesc)
                 rootRef?.let { refreshUserAvatarCard(it) }
-                Utils.toast(ctx, "个人资料已更新")
+                Utils.toast(ctx, getString(R.string.profile_updated))
             }
             .create()
         dialog.setOnDismissListener { pendingEditUserAvatarView = null }
@@ -822,7 +822,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             setFreeStyleCropEnabled(false)
             setShowCropGrid(true)
             setShowCropFrame(true)
-            setToolbarTitle("裁剪用户头像")
+            setToolbarTitle(getString(R.string.crop_avatar_title))
             setToolbarColor(android.graphics.Color.parseColor("#1A73E8"))
             setStatusBarColor(android.graphics.Color.parseColor("#1A73E8"))
             setToolbarWidgetColor(android.graphics.Color.WHITE)
@@ -853,9 +853,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 )
             }
             rootRef?.let { refreshUserAvatarCard(it) }
-            Utils.toast(ctx, "用户头像已更新")
+            Utils.toast(ctx, getString(R.string.avatar_updated))
         }.onFailure {
-            if (isAdded) Utils.toast(requireContext(), "头像更新失败，请重试")
+            if (isAdded) Utils.toast(requireContext(), getString(R.string.avatar_update_failed))
         }
     }
 
@@ -863,15 +863,15 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val powerManager = requireContext().getSystemService(Context.POWER_SERVICE) as PowerManager
         if (!powerManager.isIgnoringBatteryOptimizations(requireContext().packageName)) {
             val dialog = AlertDialog.Builder(requireContext())
-                .setTitle("需要忽略电池优化")
+                .setTitle(getString(R.string.need_battery_optimize))
                 .setMessage(getString(R.string.battery_optimize_prompt))
-                .setPositiveButton("去设置") { _, _ ->
+                .setPositiveButton(getString(R.string.go_settings)) { _, _ ->
                     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                         data = Uri.parse("package:" + requireContext().packageName)
                     }
                     requireActivity().startActivity(intent)
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .create()
             OverlayDialogs.showPageCenterDialog(
                 dialog = dialog,

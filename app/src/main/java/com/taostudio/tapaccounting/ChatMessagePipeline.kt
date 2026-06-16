@@ -293,7 +293,7 @@ class ChatMessagePipeline(
     fun sendText() {
         val text = getInputText().trim()
         if (text.isEmpty()) {
-            Utils.toast(context, "不能发送空内容")
+            Utils.toast(context, context.getString(R.string.toast_empty_content))
             return
         }
         isUserTextDispatching = true
@@ -391,7 +391,7 @@ class ChatMessagePipeline(
         images: List<AgentImageInput> = emptyList()
     ) {
         val loadingKey = appendAiTextMessage(
-            "正在思考...",
+            context.getString(R.string.thinking),
             true,
             getCurrentBookName(),
             getCurrentConversationId()

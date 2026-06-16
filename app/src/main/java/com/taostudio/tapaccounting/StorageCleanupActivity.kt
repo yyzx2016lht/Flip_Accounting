@@ -75,7 +75,7 @@ class StorageCleanupActivity : AppCompatActivity() {
             val count = db.deletedBillDao().getCount()
             withContext(Dispatchers.Main) {
                 val tvCount = findViewById<TextView>(R.id.tv_history_bills_count)
-                tvCount.text = if (count > 0) "已删除 $count 条账单" else "查看已删除的账单"
+                tvCount.text = if (count > 0) getString(R.string.deleted_bill_count_fmt, count) else getString(R.string.view_deleted_bills)
             }
         }
     }
@@ -138,17 +138,17 @@ class StorageCleanupActivity : AppCompatActivity() {
         val totalCount = voice.count + images.count + chatAvatar.count + bookCoverBg.count + tempCache.count
         val totalBytes = voice.bytes + images.bytes + chatAvatar.bytes + bookCoverBg.bytes + tempCache.bytes
 
-        tvVoice.text = "聊天语音：${voice.count} 个 · ${formatBytes(voice.bytes)}"
-        tvImages.text = "聊天图片：${images.count} 个 · ${formatBytes(images.bytes)}"
-        tvChatAvatar.text = "聊天头像：${chatAvatar.count} 个 · ${formatBytes(chatAvatar.bytes)}"
-        tvBookCoverBg.text = "账本封面与背景：${bookCoverBg.count} 个 · ${formatBytes(bookCoverBg.bytes)}"
-        tvTempCache.text = "临时与缓存：${tempCache.count} 个 · ${formatBytes(tempCache.bytes)}"
-        tvTotal.text = "可清理总计：$totalCount 个文件 · ${formatBytes(totalBytes)}"
+        tvVoice.text = getString(R.string.cleanup_voice_stats_fmt, voice.count, formatBytes(voice.bytes))
+        tvImages.text = getString(R.string.cleanup_images_stats_fmt, images.count, formatBytes(images.bytes))
+        tvChatAvatar.text = getString(R.string.cleanup_avatar_stats_fmt, chatAvatar.count, formatBytes(chatAvatar.bytes))
+        tvBookCoverBg.text = getString(R.string.cleanup_book_cover_stats_fmt, bookCoverBg.count, formatBytes(bookCoverBg.bytes))
+        tvTempCache.text = getString(R.string.cleanup_temp_stats_fmt, tempCache.count, formatBytes(tempCache.bytes))
+        tvTotal.text = getString(R.string.cleanable_total, totalCount, formatBytes(totalBytes))
     }
 
     private fun openPreviewPage() {
         if (!cbVoice.isChecked && !cbImages.isChecked && !cbChatAvatar.isChecked && !cbBookCoverBg.isChecked && !cbTempCache.isChecked) {
-            Utils.toast(this, "请先勾选要预览的内容")
+            Utils.toast(this, getString(R.string.select_preview_content))
             return
         }
         val intent = Intent(this, StoragePreviewActivity::class.java).apply {
@@ -173,15 +173,15 @@ class StorageCleanupActivity : AppCompatActivity() {
         val selectedCount = selected.sumOf { it.count }
         val selectedBytes = selected.sumOf { it.bytes }
         if (selectedCount == 0) {
-            Utils.toast(this, "请先勾选要清理的内容")
+            Utils.toast(this, getString(R.string.select_cleanup_content))
             return
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("确认清理")
-            .setMessage("将删除 $selectedCount 个文件，预计释放 ${formatBytes(selectedBytes)}。\n\n不会删除账单、分类、资产和设置等核心数据。")
-            .setPositiveButton("开始清理") { _, _ -> runCleanup(selected) }
-            .setNegativeButton("取消", null)
+            .setTitle(getString(R.string.confirm_cleanup_title))
+            .setMessage(getString(R.string.confirm_cleanup_message_fmt, selectedCount, formatBytes(selectedBytes)))
+            .setPositiveButton(getString(R.string.start_cleanup)) { _, _ -> runCleanup(selected) }
+            .setNegativeButton(getString(R.string.cancel), null)
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -202,7 +202,7 @@ class StorageCleanupActivity : AppCompatActivity() {
                     }
                 }
             withContext(Dispatchers.Main) {
-                Utils.toast(this@StorageCleanupActivity, "清理完成：已删除 $deleted 个文件")
+                Utils.toast(this@StorageCleanupActivity, getString(R.string.cleanup_done_fmt, deleted))
                 refreshStats()
             }
         }

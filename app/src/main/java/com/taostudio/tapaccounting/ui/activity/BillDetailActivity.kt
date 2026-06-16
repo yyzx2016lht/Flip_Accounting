@@ -98,7 +98,7 @@ class BillDetailActivity : AppCompatActivity() {
 
         billId = intent.getLongExtra(BILL_ID, -1L)
         if (billId == -1L) {
-            Toast.makeText(this, "账单不存在", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.bill_not_exist), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -172,7 +172,7 @@ class BillDetailActivity : AppCompatActivity() {
             val loadedBill = app.billRepository.getBillById(billId)
             withContext(Dispatchers.Main) {
                 if (loadedBill == null) {
-                    Toast.makeText(this@BillDetailActivity, "账单不存在", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BillDetailActivity, getString(R.string.bill_not_exist), Toast.LENGTH_SHORT).show()
                     finish()
                     return@withContext
                 }
@@ -188,7 +188,7 @@ class BillDetailActivity : AppCompatActivity() {
         currentBillTimeMillis = loadedBill.time
         originalRecordedTimeMillis = loadedBill.time
         currentAssetName = loadedBill.accountName
-        currentBookName = loadedBill.bookName.ifBlank { "默认账本" }
+        currentBookName = loadedBill.bookName.ifBlank { getString(R.string.default_book) }
         currentExcludeFromStats = loadedBill.excludeFromStats
         currentCategoryName = resolveDisplayedCategory(loadedBill)
         currentCategoryIcon = ""
@@ -201,14 +201,14 @@ class BillDetailActivity : AppCompatActivity() {
     }
 
     private fun renderBillState() {
-        tvCategory.text = currentCategoryName.ifBlank { if (isTransferFamily(currentUiType)) getTypeDisplayName(currentUiType) else "请选择分类" }
+        tvCategory.text = currentCategoryName.ifBlank { if (isTransferFamily(currentUiType)) getTypeDisplayName(currentUiType) else getString(R.string.select_category) }
         tvCategoryInitial.text = buildCategoryInitial(tvCategory.text.toString())
         tvAmount.text = formatAmountDisplay(currentAmountText.toDoubleOrNull() ?: 0.0, currentUiType)
         tvAmount.setTextColor(resolveAmountColor(currentUiType))
         tvBillDate.text = billDateFormat.format(Date(currentBillTimeMillis))
         tvRecordTime.text = recordTimeFormat.format(Date(originalRecordedTimeMillis))
-        tvAsset.text = currentAssetName.ifBlank { "未选择" }
-        tvBook.text = currentBookName.ifBlank { "默认账本" }
+        tvAsset.text = currentAssetName.ifBlank { getString(R.string.not_selected) }
+        tvBook.text = currentBookName.ifBlank { getString(R.string.default_book) }
         btnRefund.visibility = if (shouldShowRefundButton()) View.VISIBLE else View.GONE
         renderTypeSelector()
         renderCategoryIcon()
@@ -220,7 +220,7 @@ class BillDetailActivity : AppCompatActivity() {
     private fun renderAmountDetails() {
         val currentBill = bill
         if (currentBill == null) {
-            tvAmountLabel.text = "账单金额"
+            tvAmountLabel.text = getString(R.string.bill_amount)
             tvAmountFormula.visibility = View.GONE
             hideFeeRow()
             hideIncomingRow()
@@ -232,7 +232,7 @@ class BillDetailActivity : AppCompatActivity() {
         if (isTransferFamily(currentUiType)) {
             renderTransferDetails(currentBill)
         } else {
-            tvAmountLabel.text = "账单金额"
+            tvAmountLabel.text = getString(R.string.bill_amount)
             hideFeeRow()
             hideIncomingRow()
 
@@ -241,7 +241,7 @@ class BillDetailActivity : AppCompatActivity() {
                 if (refundedAmount > 0.0) {
                     tvAmountFormula.visibility = View.VISIBLE
                     val symbol = CurrencyManager.getSymbol(currentBill.currency)
-                    tvAmountFormula.text = "退款${symbol}${String.format(Locale.getDefault(), "%.2f", refundedAmount)}，实际支出${symbol}${String.format(Locale.getDefault(), "%.2f", currentBill.amount)}"
+                    tvAmountFormula.text = getString(R.string.refund_deduct_formula, symbol, String.format(Locale.getDefault(), "%.2f", refundedAmount), String.format(Locale.getDefault(), "%.2f", currentBill.amount))
                 } else {
                     showCrossCurrencyFormula(currentBill)
                 }
@@ -270,15 +270,15 @@ class BillDetailActivity : AppCompatActivity() {
                 val symbol = CurrencyManager.getSymbol(sourceCurrency)
 
                 if (isCrossCurrency) {
-                    tvAmountLabel.text = "转出金额"
+                    tvAmountLabel.text = getString(R.string.from_amount)
                     val targetAmount = currentBill.amount * currentBill.exchangeRate
                     val toSymbol = CurrencyManager.getSymbol(toAssetCurrency)
                     showIncomingRow(toSymbol, targetAmount)
                     tvAmountFormula.visibility = View.GONE
                 } else {
                     tvAmountLabel.text = when {
-                        isRepayment -> "还款金额"
-                        else -> "转账金额"
+                        isRepayment -> getString(R.string.repayment_amount)
+                        else -> getString(R.string.transfer_amount_label)
                     }
                     hideIncomingRow()
                     showCrossCurrencyFormula(currentBill)
@@ -403,7 +403,7 @@ class BillDetailActivity : AppCompatActivity() {
         row.setBackgroundResource(R.drawable.bg_bill_group_single)
         iconContainer?.setBackgroundResource(R.drawable.bg_circle_soft)
 
-        val categoryText = BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifEmpty { "未分类" }
+        val categoryText = BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifEmpty { getString(R.string.uncategorized) }
 
         val sign = when {
             forceGrayStyle || isRefund -> ""
@@ -500,13 +500,13 @@ class BillDetailActivity : AppCompatActivity() {
 
     private fun showCategoryPicker() {
         if (isTransferFamily(currentUiType)) {
-            Toast.makeText(this, "转账和还款的分类跟随账单属性", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.transfer_follow_bill), Toast.LENGTH_SHORT).show()
             return
         }
         val pickerType = if (currentUiType == Bill.TYPE_INCOME) Prefs.TYPE_INCOME else Prefs.TYPE_EXPENSE
         OverlayDialogs.showGridCategoryPicker(this, currentCategoryName, pickerType) { selectedCategory ->
             currentCategoryName = selectedCategory
-            tvCategory.text = selectedCategory.ifBlank { "请选择分类" }
+            tvCategory.text = selectedCategory.ifBlank { getString(R.string.select_category) }
             tvCategoryInitial.text = buildCategoryInitial(tvCategory.text.toString())
             loadCategoryIcon()
         }
@@ -533,9 +533,9 @@ class BillDetailActivity : AppCompatActivity() {
 
     private fun showAssetPicker() {
         if (!Prefs.isAssetFeatureEnabled(this)) return
-        OverlayDialogs.showGridAssetPicker(this, currentAssetName, "选择资产") { selectedAsset ->
+        OverlayDialogs.showGridAssetPicker(this, currentAssetName, getString(R.string.select_asset)) { selectedAsset ->
             currentAssetName = selectedAsset
-            tvAsset.text = selectedAsset.ifBlank { "未选择" }
+            tvAsset.text = selectedAsset.ifBlank { getString(R.string.not_selected) }
         }
     }
 
@@ -559,9 +559,9 @@ class BillDetailActivity : AppCompatActivity() {
 
     private fun showDeleteConfirmation() {
         showCustomConfirmDialog(
-            title = "确认删除",
-            message = "删除后可在回收站恢复，是否继续？",
-            confirmText = "确认删除",
+            title = getString(R.string.confirm_delete),
+            message = getString(R.string.confirm_delete_message),
+            confirmText = getString(R.string.confirm_delete),
             isDanger = true,
             onConfirm = { deleteBill() }
         )
@@ -574,14 +574,14 @@ class BillDetailActivity : AppCompatActivity() {
             runCatching { BillDeleteHelper.deleteBillAndRevertBalance(app.database, currentBill) }
                 .onSuccess {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@BillDetailActivity, "账单已移入回收站", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@BillDetailActivity, getString(R.string.bill_moved_to_trash), Toast.LENGTH_SHORT).show()
                         setResult(RESULT_OK)
                         finish()
                     }
                 }
                 .onFailure { error ->
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@BillDetailActivity, "删除失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@BillDetailActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
                     }
                 }
         }
@@ -591,11 +591,11 @@ class BillDetailActivity : AppCompatActivity() {
         val originalBill = bill ?: return
         val amount = currentAmountText.toDoubleOrNull() ?: 0.0
         if (amount <= 0.0) {
-            Toast.makeText(this, "请输入有效金额", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.invalid_amount), Toast.LENGTH_SHORT).show()
             return
         }
         if (!isTransferFamily(currentUiType) && currentCategoryName.isBlank()) {
-            Toast.makeText(this, "请选择分类", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.select_category_first), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -628,13 +628,13 @@ class BillDetailActivity : AppCompatActivity() {
                 app.billRepository.updateBill(updatedBill)
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@BillDetailActivity, "保存成功", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BillDetailActivity, getString(R.string.save_success), Toast.LENGTH_SHORT).show()
                     setResult(RESULT_OK)
                     finish()
                 }
             } catch (error: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@BillDetailActivity, "保存失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BillDetailActivity, getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -720,8 +720,8 @@ class BillDetailActivity : AppCompatActivity() {
 
     private fun persistedCategoryName(uiType: Int, currentCategory: String, fallbackCategory: String): String {
         return when (uiType) {
-            Bill.TYPE_TRANSFER -> "转账"
-            Bill.TYPE_REPAYMENT -> "还款"
+            Bill.TYPE_TRANSFER -> getString(R.string.transfer_label)
+            Bill.TYPE_REPAYMENT -> getString(R.string.repayment_label)
             else -> currentCategory.ifBlank { fallbackCategory }
         }
     }
@@ -732,11 +732,11 @@ class BillDetailActivity : AppCompatActivity() {
 
     private fun getTypeDisplayName(type: Int): String {
         return when (type) {
-            Bill.TYPE_EXPENSE -> "支出"
-            Bill.TYPE_INCOME -> "收入"
-            Bill.TYPE_TRANSFER -> "转账"
-            Bill.TYPE_REPAYMENT -> "还款"
-            else -> "支出"
+            Bill.TYPE_EXPENSE -> getString(R.string.expense_label)
+            Bill.TYPE_INCOME -> getString(R.string.income_label)
+            Bill.TYPE_TRANSFER -> getString(R.string.transfer_label)
+            Bill.TYPE_REPAYMENT -> getString(R.string.repayment_label)
+            else -> getString(R.string.expense_label)
         }
     }
 
@@ -790,7 +790,7 @@ class BillDetailActivity : AppCompatActivity() {
     private fun showCustomConfirmDialog(
         title: String,
         message: String,
-        confirmText: String = "确定",
+        confirmText: String = getString(R.string.confirm),
         isDanger: Boolean = false,
         onConfirm: () -> Unit
     ) {

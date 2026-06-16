@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:fontFamily="sans-serif-medium"
-            android:text="筛选条件"
+            android:text="@string/filter_conditions"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
             app:layout_constraintStart_toStartOf="parent"
@@ -78,7 +78,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
-                    android:text="快捷时间"
+                    android:text="@string/quick_time"
                     android:textColor="@color/text_primary"
                     android:textSize="15sp" />
 
@@ -96,52 +96,52 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_today"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="今天" />
+                        android:text="@string/today" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_yesterday"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="昨天" />
+                        android:text="@string/yesterday" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_day_before_yesterday"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="前天" />
+                        android:text="@string/day_before_yesterday" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_this_week"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="本周" />
+                        android:text="@string/this_week" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_last_week"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="上周" />
+                        android:text="@string/last_week" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_this_month"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="本月" />
+                        android:text="@string/this_month" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_last_month"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="上月" />
+                        android:text="@string/last_month" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_this_year"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="今年" />
+                        android:text="@string/this_year" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_last_year"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="去年" />
+                        android:text="@string/last_year" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_filter_all"
                         style="@style/StatsFilterQuickButton" android:checkable="true"
-                        android:text="全部" />
+                        android:text="@string/all" />
                 </GridLayout>
             </LinearLayout>
 
@@ -157,7 +157,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
-                    android:text="自定义日期"
+                    android:text="@string/custom_date"
                     android:textColor="@color/text_primary"
                     android:textSize="15sp" />
 
@@ -190,7 +190,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="开始日期"
+                            android:text="@string/start_date"
                             android:textColor="@color/text_tertiary"
                             android:textSize="13sp" />
                     </LinearLayout>
@@ -226,7 +226,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="结束日期"
+                            android:text="@string/end_date"
                             android:textColor="@color/text_tertiary"
                             android:textSize="13sp" />
                     </LinearLayout>
@@ -246,7 +246,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
-                    android:text="币种"
+                    android:text="@string/currency_label"
                     android:textColor="@color/text_primary"
                     android:textSize="15sp" />
 
@@ -268,7 +268,7 @@
                         android:layout_weight="1"
                         android:ellipsize="end"
                         android:maxLines="1"
-                        android:text="全部币种"
+                        android:text="@string/all_currencies"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp" />
 
@@ -306,7 +306,7 @@
             android:background="@drawable/bg_stats_filter_reset"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
-            android:text="重置"
+            android:text="@string/reset"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />
 
@@ -319,7 +319,7 @@
             android:background="@drawable/bg_stats_filter_confirm"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
-            android:text="应用筛选"
+            android:text="@string/apply_filter"
             android:textColor="@android:color/white"
             android:textSize="15sp" />
     </LinearLayout>

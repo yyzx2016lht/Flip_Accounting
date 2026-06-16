@@ -851,12 +851,12 @@ class StatsFragment : Fragment() {
             pickerLayout.addView(npMonth)
 
             val dialog = AlertDialog.Builder(requireContext())
-                .setTitle("选择月份")
+                .setTitle(getString(R.string.select_month))
                 .setView(pickerLayout)
-                .setPositiveButton("确定") { _, _ ->
+                .setPositiveButton(getString(R.string.confirm)) { _, _ ->
                     viewModel.setYearMonth(npYear.value, npMonth.value - 1)
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .create()
             OverlayDialogs.showPageCenterDialog(dialog, requireContext())
         } else {
@@ -867,12 +867,12 @@ class StatsFragment : Fragment() {
             }
 
             val dialog = AlertDialog.Builder(requireContext())
-                .setTitle("选择年份")
+                .setTitle(getString(R.string.select_year))
                 .setView(npYear)
-                .setPositiveButton("确定") { _, _ ->
+                .setPositiveButton(getString(R.string.confirm)) { _, _ ->
                     viewModel.setYearMonth(npYear.value, state.month)
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .create()
             OverlayDialogs.showPageCenterDialog(dialog, requireContext())
         }

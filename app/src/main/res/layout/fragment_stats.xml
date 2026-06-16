@@ -34,7 +34,7 @@
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="切换账本"
+                    android:contentDescription="@string/switch_book"
                     android:padding="7dp"
                     android:src="@drawable/ic_switch_book"
                     app:tint="@color/stats_segmented_text_active" />
@@ -133,7 +133,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:paddingVertical="8dp"
-                android:text="月视图"
+                android:text="@string/month_view"
                 android:textColor="@color/stats_segmented_text_active"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
@@ -145,7 +145,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:paddingVertical="8dp"
-                android:text="年视图"
+                android:text="@string/year_view"
                 android:textColor="@color/stats_segmented_text_inactive"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
@@ -212,7 +212,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_12"
-                    android:text="没有可统计的数据"
+                    android:text="@string/no_stats_data"
                     android:textColor="@color/stats_empty_text"
                     android:textSize="@dimen/text_size_14" />
 
@@ -220,7 +220,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_4"
-                    android:text="试试切换时间范围或账本"
+                    android:text="@string/try_switch_hint"
                     android:textColor="@color/stats_empty_text"
                     android:textSize="@dimen/text_size_12"
                     android:alpha="0.7" />

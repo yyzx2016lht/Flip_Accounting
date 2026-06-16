@@ -36,7 +36,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="20dp"
-        android:text="点击头像更换图片"
+        android:text="@string/tap_avatar_change"
         android:textColor="#999999"
         android:textSize="12sp" />
 
@@ -44,7 +44,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="6dp"
-        android:text="你的名字"
+        android:text="@string/your_name"
         android:textColor="#666666"
         android:textSize="13sp" />
 
@@ -53,7 +53,7 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="@drawable/bg_chat_input"
-        android:hint="输入你想显示的名字"
+        android:hint="@string/hint_your_name"
         android:paddingHorizontal="14dp"
         android:singleLine="true"
         android:textColor="#333333"
@@ -64,7 +64,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
         android:layout_marginBottom="6dp"
-        android:text="头像下方文案"
+        android:text="@string/avatar_subtitle"
         android:textColor="#666666"
         android:textSize="13sp" />
 
@@ -73,7 +73,7 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="@drawable/bg_chat_input"
-        android:hint="例如：点击编辑头像和昵称"
+        android:hint="@string/hint_avatar_subtitle"
         android:paddingHorizontal="14dp"
         android:singleLine="true"
         android:textColor="#333333"

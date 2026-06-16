@@ -12,7 +12,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="多币种"
+        android:text="@string/multi_currency"
         android:textColor="@color/dialog_title"
         android:textSize="@dimen/dialog_title_size"
         android:textStyle="bold" />
@@ -21,7 +21,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="汇率自动换算，同时也支持手动调整"
+        android:text="@string/exchange_rate_hint"
         android:textColor="@color/dialog_subtitle"
         android:textSize="@dimen/dialog_subtitle_size" />
 
@@ -35,7 +35,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="转出金额"
+            android:text="@string/from_amount"
             android:textColor="@color/dialog_picker_normal_text"
             android:textSize="@dimen/text_size_16" />
 
@@ -79,7 +79,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="汇率"
+            android:text="@string/exchange_rate_label"
             android:textColor="@color/dialog_picker_normal_text"
             android:textSize="@dimen/text_size_16" />
 
@@ -126,13 +126,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="转入金额"
+                android:text="@string/transfer_amount"
                 android:textColor="@color/dialog_picker_normal_text"
                 android:textSize="@dimen/text_size_16" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="币种与转入账户一致"
+                android:text="@string/currency_matches_account"
                 android:textColor="@color/dialog_subtitle"
                 android:textSize="@dimen/text_size_10" />
         </LinearLayout>
@@ -184,7 +184,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_dialog_button_cancel"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="@color/dialog_button_cancel_text"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -197,7 +197,7 @@
             android:layout_marginStart="10dp"
             android:background="@drawable/bg_dialog_button_primary"
             android:gravity="center"
-            android:text="确定"
+            android:text="@string/confirm_action"
             android:textColor="@color/dialog_button_primary_text"
             android:textSize="14sp"
             android:textStyle="bold" />

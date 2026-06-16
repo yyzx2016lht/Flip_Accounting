@@ -123,21 +123,21 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
 
         if (isCurrencyChanged) {
             val color = Color.parseColor("#2196F3")
-            tvDiffLabel.text = "变更后余额"
+            tvDiffLabel.text = getString(R.string.balance_after_change)
             tvDiffAmount.text = newStr
             tvDiffAmount.setTextColor(color)
             tvDiffFormula.text = "$oldStr -> $newStr"
-            tvBillType.text = "换币平账"
+            tvBillType.text = getString(R.string.currency_exchange)
             tvBillType.setTextColor(color)
         } else {
             val color = if (diff >= 0) Color.parseColor("#2196F3") else Color.parseColor("#F44336")
             val symbol = CurrencyManager.getSymbol(assetCurrency)
             val diffStr = CurrencyUtils.formatAmount(diff, assetCurrency)
-            tvDiffLabel.text = "差额"
+            tvDiffLabel.text = getString(R.string.difference)
             tvDiffAmount.text = "${if (diff >= 0) "+" else "-"}$symbol${String.format(Locale.getDefault(), "%.2f", abs(diff))}"
             tvDiffAmount.setTextColor(color)
             tvDiffFormula.text = "$newStr - ($oldStr) = $diffStr"
-            tvBillType.text = if (diff >= 0) "收入" else "支出"
+            tvBillType.text = if (diff >= 0) getString(R.string.income) else getString(R.string.expense)
             tvBillType.setTextColor(color)
         }
 
@@ -150,19 +150,19 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
         if (isCurrencyChanged) {
             includeInStats = false
             updateTagSummary()
-            Toast.makeText(this, "换币平账默认不计入收支统计", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.exchange_excluded), Toast.LENGTH_SHORT).show()
             return
         }
-        val options = arrayOf("计入收支统计", "不计入收支统计")
+        val options = arrayOf(getString(R.string.include_in_stats), getString(R.string.exclude_from_stats))
         val currentIndex = if (includeInStats) 0 else 1
         val dialog = AlertDialog.Builder(this)
-            .setTitle("账单标记")
+            .setTitle(getString(R.string.bill_mark_title))
             .setSingleChoiceItems(options, currentIndex) { d, which ->
                 includeInStats = (which == 0)
                 updateTagSummary()
                 d.dismiss()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog, this)
     }
@@ -176,7 +176,7 @@ class BalanceAdjustmentActivity : AppCompatActivity() {
     }
 
     private fun updateTagSummary() {
-        tvTag.text = if (includeInStats) "计入收支统计" else "不计入收支统计"
+        tvTag.text = if (includeInStats) getString(R.string.include_in_stats) else getString(R.string.exclude_from_stats)
         tvTag.setTextColor(
             if (includeInStats) Color.parseColor("#2196F3")
             else Color.parseColor("#999999")

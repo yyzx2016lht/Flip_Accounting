@@ -108,7 +108,7 @@ class ChatImagePreviewActivity : AppCompatActivity() {
 
     private fun bindImage() {
         if (imageUris.isEmpty()) {
-            counterView.text = "暂无图片"
+            counterView.text = getString(R.string.no_image)
             counterView.visibility = View.VISIBLE
             imageView.setImageDrawable(null)
             return

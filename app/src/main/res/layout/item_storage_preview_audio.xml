@@ -52,7 +52,7 @@
             android:elevation="0dp"
             android:stateListAnimator="@null"
             android:textAllCaps="false"
-            android:text="播放"
+            android:text="@string/play"
             android:textSize="12sp"
             android:textColor="#44556E"
             app:backgroundTint="#EAF0FB"

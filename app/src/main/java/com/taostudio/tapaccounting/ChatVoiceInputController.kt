@@ -64,7 +64,7 @@ class ChatVoiceInputController(
         btnVoiceToggleProvider().isSelected = isVoiceMode()
         btnVoiceToggleProvider().setColorFilter(Color.parseColor("#456387"))
         btnVoiceHoldProvider().backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F2F3F5"))
-        btnVoiceHoldProvider().text = "按住说话，松开发送"
+        btnVoiceHoldProvider().text = context.getString(R.string.hold_to_speak)
         btnVoiceHoldProvider().alpha = 1f
         updateInputActionUi()
     }
@@ -109,14 +109,14 @@ class ChatVoiceInputController(
             overlay.setBackgroundResource(R.drawable.bg_chat_voice_record_overlay_cancel)
             ivState.setImageResource(R.drawable.ic_delete)
             ivState.setColorFilter(Color.parseColor("#FFC4C4"))
-            tvTitle.text = "松开取消发送"
-            tvSubtitle.text = "手指下移可继续发送"
+            tvTitle.text = context.getString(R.string.release_to_cancel)
+            tvSubtitle.text = context.getString(R.string.slide_down_continue)
         } else {
             overlay.setBackgroundResource(R.drawable.bg_chat_voice_record_overlay)
             ivState.setImageResource(R.drawable.ic_chat_mic)
             ivState.setColorFilter(Color.WHITE)
-            tvTitle.text = "正在录音..."
-            tvSubtitle.text = "松开发送，上滑取消"
+            tvTitle.text = context.getString(R.string.recording)
+            tvSubtitle.text = context.getString(R.string.release_send_slide_cancel)
         }
         tvTimer.text = formatRecordingDuration()
         ensureOverlayTicker()
@@ -166,9 +166,9 @@ class ChatVoiceInputController(
                 if (!started) {
                     setIsRecording(false)
                     hideVoiceRecordOverlay()
-                    Utils.toast(context, "录音启动失败")
+                    Utils.toast(context, context.getString(R.string.toast_record_start_failed))
                 } else {
-                    btnVoiceHoldProvider().text = "松开发送，上滑取消"
+                    btnVoiceHoldProvider().text = context.getString(R.string.release_send_slide_cancel)
                 }
                 return true
             }
@@ -179,7 +179,7 @@ class ChatVoiceInputController(
                     if (shouldCancel != isWannaCancel()) {
                         setIsWannaCancel(shouldCancel)
                         Utils.vibrate(context, if (shouldCancel) 30 else 10)
-                        btnVoiceHoldProvider().text = if (shouldCancel) "松开取消发送" else "松开发送，上滑取消"
+                        btnVoiceHoldProvider().text = if (shouldCancel) context.getString(R.string.release_to_cancel) else context.getString(R.string.release_send_slide_cancel)
                         showVoiceRecordOverlay(shouldCancel)
                     }
                 }
@@ -195,20 +195,20 @@ class ChatVoiceInputController(
                     stopVoiceRecording { file, _ ->
                         file?.delete()
                         LocalAsrService.resetStreamingBuffer()
-                        context.runOnUiThread { btnVoiceHoldProvider().text = "按住说话，松开发送" }
+                        context.runOnUiThread { btnVoiceHoldProvider().text = context.getString(R.string.hold_to_speak) }
                     }
-                    Utils.toast(context, "已取消")
+                    Utils.toast(context, context.getString(R.string.toast_canceled))
                 } else {
                     val holdDurationMs = (System.currentTimeMillis() - getRecordingStartAt()).coerceAtLeast(0L)
                     stopVoiceRecording { file, durationSec ->
-                        context.runOnUiThread { btnVoiceHoldProvider().text = "按住说话，松开发送" }
+                        context.runOnUiThread { btnVoiceHoldProvider().text = context.getString(R.string.hold_to_speak) }
                         if (holdDurationMs < 450L) {
                             file?.delete()
-                            Utils.toast(context, "按住稍久一点再说话")
+                            Utils.toast(context, context.getString(R.string.toast_hold_longer))
                             return@stopVoiceRecording
                         }
                         if (file == null) {
-                            context.runOnUiThread { Utils.toast(context, "未检测到清晰语音") }
+                            context.runOnUiThread { Utils.toast(context, context.getString(R.string.no_clear_voice)) }
                             return@stopVoiceRecording
                         }
                         onVoiceRecorded(file, durationSec)

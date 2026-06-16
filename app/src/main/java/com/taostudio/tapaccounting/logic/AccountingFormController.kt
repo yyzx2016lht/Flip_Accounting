@@ -1,4 +1,4 @@
-package com.taostudio.tapaccounting.logic
+﻿package com.taostudio.tapaccounting.logic
 
 import android.animation.ObjectAnimator
 import android.app.Activity
@@ -86,9 +86,9 @@ class AccountingFormController(
     // 退款来源账单相关（收入模式下可选退款来源）
     private val layoutRefundSource: View? = rootView.findViewById(R.id.layout_refund_source)
     private val tvRefundSourceBill: TextView? = rootView.findViewById(R.id.tv_refund_source_bill)
-    /** 分类行右侧的“退款”切换标签（收入模式时显示，点击进入退款模式） */
+    /** 分类行右侧的"退款"切换标签（收入模式时显示，点击进入退款模式） */
     private val tvRefundToggle: TextView? = rootView.findViewById(R.id.tv_refund_toggle)
-    /** 退款行右侧的“取消退款”标签 */
+    /** 退款行右侧的"取消退款"标签 */
     private val tvRefundBadge: View? = rootView.findViewById(R.id.tv_refund_badge)
     /** 用户选中的退款来源支出账单，null 表示未选择（普通收入） */
     private var selectedRefundSourceBill: com.taostudio.tapaccounting.data.local.entity.Bill? = null
@@ -130,8 +130,8 @@ class AccountingFormController(
         setupListeners()
         setupAmountKeypad()
         setupDefaults()
-        btnCancel.text = "取消"
-        btnSave.text = "保存并记账"
+        btnCancel.text = ctx.getString(R.string.cancel)
+        btnSave.text = ctx.getString(R.string.save_and_record)
         setupModeToggle()
         applyAssetFeatureMode()
         refreshSelectionIcons()
@@ -169,7 +169,7 @@ class AccountingFormController(
 
     private fun refreshAccountIconForName(name: String) {
         val normalized = name.trim()
-        if (normalized.isBlank() || normalized.contains("选择") || normalized == "转出账户" || normalized == "付款账户") {
+        if (normalized.isBlank() || normalized.contains(ctx.getString(R.string.select_asset).take(2)) || normalized == ctx.getString(R.string.from_account) || normalized == ctx.getString(R.string.payment_account)) {
             resetAccountIconToEmoji()
             return
         }
@@ -200,7 +200,7 @@ class AccountingFormController(
 
     private fun refreshCategoryIconForSelection(selection: String) {
         val normalized = selection.trim()
-        if (normalized.isBlank() || normalized.contains("选择")) {
+        if (normalized.isBlank() || normalized.contains(ctx.getString(R.string.select_asset).take(2))) {
             resetCategoryIconToEmoji()
             return
         }
@@ -365,7 +365,7 @@ class AccountingFormController(
         layoutFee.visibility = if (isAssetFeatureEnabled && isTransfer) View.VISIBLE else View.GONE
         rootView.findViewById<View?>(R.id.line_fee)?.visibility = layoutFee.visibility
 
-        // 退款模式控制：收入模式下分类行右侧显示“退款”切换标签，非收入模式强制退出退款模式
+        // 退款模式控制：收入模式下分类行右侧显示"退款"切换标签，非收入模式强制退出退款模式
         if (position == 1) {
             // 收入模式：显示退款切换标签（保持当前退款模式状态不变）
             tvRefundToggle?.visibility = View.VISIBLE
@@ -384,10 +384,10 @@ class AccountingFormController(
         }
         when (position) {
             2 -> {
-                tvLabel?.text  = "转出账户"
-                tvLabel2?.text = "转入账户"
-                if (tvAccount.text == "选择资产") tvAccount.text = "转出账户"
-                if (tvAccount2.text.isEmpty() || tvAccount2.text == "选择资产" || tvAccount2.text == "选择信用卡" || tvAccount2.text == "选择转入账户") tvAccount2.text = "转入账户"
+                tvLabel?.text  = ctx.getString(R.string.from_account)
+                tvLabel2?.text = ctx.getString(R.string.to_account)
+                if (tvAccount.text == ctx.getString(R.string.select_asset)) tvAccount.text = ctx.getString(R.string.from_account)
+                if (tvAccount2.text.isEmpty() || tvAccount2.text == ctx.getString(R.string.select_asset) || tvAccount2.text == ctx.getString(R.string.select_credit_card) || tvAccount2.text == ctx.getString(R.string.select_to_account)) tvAccount2.text = ctx.getString(R.string.to_account)
                 refreshAccountIconForName(tvAccount.text.toString())
                 refreshAccount2IconForName(tvAccount2.text.toString())
                 customTransferRate = null
@@ -397,17 +397,17 @@ class AccountingFormController(
                 updateCurrencySpinnerMode(isTransferMode = true)
             }
             3 -> {
-                tvLabel?.text  = "转出账户"
-                tvLabel2?.text = "转入账户"
-                if (tvAccount.text == "选择资产" || tvAccount.text == "付款账户") tvAccount.text = "转出账户"
-                if (tvAccount2.text.isEmpty() || tvAccount2.text == "选择转入账户" || tvAccount2.text == "选择信用卡") tvAccount2.text = "转入账户"
+                tvLabel?.text  = ctx.getString(R.string.from_account)
+                tvLabel2?.text = ctx.getString(R.string.to_account)
+                if (tvAccount.text == ctx.getString(R.string.select_asset) || tvAccount.text == ctx.getString(R.string.payment_account)) tvAccount.text = ctx.getString(R.string.from_account)
+                if (tvAccount2.text.isEmpty() || tvAccount2.text == ctx.getString(R.string.select_to_account) || tvAccount2.text == ctx.getString(R.string.select_credit_card)) tvAccount2.text = ctx.getString(R.string.to_account)
                 refreshAccountIconForName(tvAccount.text.toString())
                 refreshAccount2IconForName(tvAccount2.text.toString())
                 updateCurrencySpinnerMode(isTransferMode = false)
             }
             else -> {
-                tvLabel?.text  = "选择账户"
-                if (tvAccount.text == "转出账户" || tvAccount.text == "付款账户") tvAccount.text = "选择资产"
+                tvLabel?.text  = ctx.getString(R.string.select_account_label)
+                if (tvAccount.text == ctx.getString(R.string.from_account) || tvAccount.text == ctx.getString(R.string.payment_account)) tvAccount.text = ctx.getString(R.string.select_asset)
                 refreshAccountIconForName(tvAccount.text.toString())
                 refreshAccount2IconForName(tvAccount2.text.toString())
                 updateCurrencySpinnerMode(isTransferMode = false)
@@ -500,7 +500,7 @@ class AccountingFormController(
 
     private fun refreshAccount2IconForName(name: String) {
         val normalized = name.trim()
-        if (normalized.isBlank() || normalized.contains("选择") || normalized == "转入账户") {
+        if (normalized.isBlank() || normalized.contains(ctx.getString(R.string.select_asset).take(2)) || normalized == ctx.getString(R.string.to_account)) {
             resetAccount2IconToEmoji()
             return
         }
@@ -532,7 +532,7 @@ class AccountingFormController(
     private fun isAccountPlaceholder(name: String): Boolean {
         val text = name.trim()
         if (text.isEmpty()) return true
-        return text.contains("选择") || text == "转出账户" || text == "转入账户" || text == "付款账户"
+        return text.contains(ctx.getString(R.string.select_asset).take(2)) || text == ctx.getString(R.string.from_account) || text == ctx.getString(R.string.to_account) || text == ctx.getString(R.string.payment_account)
     }
 
     private fun adjustTypeByToAccount(toAccountName: String) {
@@ -559,8 +559,8 @@ class AccountingFormController(
         val fromName = fromRaw.takeUnless { isAccountPlaceholder(it) }.orEmpty()
         val toName = toRaw.takeUnless { isAccountPlaceholder(it) }.orEmpty()
 
-        tvAccount.text = if (toName.isNotEmpty()) toName else "转出账户"
-        tvAccount2.text = if (fromName.isNotEmpty()) fromName else "转入账户"
+        tvAccount.text = if (toName.isNotEmpty()) toName else ctx.getString(R.string.from_account)
+        tvAccount2.text = if (fromName.isNotEmpty()) fromName else ctx.getString(R.string.to_account)
         refreshAccountIconForName(tvAccount.text?.toString().orEmpty())
         refreshAccount2IconForName(tvAccount2.text?.toString().orEmpty())
 
@@ -610,7 +610,7 @@ class AccountingFormController(
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             val isRepaymentMode = spType.selectedItemPosition == 3
-                            val title = if (spType.selectedItemPosition == 2 || isRepaymentMode) "选择转出账户" else "选择资产"
+                            val title = if (spType.selectedItemPosition == 2 || isRepaymentMode) ctx.getString(R.string.select_from_account) else ctx.getString(R.string.select_asset)
                             val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
                                     { asset -> asset.assetCategory != Asset.CATEGORY_CREDIT_CARD }
                                 } else {
@@ -638,7 +638,7 @@ class AccountingFormController(
                                         }
                                     }
                                 }
-                            } else Utils.toast(ctx, "请先添加资产")
+                            } else Utils.toast(ctx, ctx.getString(R.string.toast_add_asset_first))
                         }
                     }
                 }
@@ -656,7 +656,7 @@ class AccountingFormController(
                         withContext(Dispatchers.Main) {
                             if (!isActivityAlive()) return@withContext
                             val isRepaymentMode = spType.selectedItemPosition == 3
-                            val title = if (isRepaymentMode) "选择还款入账信用卡" else "选择转入账户"
+                            val title = if (isRepaymentMode) ctx.getString(R.string.select_repayment_credit_card) else ctx.getString(R.string.select_to_account)
                             val assetFilter: ((Asset) -> Boolean)? = if (isRepaymentMode) {
                                     { asset -> asset.assetCategory == Asset.CATEGORY_CREDIT_CARD }
                                 } else {
@@ -675,7 +675,7 @@ class AccountingFormController(
                                     hasCheckedInvestmentSchedulePrompt = false
                                     adjustTypeByToAccount(selectedName)
                                 }
-                            } else Utils.toast(ctx, "请先添加资产")
+                            } else Utils.toast(ctx, ctx.getString(R.string.toast_add_asset_first))
                         }
                     }
                 }
@@ -701,7 +701,7 @@ class AccountingFormController(
         }
         btnSwapAccounts?.applyFormRowPressFeedback()
 
-        // 分类行右侧“退款”标签：点击进入退款模式
+        // 分类行右侧"退款"标签：点击进入退款模式
         tvRefundToggle?.setOnClickListener {
             if (!isActivityAlive()) return@setOnClickListener
             enterRefundMode()
@@ -715,7 +715,7 @@ class AccountingFormController(
                 selectedRefundSourceBill = chosenBill
                 val df = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
                 val symbol = com.taostudio.tapaccounting.logic.CurrencyManager.getSymbol(chosenBill.currency)
-                val label = "${chosenBill.categoryName.ifEmpty { "未分类" }}  ${df.format(java.util.Date(chosenBill.time))}  ${symbol}${String.format(java.util.Locale.getDefault(), "%.2f", chosenBill.amount)}"
+                val label = "${chosenBill.categoryName.ifEmpty { ctx.getString(R.string.uncategorized) }}  ${df.format(java.util.Date(chosenBill.time))}  ${symbol}${String.format(java.util.Locale.getDefault(), "%.2f", chosenBill.amount)}"
                 tvRefundSourceBill?.text = label
                 tvRefundSourceBill?.setTextColor(android.graphics.Color.parseColor("#E53935"))
                 // 自动填充：账户、分类（金额仅在未填写时才填入）
@@ -723,11 +723,11 @@ class AccountingFormController(
                 if (currentAmount == null || currentAmount == 0.0) {
                     etMoney.setText(String.format(java.util.Locale.getDefault(), "%.2f", chosenBill.amount))
                 }
-                if (tvAccount.text.toString().contains("选择") || tvAccount.text.isBlank()) {
+                if (tvAccount.text.toString().contains(ctx.getString(R.string.select_asset).take(2)) || tvAccount.text.isBlank()) {
                     tvAccount.text = chosenBill.accountName
                     refreshAccountIconForName(chosenBill.accountName)
                 }
-                if (tvCategory.text.toString().contains("选择") || tvCategory.text.isBlank()) {
+                if (tvCategory.text.toString().contains(ctx.getString(R.string.select_asset).take(2)) || tvCategory.text.isBlank()) {
                     val baseCategory = if (chosenBill.categoryName.startsWith("退款：")) {
                         chosenBill.categoryName.removePrefix("退款：").trim()
                     } else if (chosenBill.categoryName.startsWith("退款·")) {
@@ -740,7 +740,7 @@ class AccountingFormController(
             }
         }
 
-        // 退款行右侧“取消退款”标签：点击退出退款模式
+        // 退款行右侧"取消退款"标签：点击退出退款模式
         tvRefundBadge?.setOnClickListener {
             if (!isActivityAlive()) return@setOnClickListener
             exitRefundMode()
@@ -782,18 +782,18 @@ class AccountingFormController(
             hideAmountKeypad()
             if (isProcessingPendingBillQueue) {
                 if (pendingBills.isNotEmpty()) {
-                    Utils.toast(ctx, "已跳过当前账单，继续下一条")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_bill_skipped_next))
                     processNextPendingBill()
                 } else {
                     isProcessingPendingBillQueue = false
                     updateQueueActionUi()
-                    Utils.toast(ctx, "已跳过当前账单")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_bill_skipped))
                     onCloseRequest(true)
                 }
             } else {
                 if (pendingBills.isNotEmpty()) {
                     pendingBills.clear()
-                    Utils.toast(ctx, "多账单已取消，当前填写内容会保留")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_multi_bill_canceled))
                 }
                 onCloseRequest(false)
             }
@@ -1063,7 +1063,7 @@ class AccountingFormController(
         layoutRefundSource?.visibility = View.GONE
         rootView.findViewById<View?>(R.id.line_refund_source)?.visibility = View.GONE
         selectedRefundSourceBill = null
-        tvRefundSourceBill?.text = "选择退款账单"
+        tvRefundSourceBill?.text = ctx.getString(R.string.select_refund_bill)
         tvRefundSourceBill?.setTextColor(Color.parseColor("#888888"))
     }
 
@@ -1094,7 +1094,7 @@ class AccountingFormController(
         if (matched != null && matched != selectedFormBook) {
             selectedFormBook = matched
             tvBook.text = matched
-            Utils.toast(ctx, "已自动切换到账本：$matched")
+            Utils.toast(ctx, ctx.getString(R.string.toast_auto_switch_book, matched))
         }
     }
 
@@ -1105,7 +1105,7 @@ class AccountingFormController(
             val accountName1 = tvAccount.text.toString()
             val accountName2 = tvAccount2.text.toString()
             val asset1 = db.assetDao().getAssetByName(accountName1)
-            val asset2 = if (accountName2 != "选择转入账户" && accountName2 != "转入账户" && accountName2.isNotEmpty())
+            val asset2 = if (accountName2 != ctx.getString(R.string.select_to_account) && accountName2 != ctx.getString(R.string.to_account) && accountName2.isNotEmpty())
                 db.assetDao().getAssetByName(accountName2) else null
             
             val sourceCurrency = asset1?.currency?.takeIf { it.isNotEmpty() } ?: "CNY"
@@ -1187,7 +1187,7 @@ class AccountingFormController(
             setPadding(dp(22), dp(10), dp(22), dp(4))
         }
         content.addView(TextView(themeContext).apply {
-            text = "转入 $targetName 后，这笔本金会按下面日期单独计算收益。"
+            text = ctx.getString(R.string.investment_transfer_hint, targetName)
             setTextColor(Color.parseColor("#667085"))
             textSize = 14f
         })
@@ -1209,7 +1209,7 @@ class AccountingFormController(
             textSize = 16f
             setTextColor(Color.parseColor("#1F2A38"))
             setPadding(0, dp(16), 0, dp(8))
-            bindRow(this, "开始计算收益", startEarningAt)
+            bindRow(this, ctx.getString(R.string.start_calculate_earning), startEarningAt)
             setOnClickListener {
                 showOverlayFriendlyDatePicker(
                     initialTimeMillis = startEarningAt,
@@ -1217,8 +1217,8 @@ class AccountingFormController(
                 ) { selected ->
                     startEarningAt = InvestmentInterestService.startOfDay(selected)
                     firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
-                    bindRow(startRow, "开始计算收益", startEarningAt)
-                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                    bindRow(startRow, ctx.getString(R.string.start_calculate_earning), startEarningAt)
+                    bindRow(payoutRow, ctx.getString(R.string.earning_arrival), firstPayoutAt)
                 }
             }
         }
@@ -1226,31 +1226,31 @@ class AccountingFormController(
             textSize = 16f
             setTextColor(Color.parseColor("#1F2A38"))
             setPadding(0, dp(16), 0, dp(8))
-            bindRow(this, "收益到账", firstPayoutAt)
+            bindRow(this, ctx.getString(R.string.earning_arrival), firstPayoutAt)
             setOnClickListener {
                 showOverlayFriendlyDatePicker(
                     initialTimeMillis = firstPayoutAt,
                     minTimeMillis = InvestmentInterestService.plusDays(startEarningAt, 1)
                 ) { selected ->
                     firstPayoutAt = InvestmentInterestService.startOfDay(selected)
-                    bindRow(payoutRow, "收益到账", firstPayoutAt)
+                    bindRow(payoutRow, ctx.getString(R.string.earning_arrival), firstPayoutAt)
                 }
             }
         }
         content.addView(startRow)
         content.addView(payoutRow)
         content.addView(TextView(themeContext).apply {
-            text = "默认收益到账为开始计算收益的后一天，也可以手动调整。自动收益为估算值，以实际盈利为准。"
+            text = ctx.getString(R.string.investment_default_hint)
             setTextColor(Color.parseColor("#8A9099"))
             textSize = 12f
             setPadding(0, dp(10), 0, 0)
         })
 
         val dialog = AlertDialog.Builder(themeContext)
-            .setTitle("设置理财收益时间")
+            .setTitle(ctx.getString(R.string.set_investment_time))
             .setView(content)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确定") { _, _ ->
+            .setNegativeButton(ctx.getString(R.string.cancel), null)
+            .setPositiveButton(ctx.getString(R.string.confirm)) { _, _ ->
                 hasCheckedInvestmentSchedulePrompt = true
                 onConfirm(
                     InvestmentInterestService.InvestmentSchedule(
@@ -1420,10 +1420,10 @@ class AccountingFormController(
         refreshCalendar()
 
         val dialog = AlertDialog.Builder(themeContext)
-            .setTitle("选择日期")
+            .setTitle(ctx.getString(R.string.select_date))
             .setView(root)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确定") { _, _ -> onDateSelected(selectedDay) }
+            .setNegativeButton(ctx.getString(R.string.cancel), null)
+            .setPositiveButton(ctx.getString(R.string.confirm)) { _, _ -> onDateSelected(selectedDay) }
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -1441,7 +1441,7 @@ class AccountingFormController(
     private fun handleSave() {
         val money = parseAmountInput() ?: 0.0
         if (money <= 0) {
-            Utils.toast(ctx, "请输入有效金额")
+            Utils.toast(ctx, ctx.getString(R.string.toast_input_amount))
             return
         }
         val spinnerPos = spType.selectedItemPosition
@@ -1449,7 +1449,7 @@ class AccountingFormController(
         val isRepayment = isAssetFeatureEnabled && spinnerPos == 3
         var type = if (spinnerPos > 2) 2 else spinnerPos
         if (!isAssetFeatureEnabled && type !in 0..1) {
-            Utils.toast(ctx, "当前无资产模式仅支持支出和收入")
+            Utils.toast(ctx, ctx.getString(R.string.toast_no_asset_mode))
             return
         }
 
@@ -1461,7 +1461,7 @@ class AccountingFormController(
             scope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(ctx)
                 val asset1 = db.assetDao().getAssetByName(accountName1)
-                val asset2 = if (accountName2 != "选择转入账户" && accountName2 != "转入账户" && accountName2.isNotEmpty())
+                val asset2 = if (accountName2 != ctx.getString(R.string.select_to_account) && accountName2 != ctx.getString(R.string.to_account) && accountName2.isNotEmpty())
                     db.assetDao().getAssetByName(accountName2) else null
                 
                 val sourceCurrency = asset1?.currency?.takeIf { it.isNotEmpty() } ?: "CNY"
@@ -1563,19 +1563,19 @@ class AccountingFormController(
                 when {
                     asset1 == null || asset2 == null -> {
                         withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, "还款要求转出和转入账户都为现有资产，请检查账户")
+                            Utils.toast(ctx, ctx.getString(R.string.toast_repayment_require_both))
                         }
                         return@launch
                     }
                     asset1.assetCategory == Asset.CATEGORY_CREDIT_CARD -> {
                         withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, "还款的转出账户不能选择信用卡")
+                            Utils.toast(ctx, ctx.getString(R.string.toast_repayment_from_not_credit))
                         }
                         return@launch
                     }
                     asset2.assetCategory != Asset.CATEGORY_CREDIT_CARD -> {
                         withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, "还款的转入账户只能选择信用卡")
+                            Utils.toast(ctx, ctx.getString(R.string.toast_repayment_to_must_credit))
                         }
                         return@launch
                     }
@@ -1584,7 +1584,7 @@ class AccountingFormController(
 
             if (type == Bill.TYPE_TRANSFER && !isRepayment && (asset1 == null || asset2 == null)) {
                 withContext(Dispatchers.Main) {
-                    Utils.toast(ctx, "转账要求转入和转出账户都为现有资产，请检查账户")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_transfer_require_both))
                 }
                 return@launch
             }
@@ -1693,8 +1693,8 @@ class AccountingFormController(
                 if (effectiveCurrency == "CNY") {
                     finalRate = 1.0
                 } else {
-                    // exchangeRate 始终保存“该币种 -> CNY”的换算率，
-                    // 这样默认人民币统计和详情页“≈人民币”都能稳定成立。
+                    // exchangeRate 始终保存"该币种 -> CNY"的换算率，
+                    // 这样默认人民币统计和详情页"≈人民币"都能稳定成立。
                     finalRate = BillAssetImpactService.estimateExchangeRateToCny(effectiveCurrency)
                 }
             }
@@ -1727,7 +1727,7 @@ class AccountingFormController(
                     )
                 } catch (e: IllegalArgumentException) {
                     withContext(Dispatchers.Main) {
-                        Utils.toast(ctx, "保存失败，请稍后重试")
+                        Utils.toast(ctx, ctx.getString(R.string.toast_save_failed))
                     }
                     return@launch
                 }
@@ -1767,12 +1767,12 @@ class AccountingFormController(
                         )
                     } catch (e: IllegalArgumentException) {
                         withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, "退款金额超过可退余额")
+                            Utils.toast(ctx, ctx.getString(R.string.toast_refund_exceeds_balance))
                         }
                         return@launch
                     } catch (e: IllegalStateException) {
                         withContext(Dispatchers.Main) {
-                            Utils.toast(ctx, "原账单不存在或不可退款")
+                            Utils.toast(ctx, ctx.getString(R.string.toast_original_bill_invalid))
                         }
                         return@launch
                     }
@@ -1806,7 +1806,7 @@ class AccountingFormController(
             }
 
             withContext(Dispatchers.Main) {
-                Utils.toast(ctx, "记账成功")
+                Utils.toast(ctx, ctx.getString(R.string.toast_accounting_success))
                 if (Prefs.isSaveVibrateEnabled(ctx)) {
                     Utils.vibrate(ctx, 50)
                 }
@@ -1905,7 +1905,7 @@ class AccountingFormController(
         if (missingBefore.isEmpty()) return true
 
         withContext(Dispatchers.Main) {
-            Utils.toast(ctx, "检测到缺少汇率，正在自动刷新…")
+            Utils.toast(ctx, ctx.getString(R.string.toast_refreshing_rates))
         }
 
         val refreshSuccess = suspendCancellableCoroutine<Boolean> { cont ->
@@ -1923,7 +1923,7 @@ class AccountingFormController(
         }
 
         withContext(Dispatchers.Main) {
-            Utils.toast(ctx, "汇率已更新，继续记账")
+            Utils.toast(ctx, ctx.getString(R.string.toast_rates_updated))
         }
         return true
     }
@@ -1932,8 +1932,8 @@ class AccountingFormController(
 
     private fun showMissingRatesBlockingDialog(missingCurrencies: Set<String>, refreshSuccess: Boolean) {
         val missingText = missingCurrencies.joinToString("、")
-        val suffix = if (refreshSuccess) "" else "（自动刷新失败）"
-        val message = "以下币种仍缺少汇率：$missingText$suffix\n\n请先更新汇率后再保存。"
+        val suffix = if (refreshSuccess) "" else ctx.getString(R.string.pending_confirm)
+        val message = ctx.getString(R.string.missing_rates_message, missingText + suffix)
 
         val safeContext = ctx
         if (safeContext !is Activity || safeContext.isFinishing) {
@@ -1945,27 +1945,27 @@ class AccountingFormController(
         isMissingRateDialogShowing = true
 
         val dialog = AlertDialog.Builder(ContextThemeWrapper(safeContext, R.style.Theme_TapAccounting))
-            .setTitle("缺少汇率，暂无法保存")
+            .setTitle(ctx.getString(R.string.missing_rates_title))
             .setMessage(message)
             .setCancelable(true)
-            .setNegativeButton("稍后") { dialog, _ ->
+            .setNegativeButton(ctx.getString(R.string.later)) { dialog, _ ->
                 dialog.dismiss()
             }
-            .setNeutralButton("复制缺失币种") { _, _ ->
+            .setNeutralButton(ctx.getString(R.string.copy_missing_currencies)) { _, _ ->
                 val clipboard = safeContext.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                 if (clipboard != null) {
                     clipboard.setPrimaryClip(ClipData.newPlainText("missing_currencies", missingText))
-                    Utils.toast(safeContext, "已复制：$missingText")
+                    Utils.toast(safeContext, safeContext.getString(R.string.toast_copied, missingText))
                 } else {
-                    Utils.toast(safeContext, "复制失败：系统剪贴板不可用")
+                    Utils.toast(safeContext, safeContext.getString(R.string.toast_copy_failed))
                 }
             }
-            .setPositiveButton("去更新汇率") { dialog, _ ->
+            .setPositiveButton(ctx.getString(R.string.go_update_rates)) { dialog, _ ->
                 dialog.dismiss()
                 runCatching {
                     safeContext.startActivity(Intent(safeContext, ExchangeRateActivity::class.java))
                 }.onFailure {
-                    Utils.toast(safeContext, "无法打开汇率设置页")
+                    Utils.toast(safeContext, safeContext.getString(R.string.toast_cannot_open_rates))
                 }
             }
             .setOnDismissListener {
@@ -2000,13 +2000,13 @@ class AccountingFormController(
         }
 
         val dialog = AlertDialog.Builder(ContextThemeWrapper(safeContext, R.style.Theme_TapAccounting))
-            .setTitle("检测到识别偏差")
-            .setMessage("你修改了 AI 识别结果，是否将本次修正保存为规则，下次自动纠正？")
-            .setNegativeButton("不需要") { dialog, _ ->
+            .setTitle(ctx.getString(R.string.rule_mismatch_title))
+            .setMessage(ctx.getString(R.string.rule_save_prompt))
+            .setNegativeButton(ctx.getString(R.string.no_need)) { dialog, _ ->
                 dialog.dismiss()
                 finishSaveFlow()
             }
-            .setPositiveButton("添加规则") { dialog, _ ->
+            .setPositiveButton(ctx.getString(R.string.add_rule)) { dialog, _ ->
                 dialog.dismiss()
                 showCreateRuleDialog(
                     suggestion.originalText,
@@ -2063,8 +2063,8 @@ class AccountingFormController(
                     val saveResult = saveRuleWithDedupDecision(newRule)
                     withContext(Dispatchers.Main) {
                         when (saveResult) {
-                            RuleSaveResult.SAVED -> Utils.toast(ctx, "规则创建成功")
-                            RuleSaveResult.SKIPPED -> Utils.toast(ctx, "已取消本次规则保存")
+                            RuleSaveResult.SAVED -> Utils.toast(ctx, ctx.getString(R.string.rule_saved))
+                            RuleSaveResult.SKIPPED -> Utils.toast(ctx, ctx.getString(R.string.rule_save_canceled))
                         }
 
                         if (finishOnDone && !hasFinishedSaveFlow) {
@@ -2080,7 +2080,7 @@ class AccountingFormController(
                     hasFinishedSaveFlow = true
                     finishSaveFlow()
                 } else {
-                    Utils.toast(ctx, "已取消添加规则")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_rule_add_canceled))
                 }
             }
         )
@@ -2143,17 +2143,20 @@ class AccountingFormController(
             return@suspendCancellableCoroutine
         }
 
-        val existingLabel = existingCategory?.takeIf { it.isNotBlank() } ?: "未设置分类"
-        val newLabel = newCategory?.takeIf { it.isNotBlank() } ?: "未设置分类"
+        val existingLabel = existingCategory?.takeIf { it.isNotBlank() } ?: ctx.getString(R.string.category_not_set)
+        val newLabel = newCategory?.takeIf { it.isNotBlank() } ?: ctx.getString(R.string.category_not_set)
 
+        val part1 = ctx.getString(R.string.duplicate_rule_dialog_message, keyword, existingLabel)
+        val part2 = ctx.getString(R.string.cancel_rule_save)
+        val msg = part1 + "\n\n" + part2
         val dialog = AlertDialog.Builder(ContextThemeWrapper(safeContext, R.style.Theme_TapAccounting))
-            .setTitle("检测到重复关键词")
-            .setMessage("关键词“$keyword”已有规则（分类：$existingLabel），本次分类为“$newLabel”。\n\n请选择：覆盖旧规则，或取消本次规则保存。")
-            .setPositiveButton("覆盖") { d, _ ->
+            .setTitle(ctx.getString(R.string.duplicate_keyword_title))
+            .setMessage(msg)
+            .setPositiveButton(ctx.getString(R.string.overwrite)) { d, _ ->
                 d.dismiss()
                 if (cont.isActive) cont.resume(RuleConflictDecision.OVERWRITE)
             }
-            .setNegativeButton("取消本次规则保存") { d, _ ->
+            .setNegativeButton(ctx.getString(R.string.cancel_rule_save)) { d, _ ->
                 d.dismiss()
                 if (cont.isActive) cont.resume(RuleConflictDecision.CANCEL_RECORD)
             }
@@ -2196,13 +2199,13 @@ class AccountingFormController(
     private fun updateQueueActionUi() {
         if (isProcessingPendingBillQueue) {
             val currentIndex = (totalPendingBillCount - pendingBills.size).coerceAtLeast(1)
-            tvTitle?.text = "记账 $currentIndex/$totalPendingBillCount"
-            btnCancel.text = "跳过这笔"
-            btnSave.text = "保存并下一笔"
+            tvTitle?.text = ctx.getString(R.string.accounting_progress, currentIndex, totalPendingBillCount)
+            btnCancel.text = ctx.getString(R.string.skip_this)
+            btnSave.text = ctx.getString(R.string.save_next)
         } else {
-            tvTitle?.text = if (editingBillId != null) "编辑账单" else "记一笔"
-            btnCancel.text = "取消"
-            btnSave.text = "保存并记账"
+            tvTitle?.text = if (editingBillId != null) ctx.getString(R.string.edit_bill) else ctx.getString(R.string.record_one)
+            btnCancel.text = ctx.getString(R.string.cancel)
+            btnSave.text = ctx.getString(R.string.save_and_record)
         }
     }
 
@@ -2221,9 +2224,9 @@ class AccountingFormController(
         setCurrency(next.optString("currency", "CNY"))
         
         if (pendingBills.isNotEmpty()) {
-            Utils.toast(ctx, "剩余 ${pendingBills.size} 条待记录")
+            Utils.toast(ctx, ctx.getString(R.string.toast_remaining_bills, pendingBills.size))
         } else {
-            Utils.toast(ctx, "这是最后一条记录")
+            Utils.toast(ctx, ctx.getString(R.string.toast_last_bill))
         }
     }
 
@@ -2364,7 +2367,7 @@ class AccountingFormController(
                         BillMutationService.insertBillAndApplyImpact(db, bill)
                     }
                     withContext(Dispatchers.Main) {
-                        Utils.toast(ctx, "已自动存入 ${billsArray.length()} 条账单")
+                        Utils.toast(ctx, ctx.getString(R.string.toast_auto_saved_bills, billsArray.length()))
                         onCloseRequest(true)
                     }
                 }
@@ -2473,7 +2476,7 @@ class AccountingFormController(
 
         enforceTransferAssetConstraintIfNeeded(json, showToast)
         if (showToast && localRuleCorrected) {
-            Utils.toast(ctx, "该笔账单已应用本地规则")
+            Utils.toast(ctx, ctx.getString(R.string.toast_local_rule_applied))
         }
 
         if (editingBillId != null) {
@@ -2519,12 +2522,12 @@ class AccountingFormController(
                     tvAccount2.text = ""
                     refreshAccount2IconForName("")
                 }
-                if (tvCategory.text.toString().trim() == "转账") {
-                    tvCategory.text = "其他"
-                    refreshCategoryIconForSelection("其他")
+                if (tvCategory.text.toString().trim() == ctx.getString(R.string.transfer)) {
+                    tvCategory.text = ctx.getString(R.string.other_category)
+                    refreshCategoryIconForSelection(ctx.getString(R.string.other_category))
                 }
                 if (showToast) {
-                    Utils.toast(ctx, "转账要求转入和转出账户都为现有资产，已改为支出，请确认")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_transfer_to_expense))
                 }
             }
         }

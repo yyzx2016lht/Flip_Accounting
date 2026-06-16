@@ -69,9 +69,9 @@ class VoiceInputHandler(
                                 clearPendingLongPress()
                                 isFingerDown = false
                                 longPressTriggered = false
-                                Utils.toast(ctx, "权限已授予，请重新按住麦克风说话")
+                                Utils.toast(ctx, ctx.getString(R.string.mic_granted))
                             } else {
-                                Utils.toast(ctx, "需要麦克风权限才能录音")
+                                Utils.toast(ctx, ctx.getString(R.string.mic_permission))
                             }
                         }
                         ctx.startActivity(Intent(ctx, PermissionRequestActivity::class.java).apply {
@@ -117,7 +117,7 @@ class VoiceInputHandler(
                             isRecording = false
                             clearPendingLongPress()
                             aiAssistant.dismiss()
-                            Utils.toast(ctx, lastRecordingStartError ?: "录音启动失败")
+                            Utils.toast(ctx, lastRecordingStartError ?: ctx.getString(R.string.record_start_failed))
                         }
                     }
 
@@ -164,7 +164,7 @@ class VoiceInputHandler(
                             stopRecording { _ -> }
                             LocalAsrService.finishStreaming()
                             aiAssistant.dismiss()
-                            Utils.toast(ctx, "已取消")
+                            Utils.toast(ctx, ctx.getString(R.string.canceled))
                         } else {
                             stopRecording { file ->
                                 CoroutineScope(Dispatchers.IO).launch {
@@ -237,7 +237,7 @@ class VoiceInputHandler(
 
     private fun currentAccountingModel(): String = Prefs.getAiMultiModel(ctx)
 
-    private fun currentVoiceRecordingHint(): String = "正在倾听..."
+    private fun currentVoiceRecordingHint(): String = ctx.getString(R.string.listening_hint)
 
     @SuppressLint("MissingPermission")
     private fun startRecording(): Boolean {
@@ -259,7 +259,7 @@ class VoiceInputHandler(
         Logger.d(ctx, "VoiceInputHandler", "AudioRecord state=${record.state} (1=INITIALIZED)")
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             Logger.d(ctx, "VoiceInputHandler", "AudioRecord init failed, state=${record.state}")
-            lastRecordingStartError = "麦克风初始化失败"
+            lastRecordingStartError = ctx.getString(R.string.mic_init_failed)
             record.release()
             return false
         }
@@ -268,14 +268,14 @@ class VoiceInputHandler(
             val microphoneModeReady = onBeforeRecording?.invoke() ?: true
             if (!microphoneModeReady) {
                 Logger.d(ctx, "VoiceInputHandler", "startRecording aborted: microphone foreground service mode unavailable")
-                lastRecordingStartError = "麦克风服务启动失败，请稍后重试"
+                lastRecordingStartError = ctx.getString(R.string.mic_service_failed)
                 record.release()
                 return false
             }
             record.startRecording()
             if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                 Logger.d(ctx, "VoiceInputHandler", "AudioRecord NOT in RECORDING state, state=${record.recordingState}")
-                lastRecordingStartError = "麦克风未能开始录音"
+                lastRecordingStartError = ctx.getString(R.string.mic_record_failed)
                 record.release()
                 onAfterRecording?.invoke()
                 return false
@@ -293,7 +293,7 @@ class VoiceInputHandler(
         } catch (e: Exception) {
             Logger.d(ctx, "VoiceInputHandler", "startRecording exception: ${e.message}")
             isRecording = false
-            lastRecordingStartError = "录音启动失败"
+            lastRecordingStartError = ctx.getString(R.string.record_start_failed)
             onAfterRecording?.invoke()
             try {
                 record.release()

@@ -31,7 +31,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="退款"
+            android:text="@string/refund"
             android:textColor="#1A1A1A"
             android:textSize="@dimen/text_size_20"
             android:textStyle="bold"
@@ -46,7 +46,7 @@
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
             android:paddingHorizontal="14dp"
-            android:text="保存"
+            android:text="@string/save"
             android:textColor="#666666"
             android:textSize="@dimen/text_size_13"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -71,7 +71,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="原账单信息"
+                android:text="@string/original_bill_info"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="10dp"
                 android:textColor="#5F6772"
@@ -95,7 +95,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="原金额"
+                        android:text="@string/original_amount"
                         android:textColor="#8A8A8E"
                         android:textSize="@dimen/text_size_14" />
                     <TextView
@@ -124,7 +124,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="原分类"
+                        android:text="@string/original_category"
                         android:textColor="#8A8A8E"
                         android:textSize="@dimen/text_size_14" />
                     <TextView
@@ -142,7 +142,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="退款信息"
+                android:text="@string/refund_info"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="8dp"
                 android:textColor="#5F6772"
@@ -153,7 +153,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="10dp"
-                android:text="可调整退款金额和入账账户"
+                android:text="@string/refund_adjust_hint"
                 android:textColor="#8A8A8E"
                 android:textSize="@dimen/text_size_13" />
 
@@ -179,7 +179,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="退款金额"
+                            android:text="@string/refund_amount"
                             android:textColor="#8A8A8E"
                             android:textSize="@dimen/text_size_13" />
                         <EditText
@@ -189,7 +189,7 @@
                             android:layout_marginTop="6dp"
                             android:background="@null"
                             android:gravity="start"
-                            android:hint="输入退款金额"
+                            android:hint="@string/hint_refund_amount"
                             android:inputType="numberDecimal"
                             android:minHeight="0dp"
                             android:padding="0dp"
@@ -230,7 +230,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="入账账户"
+                            android:text="@string/entry_account"
                             android:textColor="#8A8A8E"
                             android:textSize="@dimen/text_size_13" />
                         <TextView
@@ -238,7 +238,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
-                            android:text="选择账户"
+                            android:text="@string/select_account"
                             android:textColor="#1A1A1A"
                             android:textSize="@dimen/text_size_16"
                             android:textStyle="bold" />
@@ -252,7 +252,7 @@
                         android:gravity="center"
                         android:minWidth="40dp"
                         android:paddingHorizontal="8dp"
-                        android:text="更换"
+                        android:text="@string/change"
                         android:textColor="#8A8A8E"
                         android:textSize="@dimen/text_size_12" />
 
@@ -288,7 +288,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="退款时间"
+                            android:text="@string/refund_time"
                             android:textColor="#8A8A8E"
                             android:textSize="@dimen/text_size_13" />
                         <TextView
@@ -324,7 +324,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="备注"
+                        android:text="@string/remark_tag"
                         android:textColor="#8A8A8E"
                         android:textSize="@dimen/text_size_13" />
                     <EditText
@@ -334,7 +334,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@null"
                         android:gravity="start"
-                        android:hint="补充退款说明"
+                        android:hint="@string/hint_refund_remark"
                         android:inputType="textMultiLine"
                         android:minHeight="0dp"
                         android:padding="0dp"

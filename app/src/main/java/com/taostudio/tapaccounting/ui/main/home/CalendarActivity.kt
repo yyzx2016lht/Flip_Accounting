@@ -291,7 +291,7 @@ class CalendarActivity : AppCompatActivity() {
         val checkedItem = values.indexOf(firstDayOfWeekOption).takeIf { it >= 0 } ?: 0
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("每周第一天")
+            .setTitle(getString(R.string.first_day_of_week))
             .setSingleChoiceItems(options, checkedItem) { d, which ->
                 firstDayOfWeekOption = values[which]
                 getSharedPreferences("flip_prefs", Context.MODE_PRIVATE)
@@ -352,9 +352,9 @@ class CalendarActivity : AppCompatActivity() {
         pickerLayout.addView(npMonth)
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("选择月份")
+            .setTitle(getString(R.string.select_month))
             .setView(pickerLayout)
-            .setPositiveButton("确定") { _, _ ->
+            .setPositiveButton(getString(R.string.confirm)) { _, _ ->
                 selectedYear = npYear.value
                 selectedMonth = npMonth.value
                 selectedDay = 1
@@ -362,7 +362,7 @@ class CalendarActivity : AppCompatActivity() {
                 updateMonthText()
                 loadDataForMonth()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .create()
         OverlayDialogs.showPageCenterDialog(dialog, this, widthRatio = 0.86f)
     }

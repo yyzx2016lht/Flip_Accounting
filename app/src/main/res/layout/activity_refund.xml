@@ -27,7 +27,7 @@
             android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="退款"
+            android:text="@string/refund"
             android:textColor="#1A2744"
             android:textSize="18sp"
             android:textStyle="bold"
@@ -43,7 +43,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:gravity="center"
             android:paddingHorizontal="8dp"
-            android:text="保存"
+            android:text="@string/save"
             android:textColor="#1F5FC8"
             android:textSize="15sp"
             android:textStyle="bold"
@@ -112,7 +112,7 @@
                         android:id="@+id/tv_orig_category"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="未分类"
+                        android:text="@string/uncategorized"
                         android:textColor="#18191B"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -149,7 +149,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="退款金额"
+                        android:text="@string/refund_amount"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -191,7 +191,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="退款账户"
+                        android:text="@string/refund_account"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -202,7 +202,7 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:text="选择账户"
+                        android:text="@string/select_account"
                         android:textColor="#6E737D"
                         android:textSize="14sp" />
 
@@ -232,7 +232,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="退款时间"
+                        android:text="@string/refund_time"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -243,7 +243,7 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:text="选择时间"
+                        android:text="@string/select_time"
                         android:textColor="#6E737D"
                         android:textSize="14sp" />
 
@@ -273,7 +273,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="备注"
+                        android:text="@string/remark"
                         android:textColor="#2A2C30"
                         android:textSize="15sp" />
 
@@ -285,7 +285,7 @@
                         android:layout_weight="1"
                         android:background="@android:color/transparent"
                         android:gravity="end|center_vertical"
-                        android:hint="点击输入备注"
+                        android:hint="@string/hint_input_remark"
                         android:inputType="textCapSentences|textMultiLine"
                         android:maxLines="2"
                         android:padding="0dp"

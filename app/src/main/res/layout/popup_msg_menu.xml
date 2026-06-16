@@ -32,7 +32,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="复制"
+                android:text="@string/copy"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:layout_marginTop="3dp" />
@@ -55,7 +55,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="编辑发送"
+                android:text="@string/edit_send"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:layout_marginTop="3dp" />
@@ -80,7 +80,7 @@
                 android:id="@+id/tv_menu_transcribe"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="转文字"
+                android:text="@string/to_text"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:layout_marginTop="3dp" />
@@ -103,7 +103,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="重识别"
+                android:text="@string/re_recognize"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:layout_marginTop="3dp" />
@@ -126,7 +126,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="复制转写"
+                android:text="@string/copy_transcript"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:layout_marginTop="3dp" />
@@ -148,7 +148,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="多选"
+                android:text="@string/multi_select"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:layout_marginTop="3dp" />
@@ -170,7 +170,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="删除"
+                android:text="@string/delete"
                 android:textColor="#FF8E8E"
                 android:textSize="11sp"
                 android:layout_marginTop="3dp" />

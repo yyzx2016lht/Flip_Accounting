@@ -39,7 +39,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="点击头像更换图片"
+        android:text="@string/tap_avatar_change"
         android:textColor="#999999"
         android:textSize="12sp"
         android:layout_marginBottom="20dp" />
@@ -48,7 +48,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="AI 名称"
+        android:text="@string/ai_name"
         android:textColor="#666666"
         android:textSize="13sp"
         android:layout_marginBottom="6dp" />
@@ -58,7 +58,7 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="@drawable/bg_chat_input"
-        android:hint="输入 AI 助手名称"
+        android:hint="@string/hint_ai_name"
         android:paddingHorizontal="14dp"
         android:singleLine="true"
         android:textColor="#333333"
@@ -69,7 +69,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="6dp"
-        android:text="AI 身份简介"
+        android:text="@string/ai_identity"
         android:textColor="#666666"
         android:textSize="13sp" />
 

@@ -97,7 +97,7 @@ class OverlayManager(private val ctx: Context) {
 
     fun showAiInputPanel(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(ctx)) {
-            Utils.toast(ctx, "无法唤出 AI 输入框：请先开启悬浮窗权限")
+            Utils.toast(ctx, ctx.getString(R.string.toast_ai_overlay_permission))
             val intent = android.content.Intent(
                 android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 android.net.Uri.parse("package:${ctx.packageName}")
@@ -134,7 +134,7 @@ class OverlayManager(private val ctx: Context) {
                 for (i in 0 until billsArray.length()) {
                     saveJsonToLocal(billsArray.getJSONObject(i))
                 }
-                Utils.toast(ctx, "已识别 ${billsArray.length()} 条账单并保存至列表")
+                Utils.toast(ctx, ctx.getString(R.string.toast_recognized_saved, billsArray.length()))
                 if (overlayView != null) removeOverlay()
             } else {
                 if (overlayView != null && formController != null) {
@@ -156,14 +156,14 @@ class OverlayManager(private val ctx: Context) {
     fun showOverlay(prefill: JSONObject? = null, showSaveOnly: Boolean = false): Boolean {
         if (overlayView != null) return true
         if (isRemovingOverlay) {
-            Utils.toast(ctx, "悬浮窗正在关闭，请稍后再试")
+            Utils.toast(ctx, ctx.getString(R.string.toast_overlay_closing))
             return false
         }
         Logger.d(ctx, "OverlayManager", "Showing Overlay")
 
         val themeContext = android.view.ContextThemeWrapper(ctx, R.style.Theme_TapAccounting)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(ctx)) {
-            Utils.toast(ctx, "无法唤出悬浮窗：请先开启悬浮窗权限")
+            Utils.toast(ctx, ctx.getString(R.string.toast_overlay_permission_required))
             val intent = android.content.Intent(
                 android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 android.net.Uri.parse("package:${ctx.packageName}")
@@ -176,7 +176,7 @@ class OverlayManager(private val ctx: Context) {
         windowManager = ctx.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
         if (windowManager == null) {
             Logger.d(ctx, "OverlayManager", "showOverlay failed: WindowManager unavailable")
-            Utils.toast(ctx, "无法唤出悬浮窗：系统窗口服务不可用")
+            Utils.toast(ctx, ctx.getString(R.string.toast_overlay_wm_unavailable))
             return false
         }
         overlayView = LayoutInflater.from(themeContext).inflate(R.layout.layout_floating_window, null)
@@ -222,7 +222,7 @@ class OverlayManager(private val ctx: Context) {
             Logger.d(ctx, "OverlayManager", "showOverlay addView failed: ${e.message}")
             overlayView = null
             overlayParams = null
-            Utils.toast(ctx, "无法显示悬浮窗，请检查悬浮窗权限")
+            Utils.toast(ctx, ctx.getString(R.string.toast_overlay_show_failed))
             return false
         }
 
@@ -328,7 +328,7 @@ class OverlayManager(private val ctx: Context) {
 
     private fun startScreenCaptureRecognition(triggerBtn: View? = null) {
         if (isScreenCaptureInProgress) {
-            Utils.toast(ctx, "正在识别屏幕，请稍候...")
+            Utils.toast(ctx, ctx.getString(R.string.toast_screen_recognizing))
             return
         }
 
@@ -341,7 +341,7 @@ class OverlayManager(private val ctx: Context) {
         Logger.d(ctx, "OverlayManager", "Screen capture recognition clicked. model=$screenModel, isMulti=true")
         if (screenModel.isEmpty()) {
             Logger.d(ctx, "OverlayManager", "Screen capture aborted: no vision model configured")
-            Utils.toast(ctx, "请先在智能配置中选择视觉重试模型")
+            Utils.toast(ctx, ctx.getString(R.string.toast_select_vision_model))
             finishScreenCaptureFlow(restoreOverlay = true)
             return
         }
@@ -349,7 +349,7 @@ class OverlayManager(private val ctx: Context) {
         if (availableModels.isNotEmpty() && screenModel !in availableModels) {
             Logger.d(ctx, "OverlayManager", "Screen capture aborted: model=$screenModel missing from current cache")
             Prefs.setScreenModelVisionSupported(ctx, screenModel, false)
-            Utils.toast(ctx, "当前视觉重试模型已失效，请先刷新模型并重新选择")
+            Utils.toast(ctx, ctx.getString(R.string.toast_vision_model_invalid))
             finishScreenCaptureFlow(restoreOverlay = true)
             return
         }
@@ -359,8 +359,8 @@ class OverlayManager(private val ctx: Context) {
             Logger.d(ctx, "OverlayManager", "Using cached vision probe support. model=$screenModel")
         }
 
-        showScreenCaptureLoadingOverlay("正在准备截屏识别...")
-        updateScreenCaptureLoadingHint("正在检测模型能力")
+        showScreenCaptureLoadingOverlay(ctx.getString(R.string.preparing_screen_capture))
+        updateScreenCaptureLoadingHint(ctx.getString(R.string.checking_model_capability))
 
         setOverlayVisible(false)
 
@@ -383,7 +383,7 @@ class OverlayManager(private val ctx: Context) {
                 if (!support) {
                     hideScreenCaptureLoadingOverlay()
                     setOverlayVisible(true)
-                    Utils.toast(ctx, "当前模型不支持截屏识别，请更换支持视觉输入的模型")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_model_no_vision))
                     finishScreenCaptureFlow(restoreOverlay = false)
                     return@withContext
                 }
@@ -411,21 +411,21 @@ class OverlayManager(private val ctx: Context) {
             putExtra(ScreenCaptureActivity.EXTRA_IS_MULTI_MODE, true)
         }
         Logger.d(ctx, "OverlayManager", "Launching ScreenCaptureActivity")
-        updateScreenCaptureLoadingStatus("正在请求截屏权限...")
-        updateScreenCaptureLoadingHint("请在系统弹窗中确认")
+        updateScreenCaptureLoadingStatus(ctx.getString(R.string.requesting_capture_permission))
+        updateScreenCaptureLoadingHint(ctx.getString(R.string.confirm_in_system_dialog))
         runCatching { ctx.startActivity(intent) }
             .onFailure {
                 Logger.d(ctx, "OverlayManager", "Launching ScreenCaptureActivity failed: ${it.message}")
                 hideScreenCaptureLoadingOverlay()
                 setOverlayVisible(true)
-                Utils.toast(ctx, "无法启动截屏，请稍后重试")
+                Utils.toast(ctx, ctx.getString(R.string.toast_capture_start_failed))
                 finishScreenCaptureFlow(restoreOverlay = false)
             }
     }
 
     private fun startShizukuScreenCaptureRecognition() {
-        updateScreenCaptureLoadingStatus("正在通过 Shizuku 截屏...")
-        updateScreenCaptureLoadingHint("请保持当前页面不动")
+        updateScreenCaptureLoadingStatus(ctx.getString(R.string.shizuku_capturing))
+        updateScreenCaptureLoadingHint(ctx.getString(R.string.keep_page_still))
         screenCaptureJob?.cancel()
         screenCaptureJob = CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -450,8 +450,8 @@ class OverlayManager(private val ctx: Context) {
 
                 Logger.d(ctx, "OverlayManager", "Shizuku screencap succeeded. bytes=${bytes.size}, size=${bitmap.width}x${bitmap.height}")
                 withContext(Dispatchers.Main) {
-                    updateScreenCaptureLoadingStatus("正在识别屏幕中...")
-                    updateScreenCaptureLoadingHint("AI 正在提取交易信息")
+                    updateScreenCaptureLoadingStatus(ctx.getString(R.string.recognizing_screen))
+                    updateScreenCaptureLoadingHint(ctx.getString(R.string.ai_extracting_transactions))
                 }
 
                 val result = AIService.analyzeScreenAccountingByImage(
@@ -461,7 +461,7 @@ class OverlayManager(private val ctx: Context) {
                     isMultiModeOverride = true
                 ) ?: JSONObject().apply {
                     put("no_bill", true)
-                    put("reply", "未识别到可记账内容")
+                    put("reply", ctx.getString(R.string.toast_no_bill_found))
                 }
 
                 withContext(Dispatchers.Main) {
@@ -478,8 +478,8 @@ class OverlayManager(private val ctx: Context) {
     }
 
     private fun startAccessibilityScreenCaptureRecognition() {
-        updateScreenCaptureLoadingStatus("正在通过无障碍服务截屏...")
-        updateScreenCaptureLoadingHint("请保持当前页面不动")
+        updateScreenCaptureLoadingStatus(ctx.getString(R.string.accessibility_capturing))
+        updateScreenCaptureLoadingHint(ctx.getString(R.string.keep_page_still))
         screenCaptureJob?.cancel()
         screenCaptureJob = CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -499,8 +499,8 @@ class OverlayManager(private val ctx: Context) {
 
                     Logger.d(ctx, "OverlayManager", "Accessibility screencap succeeded. size=${bitmap.width}x${bitmap.height}")
                     CoroutineScope(Dispatchers.Main).launch {
-                        updateScreenCaptureLoadingStatus("正在识别屏幕中...")
-                        updateScreenCaptureLoadingHint("AI 正在提取交易信息")
+                        updateScreenCaptureLoadingStatus(ctx.getString(R.string.recognizing_screen))
+                        updateScreenCaptureLoadingHint(ctx.getString(R.string.ai_extracting_transactions))
                     }
 
                     CoroutineScope(Dispatchers.IO).launch {
@@ -512,7 +512,7 @@ class OverlayManager(private val ctx: Context) {
                                 isMultiModeOverride = true
                             ) ?: JSONObject().apply {
                                 put("no_bill", true)
-                                put("reply", "未识别到可记账内容")
+                                put("reply", ctx.getString(R.string.toast_no_bill_found))
                             }
 
                             withContext(Dispatchers.Main) {
@@ -521,7 +521,7 @@ class OverlayManager(private val ctx: Context) {
                         } catch (e: Exception) {
                             Logger.d(ctx, "OverlayManager", "Accessibility screen recognition failed: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                handleScreenCaptureError("截屏识别失败，请稍后重试")
+                                handleScreenCaptureError(ctx.getString(R.string.toast_capture_failed))
                             }
                         }
                     }
@@ -561,7 +561,7 @@ class OverlayManager(private val ctx: Context) {
         }
         finishScreenCaptureFlow(restoreOverlay = false)
         if (result.optBoolean("no_bill", false)) {
-            Utils.toast(ctx, result.optString("reply", "未识别到可记账内容"))
+            Utils.toast(ctx, result.optString("reply", ctx.getString(R.string.toast_no_bill_found)))
         } else {
             showScreenCaptureDraftDialog(result)
         }
@@ -571,7 +571,7 @@ class OverlayManager(private val ctx: Context) {
         val draft = result.optString("natural_summary", "").trim()
             .ifBlank { buildDraftTextFromResult(result) }
         if (draft.isBlank()) {
-            Utils.toast(ctx, "未生成可核对的文本草稿")
+            Utils.toast(ctx, ctx.getString(R.string.toast_no_draft))
             return
         }
 
@@ -583,9 +583,9 @@ class OverlayManager(private val ctx: Context) {
         val btnCancel = view.findViewById<TextView>(R.id.btn_visual_draft_cancel)
         val btnConfirm = view.findViewById<TextView>(R.id.btn_visual_draft_confirm)
 
-        title.text = "核对截屏记账"
-        hint.text = "AI 已从截屏整理出可编辑草稿，确认后再生成账单。"
-        btnConfirm.text = "生成账单"
+        title.text = ctx.getString(R.string.verify_screenshot_title)
+        hint.text = ctx.getString(R.string.verify_screenshot_hint)
+        btnConfirm.text = ctx.getString(R.string.generate_bill)
         etDraft.setText(draft)
         etDraft.setSelection(draft.length)
 
@@ -595,12 +595,12 @@ class OverlayManager(private val ctx: Context) {
 
         btnCancel.setOnClickListener {
             dialog.dismiss()
-            Utils.toast(ctx, "已取消截屏记账")
+            Utils.toast(ctx, ctx.getString(R.string.toast_capture_canceled))
         }
         btnConfirm.setOnClickListener {
             val edited = etDraft.text?.toString().orEmpty().trim()
             if (edited.isBlank()) {
-                Utils.toast(ctx, "请保留可识别的记账内容")
+                Utils.toast(ctx, ctx.getString(R.string.keep_recognizable_bill_content))
                 return@setOnClickListener
             }
             dialog.dismiss()
@@ -623,9 +623,9 @@ class OverlayManager(private val ctx: Context) {
         for (i in 0 until bills.length()) {
             val bill = bills.optJSONObject(i) ?: continue
             val typeText = when (bill.optInt("type", 0)) {
-                Bill.TYPE_INCOME -> "收到"
-                Bill.TYPE_TRANSFER -> "转账"
-                else -> "支付"
+                Bill.TYPE_INCOME -> ctx.getString(R.string.income)
+                Bill.TYPE_TRANSFER -> ctx.getString(R.string.transfer)
+                else -> ctx.getString(R.string.expense)
             }
             val remark = bill.optString("remarks", "").ifBlank { bill.optString("remark", "") }
             val amount = bill.optDouble("amount", 0.0)
@@ -640,8 +640,8 @@ class OverlayManager(private val ctx: Context) {
     }
 
     private fun analyzeConfirmedScreenDraft(confirmedDraft: String) {
-        showScreenCaptureLoadingOverlay("正在生成账单...")
-        updateScreenCaptureLoadingHint("根据已确认文本提取结构化账单")
+        showScreenCaptureLoadingOverlay(ctx.getString(R.string.generating_bill_progress))
+        updateScreenCaptureLoadingHint(ctx.getString(R.string.extracting_from_confirmed_text))
         screenCaptureJob?.cancel()
         screenCaptureJob = CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -651,7 +651,7 @@ class OverlayManager(private val ctx: Context) {
                     isMultiModeOverride = true
                 ) ?: JSONObject().apply {
                     put("no_bill", true)
-                    put("reply", "未识别到可记账内容")
+                    put("reply", ctx.getString(R.string.toast_no_bill_found))
                 }
                 AIService.markVisualAccountingReviewDraft(
                     root = result,
@@ -662,7 +662,7 @@ class OverlayManager(private val ctx: Context) {
                 withContext(Dispatchers.Main) {
                     hideScreenCaptureLoadingOverlay()
                     if (result.optBoolean("no_bill", false)) {
-                        Utils.toast(ctx, result.optString("reply", "未识别到可记账内容"))
+                        Utils.toast(ctx, result.optString("reply", ctx.getString(R.string.toast_no_bill_found)))
                     } else {
                         handleAiResult(result)
                     }
@@ -671,7 +671,7 @@ class OverlayManager(private val ctx: Context) {
                 Logger.d(ctx, "OverlayManager", "Confirmed screen draft analyze failed: ${e.message}")
                 withContext(Dispatchers.Main) {
                     hideScreenCaptureLoadingOverlay()
-                    Utils.toast(ctx, "生成账单失败，请稍后重试")
+                    Utils.toast(ctx, ctx.getString(R.string.toast_generate_bill_failed))
                 }
             }
         }
@@ -689,7 +689,7 @@ class OverlayManager(private val ctx: Context) {
         setOverlayVisible(true)
         markOverlayRestoredNow()
         finishScreenCaptureFlow(restoreOverlay = false)
-        Utils.toast(ctx, message.ifBlank { "截屏识别失败，请稍后重试" })
+        Utils.toast(ctx, message.ifBlank { ctx.getString(R.string.toast_capture_failed) })
     }
 
     private fun handleScreenCaptureCancelled() {
@@ -698,7 +698,7 @@ class OverlayManager(private val ctx: Context) {
         setOverlayVisible(true)
         markOverlayRestoredNow()
         finishScreenCaptureFlow(restoreOverlay = false)
-        Utils.toast(ctx, "已取消截屏记账")
+        Utils.toast(ctx, ctx.getString(R.string.toast_capture_canceled))
     }
 
     private fun markOverlayRestoredNow() {
@@ -780,7 +780,7 @@ class OverlayManager(private val ctx: Context) {
         val themeContext = android.view.ContextThemeWrapper(ctx, R.style.Theme_TapAccounting)
         val loadingView = LayoutInflater.from(themeContext).inflate(R.layout.activity_screen_capture, null)
         loadingView.findViewById<TextView>(R.id.tv_capture_status)?.text = status
-        loadingView.findViewById<TextView>(R.id.tv_capture_hint)?.text = "请保持当前页面不动"
+        loadingView.findViewById<TextView>(R.id.tv_capture_hint)?.text = ctx.getString(R.string.keep_page_still)
 
         captureLoadingParams = WindowManager.LayoutParams().apply {
             width = WindowManager.LayoutParams.MATCH_PARENT
@@ -853,7 +853,7 @@ class OverlayManager(private val ctx: Context) {
         setOverlayVisible(true)
         markOverlayRestoredNow()
         finishScreenCaptureFlow(restoreOverlay = false)
-        Utils.toast(ctx, "已取消截屏记账")
+        Utils.toast(ctx, ctx.getString(R.string.toast_capture_canceled))
     }
 
     private fun hideScreenCaptureLoadingOverlay() {
@@ -962,9 +962,9 @@ class OverlayManager(private val ctx: Context) {
             formController?.fillDataToUi(next, showToast = true)
             formController?.setCurrency(next.optString("currency", "CNY"))
             if (pendingBills.isNotEmpty()) {
-                Utils.toast(ctx, "剩余 ${pendingBills.size} 条待记录")
+                Utils.toast(ctx, ctx.getString(R.string.toast_remaining_bills, pendingBills.size))
             } else {
-                Utils.toast(ctx, "这是最后一条记录")
+                Utils.toast(ctx, ctx.getString(R.string.toast_last_bill))
             }
         } else {
             showOverlay(next, showSaveOnly = false)
@@ -1132,7 +1132,7 @@ class OverlayManager(private val ctx: Context) {
         if (!isSaved) {
             if (pendingBills.isNotEmpty()) {
                 pendingBills.clear()
-                Utils.toast(ctx, "多账单识别已取消")
+                Utils.toast(ctx, ctx.getString(R.string.toast_multi_bill_recognition_canceled))
             }
             return
         }

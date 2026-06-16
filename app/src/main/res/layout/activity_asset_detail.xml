@@ -27,7 +27,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="start|center_vertical"
-                android:text="账户"
+                android:text="@string/account"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_18"
                 android:textStyle="bold" />
@@ -50,7 +50,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:paddingHorizontal="6dp"
-                    android:text="搜索"
+                    android:text="@string/search"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold" />
@@ -65,7 +65,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:paddingHorizontal="6dp"
-                    android:text="统计"
+                    android:text="@string/statistics"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold" />
@@ -80,7 +80,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:paddingHorizontal="6dp"
-                    android:text="编辑"
+                    android:text="@string/edit"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold" />
@@ -94,7 +94,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:paddingHorizontal="6dp"
-                    android:text="删除"
+                    android:text="@string/delete"
                     android:textColor="#FF3B30"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold" />
@@ -118,7 +118,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
                 android:background="@drawable/bg_search_box"
-                android:hint="搜索金额/备注/分类/账户"
+                android:hint="@string/hint_search_bill"
                 android:imeOptions="actionSearch"
                 android:inputType="text"
                 android:maxLines="1"
@@ -155,7 +155,7 @@
                     android:id="@+id/tv_balance_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="账户余额"
+                    android:text="@string/account_balance"
                     android:textColor="@color/text_secondary"
                     android:textSize="@dimen/text_size_14" />
 
@@ -192,7 +192,7 @@
                 android:minWidth="112dp"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"
-                android:text="收纳这个资产"
+                android:text="@string/archive_asset"
                 android:textColor="#4F75E2"
                 android:textSize="@dimen/text_size_12"
                 android:textStyle="bold" />
@@ -241,7 +241,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="退出多选"
+            android:text="@string/exit_multi_select"
             android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_size_16" />
 
@@ -253,7 +253,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="全选"
+            android:text="@string/select_all"
             android:textColor="@color/text_primary"
             android:textSize="@dimen/text_size_16" />
 
@@ -265,7 +265,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline"
             android:gravity="center"
-            android:text="移动"
+            android:text="@string/move"
             android:textColor="#4080FF"
             android:textSize="@dimen/text_size_16" />
 
@@ -277,7 +277,7 @@
             android:layout_weight="1"
             android:background="@drawable/shape_button_outline_red"
             android:gravity="center"
-            android:text="删除"
+            android:text="@string/delete"
             android:textColor="#FF5252"
             android:textSize="@dimen/text_size_16" />
     </LinearLayout>

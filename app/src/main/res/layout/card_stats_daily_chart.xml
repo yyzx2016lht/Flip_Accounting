@@ -25,7 +25,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerHorizontal="true"
-                android:text="每日统计"
+                android:text="@string/daily_stats"
                 android:textColor="@color/stats_segmented_text_active"
                 android:textSize="@dimen/text_size_16"
                 android:textStyle="bold" />
@@ -89,7 +89,7 @@
                 android:gravity="center"
                 android:minWidth="68dp"
                 android:paddingHorizontal="@dimen/space_12"
-                android:text="支出"
+                android:text="@string/expense"
                 android:textColor="@color/stats_segmented_text_active"
                 android:textSize="@dimen/text_size_13"
                 android:textStyle="bold" />
@@ -101,7 +101,7 @@
                 android:gravity="center"
                 android:minWidth="68dp"
                 android:paddingHorizontal="@dimen/space_12"
-                android:text="收入"
+                android:text="@string/income"
                 android:textColor="@color/stats_segmented_text_inactive"
                 android:textSize="@dimen/text_size_13" />
 
@@ -112,7 +112,7 @@
                 android:gravity="center"
                 android:minWidth="68dp"
                 android:paddingHorizontal="@dimen/space_12"
-                android:text="全部"
+                android:text="@string/all"
                 android:textColor="@color/stats_segmented_text_inactive"
                 android:textSize="@dimen/text_size_13" />
         </LinearLayout>

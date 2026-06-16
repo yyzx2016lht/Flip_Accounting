@@ -81,9 +81,9 @@ internal class AssetBillDetailSheetController(
         iconContainer?.setBackgroundResource(R.drawable.bg_circle_soft)
 
         val categoryText = when {
-            isRepayment -> "还款"
-            isTransfer -> "转账"
-            else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { "未分类" }
+            isRepayment -> activity.getString(R.string.repayment_label)
+            isTransfer -> activity.getString(R.string.transfer_label)
+            else -> BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, showFullCategory).ifEmpty { activity.getString(R.string.uncategorized) }
         }
 
         val refundAmount = refundedAmountInBillCurrency(bill)
@@ -304,7 +304,7 @@ internal class AssetBillDetailSheetController(
         view.findViewById<LinearLayout>(R.id.layout_original_bill_section).visibility = View.GONE
 
         if (isTransfer) {
-            tvTitle.text = if (isRepayment) "还款详情" else "转账详情"
+            tvTitle.text = if (isRepayment) activity.getString(R.string.repayment_detail) else activity.getString(R.string.transfer_detail)
             tvAmount.setTextColor(Color.parseColor("#1A1A1A"))
             layoutCategory.visibility = View.GONE
             lineCategory.visibility = View.GONE
@@ -336,7 +336,7 @@ internal class AssetBillDetailSheetController(
                         !fromAssetCurrency.equals(toAssetCurrency, ignoreCase = true) &&
                         bill.exchangeRate != 1.0
                     if (isCrossCurrency) {
-                        tvAmountLabel.text = "转出金额"
+                        tvAmountLabel.text = activity.getString(R.string.from_amount)
                         val transferOutAmount = if (fromAssetCurrency.equals(bill.currency, ignoreCase = true)) {
                             bill.amount
                         } else {
@@ -352,14 +352,14 @@ internal class AssetBillDetailSheetController(
                         lineIncoming.visibility = View.VISIBLE
                         tvIncomingAmount.text = BillDisplayFormatter.formatMoney(targetAmount, toAssetCurrency)
                     } else {
-                        tvAmountLabel.text = if (isRepayment) "还款金额" else "转账金额"
+                        tvAmountLabel.text = if (isRepayment) activity.getString(R.string.repayment_amount) else activity.getString(R.string.transfer_amount_label)
                         tvAmount.text = "$symbol${String.format(Locale.getDefault(), "%.2f", displayAmount)}"
                     }
                 }
             }
         } else {
-            tvTitle.text = "详情"
-            tvAmountLabel.text = "金额"
+            tvTitle.text = activity.getString(R.string.detail)
+            tvAmountLabel.text = activity.getString(R.string.amount)
 
             val sign = when {
                 isRefund -> ""
@@ -388,7 +388,7 @@ internal class AssetBillDetailSheetController(
             layoutCategory.visibility = View.VISIBLE
             lineCategory.visibility = View.VISIBLE
             view.findViewById<TextView>(R.id.tv_detail_category).text =
-                BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { "未分类" }
+                BillDisplayFormatter.formatCategoryByPreference(bill.categoryName, true).ifBlank { activity.getString(R.string.uncategorized) }
 
             layoutFeeDetail.visibility = View.GONE
             lineFeeDetail.visibility = View.GONE
@@ -424,12 +424,12 @@ internal class AssetBillDetailSheetController(
 
         view.findViewById<TextView>(R.id.tv_detail_time).text = dfDetailTimeShort.format(Date(bill.time))
         view.findViewById<TextView>(R.id.tv_detail_record_time).text =
-            "记录于 ${dfDetailTime.format(Date(bill.time))}"
+            activity.getString(R.string.recorded_at_fmt, dfDetailTime.format(Date(bill.time)))
         view.findViewById<TextView>(R.id.tv_detail_book_name).text =
             bill.bookName.ifEmpty { BookAccountManager.getDefaultBook(activity) }
 
         val tvRemark = view.findViewById<TextView>(R.id.tv_detail_remark)
-        tvRemark.text = if (bill.remark.isNotBlank()) bill.remark else "无备注"
+        tvRemark.text = if (bill.remark.isNotBlank()) bill.remark else activity.getString(R.string.no_remark)
         if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundedAmountInBillCurrency(bill) > 0.0) {
             scope.launch(Dispatchers.IO) {
                 val refunds = db.billDao().getRefundBillsBySourceId(bill.id)
@@ -446,11 +446,11 @@ internal class AssetBillDetailSheetController(
 
         fun updateExcludeStatsButton() {
             if (currentExcludeFromStats) {
-                btnExcludeStats.text = "不计入"
+                btnExcludeStats.text = activity.getString(R.string.exclude)
                 btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_outline)
                 btnExcludeStats.setTextColor(activity.getColor(R.color.text_secondary))
             } else {
-                btnExcludeStats.text = "计入"
+                btnExcludeStats.text = activity.getString(R.string.include)
                 btnExcludeStats.setBackgroundResource(R.drawable.bg_dialog_button_primary)
                 btnExcludeStats.setTextColor(activity.getColor(R.color.dialog_button_primary_text))
             }
@@ -510,18 +510,18 @@ internal class AssetBillDetailSheetController(
             bottomSheet.dismiss()
             val themeContext = ContextThemeWrapper(activity, R.style.Theme_TapAccounting)
             val dialog = AlertDialog.Builder(themeContext)
-                .setTitle("删除账单")
-                .setMessage("确定删除这笔账单吗？")
-                .setPositiveButton("删除") { _, _ ->
+                .setTitle(activity.getString(R.string.confirm_delete))
+                .setMessage(activity.getString(R.string.confirm_delete_message))
+                .setPositiveButton(activity.getString(R.string.delete)) { _, _ ->
                     scope.launch(Dispatchers.IO) {
                         com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(activity, "已删除", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(activity, activity.getString(R.string.deleted), Toast.LENGTH_SHORT).show()
                             onDataChanged()
                         }
                     }
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(activity.getString(R.string.cancel), null)
                 .create()
             OverlayDialogs.showPageCenterDialog(
                 dialog,
@@ -600,10 +600,10 @@ internal class AssetBillDetailSheetController(
         val btnSaveRefund = view.findViewById<View>(R.id.btn_save_refund)
         val btnBack = view.findViewById<View>(R.id.btn_back)
 
-        tvTitle.text = if (editingRefund == null) "退款" else "编辑退款"
+        tvTitle.text = if (editingRefund == null) activity.getString(R.string.refund_label) else activity.getString(R.string.edit_refund_label)
         val sourceOriginalAmount = baseOriginalAmount(originalBill)
         tvOrigAmount.text = BillDisplayFormatter.formatMoney(sourceOriginalAmount, originalBill.currency)
-        tvOrigCategory.text = BillDisplayFormatter.formatCategoryByPreference(originalBill.categoryName, true).ifBlank { "未分类" }
+        tvOrigCategory.text = BillDisplayFormatter.formatCategoryByPreference(originalBill.categoryName, true).ifBlank { activity.getString(R.string.uncategorized) }
 
         val defaultRefundAmount = editingRefund?.amount ?: originalBill.amount
         etRefundAmount.setText(String.format(Locale.getDefault(), "%.2f", defaultRefundAmount))
@@ -628,7 +628,7 @@ internal class AssetBillDetailSheetController(
         }
 
         layoutRefundAccount.setOnClickListener {
-            OverlayDialogs.showGridAssetPicker(activity, tvRefundAccount.text.toString(), "选择退款入账账户") { account ->
+            OverlayDialogs.showGridAssetPicker(activity, tvRefundAccount.text.toString(), activity.getString(R.string.select_refund_account)) { account ->
                 selectedAccount = account
                 tvRefundAccount.text = account
             }
@@ -649,11 +649,11 @@ internal class AssetBillDetailSheetController(
         btnSaveRefund.setOnClickListener {
             val refundAmount = etRefundAmount.text.toString().toDoubleOrNull() ?: 0.0
             if (refundAmount <= 0.0) {
-                Toast.makeText(activity, "请输入有效的退款金额", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.invalid_refund_amount), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            if (selectedAccount.isEmpty() || selectedAccount == "选择账户") {
-                Toast.makeText(activity, "请选择入账账户", Toast.LENGTH_SHORT).show()
+            if (selectedAccount.isEmpty() || selectedAccount == activity.getString(R.string.select_refund_account_label)) {
+                Toast.makeText(activity, activity.getString(R.string.select_entry_account), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -661,7 +661,7 @@ internal class AssetBillDetailSheetController(
             val finalRemark = when {
                 remark.isNotEmpty() -> remark
                 editingRefund != null -> editingRefund.remark
-                else -> "退款：${BillDisplayFormatter.stripRefundPrefix(originalBill.categoryName)}"
+                else -> activity.getString(R.string.refund_prefix) + BillDisplayFormatter.stripRefundPrefix(originalBill.categoryName)
             }
             val refundTimeLong = try {
                 dfDetailTime.parse(selectedTimeStr)?.time ?: System.currentTimeMillis()
@@ -694,18 +694,18 @@ internal class AssetBillDetailSheetController(
                     )
                 } catch (_: IllegalArgumentException) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(activity, "退款金额不能大于剩余支出", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, activity.getString(R.string.refund_exceed), Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 } catch (_: IllegalStateException) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(activity, "原账单不存在或不可退款", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, activity.getString(R.string.refund_invalid), Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(activity, if (editingRefund == null) "退款已保存" else "退款已更新", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, if (editingRefund == null) activity.getString(R.string.refund_saved) else activity.getString(R.string.refund_updated), Toast.LENGTH_SHORT).show()
                     bottomSheet.dismiss()
                     onDataChanged()
                 }

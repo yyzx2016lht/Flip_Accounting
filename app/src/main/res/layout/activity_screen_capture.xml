@@ -40,7 +40,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:text="正在识别屏幕中..."
+            android:text="@string/recognizing_screen"
             android:textAlignment="center"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
@@ -51,7 +51,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="请保持当前页面不动"
+            android:text="@string/keep_page_still"
             android:textAlignment="center"
             android:textColor="#7C8FA8"
             android:textSize="12sp" />

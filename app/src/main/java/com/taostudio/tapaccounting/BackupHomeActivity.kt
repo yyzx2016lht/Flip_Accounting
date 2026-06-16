@@ -70,17 +70,17 @@ class BackupHomeActivity : AppCompatActivity() {
         if (AutoBackupWorker.isEnabled(this)) {
             val lastTime = AutoBackupWorker.getLastBackupTime(this)
             val interval = AutoBackupWorker.getIntervalHours(this)
-            val mode = if (AutoBackupWorker.getBackupMode(this) == "full") "完整" else "轻量"
-            val cloud = if (AutoBackupWorker.isCloudEnabled(this)) " + 云端" else ""
+            val mode = if (AutoBackupWorker.getBackupMode(this) == "full") getString(R.string.backup_full) else getString(R.string.backup_lite)
+            val cloud = if (AutoBackupWorker.isCloudEnabled(this)) getString(R.string.auto_backup_cloud_suffix) else ""
             val status = if (lastTime > 0) {
                 val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
-                "上次：${sdf.format(Date(lastTime))}"
+                getString(R.string.home_auto_backup_last_fmt, sdf.format(Date(lastTime)))
             } else {
-                "等待首次备份"
+                getString(R.string.home_auto_backup_waiting)
             }
-            tvHint.text = "自动备份已开启 · 每${interval}小时 · ${mode}${cloud}\n$status"
+            tvHint.text = getString(R.string.home_auto_backup_status_fmt, interval, mode, cloud, status)
         } else {
-            tvHint.text = "手动触发，不做后台自动同步，避免误覆盖。"
+            tvHint.text = getString(R.string.manual_backup_hint)
         }
     }
 }

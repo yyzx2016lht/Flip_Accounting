@@ -17,7 +17,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="记账习惯"
+            android:text="@string/ai_rule_manage_title"
             android:textColor="#24344A"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:lineSpacingExtra="2dp"
-            android:text="把常见口语和记账结果绑定起来，之后 AI 命中关键词时就会更懂你的记账方式。"
+            android:text="@string/ai_rule_manage_desc"
             android:textColor="#8A98AD"
             android:textSize="12sp" />
 
@@ -37,7 +37,7 @@
             android:layout_height="46dp"
             android:layout_marginTop="14dp"
             android:background="@drawable/bg_model_search_field"
-            android:hint="搜索关键词、分类、账户或类型"
+            android:hint="@string/hint_search_rule"
             android:paddingHorizontal="14dp"
             android:singleLine="true"
             android:textColor="#25344A"
@@ -62,7 +62,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="已选择 0 条"
+            android:text="@string/selected_count_label"
             android:textColor="#2A3A53"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -74,7 +74,7 @@
             android:background="@drawable/bg_rule_subtle_chip"
             android:gravity="center"
             android:paddingHorizontal="12dp"
-            android:text="全选"
+            android:text="@string/select_all"
             android:textColor="#4665A9"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -87,7 +87,7 @@
             android:background="@drawable/bg_dialog_action_item"
             android:gravity="center"
             android:paddingHorizontal="12dp"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="#72819A"
             android:textSize="13sp" />
 
@@ -99,7 +99,7 @@
             android:background="@drawable/bg_dialog_action_item_danger"
             android:gravity="center"
             android:paddingHorizontal="12dp"
-            android:text="删除"
+            android:text="@string/delete"
             android:textColor="#B3261E"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -121,7 +121,7 @@
         android:layout_marginTop="12dp"
         android:insetTop="0dp"
         android:insetBottom="0dp"
-        android:text="添加记账习惯"
+        android:text="@string/add_ai_rule"
         android:textAllCaps="false"
         android:textColor="#FFFFFF"
         android:textSize="15sp"

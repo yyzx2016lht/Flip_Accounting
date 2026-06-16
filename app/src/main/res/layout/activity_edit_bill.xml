@@ -17,7 +17,7 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="#666666"
             android:textSize="@dimen/text_size_16" />
         <TextView
@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="编辑账单"
+            android:text="@string/edit_bill"
             android:textColor="#333333"
             android:textSize="@dimen/text_size_18"
             android:textStyle="bold" />
@@ -35,7 +35,7 @@
             android:layout_height="match_parent"
             android:layout_alignParentEnd="true"
             android:gravity="center"
-            android:text="保存"
+            android:text="@string/save"
             android:textColor="#2196F3"
             android:textSize="@dimen/text_size_16"
             android:textStyle="bold" />
@@ -67,28 +67,28 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="支出" />
+                    android:text="@string/expense" />
                 <Button
                     android:id="@+id/btn_type_income"
                     style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="收入" />
+                    android:text="@string/income" />
                 <Button
                     android:id="@+id/btn_type_transfer"
                     style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="转账" />
+                    android:text="@string/transfer" />
                 <Button
                     android:id="@+id/btn_type_repayment"
                     style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="还款" />
+                    android:text="@string/repayment" />
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <!-- 金额输入 -->
@@ -157,14 +157,14 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="12dp"
-                            android:text="选择分类"
+                            android:text="@string/select_category"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_14" />
                         <TextView
                             android:id="@+id/tv_category"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="未分类"
+                            android:text="@string/uncategorized"
                             android:textColor="#999999"
                             android:textSize="@dimen/text_size_14" />
                         <!-- 收入模式下显示的"退款"切换标签 -->
@@ -178,7 +178,7 @@
                             android:paddingEnd="10dp"
                             android:paddingTop="3dp"
                             android:paddingBottom="3dp"
-                            android:text="账单退款"
+                            android:text="@string/bill_refund"
                             android:textColor="#E53935"
                             android:textSize="@dimen/text_size_14"
                             android:visibility="gone"
@@ -215,14 +215,14 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="12dp"
-                            android:text="退款来源账单"
+                            android:text="@string/refund_source_bill"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_14" />
                         <TextView
                             android:id="@+id/tv_refund_source_bill"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="选择账单"
+                            android:text="@string/select_bill"
                             android:textColor="#E53935"
                             android:textSize="@dimen/text_size_14" />
                         <!-- 取消退款标签 -->
@@ -236,7 +236,7 @@
                             android:paddingEnd="10dp"
                             android:paddingTop="3dp"
                             android:paddingBottom="3dp"
-                            android:text="取消退款"
+                            android:text="@string/cancel_refund"
                             android:textColor="#999999"
                             android:textSize="@dimen/text_size_14"
                             android:clickable="true"
@@ -267,14 +267,14 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="12dp"
-                            android:text="选择账户"
+                            android:text="@string/select_account"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_14" />
                         <TextView
                             android:id="@+id/tv_account"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="默认账户"
+                            android:text="@string/default_account"
                             android:textColor="#999999"
                             android:textSize="@dimen/text_size_14" />
                     </LinearLayout>
@@ -309,14 +309,14 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="12dp"
-                            android:text="转入账户"
+                            android:text="@string/to_account"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_14" />
                         <TextView
                             android:id="@+id/tv_account_2"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="选择转入账户"
+                            android:text="@string/select_to_account"
                             android:textColor="#999999"
                             android:textSize="@dimen/text_size_14" />
                     </LinearLayout>
@@ -346,7 +346,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:text="手续费"
+                            android:text="@string/fee"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_14" />
                         <EditText
@@ -386,7 +386,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="12dp"
-                            android:text="选择时间"
+                            android:text="@string/select_time"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_14" />
                         <TextView
@@ -418,7 +418,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
                             android:background="@null"
-                            android:hint="输入备注..."
+                            android:hint="@string/hint_remark"
                             android:textColor="#333333"
                             android:textSize="@dimen/text_size_14"
                             android:inputType="textNoSuggestions"
@@ -436,7 +436,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:layout_marginTop="24dp"
-                android:text="删除此账单"
+                android:text="@string/delete_this_bill"
                 android:textColor="#F44336" />
 
         </LinearLayout>

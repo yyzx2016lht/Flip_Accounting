@@ -13,7 +13,7 @@
         android:id="@+id/tv_visual_draft_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="核对图片记账"
+        android:text="@string/verify_image_accounting"
         android:textColor="@color/dialog_title"
         android:textSize="@dimen/dialog_title_size"
         android:textStyle="bold" />
@@ -24,7 +24,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:lineSpacingExtra="2dp"
-        android:text="AI 已整理成可编辑草稿，确认后再生成账单。"
+        android:text="@string/verify_draft_hint"
         android:textColor="@color/dialog_subtitle"
         android:textSize="13sp" />
 
@@ -62,7 +62,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_dialog_button_cancel"
             android:gravity="center"
-            android:text="取消"
+            android:text="@string/cancel"
             android:textColor="@color/dialog_button_cancel_text"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -75,7 +75,7 @@
             android:layout_weight="1"
             android:background="@drawable/bg_dialog_button_primary"
             android:gravity="center"
-            android:text="确认入账"
+            android:text="@string/confirm_entry"
             android:textColor="@color/dialog_button_primary_text"
             android:textSize="14sp"
             android:textStyle="bold" />

@@ -101,11 +101,11 @@ class CurrencyManagerActivity : AppCompatActivity() {
 
     private fun updateSummary() {
         val selectedCount = enabledSet.size
-        tvSelectedSummary.text = "已启用 $selectedCount 种货币"
+        tvSelectedSummary.text = getString(R.string.enabled_currency_count, selectedCount)
         tvPageHint.text = if (selectedCount <= 1) {
-            "人民币默认启用，勾选常用外币后记账会更顺手"
+            getString(R.string.currency_default_hint)
         } else {
-            "已为你保留常用币种，搜索后可以继续精简列表"
+            getString(R.string.currency_hint_multi)
         }
     }
 

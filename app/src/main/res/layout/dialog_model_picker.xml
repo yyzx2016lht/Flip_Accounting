@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="选择对话模型"
+        android:text="@string/select_chat_model"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="#25344A"
@@ -31,7 +31,7 @@
         android:layout_width="match_parent"
         android:layout_height="42dp"
         android:background="@drawable/bg_model_search_field"
-        android:hint="搜索模型名称"
+        android:hint="@string/hint_search_model"
         android:singleLine="true"
         android:textSize="14sp"
         android:paddingHorizontal="12dp"
@@ -50,7 +50,7 @@
         android:layout_width="match_parent"
         android:layout_height="120dp"
         android:gravity="center"
-        android:text="没有匹配的模型"
+        android:text="@string/no_matching_model"
         android:textColor="#8A98AD"
         android:textSize="14sp"
         android:visibility="gone" />
@@ -61,7 +61,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="取消"
+        android:text="@string/cancel"
         android:textSize="14sp"
         android:textColor="#6F7E95"
         android:paddingVertical="10dp" />

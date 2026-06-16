@@ -130,7 +130,7 @@ class ChatSessionController(
         adapterProvider().notifyDataSetChanged()
         onConversationSubtitleChanged()
         lifecycleScope.launch { refreshSessionRows() }
-        Utils.toast(context, "已新建对话")
+        Utils.toast(context, context.getString(R.string.toast_new_session))
     }
 
     fun showSessionPanel() {
@@ -152,7 +152,7 @@ class ChatSessionController(
             }
             val panel = LayoutInflater.from(context)
                 .inflate(R.layout.dialog_book_delete_options, null)
-            panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "删除会话"
+            panel.findViewById<TextView>(R.id.tv_delete_book_title).text = context.getString(R.string.delete_session)
             panel.findViewById<TextView>(R.id.tv_delete_book_desc).text =
                 "将删除该会话聊天记录（关联账单 ${sessionBills.size} 条）"
             val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
@@ -215,13 +215,13 @@ class ChatSessionController(
             setPadding(40, 28, 40, 28)
         }
         val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_TapAccounting))
-            .setTitle("重命名对话")
+            .setTitle(context.getString(R.string.rename_session))
             .setView(input)
-            .setPositiveButton("保存") { _, _ ->
+            .setPositiveButton(context.getString(R.string.save)) { _, _ ->
                 Prefs.setAiChatSessionTitle(context, row.bookName, row.conversationId, input.text?.toString().orEmpty())
                 lifecycleScope.launch { refreshRowsAndBindWhenSearchEmpty() }
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(context.getString(R.string.cancel), null)
             .create()
         showPageCenterDialog(dialog, 0.9f)
     }
@@ -504,7 +504,7 @@ class ChatSessionController(
             val btnBack = TextView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginEnd = dp(6) }
                 gravity = android.view.Gravity.CENTER
-                text = "返回"
+                text = context.getString(R.string.back)
                 textSize = 14f
                 setTextColor(Color.parseColor("#5A677C"))
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -513,7 +513,7 @@ class ChatSessionController(
             val btnDelete = TextView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(6) }
                 gravity = android.view.Gravity.CENTER
-                text = "确认删除"
+                text = context.getString(R.string.confirm_delete)
                 textSize = 14f
                 setTextColor(Color.WHITE)
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -576,7 +576,7 @@ class ChatSessionController(
             }
         }
         val btnSelectAll = TextView(context).apply {
-            text = "全选"
+            text = context.getString(R.string.select_all)
             textSize = 12f
             setTextColor(Color.parseColor("#4D79C7"))
             setPadding(dp(8), dp(4), dp(8), dp(4))
@@ -669,7 +669,7 @@ class ChatSessionController(
                 }
             }
             val title = TextView(context).apply {
-                text = bill.remark.ifBlank { bill.categoryName.ifBlank { "未分类" } }
+                text = bill.remark.ifBlank { bill.categoryName.ifBlank { context.getString(R.string.uncategorized) } }
                 textSize = 13f
                 setTextColor(Color.parseColor("#24364D"))
                 maxLines = 1

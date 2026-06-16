@@ -65,9 +65,9 @@ class ExchangeRateActivity : AppCompatActivity() {
             CurrencyManager.updateRates(this) { success ->
                 if (success) {
                     loadData()
-                    Toast.makeText(this, "汇率已更新", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.rate_updated), Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(this, "更新失败，请检查网络", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.rate_update_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -99,9 +99,9 @@ class ExchangeRateActivity : AppCompatActivity() {
         val lastUpdate = CurrencyManager.getLastUpdateTime(this)
         if (lastUpdate > 0) {
             val df = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            tvLastUpdate.text = "上次自动更新：${df.format(Date(lastUpdate))}"
+            tvLastUpdate.text = getString(R.string.last_update_fmt, df.format(Date(lastUpdate)))
         } else {
-            tvLastUpdate.text = "上次自动更新：尚未更新"
+            tvLastUpdate.text = getString(R.string.last_update_never)
         }
 
         // Only show rates for selected currencies (excluding CNY which is base 1:1)
@@ -114,7 +114,7 @@ class ExchangeRateActivity : AppCompatActivity() {
             } else null
         }
 
-        tvRateSummary.text = "共显示 ${items.size} 种货币"
+        tvRateSummary.text = getString(R.string.currency_count_fmt, items.size)
         layoutEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
         rvRates.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
 

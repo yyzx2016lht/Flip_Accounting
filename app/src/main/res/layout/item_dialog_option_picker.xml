@@ -57,7 +57,7 @@
         android:background="@drawable/bg_delete_risk_tag"
         android:paddingHorizontal="8dp"
         android:paddingVertical="4dp"
-        android:text="风险"
+        android:text="@string/risk"
         android:textColor="#B42318"
         android:textSize="11sp"
         android:visibility="gone" />

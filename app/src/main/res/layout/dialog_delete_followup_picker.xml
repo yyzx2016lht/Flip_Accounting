@@ -40,7 +40,7 @@
         android:layout_marginTop="12dp"
         android:background="@drawable/bg_delete_dialog_cancel_btn"
         android:gravity="center"
-        android:text="取消"
+        android:text="@string/cancel"
         android:textColor="#5A677C"
         android:textSize="14sp"
         android:textStyle="bold" />

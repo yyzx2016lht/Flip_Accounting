@@ -98,7 +98,7 @@ class GesturePermissionGuideActivity : AppCompatActivity() {
             marginStart = dp(8)
         })
         header.addView(TextView(this).apply {
-            text = "\u5feb\u6377\u8bb0\u8d26\u51c6\u5907"
+            text = getString(R.string.quick_accounting_ready)
             setTextColor(Color.parseColor("#333333"))
             textSize = 18f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -127,7 +127,7 @@ class GesturePermissionGuideActivity : AppCompatActivity() {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(16), dp(14), dp(16), dp(14))
                 addView(TextView(this@GesturePermissionGuideActivity).apply {
-                    text = "\u628a\u5feb\u6377\u52a8\u4f5c\u51c6\u5907\u597d"
+                    text = getString(R.string.prepare_gesture_action)
                     setTextColor(Color.parseColor("#1A2744"))
                     textSize = 16f
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -164,8 +164,7 @@ class GesturePermissionGuideActivity : AppCompatActivity() {
         val items = buildGuideItems()
         val verifiedRequired = items.count { it.required && it.autoDetectable && it.status.verified }
         val requiredCount = items.count { it.required && it.autoDetectable }
-        summaryText.text =
-            "\u5df2\u51c6\u5907 $verifiedRequired/$requiredCount \u4e2a\u5173\u952e\u9879\u3002\u4e0d\u540c\u624b\u673a\u5165\u53e3\u540d\u5b57\u4e0d\u4e00\u6837\uff0c\u8fd9\u91cc\u53ea\u4fdd\u7559\u771f\u6b63\u9700\u8981\u4f60\u5904\u7406\u7684\u51e0\u6b65\u3002"
+        summaryText.text = getString(R.string.prepared_count_fmt, verifiedRequired, requiredCount)
 
         listContainer.removeAllViews()
         items.forEachIndexed { index, item ->
@@ -187,41 +186,41 @@ class GesturePermissionGuideActivity : AppCompatActivity() {
 
         return listOf(
             GuideItem(
-                title = "\u60ac\u6d6e\u7a97\u6743\u9650",
-                desc = "\u8ba9\u7ffb\u8f6c\u6216\u6572\u51fb\u540e\u80fd\u76f4\u63a5\u5f39\u51fa\u8bb0\u8d26\u9762\u677f\u3002",
-                status = if (overlayReady) ready("\u5df2\u51c6\u5907") else actionNeeded("\u5f85\u5f00\u542f"),
-                actionText = if (overlayReady) "\u67e5\u770b\u8bbe\u7f6e" else "\u53bb\u5f00\u542f",
+                title = getString(R.string.overlay_permission_title),
+                desc = getString(R.string.overlay_permission_desc),
+                status = if (overlayReady) ready(getString(R.string.ready_label)) else actionNeeded(getString(R.string.pending_label)),
+                actionText = if (overlayReady) getString(R.string.view_settings_label) else getString(R.string.go_enable),
                 required = true,
                 autoDetectable = true,
                 onAction = ::openOverlaySettings
             ),
             GuideItem(
-                title = "\u540e\u53f0\u8fd0\u884c",
-                desc = "\u5141\u8bb8\u5e94\u7528\u5728\u540e\u53f0\u4e0d\u53d7\u9650\u5236\u5730\u8fd0\u884c\uff0c\u907f\u514d\u624b\u52bf\u670d\u52a1\u88ab\u7cfb\u7edf\u4f11\u7720\u4e2d\u65ad\u3002",
+                title = getString(R.string.background_run_title),
+                desc = getString(R.string.background_run_desc),
                 status = when {
-                    backgroundReady -> ready("\u5df2\u51c6\u5907")
-                    backgroundRestricted -> actionNeeded("\u53d7\u9650")
-                    else -> actionNeeded("\u5f85\u8bbe\u7f6e")
+                    backgroundReady -> ready(getString(R.string.ready_label))
+                    backgroundRestricted -> actionNeeded(getString(R.string.restricted_label))
+                    else -> actionNeeded(getString(R.string.pending_setup_label))
                 },
-                actionText = if (backgroundReady) "\u67e5\u770b\u8bbe\u7f6e" else "\u53bb\u8bbe\u7f6e",
+                actionText = if (backgroundReady) getString(R.string.view_settings_label) else getString(R.string.go_settings),
                 required = true,
                 autoDetectable = true,
                 onAction = ::openAppDetailsForBattery
             ),
             GuideItem(
-                title = "\u81ea\u542f\u52a8\u4e0e\u540e\u53f0\u9501\u5b9a",
-                desc = "\u91cd\u542f\u540e\u81ea\u52a8\u6062\u590d\u624b\u52bf\u670d\u52a1\uff1b\u5728\u6700\u8fd1\u4efb\u52a1\u91cc\u9501\u5b9a\u5e94\u7528\uff0c\u53ef\u51cf\u5c11\u88ab\u7cfb\u7edf\u6e05\u7406\u3002",
-                status = manual("\u5efa\u8bae\u786e\u8ba4"),
-                actionText = "\u67e5\u770b\u6b65\u9aa4",
+                title = getString(R.string.autostart_lock_title),
+                desc = getString(R.string.autostart_lock_desc),
+                status = manual(getString(R.string.suggest_confirm_label)),
+                actionText = getString(R.string.view_steps),
                 required = true,
                 autoDetectable = false,
                 onAction = ::showStartupAndLockGuide
             ),
             GuideItem(
-                title = "\u901a\u77e5\u6743\u9650\uff08\u53ef\u9009\uff09",
-                desc = "\u7528\u4e8e\u663e\u793a\u670d\u52a1\u72b6\u6001\u548c\u5f55\u97f3\u72b6\u6001\u3002\u4e0d\u5f71\u54cd\u57fa\u7840\u8bb0\u8d26\u3002",
-                status = if (notificationReady) ready("\u5df2\u5f00\u542f") else optional("\u53ef\u9009"),
-                actionText = if (notificationReady) "\u67e5\u770b\u8bbe\u7f6e" else "\u53bb\u5f00\u542f",
+                title = getString(R.string.notification_permission_title),
+                desc = getString(R.string.notification_permission_desc),
+                status = if (notificationReady) ready(getString(R.string.enabled_label)) else optional(getString(R.string.optional_label)),
+                actionText = if (notificationReady) getString(R.string.view_settings_label) else getString(R.string.go_enable),
                 required = false,
                 autoDetectable = true,
                 onAction = ::requestNotificationPermissionOrOpenSettings
@@ -356,21 +355,17 @@ class GesturePermissionGuideActivity : AppCompatActivity() {
             }.getOrDefault(false)
         }
         if (!started) {
-            Utils.toast(this, "\u672a\u627e\u5230\u4e13\u7528\u5165\u53e3\uff0c\u8bf7\u5728\u5e94\u7528\u8be6\u60c5\u6216\u7cfb\u7edf\u7ba1\u5bb6\u91cc\u5f00\u542f\u81ea\u542f\u52a8")
+            Utils.toast(this, getString(R.string.autostart_hint))
             startSettingsActivity(appDetailsIntent())
         }
     }
 
     private fun showStartupAndLockGuide() {
         val dialog = AlertDialog.Builder(this)
-            .setTitle("\u81ea\u542f\u52a8\u4e0e\u540e\u53f0\u9501\u5b9a")
-            .setMessage(
-                "\u81ea\u542f\u52a8\uff1a\u5728\u7cfb\u7edf\u7ba1\u5bb6\u6216\u5e94\u7528\u8be6\u60c5\u91cc\uff0c\u6253\u5f00\u201c\u81ea\u542f\u52a8\u201d\u201c\u540e\u53f0\u542f\u52a8\u201d\u6216\u201c\u5f00\u673a\u542f\u52a8\u201d\u3002\n\n" +
-                    "\u540e\u53f0\u9501\u5b9a\uff1a\u6253\u5f00\u6700\u8fd1\u4efb\u52a1\uff0c\u627e\u5230\u6572\u6572\u8bb0\u8d26\uff0c\u957f\u6309\u3001\u4e0b\u62c9\u6216\u70b9\u83dc\u5355\uff0c\u9009\u62e9\u201c\u9501\u5b9a\u201d\u201c\u52a0\u9501\u201d\u6216\u201c\u4fdd\u6301\u540e\u53f0\u201d\u3002\n\n" +
-                    "\u5982\u679c\u4f60\u7684\u624b\u673a\u6ca1\u6709\u8fd9\u4e9b\u5165\u53e3\uff0c\u5b8c\u6210\u201c\u540e\u53f0\u8fd0\u884c\u201d\u5373\u53ef\u3002"
-            )
-            .setPositiveButton("\u6253\u5f00\u81ea\u542f\u52a8\u8bbe\u7f6e") { _, _ -> openAutoStartSettings() }
-            .setNegativeButton("\u77e5\u9053\u4e86", null)
+            .setTitle(getString(R.string.autostart_lock_title))
+            .setMessage(getString(R.string.autostart_guide_message))
+            .setPositiveButton(getString(R.string.open_autostart_settings)) { _, _ -> openAutoStartSettings() }
+            .setNegativeButton(getString(R.string.got_it), null)
             .create()
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
@@ -427,7 +422,7 @@ class GesturePermissionGuideActivity : AppCompatActivity() {
     private fun startSettingsActivity(intent: Intent) {
         runCatching { startActivity(intent) }
             .onFailure {
-                Utils.toast(this, "\u65e0\u6cd5\u6253\u5f00\u7cfb\u7edf\u8bbe\u7f6e\uff0c\u8bf7\u624b\u52a8\u8fdb\u5165\u5e94\u7528\u8be6\u60c5")
+                Utils.toast(this, getString(R.string.cannot_open_settings))
                 runCatching { startActivity(appDetailsIntent()) }
             }
     }

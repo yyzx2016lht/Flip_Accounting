@@ -89,13 +89,13 @@
                         android:orientation="horizontal"
                         android:paddingHorizontal="8dp">
 
-                        <TextView android:id="@+id/tvW1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="一" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        <TextView android:id="@+id/tvW2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="二" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        <TextView android:id="@+id/tvW3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="三" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        <TextView android:id="@+id/tvW4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="四" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        <TextView android:id="@+id/tvW5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="五" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        <TextView android:id="@+id/tvW6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="六" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
-                        <TextView android:id="@+id/tvW7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="日" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/weekday_mon" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/weekday_tue" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/weekday_wed" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/weekday_thu" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/weekday_fri" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/weekday_sat" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
+                        <TextView android:id="@+id/tvW7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/weekday_sun" android:textColor="#999999" android:textSize="@dimen/text_size_12" />
                     </LinearLayout>
 
                     <com.kizitonwose.calendar.view.CalendarView
@@ -139,7 +139,7 @@
                                 android:background="@drawable/bg_segmented_selected"
                                 android:gravity="center"
                                 android:paddingHorizontal="18dp"
-                                android:text="收&amp;支"
+                                android:text="@string/income_expense_balance"
                                 android:textColor="#333333"
                                 android:textSize="@dimen/text_size_13" />
 
@@ -149,7 +149,7 @@
                                 android:layout_height="match_parent"
                                 android:gravity="center"
                                 android:paddingHorizontal="18dp"
-                                android:text="结余"
+                                android:text="@string/balance"
                                 android:textColor="#666666"
                                 android:textSize="@dimen/text_size_13" />
 
@@ -159,7 +159,7 @@
                                 android:layout_height="match_parent"
                                 android:gravity="center"
                                 android:paddingHorizontal="18dp"
-                                android:text="收入"
+                                android:text="@string/income"
                                 android:textColor="#666666"
                                 android:textSize="@dimen/text_size_13" />
 
@@ -169,7 +169,7 @@
                                 android:layout_height="match_parent"
                                 android:gravity="center"
                                 android:paddingHorizontal="18dp"
-                                android:text="支出"
+                                android:text="@string/expense"
                                 android:textColor="#666666"
                                 android:textSize="@dimen/text_size_13" />
                         </LinearLayout>
@@ -236,7 +236,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:paddingVertical="50dp"
-                            android:text="当日无账单记录"
+                            android:text="@string/no_bills_today"
                             android:textColor="#BDBDBD"
                             android:textSize="@dimen/text_size_15"
                             android:visibility="gone" />
@@ -264,7 +264,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline"
                 android:gravity="center"
-                android:text="取消"
+                android:text="@string/cancel"
                 android:textColor="#666666"
                 android:textSize="@dimen/text_size_16" />
 
@@ -276,7 +276,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline"
                 android:gravity="center"
-                android:text="全选"
+                android:text="@string/select_all"
                 android:textColor="#333333"
                 android:textSize="@dimen/text_size_16" />
 
@@ -288,7 +288,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline"
                 android:gravity="center"
-                android:text="移动"
+                android:text="@string/move"
                 android:textColor="#4080FF"
                 android:textSize="@dimen/text_size_16" />
 
@@ -300,7 +300,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/shape_button_outline_red"
                 android:gravity="center"
-                android:text="删除"
+                android:text="@string/delete"
                 android:textColor="#FF5252"
                 android:textSize="@dimen/text_size_16" />
         </LinearLayout>

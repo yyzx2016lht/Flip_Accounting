@@ -111,7 +111,7 @@
                     android:id="@+id/tv_ai_loading_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="正在思考..."
+                    android:text="@string/thinking"
                     android:textSize="13sp"
                     android:textColor="@color/chat_loading_text" />
             </LinearLayout>
@@ -125,7 +125,7 @@
                 android:padding="5dp"
                 android:src="@drawable/ic_close_small"
                 android:background="@drawable/bg_chat_interrupt_btn"
-                android:contentDescription="中断生成"
+                android:contentDescription="@string/interrupt_generation"
                 android:clickable="true"
                 android:focusable="true" />
         </LinearLayout>

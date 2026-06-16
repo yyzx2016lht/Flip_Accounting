@@ -81,10 +81,10 @@ class ChatMediaController(
         }
 
         val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_TapAccounting))
-            .setTitle("编辑 AI 资料")
+            .setTitle(context.getString(R.string.edit_ai_profile))
             .setView(view)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("保存") { _, _ ->
+            .setNegativeButton(context.getString(R.string.cancel), null)
+            .setPositiveButton(context.getString(R.string.save)) { _, _ ->
                 Prefs.setAiChatName(context, etName.text?.toString()?.trim().orEmpty().ifBlank { "小计" })
                 Prefs.setAiChatIdentity(context, etIdentity.text?.toString()?.trim().orEmpty())
                 refreshAiProfile()
@@ -184,7 +184,7 @@ class ChatMediaController(
                 val error = data?.let { UCrop.getError(it) }
                 if (error != null) {
                     val label = if (requestCode == reqCropBg) "背景裁剪失败" else "头像裁剪失败"
-                    Utils.toast(context, "$label，请重新选择图片")
+                    Utils.toast(context, context.getString(R.string.reselect_image_fmt, label))
                 }
             }
             return requestCode in setOf(
@@ -376,9 +376,9 @@ class ChatMediaController(
                 }
             }
             applyBackground()
-            Utils.toast(context, "背景已更新")
+            Utils.toast(context, context.getString(R.string.toast_bg_updated))
         }.onFailure {
-            Utils.toast(context, "背景更新失败，请重试")
+            Utils.toast(context, context.getString(R.string.toast_bg_update_failed))
         }
     }
 
@@ -399,9 +399,9 @@ class ChatMediaController(
                 )
             }
             refreshAiProfile()
-            Utils.toast(context, "AI 头像已更新")
+            Utils.toast(context, context.getString(R.string.toast_ai_avatar_updated))
         }.onFailure {
-            Utils.toast(context, "AI 头像更新失败，请重试")
+            Utils.toast(context, context.getString(R.string.toast_ai_avatar_failed))
         }
     }
 
@@ -413,9 +413,9 @@ class ChatMediaController(
             }
             Prefs.setUserChatAvatarPath(context, destFile.absolutePath)
             adapterProvider().notifyDataSetChanged()
-            Utils.toast(context, "用户头像已更新")
+            Utils.toast(context, context.getString(R.string.toast_user_avatar_updated))
         }.onFailure {
-            Utils.toast(context, "头像更新失败，请重试")
+            Utils.toast(context, context.getString(R.string.toast_avatar_failed))
         }
     }
 

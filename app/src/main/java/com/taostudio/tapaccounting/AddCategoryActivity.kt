@@ -61,11 +61,11 @@ class AddCategoryActivity : AppCompatActivity() {
 
         findViewById<android.view.View>(R.id.btn_back).setOnClickListener { finish() }
 
-        val typeStr = if (type == Prefs.TYPE_EXPENSE) "支出" else "收入"
+        val typeStr = if (type == Prefs.TYPE_EXPENSE) getString(R.string.expense) else getString(R.string.income)
 
         if (isEdit) {
-            tvTitle.text = "修改分类 [$typeStr]"
-            btn.text = "保存修改"
+            tvTitle.text = getString(R.string.edit_category_title, typeStr)
+            btn.text = getString(R.string.save_changes)
             etName.setText(oldName)
             etName.setSelection(oldName.length)
             selectedIconUrl = oldIcon
@@ -73,7 +73,7 @@ class AddCategoryActivity : AppCompatActivity() {
                 Glide.with(this).load(oldIcon).into(ivPreview)
             }
         } else {
-            tvTitle.text = if (parentName != null) "新增子分类 [$typeStr]" else "新增分类 [$typeStr]"
+            tvTitle.text = if (parentName != null) getString(R.string.add_subcategory_title, typeStr) else getString(R.string.add_category_title, typeStr)
         }
 
         ivPreview.setColorFilter(Color.parseColor("#424242"), PorterDuff.Mode.SRC_IN)
@@ -112,7 +112,7 @@ class AddCategoryActivity : AppCompatActivity() {
         btn.setOnClickListener {
             val newName = etName.text.toString().trim()
             if (newName.isEmpty() || selectedIconUrl.isEmpty()) {
-                Utils.toast(this, "请输入名称并选择图标")
+                Utils.toast(this, getString(R.string.input_name_icon))
                 return@setOnClickListener
             }
 
@@ -144,7 +144,7 @@ class AddCategoryActivity : AppCompatActivity() {
                     )
                 }
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@AddCategoryActivity, if (isEdit) "修改成功" else "保存成功")
+                    Utils.toast(this@AddCategoryActivity, if (isEdit) getString(R.string.edit_success) else getString(R.string.save_success))
                     finish()
                 }
             }

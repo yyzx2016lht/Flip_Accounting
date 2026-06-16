@@ -47,7 +47,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
-                        android:text="资产总览"
+                        android:text="@string/asset_overview"
                         android:textColor="@color/text_primary"
                         android:textSize="@dimen/text_size_18"
                         android:textStyle="bold" />
@@ -107,7 +107,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:text="净资产"
+                        android:text="@string/net_asset"
                         android:textColor="@color/asset_overview_label"
                         android:textSize="@dimen/asset_overview_label_size" />
 
@@ -160,7 +160,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="总资产"
+                                android:text="@string/total_asset"
                                 android:textColor="@color/asset_summary_label"
                                 android:textSize="@dimen/asset_summary_label_size" />
 
@@ -204,7 +204,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="总负债"
+                                android:text="@string/total_liability"
                                 android:textColor="@color/asset_summary_label"
                                 android:textSize="@dimen/asset_summary_label_size" />
 
@@ -246,7 +246,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_16"
-                    android:text="暂无资产"
+                    android:text="@string/no_asset"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_16"
                     android:textStyle="bold" />
@@ -256,7 +256,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_4"
-                    android:text="点击右下角按钮添加你的第一个资产"
+                    android:text="@string/add_first_asset_hint"
                     android:textColor="@color/text_tertiary"
                     android:textSize="@dimen/text_size_13" />
             </LinearLayout>
@@ -275,7 +275,7 @@
                 android:layout_marginTop="@dimen/space_16"
                 android:layout_marginBottom="@dimen/space_8"
                 android:background="@drawable/bg_asset_rate_chip"
-                android:text="汇率状态：未初始化"
+                android:text="@string/rate_status_uninit"
                 android:textColor="@color/asset_rate_status_text"
                 android:textSize="@dimen/text_size_11"
                 android:visibility="gone" />
