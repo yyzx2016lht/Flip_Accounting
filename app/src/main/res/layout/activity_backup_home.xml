@@ -55,7 +55,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="手动触发，不做后台自动同步，避免误覆盖。"
+                        android:text="@string/local_backup_desc"
                         android:textColor="#6D7C93"
                         android:textSize="13sp" />
 
@@ -161,7 +161,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="管理备份模块、默认覆盖备份、另存为重命名和恢复。"
+                        android:text="@string/backup_manage_desc"
                         android:textColor="#6D7C93"
                         android:textSize="13sp" />
 
@@ -205,7 +205,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="配置 WebDAV（坚果云），手动上传下载，配合保留策略控制空间。"
+                        android:text="@string/cloud_backup_desc"
                         android:textColor="#6D7C93"
                         android:textSize="13sp" />
 

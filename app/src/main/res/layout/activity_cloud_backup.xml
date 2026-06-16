@@ -72,7 +72,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="建议使用坚果云应用密码，避免直接暴露主密码。"
+                        android:text="@string/webdav_password_hint"
                         android:textColor="#6D7C93"
                         android:textSize="12sp" />
 
@@ -198,7 +198,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="只在你点击时上传/下载。默认不开启后台自动同步。"
+                        android:text="@string/cloud_sync_manual_desc"
                         android:textColor="#6D7C93"
                         android:textSize="13sp" />
 

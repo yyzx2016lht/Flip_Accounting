@@ -177,7 +177,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="PIN 自动：首次备份将设置 PIN；覆盖已加密备份时需验证同一 PIN。"
+                            android:text="@string/backup_pin_auto_desc"
                             android:textColor="#6E7D95"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -203,7 +203,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="迁移账本的核心组合，包含账单、资产、分类和记账习惯。"
+                            android:text="@string/backup_module_core_desc"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
 
@@ -280,7 +280,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="独立迁移 AI 对话数据，含聊天记录、背景和语音文件。"
+                            android:text="@string/backup_module_chat_desc"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
 
@@ -317,7 +317,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="聊天资源包含聊天背景、用户头像、AI 头像和聊天语音文件。"
+                            android:text="@string/backup_module_chat_res_desc"
                             android:textColor="#8C98A8"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -343,7 +343,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="迁移界面风格和偏好配置，可分别勾选所需模块。"
+                            android:text="@string/backup_module_ui_desc"
                             android:textColor="#7A879A"
                             android:textSize="12sp" />
 
@@ -591,7 +591,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="14dp"
-                        android:text="从备份中按需选择模块恢复，避免整包覆盖。"
+                        android:text="@string/restore_module_desc"
                         android:textColor="#8C98A8"
                         android:textSize="13sp" />
 
@@ -646,7 +646,7 @@
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="12dp"
                         android:lineSpacingExtra="2dp"
-                        android:text="开启后按设定间隔自动备份到默认目录，也可同时同步到云端。"
+                        android:text="@string/auto_backup_desc"
                         android:textColor="#8C98A8"
                         android:textSize="13sp" />
 
@@ -872,7 +872,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="12dp"
-                        android:text="坚果云示例：URL=https://dav.jianguoyun.com/dav/"
+                        android:text="@string/webdav_example_hint"
                         android:textColor="#8C98A8"
                         android:textSize="12sp" />
 
@@ -1073,7 +1073,7 @@
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="14dp"
                         android:lineSpacingExtra="2dp"
-                        android:text="导出账单为通用 CSV 文件，或从第三方软件导出的 CSV 文件中导入账单数据。"
+                        android:text="@string/csv_export_import_desc"
                         android:textColor="#8C98A8"
                         android:textSize="13sp" />
 
@@ -1171,7 +1171,7 @@
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="14dp"
                         android:lineSpacingExtra="2dp"
-                        android:text="直接删除账单，不进回收站，不回退资产余额。适合清理历史数据，请谨慎操作。"
+                        android:text="@string/batch_delete_warning"
                         android:textColor="#D46B6B"
                         android:textSize="13sp" />
 

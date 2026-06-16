@@ -83,6 +83,23 @@
     <string name="model_usage_desc">主文本用于记账/分类，视觉用于图片识别</string>
     <string name="chat_model_hint">留空则跟随主文本模型</string>
 
+    <!-- 备份恢复 -->
+    <string name="backup_pin_auto_desc">首次备份将设置 PIN，覆盖已加密备份时需验证</string>
+    <string name="backup_module_core_desc">包含账单、资产、分类和记账习惯</string>
+    <string name="backup_module_chat_desc">含聊天记录、背景和语音文件</string>
+    <string name="backup_module_chat_res_desc">聊天背景、用户头像、AI 头像和语音文件</string>
+    <string name="backup_module_ui_desc">界面风格和偏好配置</string>
+    <string name="restore_module_desc">按需选择模块恢复，避免整包覆盖</string>
+    <string name="auto_backup_desc">按设定间隔自动备份到默认目录</string>
+    <string name="webdav_example_hint">坚果云示例：URL=https://dav.jianguoyun.com/dav/</string>
+    <string name="csv_export_import_desc">导出为 CSV 或从第三方 CSV 导入</string>
+    <string name="batch_delete_warning">直接删除账单，不进回收站，请谨慎操作</string>
+    <string name="local_backup_desc">手动触发，不做后台自动同步</string>
+    <string name="backup_manage_desc">管理备份模块、覆盖备份、重命名和恢复</string>
+    <string name="cloud_backup_desc">配置 WebDAV，手动上传下载</string>
+    <string name="webdav_password_hint">建议使用坚果云应用密码</string>
+    <string name="cloud_sync_manual_desc">只在点击时上传/下载，不自动同步</string>
+
     <!-- Agent 模式 -->
     <string name="agent_mode_title">AI 助手</string>
     <string name="chat_mode_accounting">记账</string>
