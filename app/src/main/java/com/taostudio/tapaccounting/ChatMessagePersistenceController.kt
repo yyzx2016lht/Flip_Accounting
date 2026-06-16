@@ -238,9 +238,9 @@ class ChatMessagePersistenceController(
         val idx = displayMessages.indexOfFirst { it.uiKey == uiKey && it.isLoading }
         if (idx < 0) return
         val current = displayMessages[idx]
+        if (current.content == text) return
         displayMessages[idx] = current.copy(content = text)
-        adapterProvider().notifyItemChanged(idx)
-        ensureLastMessageVisible()
+        adapterProvider().notifyItemChanged(idx, ChatAdapter.PAYLOAD_LOADING_TEXT)
     }
 
     fun finalizeLoadingMessage(uiKey: String, text: String, bookName: String, conversationId: String) {

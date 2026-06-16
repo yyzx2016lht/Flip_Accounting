@@ -26,22 +26,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONTokener
+import com.taostudio.tapaccounting.data.backup.AutoBackupWorker
 import com.taostudio.tapaccounting.data.backup.BackupManager
 import com.taostudio.tapaccounting.data.backup.BackupPinCrypto
 import com.taostudio.tapaccounting.data.backup.CloudBackupConfig
 import com.taostudio.tapaccounting.data.backup.CsvManager
 import com.taostudio.tapaccounting.data.backup.DataExportManager
 import com.taostudio.tapaccounting.data.backup.WebDavClient
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.repository.BackupRepository
+import com.taostudio.tapaccounting.data.repository.MergeRestoreResult
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -125,6 +129,7 @@ class BackupActivity : AppCompatActivity() {
         findViewById<ImageView>(R.id.btn_back).setOnClickListener { finish() }
         setupBackupPresetUi()
         setupPinModeUi()
+        setupAutoBackupUi()
         setupCloudSettingsUi()
 
         findViewById<MaterialButton>(R.id.btn_do_backup).setOnClickListener {
@@ -183,6 +188,7 @@ class BackupActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_repair_csv_assets).setOnClickListener {
             repairMissingCsvAssetBindings()
         }
+        setupCleanupButtons()
         updateBackupModeHint()
         handleOpenSectionIntent()
     }
@@ -204,6 +210,230 @@ class BackupActivity : AppCompatActivity() {
         val rgPinMode = findViewById<RadioGroup>(R.id.rg_backup_pin_mode)
         rgPinMode.setOnCheckedChangeListener { _, _ -> updatePinModeHint() }
         updatePinModeHint()
+    }
+
+    private fun setupAutoBackupUi() {
+        val switchEnabled = findViewById<SwitchMaterial>(R.id.switch_auto_backup)
+        val switchCloud = findViewById<SwitchMaterial>(R.id.switch_auto_cloud)
+        val groupOptions = findViewById<View>(R.id.group_auto_backup_options)
+        val rgInterval = findViewById<RadioGroup>(R.id.rg_auto_backup_interval)
+        val rgMode = findViewById<RadioGroup>(R.id.rg_auto_backup_mode)
+
+        // Load saved settings
+        val enabled = AutoBackupWorker.isEnabled(this)
+        val intervalHours = AutoBackupWorker.getIntervalHours(this)
+        val cloudEnabled = AutoBackupWorker.isCloudEnabled(this)
+        val mode = AutoBackupWorker.getBackupMode(this)
+
+        switchEnabled.isChecked = enabled
+        switchCloud.isChecked = cloudEnabled
+        groupOptions.visibility = if (enabled) View.VISIBLE else View.GONE
+
+        when (intervalHours) {
+            6 -> rgInterval.check(R.id.rb_interval_6h)
+            24 -> rgInterval.check(R.id.rb_interval_24h)
+            else -> rgInterval.check(R.id.rb_interval_12h)
+        }
+        rgMode.check(if (mode == "full") R.id.rb_auto_mode_full else R.id.rb_auto_mode_lite)
+
+        switchEnabled.setOnCheckedChangeListener { _, isChecked ->
+            groupOptions.visibility = if (isChecked) View.VISIBLE else View.GONE
+            saveAutoBackupSettings()
+        }
+        switchCloud.setOnCheckedChangeListener { _, _ -> saveAutoBackupSettings() }
+        rgInterval.setOnCheckedChangeListener { _, _ -> saveAutoBackupSettings() }
+        rgMode.setOnCheckedChangeListener { _, _ -> saveAutoBackupSettings() }
+
+        updateAutoBackupStatus()
+    }
+
+    private fun saveAutoBackupSettings() {
+        val enabled = findViewById<SwitchMaterial>(R.id.switch_auto_backup).isChecked
+        val cloudEnabled = findViewById<SwitchMaterial>(R.id.switch_auto_cloud).isChecked
+        val intervalHours = when (findViewById<RadioGroup>(R.id.rg_auto_backup_interval).checkedRadioButtonId) {
+            R.id.rb_interval_6h -> 6
+            R.id.rb_interval_24h -> 24
+            else -> 12
+        }
+        val mode = when (findViewById<RadioGroup>(R.id.rg_auto_backup_mode).checkedRadioButtonId) {
+            R.id.rb_auto_mode_full -> "full"
+            else -> "lite"
+        }
+        AutoBackupWorker.saveSettings(this, enabled, intervalHours, cloudEnabled, mode)
+        updateAutoBackupStatus()
+    }
+
+    private fun updateAutoBackupStatus() {
+        val tv = findViewById<TextView>(R.id.tv_auto_backup_status)
+        if (!AutoBackupWorker.isEnabled(this)) {
+            tv.text = "自动备份已关闭"
+            return
+        }
+        val lastTime = AutoBackupWorker.getLastBackupTime(this)
+        val lastResult = AutoBackupWorker.getLastBackupResult(this)
+        val interval = AutoBackupWorker.getIntervalHours(this)
+        val mode = if (AutoBackupWorker.getBackupMode(this) == "full") "完整" else "轻量"
+        val cloud = if (AutoBackupWorker.isCloudEnabled(this)) " + 云端" else ""
+
+        tv.text = if (lastTime > 0) {
+            val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+            "上次自动备份：${sdf.format(Date(lastTime))}\n$lastResult\n当前：每${interval}小时 · ${mode}${cloud}"
+        } else {
+            "当前：每${interval}小时 · ${mode}${cloud}\n等待首次自动备份…"
+        }
+    }
+
+    // ── Cleanup bills ──────────────────────────────────────────────
+
+    private fun setupCleanupButtons() {
+        findViewById<MaterialButton>(R.id.btn_cleanup_by_date).setOnClickListener {
+            showDateRangeCleanupDialog()
+        }
+        findViewById<MaterialButton>(R.id.btn_cleanup_by_book).setOnClickListener {
+            showBookCleanupDialog()
+        }
+        findViewById<MaterialButton>(R.id.btn_cleanup_all).setOnClickListener {
+            showCleanupAllDialog()
+        }
+    }
+
+    private fun showDateRangeCleanupDialog() {
+        val cal = Calendar.getInstance()
+        val endDate = cal.timeInMillis
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val startDate = cal.timeInMillis
+
+        showDatePicker(startDate, true) { startMs ->
+            showDatePicker(endDate, false) { endMs ->
+                if (endMs < startMs) {
+                    Utils.toast(this, "结束日期不能早于开始日期")
+                    return@showDatePicker
+                }
+                val endOfDay = endMs + 86400000L - 1
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(this@BackupActivity)
+                    val count = db.billDao().countBillsBetweenTimes(startMs, endOfDay)
+                    val sum = db.billDao().sumAmountBetweenTimes(startMs, endOfDay)
+                    withContext(Dispatchers.Main) {
+                        if (count == 0) {
+                            Utils.toast(this@BackupActivity, "该日期范围内没有账单")
+                            return@withContext
+                        }
+                        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        confirmCleanup(
+                            title = "清理日期范围内的账单",
+                            message = "将删除 ${sdf.format(Date(startMs))} 至 ${sdf.format(Date(endMs))} 的 $count 条账单" +
+                                "（合计 ${String.format("%.2f", sum)}）。\n\n此操作不可撤销，不进回退资产余额。",
+                            onConfirm = {
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    db.billDao().deleteBillsBetweenTimes(startMs, endOfDay)
+                                    withContext(Dispatchers.Main) {
+                                        Utils.toast(this@BackupActivity, "已清理 $count 条账单")
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showBookCleanupDialog() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@BackupActivity)
+            val books = db.billDao().getAllBookNames()
+            withContext(Dispatchers.Main) {
+                if (books.isEmpty()) {
+                    Utils.toast(this@BackupActivity, "没有账本数据")
+                    return@withContext
+                }
+                var selectedIndex = 0
+                val dialog = AlertDialog.Builder(this@BackupActivity)
+                    .setTitle("选择要清空的账本")
+                    .setSingleChoiceItems(books.toTypedArray(), 0) { _, which -> selectedIndex = which }
+                    .setPositiveButton("下一步") { _, _ ->
+                        val book = books[selectedIndex]
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val count = db.billDao().countBillsByBookName(book)
+                            withContext(Dispatchers.Main) {
+                                if (count == 0) {
+                                    Utils.toast(this@BackupActivity, "「$book」没有账单")
+                                    return@withContext
+                                }
+                                confirmCleanup(
+                                    title = "清空账本「$book」",
+                                    message = "将删除该账本下的全部 $count 条账单。\n\n此操作不可撤销，不进回收站，不回退资产余额。",
+                                    onConfirm = {
+                                        lifecycleScope.launch(Dispatchers.IO) {
+                                            db.billDao().deleteAllByBookName(book)
+                                            withContext(Dispatchers.Main) {
+                                                Utils.toast(this@BackupActivity, "已清空「$book」的 $count 条账单")
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    .setNegativeButton("取消", null)
+                    .create()
+                OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
+            }
+        }
+    }
+
+    private fun showCleanupAllDialog() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@BackupActivity)
+            val count = db.billDao().getAllBillsList().size
+            withContext(Dispatchers.Main) {
+                if (count == 0) {
+                    Utils.toast(this@BackupActivity, "没有账单数据")
+                    return@withContext
+                }
+                confirmCleanup(
+                    title = "清空全部账单",
+                    message = "将删除所有账本下的全部 $count 条账单。\n\n此操作不可撤销，不进回收站，不回退资产余额。建议先备份。",
+                    onConfirm = {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            db.billDao().deleteAll()
+                            withContext(Dispatchers.Main) {
+                                Utils.toast(this@BackupActivity, "已清空全部 $count 条账单")
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    private fun showDatePicker(initialMs: Long, isStart: Boolean, onPicked: (Long) -> Unit) {
+        val cal = Calendar.getInstance().apply { timeInMillis = initialMs }
+        val label = if (isStart) "开始日期" else "结束日期"
+        val dialog = android.app.DatePickerDialog(this, { _, year, month, day ->
+            val picked = Calendar.getInstance().apply {
+                set(year, month, day, 0, 0, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            onPicked(picked)
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
+        dialog.setTitle(label)
+        dialog.show()
+    }
+
+    private fun confirmCleanup(title: String, message: String, onConfirm: () -> Unit) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("确认清理") { _, _ -> onConfirm() }
+            .setNegativeButton("取消", null)
+            .create()
+        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
     private fun currentPinMode(): BackupPinMode =
@@ -750,6 +980,16 @@ class BackupActivity : AppCompatActivity() {
                 "banners" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_banners)
             )
             val aiCoreHint = view.findViewById<TextView>(R.id.tv_restore_settings_ai_core_hint)
+            val rgRestoreMode = view.findViewById<RadioGroup>(R.id.rg_restore_mode)
+            val tvModeHint = view.findViewById<TextView>(R.id.tv_restore_mode_hint)
+
+            rgRestoreMode.setOnCheckedChangeListener { _, checkedId ->
+                tvModeHint.text = if (checkedId == R.id.rb_restore_merge) {
+                    "合并模式：只补充不存在的数据，不删除现有记录，不回退资产余额。"
+                } else {
+                    "覆盖模式：清空当前数据后恢复备份内容，请确认后继续。"
+                }
+            }
 
             var hasModules = false
             moduleViews.forEach { (key, checkBox) ->
@@ -802,6 +1042,8 @@ class BackupActivity : AppCompatActivity() {
             val dialog = AlertDialog.Builder(this@BackupActivity)
                 .setView(view)
                 .setPositiveButton("开始恢复") { _, _ ->
+                    val isMerge = rgRestoreMode.checkedRadioButtonId == R.id.rb_restore_merge
+
                     val options = RestoreOptions(
                         restoreAssets = moduleViews.getValue("assets").isChecked,
                         restoreCategories = moduleViews.getValue("categories").isChecked,
@@ -824,8 +1066,14 @@ class BackupActivity : AppCompatActivity() {
                         restoreSettingsAdvancedLegacy = moduleViews.getValue("settings_advanced").isChecked,
                         restoreBanners = moduleViews.getValue("banners").isChecked
                     )
-                    val action: (String?) -> Unit = { pin -> restoreData(dataMap, options, tempFile, pin) }
-                    if (options.restoreSettingsAiCore && settingsNeedsPin) promptPinForRestore(action) else action(null)
+
+                    if (isMerge) {
+                        val action: (String?) -> Unit = { pin -> mergeRestoreData(dataMap, options, tempFile, pin) }
+                        if (options.restoreSettingsAiCore && settingsNeedsPin) promptPinForRestore(action) else action(null)
+                    } else {
+                        val action: (String?) -> Unit = { pin -> restoreData(dataMap, options, tempFile, pin) }
+                        if (options.restoreSettingsAiCore && settingsNeedsPin) promptPinForRestore(action) else action(null)
+                    }
                 }
                 .setNegativeButton("取消", null)
                 .create()
@@ -896,6 +1144,87 @@ class BackupActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("BackupActivity", "恢复数据失败", e)
+                withContext(Dispatchers.Main) {
+                    Utils.toast(this@BackupActivity, "恢复失败，请检查备份文件后重试")
+                }
+            }
+        }
+    }
+
+    private fun mergeRestoreData(dataMap: Map<String, String>, options: RestoreOptions, tempFile: File?, settingsPin: String?) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val aiCoreRoot = if (options.restoreSettingsAiCore) {
+                    dataMap["settings_ai_core"]?.let {
+                        var root = parseSettingsRoot(it)
+                        if (BackupPinCrypto.hasEncryptedApi(root)) {
+                            val pin = settingsPin ?: throw IllegalArgumentException("该备份中的 API Key 受 PIN 保护，请输入 4 位 PIN")
+                            root = BackupPinCrypto.decryptApiKeyInSettings(root, pin)
+                        }
+                        root
+                    }
+                } else null
+
+                val result = backupRepository.mergeRestoreFullData(
+                    assets = if (options.restoreAssets) dataMap["assets"]?.let { DataExportManager.deserializeAssets(it) } else null,
+                    bills = if (options.restoreBills) dataMap["bills"]?.let { DataExportManager.deserializeBills(it) } else null,
+                    categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
+                    rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
+                    chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null
+                )
+
+                // 设置始终覆盖
+                val settingsModules = listOf(
+                    options.restoreSettingsGeneralBasic to "settings_general_basic",
+                    options.restoreSettingsGeneralAssets to "settings_general_assets",
+                    options.restoreSettingsGeneralCloud to "settings_general_cloud",
+                    options.restoreSettingsDisplayEntries to "settings_display_entries",
+                    options.restoreSettingsDisplayBills to "settings_display_bills",
+                    options.restoreSettingsDisplayMultiBill to "settings_display_multibill",
+                    options.restoreSettingsAiChat to "settings_ai_chat",
+                    options.restoreSettingsBooks to "settings_books",
+                    options.restoreSettingsAdvancedRuntime to "settings_advanced_runtime",
+                    options.restoreSettingsGeneralLegacy to "settings_general",
+                    options.restoreSettingsDisplayLegacy to "settings_display",
+                    options.restoreSettingsAdvancedLegacy to "settings_advanced"
+                )
+                settingsModules.forEach { (enabled, key) ->
+                    if (enabled) dataMap[key]?.let { Prefs.importAll(this@BackupActivity, parseSettingsRoot(it)) }
+                }
+                aiCoreRoot?.let { Prefs.importAll(this@BackupActivity, it) }
+
+                if (options.restoreBanners && tempFile != null && tempFile.exists()) {
+                    val bannerDir = File(filesDir, "banners")
+                    BackupManager.restoreBanners(tempFile, bannerDir)
+                    fixRestoredBannerPaths(bannerDir)
+                }
+
+                if (options.restoreChatMedia && tempFile != null && tempFile.exists()) {
+                    BackupManager.restoreChatMedia(tempFile, filesDir)
+                    fixRestoredChatPreferencePaths()
+                    if (options.restoreChatMessages) fixRestoredVoiceMessagePaths()
+                }
+
+                syncRestoredRuntimeState(options)
+
+                withContext(Dispatchers.Main) {
+                    val msg = buildString {
+                        append("合并恢复完成")
+                        if (result.insertedBills > 0 || result.skippedBills > 0) {
+                            append("\n账单：新增 ${result.insertedBills}，跳过 ${result.skippedBills}")
+                        }
+                        if (result.insertedAssets > 0 || result.skippedAssets > 0) {
+                            append("\n资产：新增 ${result.insertedAssets}，跳过 ${result.skippedAssets}")
+                        }
+                        if (result.insertedCategories > 0 || result.skippedCategories > 0) {
+                            append("\n分类：新增 ${result.insertedCategories}，跳过 ${result.skippedCategories}")
+                        }
+                    }
+                    Utils.toast(this@BackupActivity, msg)
+                    if (isQuickOneShot()) finish()
+                }
+            } catch (e: Exception) {
+                Log.e("BackupActivity", "合并恢复失败", e)
                 withContext(Dispatchers.Main) {
                     Utils.toast(this@BackupActivity, "恢复失败，请检查备份文件后重试")
                 }

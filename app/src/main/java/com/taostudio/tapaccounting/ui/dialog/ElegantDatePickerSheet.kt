@@ -16,6 +16,7 @@ import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
 import com.taostudio.tapaccounting.R
+import com.taostudio.tapaccounting.ui.main.YearMonthPickerDialog
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -44,8 +45,10 @@ object ElegantDatePickerSheet {
         )
         val calendarView = view.findViewById<com.kizitonwose.calendar.view.CalendarView>(R.id.calendar_picker_view)
         val tvMonthTitle = view.findViewById<TextView>(R.id.tv_calendar_month_title)
+        val btnPrevYear = view.findViewById<ImageView>(R.id.btn_calendar_prev_year)
         val btnPrev = view.findViewById<ImageView>(R.id.btn_calendar_prev_month)
         val btnNext = view.findViewById<ImageView>(R.id.btn_calendar_next_month)
+        val btnNextYear = view.findViewById<ImageView>(R.id.btn_calendar_next_year)
         val btnCancel = view.findViewById<View>(R.id.btn_calendar_cancel)
         val btnConfirm = view.findViewById<View>(R.id.btn_calendar_confirm)
 
@@ -134,6 +137,12 @@ object ElegantDatePickerSheet {
             tvMonthTitle.text = visibleMonth.format(monthFormatter)
         }
 
+        btnPrevYear.setOnClickListener {
+            val target = visibleMonth.minusYears(1)
+            if (target >= startMonth) {
+                calendarView.smoothScrollToMonth(target)
+            }
+        }
         btnPrev.setOnClickListener {
             val target = visibleMonth.minusMonths(1)
             if (target >= startMonth) {
@@ -144,6 +153,25 @@ object ElegantDatePickerSheet {
             val target = visibleMonth.plusMonths(1)
             if (target <= endMonth) {
                 calendarView.smoothScrollToMonth(target)
+            }
+        }
+        btnNextYear.setOnClickListener {
+            val target = visibleMonth.plusYears(1)
+            if (target <= endMonth) {
+                calendarView.smoothScrollToMonth(target)
+            }
+        }
+        tvMonthTitle.setOnClickListener {
+            YearMonthPickerDialog.show(
+                context = context,
+                title = "选择月份",
+                initialYear = visibleMonth.year,
+                initialMonth = visibleMonth.monthValue
+            ) { year, month ->
+                val target = YearMonth.of(year, month)
+                if (target in startMonth..endMonth) {
+                    calendarView.smoothScrollToMonth(target)
+                }
             }
         }
 

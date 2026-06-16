@@ -341,7 +341,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             requireActivity().startActivity(Intent(requireContext(), BackupActivity::class.java))
         }
         btnSyncRemoteConfig = view.findViewById(R.id.btn_sync_remote_config)
-        dividerSyncRemoteConfig = view.findViewById(R.id.divider_sync_remote_config)
+        groupSyncRemoteConfig = view.findViewById(R.id.group_sync_remote_config)
         refreshSyncRemoteConfigVisibility()
         btnSyncRemoteConfig?.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
@@ -351,9 +351,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 }
             }
         }
-        shizukuModeRow = view.findViewById(R.id.layout_shizuku_mode_row)
-        shizukuPersistenceDivider = view.findViewById(R.id.divider_shizuku_persistence)
-        shizukuPersistenceRow = view.findViewById(R.id.layout_shizuku_persistence)
+        groupShizukuMode = view.findViewById(R.id.group_shizuku_mode)
+        groupShizukuPersistence = view.findViewById(R.id.group_shizuku_persistence)
         refreshShizukuVisibility()
         val layoutAiFeatureEntry = view.findViewById<View>(R.id.layout_ai_feature_entry)
         view.findViewById<View>(R.id.layout_ai_feature_entry)?.setOnClickListener {
@@ -368,27 +367,13 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val switchShowMultiCur = view.findViewById<CompoundButton>(R.id.switch_show_multi_cur)
         val btnManageCurrencies = view.findViewById<View>(R.id.btn_manage_currencies)
         val btnSensitivity = view.findViewById<View>(R.id.btn_sensitivity)
-        val dividerAfterCurrencies = view.findViewById<View>(R.id.divider_after_currencies)
-        val dividerAfterSensitivity = view.findViewById<View>(R.id.divider_after_sensitivity)
+        val groupBillDisplay = view.findViewById<View>(R.id.group_bill_display)
+        val groupManageCurrencies = view.findViewById<View>(R.id.group_manage_currencies)
         val switchShowBookEntry = view.findViewById<CompoundButton>(R.id.switch_show_book_entry)
         val layoutShowBookEntryContainer = view.findViewById<View>(R.id.layout_show_book_entry_container)
-        val dividerBeforeShowBookEntry = view.findViewById<View>(R.id.divider_before_show_book_entry)
         val switchShizukuMode = view.findViewById<CompoundButton>(R.id.switch_shizuku_mode)
-        val layoutWhitelist = view.findViewById<View>(R.id.layout_whitelist_container)
-        val switchWhitelistMode = view.findViewById<CompoundButton>(R.id.switch_whitelist_mode)
-        val btnManageWhitelist = view.findViewById<View>(R.id.btn_manage_whitelist)
-        var ignoreWhitelistToggle = false
-        fun updateWhitelistUi() {
-            val shizukuModeEnabled = switchShizukuMode.isChecked
-            layoutWhitelist.visibility = if (shizukuModeEnabled) View.VISIBLE else View.GONE
-            btnManageWhitelist.visibility = if (layoutWhitelist.visibility == View.VISIBLE && switchWhitelistMode.isChecked) View.VISIBLE else View.GONE
-        }
         fun updateDataEntriesUi(multiCurrencyEnabled: Boolean) {
-            btnSensitivity.visibility = View.VISIBLE
-            btnManageCurrencies.visibility = if (multiCurrencyEnabled) View.VISIBLE else View.GONE
-            dividerAfterCurrencies.visibility =
-                if (multiCurrencyEnabled) View.VISIBLE else View.GONE
-            dividerAfterSensitivity.visibility = View.VISIBLE
+            groupManageCurrencies.visibility = if (multiCurrencyEnabled) View.VISIBLE else View.GONE
         }
         switchShowMultiCur.isChecked = Prefs.isShowMultiCurrency(requireContext())
         switchShowMultiCur.setOnCheckedChangeListener { _, isChecked ->
@@ -404,72 +389,22 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
         val showBookEntrySetting = shouldShowBookEntrySetting(requireContext())
         layoutShowBookEntryContainer.visibility = if (showBookEntrySetting) View.VISIBLE else View.GONE
-        dividerBeforeShowBookEntry.visibility = if (showBookEntrySetting) View.VISIBLE else View.GONE
         switchShizukuMode.apply {
             isChecked = Prefs.isShizukuModeEnabled(requireContext())
             setOnCheckedChangeListener { _, isChecked ->
                 Prefs.setShizukuModeEnabled(requireContext(), isChecked)
                 if (!isChecked) {
-                    ignoreWhitelistToggle = true
-                    switchWhitelistMode.isChecked = false
-                    ignoreWhitelistToggle = false
                     view.findViewById<CompoundButton>(R.id.switch_shizuku_persistence)?.isChecked = false
                     ShizukuRecoveryService.stop(requireContext())
                 } else if (!ShizukuSafe.isReady(requireContext())) {
                     Utils.toast(requireContext(), "Shizuku 高级模式已开启，还需完成授权才能使用白名单")
                 }
                 updateShizukuPersistenceVisibility(view, isChecked)
-                updateWhitelistUi()
                 updateDoubleTapService(Prefs.isDoubleTapEnabled(requireContext()))
             }
         }
         // 初始化 Shizuku 持久化行的可见状态
         updateShizukuPersistenceVisibility(view, Prefs.isShizukuModeEnabled(requireContext()))
-        switchWhitelistMode.apply {
-            isChecked = false
-            btnManageWhitelist.visibility = if (isChecked) View.VISIBLE else View.GONE
-            setOnCheckedChangeListener { _, isChecked ->
-                if (ignoreWhitelistToggle) return@setOnCheckedChangeListener
-                if (!switchShizukuMode.isChecked) {
-                    ignoreWhitelistToggle = true
-                    post {
-                        switchWhitelistMode.isChecked = false
-                        ignoreWhitelistToggle = false
-                    }
-                    btnManageWhitelist.visibility = View.GONE
-                    Utils.toast(requireContext(), "请先开启 Shizuku 高级模式")
-                    return@setOnCheckedChangeListener
-                }
-                if (isChecked && !ShizukuSafe.isReady(requireContext())) {
-                    ignoreWhitelistToggle = true
-                    post {
-                        switchWhitelistMode.isChecked = false
-                        ignoreWhitelistToggle = false
-                    }
-                    btnManageWhitelist.visibility = View.GONE
-                    Utils.toast(requireContext(), "白名单模式需要先完成 Shizuku 授权")
-                    com.taostudio.tapaccounting.ui.dialog.OverlayDialogs.showShizukuPrompt(requireContext())
-                    return@setOnCheckedChangeListener
-                }
-                btnManageWhitelist.visibility = if (isChecked) View.VISIBLE else View.GONE
-                updateDoubleTapService(Prefs.isDoubleTapEnabled(requireContext()))
-                Utils.toast(context, if (isChecked) "已开启白名单模式" else "已恢复全局模式")
-            }
-        }
-        updateWhitelistUi()
-
-        btnManageWhitelist.setOnClickListener {
-            if (!ShizukuSafe.isBinderAlive()) {
-                Utils.toast(requireContext(), "请先完成 Shizuku 授权")
-                return@setOnClickListener
-            }
-            if (!ShizukuSafe.hasPermission(requireContext())) {
-                ShizukuSafe.requestPermission(requireActivity(), 101)
-            } else {
-                requireActivity().startActivity(Intent(requireContext(), AppListActivity::class.java))
-            }
-        }
-
         view.findViewById<CompoundButton>(R.id.switch_asset_feature).apply {
             isChecked = Prefs.isAssetFeatureEnabled(requireContext())
             setOnCheckedChangeListener { _, isChecked ->
@@ -543,7 +478,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 R.id.switch_show_book_entry,
                 R.id.switch_shizuku_mode,
                 R.id.switch_asset_feature,
-                R.id.switch_whitelist_mode,
                 R.id.switch_screen_accounting,
                 R.id.switch_show_home_trend_card,
                 R.id.switch_show_multi_cur,
@@ -582,8 +516,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private fun updateShowBookEntrySettingVisibility(root: View) {
         val show = shouldShowBookEntrySetting(requireContext())
         root.findViewById<View>(R.id.layout_show_book_entry_container)?.visibility =
-            if (show) View.VISIBLE else View.GONE
-        root.findViewById<View>(R.id.divider_before_show_book_entry)?.visibility =
             if (show) View.VISIBLE else View.GONE
     }
 
@@ -699,10 +631,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     }
 
     private var btnSyncRemoteConfig: View? = null
-    private var dividerSyncRemoteConfig: View? = null
-    private var shizukuModeRow: View? = null
-    private var shizukuPersistenceDivider: View? = null
-    private var shizukuPersistenceRow: View? = null
+    private var groupSyncRemoteConfig: View? = null
+    private var groupShizukuMode: View? = null
+    private var groupShizukuPersistence: View? = null
 
     private fun processProfilePassword(rawDesc: String): String {
         val ctx = requireContext()
@@ -730,15 +661,13 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     private fun refreshSyncRemoteConfigVisibility() {
         val show = Prefs.isApiConfigUnlocked(requireContext()) && RemoteConfigManager.isConfigUrlConfigured()
-        btnSyncRemoteConfig?.visibility = if (show) View.VISIBLE else View.GONE
-        dividerSyncRemoteConfig?.visibility = if (show) View.VISIBLE else View.GONE
+        groupSyncRemoteConfig?.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     private fun refreshShizukuVisibility() {
         val show = Prefs.isShizukuUnlocked(requireContext())
-        shizukuModeRow?.visibility = if (show) View.VISIBLE else View.GONE
-        shizukuPersistenceDivider?.visibility = if (show) View.VISIBLE else View.GONE
-        shizukuPersistenceRow?.visibility = if (show) View.VISIBLE else View.GONE
+        groupShizukuMode?.visibility = if (show) View.VISIBLE else View.GONE
+        groupShizukuPersistence?.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     private fun handleEasterEgg() {
@@ -966,8 +895,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     private fun updateShizukuPersistenceVisibility(view: View, shizukuEnabled: Boolean) {
         val visibility = if (shizukuEnabled) View.VISIBLE else View.GONE
-        view.findViewById<View>(R.id.layout_shizuku_persistence)?.visibility = visibility
-        view.findViewById<View>(R.id.divider_shizuku_persistence)?.visibility = visibility
+        view.findViewById<View>(R.id.group_shizuku_persistence)?.visibility = visibility
     }
 
 }

@@ -77,16 +77,27 @@ class ChatPanelController(
             .setView(view)
             .create()
 
-        val allModels = Prefs.getAiModelsCache(context).ifEmpty {
-            listOf(Prefs.getAiChatModel(context), Prefs.getAiMultiModel(context))
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .distinct()
+        val mainModel = AiModelSlots.resolveTextModel(context)
+        val followMainLabel = context.getString(R.string.ai_chat_model_follow_main_fmt, mainModel)
+        val cachedModels = Prefs.getAiModelsCache(context).map { it.trim() }.filter { it.isNotEmpty() }
+        val allModels = buildList {
+            add(followMainLabel)
+            add(mainModel)
+            addAll(cachedModels)
+        }.distinct()
+        val currentHighlight = if (Prefs.isAiChatModelFollowingMain(context)) {
+            followMainLabel
+        } else {
+            AiModelSlots.resolveChatModel(context)
         }
         val modelAdapter = ModelOptionAdapter(
-            current = Prefs.getAiChatModel(context),
+            current = currentHighlight,
             onSelect = { model ->
-                Prefs.setAiChatModel(context, model)
+                if (model == followMainLabel) {
+                    Prefs.setAiChatModel(context, "")
+                } else {
+                    Prefs.setAiChatModel(context, model)
+                }
                 onConversationSubtitleChanged()
                 refreshVoiceSupportHint()
                 dialog.dismiss()

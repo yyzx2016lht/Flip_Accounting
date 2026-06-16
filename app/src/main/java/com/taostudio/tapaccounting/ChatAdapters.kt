@@ -80,6 +80,10 @@ class ChatAdapter(
     private val imageThumbSizeCache = mutableMapOf<String, Pair<Int, Int>>()
     private val imageThumbSizeLoading = mutableSetOf<String>()
 
+    companion object {
+        const val PAYLOAD_LOADING_TEXT = "loading_text"
+    }
+
     override fun getItemCount(): Int = displayMessages.size
 
     override fun getItemViewType(position: Int): Int = displayMessages[position].msgType
@@ -105,6 +109,19 @@ class ChatAdapter(
             is AiTextVH -> holder.bind(item)
             is AiBillVH -> holder.bind(item)
         }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isEmpty()) {
+            onBindViewHolder(holder, position)
+            return
+        }
+        val item = displayMessages[position]
+        if (holder is AiTextVH && item.isLoading && payloads.contains(PAYLOAD_LOADING_TEXT)) {
+            holder.updateLoadingText(item.content)
+            return
+        }
+        onBindViewHolder(holder, position)
     }
 
     inner class UserVH(v: View) : RecyclerView.ViewHolder(v) {
@@ -200,7 +217,7 @@ class ChatAdapter(
                     ivImage.visibility = View.GONE
                     layoutVoice.visibility = View.GONE
                     layoutVoiceTranscript.visibility = View.GONE
-                    tvText.text = item.content
+                    tvText.text = ChatMarkdownFormatter.render(item.content)
                     tvText.alpha = if (isVoiceSelectionMode() && isMessageSelected(item)) 0.8f else 1f
                     itemView.setOnClickListener {
                         if (isVoiceSelectionMode()) onToggleVoiceSelection(item)
@@ -464,7 +481,7 @@ class ChatAdapter(
             if (item.isLoading) {
                 loadingRow.visibility = View.VISIBLE
                 tvText.visibility = View.GONE
-                tvLoading.text = item.content.ifBlank { "分析中..." }
+                updateLoadingText(item.content)
                 ivInterrupt.setOnClickListener {
                     it.pressFeedback()
                     onInterruptAiLoading()
@@ -472,7 +489,7 @@ class ChatAdapter(
             } else {
                 loadingRow.visibility = View.GONE
                 tvText.visibility = View.VISIBLE
-                tvText.text = item.content
+                tvText.text = ChatMarkdownFormatter.render(item.content)
                 ivInterrupt.setOnClickListener(null)
             }
             tvText.alpha = if (isVoiceSelectionMode() && isMessageSelected(item)) 0.8f else 1f
@@ -485,6 +502,13 @@ class ChatAdapter(
                 if (item.isLoading || item.content.isBlank()) return@setOnLongClickListener false
                 onShowTextMessageMenu(tvText, item)
                 true
+            }
+        }
+
+        fun updateLoadingText(text: String) {
+            val display = text.ifBlank { "分析中..." }
+            if (tvLoading.text?.toString() != display) {
+                tvLoading.text = ChatMarkdownFormatter.render(display)
             }
         }
     }
@@ -1214,4 +1238,3 @@ class DrawerSearchResultAdapter(
         }
     }
 }
-

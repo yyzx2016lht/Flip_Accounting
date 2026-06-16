@@ -28,6 +28,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.webkit.MimeTypeMap
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
@@ -60,8 +61,8 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.ui.common.StatusBarStyle
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.AiRule
-import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import com.taostudio.tapaccounting.chat.agent.ChatConversationMode
+import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import com.taostudio.tapaccounting.logic.BillAssetImpactService
 import com.taostudio.tapaccounting.logic.BillMutationService
 import com.taostudio.tapaccounting.logic.CurrencyManager
@@ -97,9 +98,6 @@ class ChatActivity : AppCompatActivity() {
     )
 
     companion object {
-        const val MODE_ACCOUNTING = 0
-        const val MODE_AGENT = 1
-
         const val MSG_TYPE_USER_TEXT = 0
         const val MSG_TYPE_USER_IMAGE = 1
         const val MSG_TYPE_USER_VOICE = 2
@@ -113,7 +111,9 @@ class ChatActivity : AppCompatActivity() {
 
         const val EXTRA_SOURCE_BOOK = "extra_source_book"
         const val EXTRA_CONVERSATION_ID = "extra_conversation_id"
-        const val EXTRA_CHAT_MODE = "extra_chat_mode"
+        const val EXTRA_MODE = "extra_chat_mode"
+        const val MODE_ACCOUNTING = 0
+        const val MODE_AGENT = 1
         private const val EXTRA_SCROLL_TO_MSG_ID = "scroll_to_msg_id"
 
         private const val REQ_PICK_IMAGE = 101
@@ -123,6 +123,7 @@ class ChatActivity : AppCompatActivity() {
         private const val REQ_CROP_AI_AVATAR = 105
         private const val REQ_CROP_USER_AVATAR = 106
         private const val REQ_CROP_BG = 107
+        private const val REQ_IMAGE_PERMISSION = 1002
     }
 
     private lateinit var rvMessages: RecyclerView
@@ -158,6 +159,11 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var btnVoiceSelectionCancel: TextView
     private lateinit var btnVoiceSelectionDelete: TextView
     private lateinit var layoutChatInputRow: View
+    private lateinit var layoutAgentEmptyState: View
+    private lateinit var layoutPendingImages: View
+    private lateinit var containerPendingImages: LinearLayout
+    private lateinit var tvPendingImageCount: TextView
+    private lateinit var btnClearPendingImages: TextView
 
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val aiScopeJob = SupervisorJob()
@@ -188,7 +194,9 @@ class ChatActivity : AppCompatActivity() {
             persistAiTextMessage = ::persistAiTextMessage,
             db = db,
             getCurrentBookName = { currentBookName },
-            getCurrentConversationId = { currentConversationId }
+            getCurrentConversationId = { currentConversationId },
+            isAgentMode = { chatMode == MODE_AGENT && Prefs.isAiAgentEnabled(this) },
+            onMessagesChanged = { updateAgentEmptyState() }
         )
     }
     private val billCorrectionService by lazy {
@@ -349,7 +357,7 @@ class ChatActivity : AppCompatActivity() {
             showPageCenterDialog = { dialog, widthRatio -> uiHelperController.showPageCenterDialog(dialog, widthRatio) },
             updateConversationSubtitle = ::updateConversationSubtitle,
             appendUserMessage = ::appendUserMessage,
-            callAiAccounting = { text, appendUserBubble -> callAiAccounting(text, appendUserBubble = appendUserBubble) },
+            onImageReady = { uri, base64, mime -> onImageReady(uri, base64, mime) },
             appendAiTextMessage = { text, loading -> appendAiTextMessage(text, loading) },
             reqPickImage = REQ_PICK_IMAGE,
             reqPickBg = REQ_PICK_BG,
@@ -507,10 +515,11 @@ class ChatActivity : AppCompatActivity() {
     }
     private val displayMessages = mutableListOf<ChatDisplayItem>()
     private val allSessionRows = mutableListOf<ChatSessionRow>()
+    private val pendingImages = mutableListOf<PendingImage>()
 
     private var currentBookName: String = BookAccountManager.DEFAULT_BOOK
     private var currentConversationId: String = ""
-    private var entryConversationMode: ChatConversationMode = ChatConversationMode.ACCOUNTING
+    private var chatMode: Int = MODE_AGENT
     private var pendingScrollToMessageId: Long = -1L
     private val deprecatedBillMessageIds = mutableSetOf<Long>()
     private var pendingHabitSuggestion: HabitRuleSuggestion? = null
@@ -548,9 +557,7 @@ class ChatActivity : AppCompatActivity() {
         StatusBarStyle.applyByColor(window, Color.parseColor("#F7F7F7"))
 
         currentBookName = resolveEntryBookName(intent)
-        entryConversationMode = ChatConversationMode.fromActivityMode(
-            intent?.getIntExtra(EXTRA_CHAT_MODE, MODE_ACCOUNTING) ?: MODE_ACCOUNTING
-        )
+        chatMode = intent?.getIntExtra(EXTRA_MODE, MODE_ACCOUNTING) ?: MODE_ACCOUNTING
         pendingScrollToMessageId = intent?.getLongExtra(EXTRA_SCROLL_TO_MSG_ID, -1L) ?: -1L
 
         bindViews()
@@ -561,11 +568,20 @@ class ChatActivity : AppCompatActivity() {
         setupKeyboardInsets()
         setupFallbackVoiceUi()
         mediaController.refreshAiProfile()
+        applyChatMode()
         mediaController.applyBackground()
 
         lifecycleScope.launch {
             bootstrapConversationState()
             loadHistoryMessages()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::tvAiModel.isInitialized) {
+            updateConversationSubtitle()
+            ensureModelAudioSupportProbed()
         }
     }
 
@@ -618,6 +634,10 @@ class ChatActivity : AppCompatActivity() {
         rvSessionList = findViewById(R.id.rv_session_list)
         tvVoiceModelHint = findViewById(R.id.tv_voice_model_hint)
         layoutChatInputRow = findViewById(R.id.layout_chat_input_row)
+        layoutPendingImages = findViewById(R.id.layout_pending_images)
+        containerPendingImages = findViewById(R.id.container_pending_images)
+        tvPendingImageCount = findViewById(R.id.tv_pending_image_count)
+        btnClearPendingImages = findViewById(R.id.btn_clear_pending_images)
         layoutVoiceRecordOverlay = findViewById(R.id.layout_voice_record_overlay)
         ivVoiceRecordState = findViewById(R.id.iv_voice_record_state)
         tvVoiceRecordTitle = findViewById(R.id.tv_voice_record_title)
@@ -627,6 +647,7 @@ class ChatActivity : AppCompatActivity() {
         tvVoiceSelectionCount = findViewById(R.id.tv_voice_selection_count)
         btnVoiceSelectionCancel = findViewById(R.id.btn_voice_selection_cancel)
         btnVoiceSelectionDelete = findViewById(R.id.btn_voice_selection_delete)
+        layoutAgentEmptyState = findViewById(R.id.layout_agent_empty_state)
     }
 
     private fun applySessionDrawerAdaptiveWidth() {
@@ -648,6 +669,43 @@ class ChatActivity : AppCompatActivity() {
         findViewById<View>(R.id.layout_ai_name_click).setOnClickListener { mediaController.showEditAiProfileDialog() }
     }
 
+    private fun applyChatMode() {
+        btnMoreInput.visibility = View.VISIBLE
+        updateModeControls()
+        updateAgentEmptyState()
+    }
+
+    private fun updateModeControls() {
+        val agentEnabled = Prefs.isAiAgentEnabled(this)
+        btnSwitchModel.text = getString(R.string.chat_model_button)
+        btnSwitchModel.setTextColor(Color.parseColor("#3390EC"))
+        btnSwitchModel.setBackgroundResource(R.drawable.bg_search_box)
+        etInput.hint = if (agentEnabled) {
+            getString(R.string.unified_ai_input_hint)
+        } else {
+            getString(R.string.accounting_chat_input_hint)
+        }
+    }
+
+    /**
+     * Show Agent empty state when in Agent mode with no display messages.
+     * Hides when messages exist or when in accounting mode.
+     */
+    fun updateAgentEmptyState() {
+        if (!::layoutAgentEmptyState.isInitialized) return
+        val composerHasContent =
+            (::etInput.isInitialized && etInput.text?.isNotBlank() == true) || pendingImages.isNotEmpty()
+        layoutAgentEmptyState.visibility = if (
+            Prefs.isAiAgentEnabled(this) && chatMode == MODE_AGENT && displayMessages.isEmpty() && !composerHasContent
+        ) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+    }
+
+    fun isAgentMode(): Boolean = chatMode == MODE_AGENT && Prefs.isAiAgentEnabled(this)
+
     private fun setupSessionDrawer() {
         sessionController.setupSessionDrawer()
     }
@@ -665,7 +723,11 @@ class ChatActivity : AppCompatActivity() {
 
     private fun setupInput() {
         btnSend.setOnClickListener { sendText() }
-        btnMoreInput.setOnClickListener { mediaController.pickImage() }
+        btnMoreInput.setOnClickListener { requestImageAccessAndPick() }
+        btnClearPendingImages.setOnClickListener {
+            pendingImages.clear()
+            updatePendingImagePreview()
+        }
         etInput.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) ensureLastMessageVisible()
         }
@@ -675,11 +737,44 @@ class ChatActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: android.text.Editable?) {
                 updateInputActionUi()
+                updateAgentEmptyState()
             }
         })
         updateInputActionUi()
         btnVoiceSelectionCancel.setOnClickListener { exitVoiceSelectionMode() }
         btnVoiceSelectionDelete.setOnClickListener { deleteSelectedVoiceMessages() }
+    }
+
+    private fun requestImageAccessAndPick() {
+        if (!ensureAiImageFeatureEnabled()) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            mediaController.pickImages()
+            return
+        }
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            mediaController.pickImages()
+        } else {
+            requestPermissions(arrayOf(permission), REQ_IMAGE_PERMISSION)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_IMAGE_PERMISSION) {
+            if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Utils.toast(this, "未授予完整相册权限，仍可在系统选择器中选择图片")
+            }
+            mediaController.pickImages()
+        }
     }
 
     private fun setupFallbackVoiceUi() {
@@ -799,6 +894,15 @@ class ChatActivity : AppCompatActivity() {
 
         val fromIntentConversation = intent?.getStringExtra(EXTRA_CONVERSATION_ID).orEmpty().trim()
         if (fromIntentConversation.isNotEmpty()) {
+            // Mode consistency: if the conversationId belongs to a different mode,
+            // correct the mode rather than loading cross-mode history.
+            val intentMode = ChatConversationMode.modeOf(fromIntentConversation)
+            val requestedMode = ChatConversationMode.fromActivityMode(chatMode)
+            if (intentMode != requestedMode) {
+                // Intent conversation belongs to different mode — create new conversation in current mode
+                currentConversationId = newConversationId()
+                return
+            }
             currentConversationId = fromIntentConversation
             return
         }
@@ -808,28 +912,36 @@ class ChatActivity : AppCompatActivity() {
             if (msg != null) {
                 if (msg.bookName.isNotBlank()) currentBookName = msg.bookName
                 if (msg.conversationId.isNotBlank()) {
+                    // Mode consistency check for scroll-to-message
+                    val msgMode = ChatConversationMode.modeOf(msg.conversationId)
+                    val requestedMode = ChatConversationMode.fromActivityMode(chatMode)
+                    if (msgMode != requestedMode) {
+                        // Message belongs to different mode — create new conversation
+                        currentConversationId = newConversationId()
+                        return
+                    }
                     currentConversationId = msg.conversationId
                     return
                 }
             }
         }
 
-        val latest = db.chatMessageDao().getLatestConversationIdByBook(currentBookName).orEmpty()
-        currentConversationId = if (
-            latest.isNotBlank() &&
-            ChatConversationMode.modeOf(latest) == entryConversationMode
-        ) {
-            latest
-        } else {
-            newConversationId()
+        // Use mode-specific query to find the latest conversation.
+        // Both use GLOB which treats '_' as literal (unlike LIKE).
+        val currentMode = ChatConversationMode.fromActivityMode(chatMode)
+        val latest = when (currentMode) {
+            ChatConversationMode.AGENT -> {
+                db.chatMessageDao().getLatestAgentConversationIdByBook(currentBookName).orEmpty()
+            }
+            ChatConversationMode.ACCOUNTING -> {
+                db.chatMessageDao().getLatestAccountingConversationIdByBook(currentBookName).orEmpty()
+            }
         }
+        currentConversationId = if (latest.isNotBlank()) latest else newConversationId()
     }
 
     private fun newConversationId(): String {
-        val mode = currentConversationId
-            .takeIf { it.isNotBlank() }
-            ?.let { ChatConversationMode.modeOf(it) }
-            ?: entryConversationMode
+        val mode = ChatConversationMode.fromActivityMode(chatMode)
         return ChatConversationMode.createId(mode)
     }
 
@@ -838,8 +950,13 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun updateConversationSubtitle() {
-        val modelName = Prefs.getAiChatModel(this).ifEmpty { "跟随主文本模型" }
-        tvAiModel.text = modelName
+        val preset = AiProviderRegistry.resolvePreset(this)
+        val effectiveModel = AiModelSlots.resolveChatModel(this)
+        tvAiModel.text = if (AiModelSlots.isChatFollowingMainText(this)) {
+            getString(R.string.ai_chat_model_subtitle_follow_main_fmt, preset.displayName, effectiveModel)
+        } else {
+            getString(R.string.ai_chat_model_subtitle_custom_fmt, preset.displayName, effectiveModel)
+        }
     }
 
     private fun showSessionPanel() {
@@ -891,7 +1008,6 @@ class ChatActivity : AppCompatActivity() {
                 appendAiTextMessage(getString(R.string.voice_too_long), isLoading = false)
                 return@launch
             }
-            val added = appendUserVoiceMessage(copiedFile, durationSec, "")
             val loadingIdx = appendAiTextMessage(getString(R.string.transcribing_voice), isLoading = true)
             val transcript = withContext(Dispatchers.IO) {
                 transcribeVoiceToTextWithFallback(copiedFile)
@@ -916,18 +1032,37 @@ class ChatActivity : AppCompatActivity() {
                 appendAiTextMessage(getString(R.string.voice_not_clear), isLoading = false)
                 return@launch
             }
-            callAiAccounting(
-                userText = transcript,
-                appendUserBubble = false,
-                forceTextReply = true,
-                loadingIdxOverride = loadingIdx,
-                loadingBootstrapText = "正在理解你的消息..."
-            )
+            if (chatMode == MODE_AGENT && Prefs.isAiAgentEnabled(this@ChatActivity)) {
+                // Agent mode: fetch history snapshot BEFORE saving voice message.
+                // This ensures the current voice message is NOT in the snapshot,
+                // and we avoid any race condition or text-matching dedup.
+                val historySnapshot = withContext(Dispatchers.IO) {
+                    db.chatMessageDao().getRecentMessages(
+                        currentBookName, currentConversationId, 80
+                    )
+                }
+                // Save ONE voice message with transcript. This is the ONLY user DB record.
+                appendUserVoiceMessage(copiedFile, durationSec, transcript)
+                removeLoadingMessage(loadingIdx)
+                // Process through Agent with the pre-fetched snapshot.
+                // persistUserMessage=false inside — no additional text message is saved.
+                messagePipeline.processAgentTextWithSnapshot(transcript, historySnapshot)
+            } else {
+                // Accounting mode: save voice message, then process through accounting pipeline
+                appendUserVoiceMessage(copiedFile, durationSec, "")
+                callAiAccounting(
+                    userText = transcript,
+                    appendUserBubble = false,
+                    forceTextReply = true,
+                    loadingIdxOverride = loadingIdx,
+                    loadingBootstrapText = "正在理解你的消息..."
+                )
+            }
         }
     }
 
     private fun currentChatModelSupportsDirectAudioInput(): Boolean {
-        val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiMultiModel(this) }
+        val model = AiModelSlots.resolveChatModel(this)
         return Prefs.getAiChatModelAudioSupport(this, model) == true
     }
 
@@ -1063,7 +1198,7 @@ class ChatActivity : AppCompatActivity() {
         msgType == MSG_TYPE_USER_TEXT || msgType == MSG_TYPE_USER_IMAGE || msgType == MSG_TYPE_USER_VOICE
 
     private fun ensureModelAudioSupportProbed() {
-        val model = Prefs.getAiChatModel(this).ifBlank { Prefs.getAiMultiModel(this) }
+        val model = AiModelSlots.resolveChatModel(this)
         if (Prefs.getAiChatModelAudioSupport(this, model) != null || audioSupportProbeJob?.isActive == true) {
             refreshVoiceSupportHint()
             return
@@ -1087,7 +1222,149 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun sendText() {
-        messagePipeline.sendText()
+        val text = etInput.text?.toString().orEmpty().trim()
+        val images = pendingImages.toList()
+        val agentEnabled = Prefs.isAiAgentEnabled(this)
+
+        if (text.isEmpty() && images.isEmpty()) {
+            messagePipeline.sendText()  // Pipeline handles the empty-toast
+            return
+        }
+
+        if (images.isEmpty()) {
+            messagePipeline.sendText()
+            return
+        }
+
+        etInput.setText("")
+        pendingImages.clear()
+        updatePendingImagePreview()
+        if (chatMode == MODE_AGENT && agentEnabled) {
+            dispatchImagesToAgent(images, text)
+        } else {
+            dispatchToAccounting(text, images)
+        }
+    }
+
+    /**
+     * Route [text] + [images] to the accounting pipeline.
+     */
+    private fun dispatchToAccounting(text: String, images: List<PendingImage>) {
+        if (images.isNotEmpty()) {
+            val useDraft = Prefs.isReceiptImageDraftConfirmEnabled(this)
+            val payload = ChatImageComposer.encodeMultiImagePayload(images, text, useDraft)
+            images.forEach { img ->
+                appendUserMessage("", MSG_TYPE_USER_IMAGE, img.uri?.toString().orEmpty())
+            }
+            if (text.isNotBlank()) {
+                appendUserMessage(text, MSG_TYPE_USER_TEXT)
+            }
+            messagePipeline.callAiAccounting(payload, appendUserBubble = false)
+        } else {
+            messagePipeline.callAiAccounting(text)
+        }
+    }
+
+    /**
+     * Send the original images and optional text to the unified multimodal Agent.
+     */
+    private fun dispatchImagesToAgent(images: List<PendingImage>, text: String) {
+        lifecycleScope.launch {
+            // Fetch snapshot BEFORE saving — so current messages are excluded
+            val snapshot = withContext(Dispatchers.IO) {
+                db.chatMessageDao().getRecentMessages(
+                    currentBookName, currentConversationId, 80
+                )
+            }
+            // Show image bubbles
+            images.forEach { img ->
+                appendUserMessage("", MSG_TYPE_USER_IMAGE, img.uri?.toString().orEmpty())
+            }
+            if (text.isNotBlank()) {
+                appendUserMessage(text, MSG_TYPE_USER_TEXT)
+            }
+            messagePipeline.processAgentMultimodalWithSnapshot(text, images, snapshot)
+        }
+    }
+
+    private fun onImageReady(uri: Uri, base64: String, mime: String) {
+        if (ChatImageComposer.isAtLimit(pendingImages.size)) {
+            Utils.toast(this, "最多选择 ${ChatImageComposer.MAX_PENDING_IMAGES} 张图片")
+            return
+        }
+        pendingImages.add(PendingImage(uri, base64, mime))
+        updatePendingImagePreview()
+    }
+
+    private fun updatePendingImagePreview() {
+        if (!::containerPendingImages.isInitialized || !::layoutPendingImages.isInitialized) return
+
+        containerPendingImages.removeAllViews()
+
+        if (pendingImages.isEmpty()) {
+            layoutPendingImages.visibility = View.GONE
+            updateAgentEmptyState()
+            return
+        }
+
+        layoutPendingImages.visibility = View.VISIBLE
+        tvPendingImageCount.text = "已选择 ${pendingImages.size} 张图片"
+        updateAgentEmptyState()
+
+        val density = resources.displayMetrics.density
+        val size = (68 * density).toInt()
+        val margin = (4 * density).toInt()
+        val removeBtnSize = (22 * density).toInt()
+
+        pendingImages.forEachIndexed { index, img ->
+            val frameLayout = FrameLayout(this).apply {
+                background = androidx.core.content.ContextCompat.getDrawable(
+                    this@ChatActivity,
+                    R.drawable.bg_chat_image_thumb
+                )
+                clipToOutline = true
+                setPadding(margin, margin, margin, margin)
+                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                    setMargins(margin, 0, margin, 0)
+                }
+            }
+            val imageView = ImageView(this).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                scaleType = ImageView.ScaleType.CENTER_CROP
+            }
+            Glide.with(this)
+                .load(img.uri)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                .skipMemoryCache(true)
+                .centerCrop()
+                .into(imageView)
+            frameLayout.addView(imageView)
+
+            val removeBtn = TextView(this).apply {
+                layoutParams = FrameLayout.LayoutParams(removeBtnSize, removeBtnSize).apply {
+                    gravity = android.view.Gravity.TOP or android.view.Gravity.END
+                }
+                text = "×"
+                textSize = 12f
+                setTextColor(Color.WHITE)
+                gravity = android.view.Gravity.CENTER
+                setBackgroundResource(R.drawable.bg_chat_attachment_remove)
+                contentDescription = "移除第 ${index + 1} 张图片"
+                setOnClickListener { removePendingImage(index) }
+            }
+            frameLayout.addView(removeBtn)
+            containerPendingImages.addView(frameLayout)
+        }
+    }
+
+    private fun removePendingImage(index: Int) {
+        if (index in pendingImages.indices) {
+            pendingImages.removeAt(index)
+            updatePendingImagePreview()
+        }
     }
 
     private fun callAiAccounting(
@@ -1663,6 +1940,7 @@ class ChatActivity : AppCompatActivity() {
 
     private fun appendUserMessage(text: String, type: Int, imageUri: String = "") {
         messagePersistenceController.appendUserMessage(text, type, imageUri)
+        updateAgentEmptyState()
     }
 
     private fun appendUserVoiceMessage(audioFile: File, durationSec: Int, transcript: String): ChatDisplayItem {

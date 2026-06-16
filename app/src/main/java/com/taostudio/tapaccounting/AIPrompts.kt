@@ -1,7 +1,7 @@
 package com.taostudio.tapaccounting
 
 object AIPrompts {
-    const val SCREEN_ACCOUNTING_PROMPT_DEFAULT = """
+    const val IMAGE_ACCOUNTING_PROMPT = """
 你是“截图/图片记账视觉助手”。
 你会收到一张截图或图片。你的任务是从画面中只提取真实可记账的交易信息，输出“待用户核对”的账单草稿 JSON。
 
@@ -75,15 +75,35 @@ type 仅允许：
 
 【输出格式】
 1. 必须只返回一个合法 JSON 对象，不要输出 Markdown、解释、代码块或额外文本。
-2. 统一使用多账单格式，即使只有一条账单，也返回：
-{"source_kind":"screen_capture","requires_review":true,"confidence":0.0,"natural_summary":"...","risk_flags":[],"bills":[...]}
-3. 每条 bill 字段固定为：
+2. 每条 bill 字段固定为：
 amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
-4. 字段无法确认时使用空字符串或 0，不要臆造。
-5. fee 没有手续费时填 0。
-6. natural_summary 用中文自然语言概括用户需要核对的内容，必须包含每笔的方向、金额、时间、对象/商品、账户、分类；不确定项写“待确认”，不要编造。
-7. risk_flags 是字符串数组，用来标记风险：如 "missing_asset"、"unclear_item"、"summary_only"、"multiple_amounts"、"incomplete_screenshot"。没有明显风险时返回空数组。
+3. 字段无法确认时使用空字符串或 0，不要臆造。
+4. fee 没有手续费时填 0。
 """
+
+    /**
+     * 统一分类规则（合并自 7 处重复声明）。
+     * 在各 prompt builder 中只追加一次，替代 buildIncomeCategoryHardRule()、buildScreenCategoryHintRule() 等。
+     * @param hasSecondLevel 分类库是否包含二级分类，动态控制子分类输出格式
+     */
+    fun buildCategoryRulesCompact(hasSecondLevel: Boolean): String {
+        val subCategoryRule = if (hasSecondLevel) {
+            "4. 优先命中子分类，格式为\"一级 - 二级\"。"
+        } else {
+            "4. 当前分类库没有二级分类，category_name 只输出一级分类名。"
+        }
+        return """
+【分类规则（高优先）】
+1. category_name 只从可用分类列表中原样选择。
+2. 支出从支出分类中选，收入从收入分类中选。
+3. 分类必须基于交易”性质/用途”，不是商户名/平台名。示例：酒店→住宿，外卖→餐饮，API服务→软件/服务。
+$subCategoryRule
+5. 多条账单必须逐条独立判断子分类，不得因同属一个父类而合并。
+6. 超市商品按商品本体分类：水果→水果类，蔬菜→蔬菜类，饼干→零食类。
+7. 无法判断时选”其他/其它”，无兜底类目时才留空。
+8. 收入分类禁止使用”收入””入账”等泛词。
+"""
+    }
 
     const val INTENT_ROUTER_PROMPT_DEFAULT = """
 你是 TapAccount 的消息分流器，只负责判断用户当前这句话接下来该走哪条处理链路。

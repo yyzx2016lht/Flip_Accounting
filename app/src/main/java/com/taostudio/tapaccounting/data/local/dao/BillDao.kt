@@ -343,6 +343,38 @@ interface BillDao {
     @Query("DELETE FROM bills")
     suspend fun deleteAll()
 
+    /**
+     * 去重查询：判断是否存在相同账单（时间+金额+类型+账户名）
+     * 用于合并恢复时跳过重复账单
+     */
+    @Query("""
+        SELECT COUNT(*) FROM bills
+        WHERE time = :time
+          AND ABS(amount - :amount) < 0.001
+          AND type = :type
+          AND accountName = :accountName
+        LIMIT 1
+    """)
+    suspend fun countDuplicateBills(time: Long, amount: Double, type: Int, accountName: String): Int
+
+    @Query("DELETE FROM bills WHERE time BETWEEN :startTime AND :endTime")
+    suspend fun deleteBillsBetweenTimes(startTime: Long, endTime: Long)
+
+    @Query("DELETE FROM bills WHERE bookName = :bookName AND time BETWEEN :startTime AND :endTime")
+    suspend fun deleteBillsByBookNameBetweenTimes(bookName: String, startTime: Long, endTime: Long)
+
+    @Query("SELECT COUNT(*) FROM bills WHERE time BETWEEN :startTime AND :endTime")
+    suspend fun countBillsBetweenTimes(startTime: Long, endTime: Long): Int
+
+    @Query("SELECT COUNT(*) FROM bills WHERE bookName = :bookName AND time BETWEEN :startTime AND :endTime")
+    suspend fun countBillsByBookNameBetweenTimes(bookName: String, startTime: Long, endTime: Long): Int
+
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM bills WHERE time BETWEEN :startTime AND :endTime")
+    suspend fun sumAmountBetweenTimes(startTime: Long, endTime: Long): Double
+
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM bills WHERE bookName = :bookName AND time BETWEEN :startTime AND :endTime")
+    suspend fun sumAmountByBookNameBetweenTimes(bookName: String, startTime: Long, endTime: Long): Double
+
     /** 更新单条账单的不计入统计状态 */
     @Query("UPDATE bills SET excludeFromStats = :exclude WHERE id = :billId")
     suspend fun updateExcludeStats(billId: Long, exclude: Boolean)

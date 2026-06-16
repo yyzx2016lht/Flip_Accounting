@@ -36,15 +36,16 @@ object ReceiptOcrHelper {
         imageUri: Uri,
         onProgress: (String) -> Unit = {}
     ): String {
-        return analyzeByMultimodal(ctx, imageUri, onProgress)
+        return analyzeByMultimodal(ctx, imageUri, "", onProgress)
     }
 
     suspend fun analyzeImageByMultimodal(
         ctx: Context,
         imageUri: Uri,
+        supplementText: String = "",
         onProgress: (String) -> Unit = {}
     ): String {
-        return analyzeByMultimodal(ctx, imageUri, onProgress)
+        return analyzeByMultimodal(ctx, imageUri, supplementText, onProgress)
     }
 
     /**
@@ -101,6 +102,7 @@ object ReceiptOcrHelper {
     private suspend fun analyzeByMultimodal(
         ctx: Context,
         imageUri: Uri,
+        supplementText: String = "",
         onProgress: (String) -> Unit
     ): String {
         onProgress("正在压缩图片...")
@@ -110,8 +112,7 @@ object ReceiptOcrHelper {
 
         onProgress("正在发送图片给 AI 分析...")
 
-        // 返回 String
-        return AIService.analyzeReceiptByImage(ctx, base64, "image/jpeg")
+        return AIService.analyzeReceiptByImage(ctx, base64, "image/jpeg", supplementText)
     }
 
     /**

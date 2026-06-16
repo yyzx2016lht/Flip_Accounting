@@ -57,13 +57,17 @@ class BillListRecentTool(private val db: AppDatabase) : AgentTool {
         return AgentToolResult.success(
             facts = JSONObject().apply {
                 put("count", bills.size)
+                put("billId", bills.firstOrNull()?.id ?: 0)
                 put("bills", bills.map {
                     JSONObject().apply {
                         put("id", it.id)
                         put("amount", it.amount)
                         put("categoryName", it.categoryName)
+                        put("accountName", it.accountName)
                         put("type", it.type)
                         put("time", it.time)
+                        put("remark", it.remark)
+                        put("currency", it.currency)
                     }
                 })
             },

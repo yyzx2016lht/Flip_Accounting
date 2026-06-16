@@ -53,7 +53,6 @@ class VoiceInputHandler(
     private var pendingLongPressRunnable: Runnable? = null
     private var longPressTriggered = false
     private var isFingerDown = false
-    private var audioSupportProbeInFlight = false
     private var lastRecordingStartError: String? = null
 
     fun setupVoiceButton(btnVoice: View) {
@@ -108,8 +107,6 @@ class VoiceInputHandler(
                         ) { resultJson ->
                             onResult(resultJson)
                         }
-                        maybeProbeCurrentModelAudioSupport()
-
                         val started = try {
                             startRecording()
                         } catch (_: Exception) {
@@ -171,24 +168,6 @@ class VoiceInputHandler(
                         } else {
                             stopRecording { file ->
                                 CoroutineScope(Dispatchers.IO).launch {
-                                    if (currentModelSupportsDirectAudioInput() && file != null) {
-                                        val result = runCatching {
-                                            AIService.analyzeAccountingByAudio(
-                                                ctx = ctx,
-                                                audioFile = file,
-                                                isMultiModeOverride = true
-                                            )
-                                        }.getOrNull()
-
-                                        if (result != null) {
-                                            withContext(Dispatchers.Main) {
-                                                aiAssistant.dismiss()
-                                                onResult(result)
-                                            }
-                                            return@launch
-                                        }
-                                    }
-
                                     val asrMode = Prefs.getAsrMode(ctx)
                                     val text = if (asrMode == Prefs.ASR_MODE_WHISPER) {
                                         val finalResult = LocalAsrService.finishStreaming()
@@ -213,7 +192,7 @@ class VoiceInputHandler(
                                             aiAssistant.showInputPanel(
                                                 defaultText = finalText,
                                                 mode = AiAssistant.MODE_INPUT,
-                                                
+
                                             ) { resultJson ->
                                                 onResult(resultJson)
                                             }
@@ -258,40 +237,7 @@ class VoiceInputHandler(
 
     private fun currentAccountingModel(): String = Prefs.getAiMultiModel(ctx)
 
-    private fun currentModelSupportsDirectAudioInput(): Boolean {
-        if (Prefs.getAsrMode(ctx) == Prefs.ASR_MODE_WHISPER) return false
-        val model = currentAccountingModel()
-        return Prefs.getAiChatModelAudioSupport(ctx, model) == true
-    }
-
-    private fun currentVoiceRecordingHint(): String {
-        val model = currentAccountingModel()
-        return when (Prefs.getAiChatModelAudioSupport(ctx, model)) {
-            true -> "当前模型支持直接语音输入，正在倾听..."
-            false -> "当前模型不支持直接语音输入，将先转成文字"
-            null -> "倾听中..."
-        }
-    }
-
-    private fun maybeProbeCurrentModelAudioSupport() {
-        val model = currentAccountingModel()
-        if (model.isBlank() || Prefs.getAiChatModelAudioSupport(ctx, model) != null || audioSupportProbeInFlight) return
-        audioSupportProbeInFlight = true
-        CoroutineScope(Dispatchers.IO).launch {
-            val support = runCatching { AIService.probeDirectAudioInputSupport(ctx, model) }.getOrDefault(false)
-            Prefs.setAiChatModelAudioSupport(ctx, model, support)
-            audioSupportProbeInFlight = false
-            withContext(Dispatchers.Main) {
-                if (isRecording && !isWannaCancel) {
-                    aiAssistant.showInputPanel(
-                        defaultText = currentVoiceRecordingHint(),
-                        mode = AiAssistant.MODE_RECORDING,
-                        
-                    ) {}
-                }
-            }
-        }
-    }
+    private fun currentVoiceRecordingHint(): String = "正在倾听..."
 
     @SuppressLint("MissingPermission")
     private fun startRecording(): Boolean {

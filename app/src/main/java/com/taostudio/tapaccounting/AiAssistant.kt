@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -207,34 +208,97 @@ class AiAssistant(private val ctx: Context) {
     }
 
     private fun overlayHiddenStreamStatus(): String =
-        if (Prefs.isMultiBillFastMode(ctx)) {
-            "正在整理账单...\n正在提取金额、分类和账户"
+        "正在整理账单...\n正在提取金额、分类和账户"
+
+    private fun buildOverlayStreamingPreview(raw: String, previous: String): String? {
+        return StreamingBillPreview.formatOverlayPreview(raw, previous) { remark, category, amount, currency ->
+            formatOverlayBillPreviewLine(remark, category, amount, currency)
+        }
+    }
+
+    private fun applyOverlayStreamProgress(
+        status: String,
+        streamedRaw: StringBuilder,
+        streamState: OverlayStreamUiState
+    ) {
+        if (status.startsWith("AI_STREAM_TEXT::")) {
+            val delta = status.removePrefix("AI_STREAM_TEXT::")
+            if (delta.isBlank()) return
+            streamState.started = true
+            streamedRaw.append(delta)
+            val candidate = buildOverlayStreamingPreview(streamedRaw.toString(), streamState.lastPreview) ?: return
+            if (!StreamingBillPreview.shouldUpdateUi(streamState.lastPreview, candidate, streamState.lastUpdateMs)) {
+                return
+            }
+            streamState.lastPreview = candidate
+            streamState.lastUpdateMs = android.os.SystemClock.elapsedRealtime()
+            updateLoadingText("正在整理账单...")
+            updateLoadingPreview(candidate)
+            if (!streamState.spinnerHidden) {
+                progressAiLoading?.visibility = View.GONE
+                streamState.spinnerHidden = true
+            }
+            return
+        }
+        if (!StreamingBillPreview.shouldApplyNonStreamProgress(streamState.started)) return
+        updateLoadingText(status)
+    }
+
+    private class OverlayStreamUiState(
+        var started: Boolean = false,
+        var lastPreview: String = "",
+        var lastUpdateMs: Long = 0L,
+        var spinnerHidden: Boolean = false
+    )
+
+    private fun bindLoadingPanelViews(view: View) {
+        tvThinkingLog = view.findViewById(R.id.tv_thinking_log)
+        tvRecordedTextPreview = view.findViewById(R.id.tv_recorded_text_preview)
+        progressAiLoading = view.findViewById(R.id.progress_ai_loading)
+        btnExpandPreview = view.findViewById(R.id.btn_expand_preview)
+        btnStartRecordNow = view.findViewById(R.id.btn_start_record_now)
+    }
+
+    private fun presentAccountingResult(
+        result: JSONObject,
+        sourceText: String,
+        onResult: (JSONObject) -> Unit
+    ) {
+        if (result.has("bills")) {
+            val bills = result.getJSONArray("bills")
+            for (i in 0 until bills.length()) {
+                bills.getJSONObject(i).put("original_text_from_user", sourceText)
+            }
+            if (bills.length() == 1) {
+                dismiss()
+                onResult(bills.getJSONObject(0))
+                return
+            }
+            updateLoadingText("识别完成，共 ${bills.length()} 条")
+            progressAiLoading?.visibility = View.GONE
+            updateLoadingPreview(formatOverlayFinalBillPreview(bills))
+            btnExpandPreview?.apply {
+                visibility = if (bills.length() > 8) View.VISIBLE else View.GONE
+                text = "展开全部"
+                var expanded = false
+                setOnClickListener {
+                    expanded = !expanded
+                    updateLoadingPreview(formatOverlayFinalBillPreview(bills, expanded))
+                    text = if (expanded) "收起" else "展开全部"
+                }
+            }
+            btnStartRecordNow?.apply {
+                visibility = View.VISIBLE
+                setOnClickListener {
+                    dismiss()
+                    onResult(result)
+                }
+            }
         } else {
-            "正在逐条确认分类...\n稍等一下，结果马上出来"
+            result.put("original_text_from_user", sourceText)
+            dismiss()
+            onResult(result)
         }
-
-    private fun formatOverlayStreamingBillPreview(raw: String): String? {
-        val compact = raw.replace("\n", "")
-        val objects = Regex("\\{[^{}]*\\}").findAll(compact).map { it.value }.toList()
-        if (objects.isEmpty()) return null
-
-        val lines = mutableListOf<String>()
-        for (obj in objects) {
-            val remark = extractJsonString(obj, "remarks")
-                ?: extractJsonString(obj, "remark")
-                ?: continue
-            val category = extractJsonString(obj, "category_name").orEmpty()
-            val amount = extractJsonNumber(obj, "amount")
-            val currency = extractJsonString(obj, "currency").orEmpty()
-            lines += formatOverlayBillPreviewLine(
-                remark = remark,
-                category = category,
-                amount = amount,
-                currency = currency
-            )
-            if (lines.size >= 6) break
-        }
-        return lines.takeIf { it.isNotEmpty() }?.joinToString("\n")
     }
 
     private fun formatOverlayFinalBillPreview(bills: JSONArray, expanded: Boolean = false): String {
@@ -294,18 +358,6 @@ class AiAssistant(private val ctx: Context) {
         return "$symbol$value"
     }
 
-    private fun extractJsonString(obj: String, key: String): String? {
-        val escapedKey = Regex.escape(key)
-        val regex = Regex("\"$escapedKey\"\\s*:\\s*\"([^\"]*)\"")
-        return regex.find(obj)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
-    }
-
-    private fun extractJsonNumber(obj: String, key: String): Double? {
-        val escapedKey = Regex.escape(key)
-        val regex = Regex("\"$escapedKey\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)")
-        return regex.find(obj)?.groupValues?.getOrNull(1)?.toDoubleOrNull()
-    }
-
     private fun startAnalysis(
         text: String,
         isMultiMode: Boolean?,
@@ -315,19 +367,19 @@ class AiAssistant(private val ctx: Context) {
     ) {
         analyzeJob?.cancel()
         val hideStream = currentHideStreamText
-        val streamedRaw = StringBuilder()
         analyzeJob = CoroutineScope(Dispatchers.IO).launch {
             try {
+                val streamState = OverlayStreamUiState()
+                val streamedRaw = StringBuilder()
                 val result = AIService.analyzeAccounting(ctx, text, isMultiMode, onProgress = { status ->
                     Handler(Looper.getMainLooper()).post {
                         if (currentDialog?.isShowing == true) {
-                            if (hideStream && status.startsWith("AI_STREAM_TEXT::")) {
-                                streamedRaw.append(status.removePrefix("AI_STREAM_TEXT::"))
-                                val preview = formatOverlayStreamingBillPreview(streamedRaw.toString())
-                                updateLoadingText(
-                                    if (preview.isNullOrBlank()) overlayHiddenStreamStatus() else "正在整理账单..."
-                                )
-                                updateLoadingPreview(preview)
+                            if (hideStream) {
+                                if (status.startsWith("AI_STREAM_TEXT::")) {
+                                    applyOverlayStreamProgress(status, streamedRaw, streamState)
+                                } else if (!streamState.started) {
+                                    updateLoadingText(overlayHiddenStreamStatus())
+                                }
                             } else {
                                 updateLoadingText(status)
                             }
@@ -355,35 +407,9 @@ class AiAssistant(private val ctx: Context) {
                         for (i in 0 until bills.length()) {
                             bills.getJSONObject(i).put("original_text_from_user", text)
                         }
-                        if (bills.length() == 1) {
-                            // 单条账单直接填入表单，无需确认
-                            dismiss()
-                            onResult(bills.getJSONObject(0))
-                        } else {
-                            updateLoadingText("识别完成，共 ${bills.length()} 条")
-                            progressAiLoading?.visibility = View.GONE
-                            updateLoadingPreview(formatOverlayFinalBillPreview(bills))
-                            btnExpandPreview?.apply {
-                                visibility = if (bills.length() > 8) View.VISIBLE else View.GONE
-                                this.text = "展开全部"
-                                var expanded = false
-                                setOnClickListener {
-                                    expanded = !expanded
-                                    updateLoadingPreview(formatOverlayFinalBillPreview(bills, expanded))
-                                    this.text = if (expanded) "收起" else "展开全部"
-                                }
-                            }
-                            btnStartRecordNow?.apply {
-                                visibility = View.VISIBLE
-                                setOnClickListener {
-                                    dismiss()
-                                    onResult(result)
-                                }
-                            }
-                        }
+                        presentAccountingResult(result, text, onResult)
                     } else {
                         result.put("original_text_from_user", text)
-                        // 单条账单直接填入表单，无需确认
                         dismiss()
                         onResult(result)
                     }
@@ -558,28 +584,175 @@ class AiAssistant(private val ctx: Context) {
         if (!ensureOverlayPermission()) return
         lastReceiptImageUri = imageUri
 
-        analyzeImageMultimodal(imageUri, onResult)
+        val needSupplement = Prefs.isReceiptImageDraftConfirmEnabled(ctx)
+        val naturalLanguage = Prefs.isImageAccountingNaturalLanguage(ctx)
+
+        if (needSupplement) {
+            // 先弹出补充输入框，用户输入补充文本后再进行图片记账
+            showSupplementInput(imageUri, naturalLanguage, onResult)
+        } else {
+            dispatchImageAccounting(imageUri, supplementText = "", naturalLanguage, onResult)
+        }
     }
 
-    private fun analyzeImageMultimodal(imageUri: Uri, onResult: (JSONObject) -> Unit) {
+    /**
+     * 弹出补充输入框，用户输入补充文本后分发到对应的图片记账路径。
+     */
+    private fun showSupplementInput(
+        imageUri: Uri,
+        naturalLanguage: Boolean,
+        onResult: (JSONObject) -> Unit
+    ) {
+        val (dialog, view) = createDialog(cancelable = true)
+        currentDialog = dialog
+
+        val layoutInput = view.findViewById<View>(R.id.layout_input)
+        val layoutLoading = view.findViewById<View>(R.id.layout_loading)
+        val layoutResult = view.findViewById<View>(R.id.layout_result)
+        val btnClose = view.findViewById<View>(R.id.btn_close)
+        val etInput = view.findViewById<EditText>(R.id.et_ai_input)
+        val btnIdentify = view.findViewById<TextView>(R.id.btn_dialog_identify)
+
+        layoutInput.visibility = View.VISIBLE
+        layoutLoading.visibility = View.GONE
+        layoutResult.visibility = View.GONE
+        btnClose.visibility = View.VISIBLE
+        tvRecordedTextPreview?.visibility = View.GONE
+        btnStartRecordNow?.visibility = View.GONE
+        btnExpandPreview?.visibility = View.GONE
+
+        etInput.hint = "补充信息（可选，如支付方式、时间等）"
+        etInput.setText("")
+        btnIdentify.text = "开始识别"
+        btnIdentify.setOnClickListener {
+            val supplement = etInput.text.toString().trim()
+            dispatchImageAccounting(imageUri, supplement, naturalLanguage, onResult)
+        }
+        btnClose.setOnClickListener { dismiss() }
+
+        dialog.show()
+    }
+
+    /**
+     * 根据输出模式分发到对应的图片记账路径。
+     */
+    private fun dispatchImageAccounting(
+        imageUri: Uri,
+        supplementText: String,
+        naturalLanguage: Boolean,
+        onResult: (JSONObject) -> Unit
+    ) {
+        if (naturalLanguage) {
+            analyzeImageNaturalLanguage(imageUri, supplementText, onResult)
+        } else {
+            analyzeImageDirect(imageUri, supplementText, onResult)
+        }
+    }
+
+    private fun analyzeImageDirect(imageUri: Uri, supplementText: String, onResult: (JSONObject) -> Unit) {
         if (!ensureOverlayPermission()) return
         lastReceiptImageUri = imageUri
 
         val (dialog, view) = createDialog(cancelable = false)
         currentDialog = dialog
+        bindLoadingPanelViews(view)
+        currentHideStreamText = true
 
         val etInput = view.findViewById<EditText>(R.id.et_ai_input)
         disableSelectionActionModeIfService(etInput)
         view.findViewById<View>(R.id.btn_dialog_voice)?.let { voiceInputBtnSetup?.invoke(it) }
 
-        tvThinkingLog = view.findViewById(R.id.tv_thinking_log)
-        tvRecordedTextPreview = view.findViewById(R.id.tv_recorded_text_preview)
+        view.findViewById<View>(R.id.layout_input)?.visibility = View.GONE
+        view.findViewById<View>(R.id.layout_loading)?.visibility = View.VISIBLE
+        view.findViewById<View>(R.id.layout_result)?.visibility = View.GONE
+        view.findViewById<View>(R.id.btn_close)?.visibility = View.VISIBLE
+        tvRecordedTextPreview?.visibility = View.GONE
+        btnStartRecordNow?.visibility = View.GONE
+        btnExpandPreview?.visibility = View.GONE
+        progressAiLoading?.visibility = View.VISIBLE
+        tvThinkingLog?.text = "正在直接从图片生成账单..."
+        tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
+        dialog.setCancelable(true)
+
+        view.findViewById<View>(R.id.btn_close)?.setOnClickListener {
+            analyzeJob?.cancel()
+            dismiss()
+        }
+
+        analyzeJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val payload = ReceiptImageInputHelper.readImagePayload(ctx, imageUri)
+                    ?: throw IllegalArgumentException("无法读取图片")
+                val streamedRaw = StringBuilder()
+                val streamState = OverlayStreamUiState()
+                withContext(Dispatchers.Main) {
+                    updateLoadingText("正在分析图片中的交易...")
+                }
+                val result = AIService.analyzeScreenAccountingByImage(
+                    ctx = ctx,
+                    imageBase64 = payload.base64,
+                    mimeType = payload.mime,
+                    sourceKind = "receipt_image",
+                    supplementText = supplementText,
+                    onProgress = { status ->
+                        Handler(Looper.getMainLooper()).post {
+                            if (currentDialog?.isShowing != true) return@post
+                            if (status.startsWith("AI_STREAM_TEXT::")) {
+                                applyOverlayStreamProgress(status, streamedRaw, streamState)
+                            } else if (!streamState.started) {
+                                updateLoadingText("正在分析图片中的交易...")
+                            }
+                        }
+                    }
+                )
+                withContext(Dispatchers.Main) {
+                    if (result == null) {
+                        Utils.toast(ctx, "识别失败：AI 返回内容无法解析")
+                        dismiss()
+                        return@withContext
+                    }
+                    if (result.optBoolean("no_bill", false)) {
+                        Utils.toast(ctx, result.optString("reply", "未识别到可记账内容"))
+                        dismiss()
+                        return@withContext
+                    }
+                    presentAccountingResult(result, supplementText, onResult)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                withContext(Dispatchers.Main) {
+                    dismiss()
+                    Utils.toast(ctx, "已取消")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    dismiss()
+                    Utils.toast(ctx, "图片解析失败，请换一张更清晰的图片再试")
+                }
+            }
+        }
+    }
+
+    private fun analyzeImageNaturalLanguage(imageUri: Uri, supplementText: String, onResult: (JSONObject) -> Unit) {
+        if (!ensureOverlayPermission()) return
+        lastReceiptImageUri = imageUri
+
+        val (dialog, view) = createDialog(cancelable = false)
+        currentDialog = dialog
+        bindLoadingPanelViews(view)
+
+        val etInput = view.findViewById<EditText>(R.id.et_ai_input)
+        disableSelectionActionModeIfService(etInput)
+        view.findViewById<View>(R.id.btn_dialog_voice)?.let { voiceInputBtnSetup?.invoke(it) }
 
         view.findViewById<View>(R.id.layout_input)?.visibility = View.GONE
         view.findViewById<View>(R.id.layout_loading)?.visibility = View.VISIBLE
         view.findViewById<View>(R.id.layout_result)?.visibility = View.GONE
         view.findViewById<View>(R.id.btn_close)?.visibility = View.GONE
         tvRecordedTextPreview?.visibility = View.GONE
+        btnStartRecordNow?.visibility = View.GONE
+        btnExpandPreview?.visibility = View.GONE
+        progressAiLoading?.visibility = View.VISIBLE
         tvThinkingLog?.text = "正在发送图片给视觉模型..."
         tvThinkingLog?.setTextColor(android.graphics.Color.parseColor("#7B61FF"))
 
@@ -590,13 +763,13 @@ class AiAssistant(private val ctx: Context) {
 
         analyzeJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                val summary = ReceiptOcrHelper.analyzeImageByMultimodal(ctx, imageUri) { progressMsg ->
+                val summary = ReceiptOcrHelper.analyzeImageByMultimodal(ctx, imageUri, supplementText) { progressMsg ->
                     Handler(Looper.getMainLooper()).post {
                         tvThinkingLog?.text = progressMsg
                     }
                 }
                 withContext(Dispatchers.Main) {
-                    showReceiptSummary(summary, onResult)
+                    showReceiptSummary(summary, supplementText, onResult)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
@@ -619,7 +792,7 @@ class AiAssistant(private val ctx: Context) {
             try {
                 val summary = AIService.analyzeReceiptByOcrText(ctx, ocrText)
                 withContext(Dispatchers.Main) {
-                    showReceiptSummary(summary, onResult)
+                    showReceiptSummary(summary, "", onResult)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
@@ -642,7 +815,7 @@ class AiAssistant(private val ctx: Context) {
         }
     }
 
-    private fun showReceiptSummary(summary: String, onResult: (JSONObject) -> Unit) {
+    private fun showReceiptSummary(summary: String, supplementText: String, onResult: (JSONObject) -> Unit) {
         val dialog = currentDialog ?: return
         val view = dialog.findViewById<View>(android.R.id.content) ?: return
 
@@ -658,8 +831,9 @@ class AiAssistant(private val ctx: Context) {
         btnClose.visibility = View.VISIBLE
         dialog.setCancelable(true)
 
-        etInput.setText(summary)
-        etInput.setSelection(summary.length)
+        val mergedSummary = ReceiptImageInputHelper.mergeSupplementWithSummary(summary, supplementText)
+        etInput.setText(mergedSummary)
+        etInput.setSelection(mergedSummary.length)
         etInput.hint = "请核对小票内容，可补充时间、账户等信息"
 
         btnIdentify.text = "生成账单"
@@ -669,13 +843,18 @@ class AiAssistant(private val ctx: Context) {
                 Utils.toast(ctx, "请输入内容")
                 return@setOnClickListener
             }
+            bindLoadingPanelViews(view)
             updatePanelState(MODE_LOADING, "正在生成结构化账单...")
+            val accountingInput = ReceiptImageInputHelper.buildAccountingInputFromImageDraft(
+                text,
+                supplementText
+            )
             startAnalysis(
-                text = text,
+                text = accountingInput,
                 isMultiMode = true,
                 onResult = onResult,
                 visualReviewSource = "receipt_image",
-                visualDraftText = text
+                visualDraftText = accountingInput
             )
         }
 
@@ -704,7 +883,7 @@ class AiAssistant(private val ctx: Context) {
                     }
                 }
                 withContext(Dispatchers.Main) {
-                    showReceiptSummary(summary, onResult)
+                    showReceiptSummary(summary, "", onResult)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 withContext(Dispatchers.Main) {
@@ -847,4 +1026,3 @@ class AiAssistant(private val ctx: Context) {
         return false
     }
 }
-

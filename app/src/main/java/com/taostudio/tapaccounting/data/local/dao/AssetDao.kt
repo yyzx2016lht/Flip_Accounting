@@ -60,6 +60,18 @@ interface AssetDao {
     suspend fun updateBalance(assetId: Long, newBalance: Double)
 
     @Query("""
+        UPDATE assets
+        SET showBillBalanceAfter = :showBillBalanceAfter,
+            billBalanceFromTime = :billBalanceFromTime
+        WHERE id = :assetId
+    """)
+    suspend fun updateBillBalanceDisplay(
+        assetId: Long,
+        showBillBalanceAfter: Boolean,
+        billBalanceFromTime: Long
+    )
+
+    @Query("""
         UPDATE assets SET
             name = :name,
             type = :type,
@@ -113,11 +125,30 @@ interface AssetDao {
 
     @Query("""
         UPDATE assets
-        SET isArchived = :archived,
-            includeInNetAsset = CASE WHEN :archived THEN 0 ELSE includeInNetAsset END
+        SET isArchived = 1,
+            includeInNetBeforeArchive = :includeBeforeArchive,
+            includeInNetAsset = 0
         WHERE id = :assetId
     """)
-    suspend fun updateArchived(assetId: Long, archived: Boolean)
+    suspend fun archiveAsset(assetId: Long, includeBeforeArchive: Boolean)
+
+    @Query("""
+        UPDATE assets
+        SET isArchived = 0,
+            includeInNetAsset = includeInNetBeforeArchive
+        WHERE id = :assetId
+    """)
+    suspend fun unarchiveAsset(assetId: Long)
+
+    @Transaction
+    suspend fun updateArchived(assetId: Long, archived: Boolean) {
+        val asset = getAssetById(assetId) ?: return
+        if (archived) {
+            archiveAsset(assetId, asset.includeInNetAsset)
+        } else {
+            unarchiveAsset(assetId)
+        }
+    }
 
     /** 获取指定类别中最大的 sortOrder，若该类别无资产则返回 null */
     @Query("SELECT MAX(sortOrder) FROM assets WHERE assetCategory = :category")

@@ -32,7 +32,7 @@
         android:layout_marginTop="12dp"
         android:background="@drawable/bg_model_search_field"
         android:gravity="top|start"
-        android:hint="例如：像可爱的记账搭子，控制在1-2句话，可带一点颜文字，不要太吵，也不要复读账单内容。"
+        android:hint="@string/reply_style_custom_hint"
         android:inputType="textMultiLine|textCapSentences"
         android:padding="12dp"
         android:textColor="#25344A"

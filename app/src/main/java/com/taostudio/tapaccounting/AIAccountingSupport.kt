@@ -397,7 +397,7 @@ internal fun normalizeCategoryPath(input: String): String {
         .replace('–', '-')
         .replace(CATEGORY_SEPARATOR_REGEX, "/::/")
         .replace(Regex("(/::/)+"), "/::/")
-        .trim { it == '/' || it == ':' || it.isWhitespace() }
+        .trim { it == '/' || it.isWhitespace() }
 }
 
 internal fun categoryLeafToken(value: String): String =

@@ -1,6 +1,7 @@
 package com.taostudio.tapaccounting.chat.agent
 
 object AgentToolRegistry {
+    private const val LOG_TAG = "AgentToolRegistry"
     private val tools = mutableMapOf<String, AgentTool>()
 
     fun register(tool: AgentTool) {

@@ -39,7 +39,8 @@ class ChatMediaController(
     private val showPageCenterDialog: (AlertDialog, Float) -> Unit,
     private val updateConversationSubtitle: () -> Unit,
     private val appendUserMessage: (String, Int, String) -> Unit,
-    private val callAiAccounting: (String, Boolean) -> Unit,
+    /** Called when a picked image is ready: (storedUri, base64, mime). */
+    private val onImageReady: (Uri, String, String) -> Unit,
     private val appendAiTextMessage: (String, Boolean) -> Unit,
     private val reqPickImage: Int,
     private val reqPickBg: Int,
@@ -101,9 +102,17 @@ class ChatMediaController(
         showPageCenterDialog(dialog, 0.88f)
     }
 
-    fun pickImage() {
+    fun pickImages() {
         if (!ensureAiImageFeatureEnabled()) return
-        context.startActivityForResult(Intent(Intent.ACTION_PICK).apply { type = "image/*" }, reqPickImage)
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "image/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }
+        context.startActivityForResult(
+            Intent.createChooser(intent, "选择图片（可多选）"),
+            reqPickImage
+        )
     }
 
     fun pickBgImage() {
@@ -185,8 +194,15 @@ class ChatMediaController(
 
         when (requestCode) {
             reqPickImage -> {
-                val uri = data?.data ?: return true
-                handlePickedImage(uri)
+                val uris = buildList {
+                    data?.clipData?.let { clip ->
+                        for (index in 0 until clip.itemCount) {
+                            add(clip.getItemAt(index).uri)
+                        }
+                    }
+                    data?.data?.let { if (!contains(it)) add(it) }
+                }
+                uris.forEach(::handlePickedImage)
                 return true
             }
             reqPickBg -> {
@@ -403,6 +419,12 @@ class ChatMediaController(
         }
     }
 
+    /**
+     * Pick-image result handler.
+     * Copies the image to app storage, compresses if necessary, then hands the
+     * encoded image to [onImageReady] — the Activity decides whether it becomes
+     * an accounting payload or stays as pending composer state.
+     */
     private fun handlePickedImage(uri: Uri) {
         lifecycleScope.launch {
             try {
@@ -427,10 +449,7 @@ class ChatMediaController(
                     )
                 }
                 if (base64.isBlank()) return@launch
-                appendUserMessage("", msgTypeUserImage, storedUri.toString())
-
-                val text = "[MULTIMODAL_IMAGE]$base64|$mime"
-                callAiAccounting(text, false)
+                onImageReady(storedUri, base64, mime)
             } catch (e: Exception) {
                 appendAiTextMessage("图片处理失败，请稍后重试或换一张更清晰的图片。", false)
             }
@@ -466,4 +485,3 @@ class ChatMediaController(
         return Uri.fromFile(outFile)
     }
 }
-

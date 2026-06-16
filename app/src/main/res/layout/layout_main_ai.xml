@@ -53,6 +53,53 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="@string/ai_provider_current_label"
+                android:textColor="@color/brand_primary"
+                android:textSize="@dimen/settings_section_title_size"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"
+                android:layout_marginStart="4dp"/>
+
+            <LinearLayout
+                android:id="@+id/layout_provider_selector"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_ai_input_modern"
+                android:padding="@dimen/card_padding"
+                android:layout_marginBottom="@dimen/settings_card_margin_bottom"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:id="@+id/tv_current_provider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_16"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_provider_capabilities"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="#667085"
+                    android:textSize="@dimen/text_size_12" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/ai_provider_change"
+                    android:textColor="#5C6BC0"
+                    android:textSize="@dimen/text_size_12"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="API 设置"
                 android:textColor="@color/brand_primary"
                 android:textSize="@dimen/settings_section_title_size"
@@ -103,7 +150,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="当前接口为固定地址，刷新后会同步可选模型列表。"
+                    android:text="测试连接会刷新当前提供商的模型列表。"
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11" />
             </LinearLayout>
@@ -111,7 +158,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                    android:text="@string/ai_core_model"
+                    android:text="@string/ai_service_config_btn"
                 android:textColor="@color/brand_primary"
                 android:textSize="@dimen/settings_section_title_size"
                 android:textStyle="bold"
@@ -142,6 +189,34 @@
                     android:textColor="#999999"
                     android:textSize="@dimen/text_size_11"
                     android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_manual_model_selection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ai_manual_model_selection"
+                    android:textColor="#333333"
+                    android:textSize="@dimen/text_size_13"
+                    android:layout_marginBottom="2dp" />
+
+                <TextView
+                    android:id="@+id/tv_manual_model_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ai_manual_model_selection_hint"
+                    android:textColor="#999999"
+                    android:textSize="@dimen/text_size_11"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tv_default_model_readonly_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="@string/ai_default_model_readonly_hint"
+                    android:textColor="#999999"
+                    android:textSize="@dimen/text_size_11"
+                    android:visibility="gone" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -401,6 +476,18 @@
                         android:src="@android:drawable/arrow_down_float"
                         android:alpha="0.5" />
                 </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_restore_default_models"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_gravity="end"
+                    android:text="@string/ai_restore_default_models"
+                    android:textSize="@dimen/text_size_11"
+                    android:textColor="#757575"
+                    app:strokeColor="#DDDDDD"
+                    android:visibility="gone"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_reset_prompt"

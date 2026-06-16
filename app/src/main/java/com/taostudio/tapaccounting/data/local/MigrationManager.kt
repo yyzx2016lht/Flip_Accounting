@@ -17,6 +17,7 @@ object MigrationManager {
 
     private const val PREF_KEY_MIGRATED = "has_migrated_to_room"
     private const val PREF_KEY_CATEGORY_NAME_NORMALIZED = "has_normalized_category_name_storage_v2"
+    private const val PREF_KEY_BALANCE_SNAPSHOT_BACKFILLED = "balance_snapshot_backfilled_v1"
 
     internal fun normalizeLegacyBillTypeAndSubtype(legacyType: Int): Pair<Int, Int> {
         return when (legacyType) {
@@ -116,6 +117,17 @@ object MigrationManager {
         }
 
         normalizeStoredCategoryNamesIfNeeded(context, database)
+        backfillBalanceSnapshotsIfNeeded(context, database)
+    }
+
+    private suspend fun backfillBalanceSnapshotsIfNeeded(context: Context, @Suppress("UNUSED_PARAMETER") database: AppDatabase) {
+        val sharedPrefs = context.getSharedPreferences("flip_prefs", Context.MODE_PRIVATE)
+        if (sharedPrefs.getBoolean(PREF_KEY_BALANCE_SNAPSHOT_BACKFILLED, false)) {
+            return
+        }
+        // Asset detail shows balances derived from current balance + bills (not DB snapshot columns).
+        sharedPrefs.edit().putBoolean(PREF_KEY_BALANCE_SNAPSHOT_BACKFILLED, true).apply()
+        Log.d("Migration", "balance snapshot backfill skipped (display uses backward derivation)")
     }
 
     private suspend fun normalizeStoredCategoryNamesIfNeeded(context: Context, database: AppDatabase) {

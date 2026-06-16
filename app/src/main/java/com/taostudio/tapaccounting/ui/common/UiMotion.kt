@@ -44,6 +44,9 @@ object UiMotion {
     /** Emphasised easing (same curve as standard, kept separate for clarity). */
     val EMPHASISED_EASING = PathInterpolator(0.2f, 0f, 0f, 1f)
 
+    /** Overshoot easing for drawer page transitions – slight bounce at end. */
+    val OVERSHOOT_EASING = PathInterpolator(0.34f, 1.2f, 0.64f, 1f)
+
     // ── View extension helpers ──────────────────────────────────────
 
     /**

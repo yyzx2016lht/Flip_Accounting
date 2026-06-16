@@ -29,24 +29,9 @@ class AgentConfirmationTest {
     }
 
     @Test
-    fun `simple single amount bill does not require extra agent confirmation`() {
-        assertFalse(AgentConfirmationController.requiresBillCreateConfirmation("西瓜14"))
-        assertFalse(AgentConfirmationController.requiresBillCreateConfirmation("午饭35.50元"))
-    }
-
-    @Test
-    fun `multiple amounts require confirmation`() {
-        assertTrue(AgentConfirmationController.requiresBillCreateConfirmation("西瓜14，牛奶8"))
-    }
-
-    @Test
-    fun `bill text amount detection rejects missing amount`() {
-        assertFalse(
-            com.taostudio.tapaccounting.chat.agent.tool.BillCreateFromTextTool.containsAmount("买了西瓜")
-        )
-        assertTrue(
-            com.taostudio.tapaccounting.chat.agent.tool.BillCreateFromTextTool.containsAmount("买了西瓜14元")
-        )
+    fun `DESTRUCTIVE tool always requires confirmation`() {
+        val tool = createBillDeleteTool()
+        assertTrue(AgentConfirmationController.shouldConfirm(tool, org.json.JSONObject()))
     }
 
     @Test

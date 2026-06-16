@@ -5,6 +5,7 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.chat.agent.AgentTool
 import com.taostudio.tapaccounting.chat.agent.AgentToolResult
 import com.taostudio.tapaccounting.chat.agent.AgentSessionContext
+import com.taostudio.tapaccounting.chat.agent.AgentValidationResult
 import com.taostudio.tapaccounting.chat.agent.RiskLevel
 import org.json.JSONObject
 
@@ -25,6 +26,40 @@ class PrefSetTool(private val context: Context) : AgentTool {
             })
         })
         put("required", org.json.JSONArray().apply { put("key"); put("value") })
+    }
+
+    private val whitelistKeys = setOf(
+        "show_ai_text", "show_ai_voice", "show_ai_image", "show_screen_accounting",
+        "multi_bill_enabled", "vibrate_feedback", "logging_enabled"
+    )
+
+    private val booleanKeys = setOf(
+        "show_ai_text", "show_ai_voice", "show_ai_image", "show_screen_accounting",
+        "multi_bill_enabled", "vibrate_feedback", "logging_enabled"
+    )
+
+    override suspend fun validate(params: JSONObject, context: AgentSessionContext): AgentValidationResult {
+        val key = params.optString("key", "").trim().lowercase()
+        if (key.isEmpty()) {
+            return AgentValidationResult.invalidParams("请指定设置项名称", listOf("key"))
+        }
+
+        if (key !in whitelistKeys) {
+            return AgentValidationResult.permissionRequired(
+                "不支持修改的设置项: $key，可修改的设置项: ${whitelistKeys.joinToString(", ")}"
+            )
+        }
+
+        val value = params.opt("value")
+        if (value == null) {
+            return AgentValidationResult.invalidParams("请提供设置项的值", listOf("value"))
+        }
+
+        if (key in booleanKeys && value !is Boolean) {
+            return AgentValidationResult.invalidParams("设置项 $key 需要布尔值 (true/false)", listOf("value"))
+        }
+
+        return AgentValidationResult.success()
     }
 
     override suspend fun execute(params: JSONObject, context: AgentSessionContext): AgentToolResult {
@@ -55,7 +90,6 @@ class PrefSetTool(private val context: Context) : AgentTool {
             "show_ai_image" -> Prefs.setShowAiImage(context, value as Boolean)
             "show_screen_accounting" -> Prefs.setShowScreenAccounting(context, value as Boolean)
             "multi_bill_enabled" -> Prefs.setMultiBillEnabled(context, value as Boolean)
-            "multi_bill_fast_mode" -> Prefs.setMultiBillFastMode(context, value as Boolean)
             "vibrate_feedback" -> Prefs.setVibrateFeedbackEnabled(context, value as Boolean)
             "logging_enabled" -> Prefs.setLoggingEnabled(context, value as Boolean)
             else -> throw IllegalArgumentException("不支持修改的设置项: $key")

@@ -303,11 +303,13 @@ class MainActivity : AppCompatActivity() {
                 false
             } else {
             val home = curFragment() as? HomeFragment
+            val assets = curFragment() as? AssetsFragment
             val nextIdx = findAdjacentVisibleTabIndex(dir)
             when {
                 // If on Stats page and touch is on PieChart, let PieChart handle the gesture
                 currentTabIndex == 1 && isSwipeTouchOnPieChart(rawX, rawY) -> false
                 home?.isBookDrawerOpen() == true -> false
+                assets?.isAssetDrawerOpen() == true -> false
                 currentTabIndex == 0 && dir < 0 -> {
                     val loc = IntArray(2).also { swipeContainer.getLocationOnScreen(it) }
                     val localDownX = rawX - loc[0]
@@ -392,8 +394,15 @@ class MainActivity : AppCompatActivity() {
             if (Prefs.getAiEntryMode(this) == Prefs.AI_ENTRY_MODE_CHAT) {
                 startActivity(
                     Intent(this, ChatActivity::class.java)
-                        .putExtra(ChatActivity.EXTRA_SOURCE_BOOK, BookAccountManager.getSelectedBook(this))
-                        .putExtra(ChatActivity.EXTRA_CHAT_MODE, ChatActivity.MODE_AGENT)
+                        .putExtra(
+                            ChatActivity.EXTRA_SOURCE_BOOK,
+                            BookAccountManager.getSelectedBook(this)
+                        )
+                        .putExtra(
+                            ChatActivity.EXTRA_MODE,
+                            if (Prefs.isAiAgentEnabled(this)) ChatActivity.MODE_AGENT
+                            else ChatActivity.MODE_ACCOUNTING
+                        )
                 )
             } else {
                 showAddBillBottomSheet()
@@ -448,7 +457,11 @@ class MainActivity : AppCompatActivity() {
         val fab = fabApp ?: return
         if (currentTabIndex == 0) {
             val homeVisible = (tabFragments.getOrNull(0) as? HomeFragment)?.shouldShowMainFab() ?: true
-            if (homeVisible) fab.show() else fab.hide()
+            if (homeVisible) {
+                fab.show()
+            } else {
+                fab.hide()
+            }
         } else {
             fab.hide()
         }
@@ -855,6 +868,9 @@ class MainActivity : AppCompatActivity() {
     private fun closeHomeDrawerIfLeaving(targetTabIndex: Int) {
         if (currentTabIndex == 0 && targetTabIndex != 0) {
             (tabFragments.getOrNull(0) as? HomeFragment)?.closeBookDrawerFromHost()
+        }
+        if (currentTabIndex == 2 && targetTabIndex != 2) {
+            (tabFragments.getOrNull(2) as? AssetsFragment)?.closeAssetDrawerFromHost()
         }
     }
 

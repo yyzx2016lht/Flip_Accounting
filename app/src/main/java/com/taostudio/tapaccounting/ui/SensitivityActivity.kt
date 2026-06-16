@@ -30,6 +30,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.taostudio.tapaccounting.AppListActivity
 import com.taostudio.tapaccounting.KeepAliveAccessibilityService
 import com.taostudio.tapaccounting.KeepAliveDiagnostics
 import com.taostudio.tapaccounting.GesturePermissionGuideActivity
@@ -65,15 +66,15 @@ class SensitivityActivity : AppCompatActivity() {
     private lateinit var btnTapModel: View
     private lateinit var layoutTapNnapi: View
     private lateinit var layoutTapLowPower: View
-    private lateinit var dividerBeforeLandscapeDisable: View
-    private lateinit var dividerBeforeHideRecents: View
-    private lateinit var dividerBeforeVibrationFeedback: View
-    private lateinit var dividerBeforeSaveVibrate: View
-    private lateinit var dividerAfterTapAdvancedToggle: View
-    private lateinit var dividerAfterTapModel: View
-    private lateinit var dividerAfterTapNnapi: View
-    private lateinit var dividerAfterTapLowPower: View
-    private lateinit var dividerAfterAccessibilityService: View
+    private lateinit var groupLandscapeDisable: View
+    private lateinit var groupHideRecents: View
+    private lateinit var groupVibrationFeedback: View
+    private lateinit var groupSaveVibrate: View
+    private lateinit var groupTapAdvancedToggle: View
+    private lateinit var groupTapModel: View
+    private lateinit var groupTapNnapi: View
+    private lateinit var groupTapLowPower: View
+    private lateinit var groupNotificationPermission: View
     private lateinit var tvTapAdvancedSummary: TextView
     private lateinit var ivTapAdvancedChevron: ImageView
 
@@ -99,6 +100,10 @@ class SensitivityActivity : AppCompatActivity() {
     private lateinit var switchSaveVibrate: SwitchMaterial
     private lateinit var switchNotificationPermission: SwitchMaterial
     private lateinit var switchHideRecentsBottom: SwitchMaterial
+    private lateinit var groupWhitelist: View
+    private lateinit var switchWhitelistMode: SwitchMaterial
+    private lateinit var btnManageWhitelist: View
+    private var ignoreWhitelistToggle = false
     private var tapAdvancedExpanded = false
     private var isUpdatingHideRecentsSwitch = false
     private val tapRestartHandler = Handler(Looper.getMainLooper())
@@ -138,22 +143,26 @@ class SensitivityActivity : AppCompatActivity() {
         btnTapModel = findViewById(R.id.btn_tap_model)
         layoutTapNnapi = findViewById(R.id.layout_tap_nnapi)
         layoutTapLowPower = findViewById(R.id.layout_tap_low_power)
-        dividerBeforeLandscapeDisable = findViewById(R.id.divider_before_landscape_disable)
-        dividerBeforeHideRecents = findViewById(R.id.divider_before_hide_recents)
-        dividerBeforeVibrationFeedback = findViewById(R.id.divider_before_vibration_feedback)
-        dividerBeforeSaveVibrate = findViewById(R.id.divider_before_save_vibrate)
-        dividerAfterTapAdvancedToggle = findViewById(R.id.divider_after_tap_advanced_toggle)
-        dividerAfterTapModel = findViewById(R.id.divider_after_tap_model)
-        dividerAfterTapNnapi = findViewById(R.id.divider_after_tap_nnapi)
-        dividerAfterTapLowPower = findViewById(R.id.divider_after_tap_low_power)
-        dividerAfterAccessibilityService = findViewById(R.id.divider_after_accessibility_service)
+        groupLandscapeDisable = findViewById(R.id.group_landscape_disable)
+        groupHideRecents = findViewById(R.id.group_hide_recents)
+        groupVibrationFeedback = findViewById(R.id.group_vibration_feedback)
+        groupSaveVibrate = findViewById(R.id.group_save_vibrate)
+        groupTapAdvancedToggle = findViewById(R.id.group_tap_advanced_toggle)
+        groupTapModel = findViewById(R.id.group_tap_model)
+        groupTapNnapi = findViewById(R.id.group_tap_nnapi)
+        groupTapLowPower = findViewById(R.id.group_tap_low_power)
+        groupNotificationPermission = findViewById(R.id.group_notification_permission)
         tvTapAdvancedSummary = findViewById(R.id.tv_tap_advanced_summary)
         ivTapAdvancedChevron = findViewById(R.id.iv_tap_advanced_chevron)
+        groupWhitelist = findViewById(R.id.group_whitelist)
+        switchWhitelistMode = findViewById(R.id.switch_whitelist_mode)
+        btnManageWhitelist = findViewById(R.id.btn_manage_whitelist)
 
         initGestureSwitches()
         initFlipViews()
         initTapViews()
         initTapOptions()
+        initWhitelistSettings()
         initKeepAliveSettings()
 
         // 让包含开关的整行都可点击
@@ -255,16 +264,19 @@ class SensitivityActivity : AppCompatActivity() {
         cardTapOptions.visibility = if (tapEnabled) View.VISIBLE else View.GONE
         cardKeepAlive.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
 
-        rowLandscapeDisable.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
-        dividerBeforeLandscapeDisable.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
-        rowHideRecents.visibility = View.GONE
-        dividerBeforeHideRecents.visibility = View.GONE
+        groupLandscapeDisable.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
+        groupHideRecents.visibility = View.GONE
         rowHideRecentsBottom.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
-        dividerAfterAccessibilityService.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
-        rowVibrationFeedback.visibility = if (tapEnabled) View.VISIBLE else View.GONE
-        dividerBeforeVibrationFeedback.visibility = if (tapEnabled) View.VISIBLE else View.GONE
-        rowSaveVibrate.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
-        dividerBeforeSaveVibrate.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
+        groupNotificationPermission.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
+        groupVibrationFeedback.visibility = if (tapEnabled) View.VISIBLE else View.GONE
+        groupSaveVibrate.visibility = if (anyGestureEnabled) View.VISIBLE else View.GONE
+        updateWhitelistVisibility()
+    }
+
+    private fun updateWhitelistVisibility() {
+        val anyGestureEnabled = Prefs.isFlipEnabled(this) || Prefs.isDoubleTapEnabled(this)
+        val shizukuReady = Prefs.isShizukuModeEnabled(this)
+        groupWhitelist.visibility = if (anyGestureEnabled && shizukuReady) View.VISIBLE else View.GONE
     }
 
     private fun syncHideRecentsSwitches(enabled: Boolean) {
@@ -290,7 +302,8 @@ class SensitivityActivity : AppCompatActivity() {
             R.id.switch_hide_recents_bottom,
             R.id.switch_vibration_feedback,
             R.id.switch_save_vibrate,
-            R.id.switch_notification_permission
+            R.id.switch_notification_permission,
+            R.id.switch_whitelist_mode
         )
         for (tid in toggleIds) {
             val sw = findViewById<CompoundButton>(tid) ?: continue
@@ -569,6 +582,53 @@ class SensitivityActivity : AppCompatActivity() {
         }
     }
 
+    private fun initWhitelistSettings() {
+        val layoutWhitelistManage = findViewById<View>(R.id.layout_whitelist_manage)
+
+        switchWhitelistMode.isChecked = false
+        switchWhitelistMode.setOnCheckedChangeListener { _, isChecked ->
+            if (ignoreWhitelistToggle) return@setOnCheckedChangeListener
+            if (!Prefs.isShizukuModeEnabled(this)) {
+                ignoreWhitelistToggle = true
+                switchWhitelistMode.post {
+                    switchWhitelistMode.isChecked = false
+                    ignoreWhitelistToggle = false
+                }
+                layoutWhitelistManage.visibility = View.GONE
+                Toast.makeText(this, "请先在设置中开启 Shizuku 模式", Toast.LENGTH_SHORT).show()
+                return@setOnCheckedChangeListener
+            }
+            if (isChecked && !ShizukuSafe.isReady(this)) {
+                ignoreWhitelistToggle = true
+                switchWhitelistMode.post {
+                    switchWhitelistMode.isChecked = false
+                    ignoreWhitelistToggle = false
+                }
+                layoutWhitelistManage.visibility = View.GONE
+                Toast.makeText(this, "白名单模式需要先完成 Shizuku 授权", Toast.LENGTH_SHORT).show()
+                OverlayDialogs.showShizukuPrompt(this)
+                return@setOnCheckedChangeListener
+            }
+            layoutWhitelistManage.visibility = if (isChecked) View.VISIBLE else View.GONE
+            restartTapDetection()
+            Toast.makeText(this, if (isChecked) "已开启白名单模式" else "已恢复全局模式", Toast.LENGTH_SHORT).show()
+        }
+
+        btnManageWhitelist.setOnClickListener {
+            if (!ShizukuSafe.isBinderAlive()) {
+                Toast.makeText(this, "请先完成 Shizuku 授权", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (!ShizukuSafe.hasPermission(this)) {
+                ShizukuSafe.requestPermission(this, 101)
+            } else {
+                startActivity(Intent(this, AppListActivity::class.java))
+            }
+        }
+
+        updateWhitelistVisibility()
+    }
+
     private fun initKeepAliveSettings() {
         findViewById<View>(R.id.btn_gesture_permission_guide)?.setOnClickListener {
             startActivity(Intent(this, GesturePermissionGuideActivity::class.java))
@@ -625,6 +685,16 @@ class SensitivityActivity : AppCompatActivity() {
         (btnAccessibility as? MaterialButton)?.text = if (isEnabled) "已开启" else "去开启"
 
         refreshNotificationStatus()
+        refreshWhitelistUi()
+    }
+
+    private fun refreshWhitelistUi() {
+        if (!::groupWhitelist.isInitialized) return
+        val shizukuEnabled = Prefs.isShizukuModeEnabled(this)
+        val whitelistVisible = shizukuEnabled
+        groupWhitelist.visibility = if (whitelistVisible) View.VISIBLE else View.GONE
+        btnManageWhitelist.visibility =
+            if (whitelistVisible && switchWhitelistMode.isChecked) View.VISIBLE else View.GONE
     }
 
     override fun onRequestPermissionsResult(
@@ -730,13 +800,9 @@ class SensitivityActivity : AppCompatActivity() {
 
     private fun updateTapAdvancedVisibility() {
         val visibility = if (tapAdvancedExpanded) View.VISIBLE else View.GONE
-        btnTapModel.visibility = visibility
-        layoutTapNnapi.visibility = visibility
-        layoutTapLowPower.visibility = visibility
-        dividerAfterTapAdvancedToggle.visibility = visibility
-        dividerAfterTapModel.visibility = visibility
-        dividerAfterTapNnapi.visibility = visibility
-        dividerAfterTapLowPower.visibility = visibility
+        groupTapModel.visibility = visibility
+        groupTapNnapi.visibility = visibility
+        groupTapLowPower.visibility = visibility
         tvTapAdvancedSummary.text = if (tapAdvancedExpanded) {
             "已展开模型、功耗和推理参数"
         } else {

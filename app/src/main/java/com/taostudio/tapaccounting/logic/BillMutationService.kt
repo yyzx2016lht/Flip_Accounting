@@ -60,7 +60,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "insert:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, accountId=${savedBill.accountId}, toAccountId=${savedBill.toAccountId}")
             auditBill("insert", savedBill)
-            savedBill
+            db.billDao().getBillById(savedBill.id) ?: savedBill
         }
     }
 
@@ -83,7 +83,7 @@ object BillMutationService {
         }
         logFull("BILL_MUTATION", "insertTx:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}")
         auditBill("insert_tx", savedBill)
-        return savedBill
+        return db.billDao().getBillById(savedBill.id) ?: savedBill
     }
 
     suspend fun upsertBillAndApplyImpact(
@@ -170,7 +170,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "replace:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, category=${savedBill.categoryName}")
             auditBill("replace", savedBill)
-            savedBill
+            db.billDao().getBillById(savedBill.id) ?: savedBill
         }
     }
 
@@ -248,7 +248,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "refund:done refundId=${savedRefundBill.id}, sourceId=${latestOriginal.id}, refundAmount=${savedRefundBill.amount}, sourceCurrentAmount=${newActualExpense}")
             auditBill("refund", savedRefundBill)
-            savedRefundBill
+            db.billDao().getBillById(savedRefundBill.id) ?: savedRefundBill
         }
     }
 

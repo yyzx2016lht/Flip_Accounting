@@ -33,22 +33,42 @@
     <string name="ai_feature_title">AI 功能</string>
     <string name="ai_feature_unconfigured">AI 智能记账未配置</string>
     <string name="ai_feature_unconfigured_hint">点击配置密钥，开启一句话记账、语音记账等 AI 能力</string>
-    <string name="ai_detailed_accounting_desc">识别更细，但耗时更长、消耗更多额度。</string>
     <string name="ai_voice_accounting">语音记账</string>
     <string name="ai_image_accounting">图片记账</string>
     <string name="ai_screen_accounting">截屏记账</string>
     <string name="ai_voice_accounting_desc">开启后可通过语音快速生成账单。</string>
     <string name="ai_image_accounting_desc">开启后可从小票或图片中识别账单信息。</string>
+    <string name="receipt_image_draft_confirm">图片记账补充输入</string>
+    <string name="receipt_image_draft_confirm_desc">发送图片前可补充信息</string>
+    <string name="image_accounting_natural_language">图片记账自然语言模式</string>
+    <string name="image_accounting_natural_language_desc">先返回清单供核对，再生成账单</string>
+    <string name="receipt_image_supplement_title">补充图片信息</string>
+    <string name="receipt_image_supplement_hint">补充支付方式、时间等信息（可选）</string>
+    <string name="reply_style_custom_hint">如：可爱搭子，1-2句话，可带颜文字</string>
+    <string name="receipt_image_supplement_placeholder">例如：微信支付 / 招商银行储蓄卡</string>
+    <string name="receipt_image_supplement_confirm">开始识别</string>
     <string name="ai_screen_accounting_desc">开启后可通过敲击背板截屏识别账单。</string>
     <string name="ai_screen_accounting_perm_hint">需开启无障碍服务或 Shizuku 授权才能使用截屏记账。</string>
     <string name="ai_feature_entry_title">启用 AI 功能</string>
     <string name="ai_feature_entry_desc">入口显示由设置中心控制，此处仅展示能力项。</string>
-    <string name="ai_chat_entry">AI 对话页面</string>
-    <string name="ai_chat_entry_desc">首页"+"可直接进入 AI 对话记账。</string>
+    <string name="ai_chat_entry">使用 AI 对话</string>
+    <string name="ai_chat_entry_desc">"+"进入 AI 对话，关闭则使用传统记账</string>
+    <string name="ai_agent_entry">启用 Agent 功能</string>
+    <string name="ai_agent_entry_desc">开启后可闲聊、查统计、操作账单</string>
     <string name="ai_accounting_entry">记账页增加 AI 入口</string>
     <string name="ai_accounting_entry_desc">在传统记账弹窗底部显示切换入口。</string>
-    <string name="ai_llm_router">大模型路由</string>
-    <string name="ai_llm_router_desc">关闭后仅区分"记账/闲聊"。</string>
+
+    <!-- Agent 模式 -->
+    <string name="agent_mode_title">AI 助手</string>
+    <string name="chat_mode_accounting">记账</string>
+    <string name="chat_mode_agent">助手</string>
+    <string name="chat_mode_once_accounting">本条记账</string>
+    <string name="chat_model_button">模型</string>
+    <string name="accounting_chat_input_hint">记一笔…</string>
+    <string name="unified_ai_input_hint">记账、问问题或发图片</string>
+    <string name="agent_input_hint">记账、问问题或发图片</string>
+    <string name="agent_empty_hint">试试对我说：</string>
+    <string name="agent_empty_examples">• 午饭花了 35 元\n• 看看这张图片里有什么\n• 本月餐饮花了多少\n• 把上一笔改成交通</string>
 
     <!-- 设置中心 -->
     <string name="settings_category_subtitle">管理分类、子分类和显示顺序</string>
@@ -64,7 +84,7 @@
     <string name="api_key">API Key</string>
     <string name="input_api_key_hint">输入您的 API Key</string>
     <string name="ai_core_model">AI 服务配置</string>
-    <string name="ai_core_model_description">包含 API Key、主文本模型、视觉模型、在线语音模型，以及相关识别与思考开关。</string>
+    <string name="ai_core_model_description">API Key 与模型配置</string>
     <string name="test_connection">刷新并测试连接</string>
     <string name="save_all_config">保存所有配置</string>
     <string name="asr_online">云端识别</string>
@@ -85,6 +105,18 @@
     <string name="save_btn">保存</string>
     <string name="cancel_btn">取消</string>
     <string name="confirm_btn">确认</string>
+    <string name="asset_amount_mode_converted_cny">折算人民币</string>
+    <string name="asset_amount_mode_sheet_title">资产金额显示</string>
+    <string name="asset_amount_mode_convert_group">全部折算为</string>
+    <string name="asset_amount_mode_native_group">只看原币种</string>
+    <string name="asset_amount_mode_empty_title">暂无 %1$s 资产</string>
+    <string name="asset_amount_mode_empty_hint">切换显示模式，或添加一笔 %1$s 资产</string>
+    <string name="asset_bill_balance_toolbar">余额</string>
+    <string name="asset_bill_balance_sheet_title">账单余额显示</string>
+    <string name="asset_bill_balance_sheet_hint">在账单列表显示交易后余额</string>
+    <string name="asset_bill_balance_show_switch">显示每笔交易后余额</string>
+    <string name="asset_bill_balance_from_date">起始日期</string>
+    <string name="asset_bill_balance_reset_create">恢复为资产创建日</string>
     <string name="accounting_rules_btn">记账规则</string>
     <string name="screen_accounting_enabled">已开启截屏记账</string>
     <string name="screen_accounting_disabled">已关闭截屏记账</string>
@@ -130,33 +162,34 @@
 
     <!-- AI 配置引导 -->
     <string name="ai_key_dialog_title">配置 AI 智能记账</string>
-    <string name="ai_key_dialog_hint">输入硅基流动 API Key（sk- 开头），即可使用 AI 一句话记账、语音记账等功能。\n\n普通用户只需填这里，高级模型配置入口默认隐藏。</string>
+    <string name="ai_key_dialog_hint">选择 API 提供商并填写密钥，即可使用 AI 一句话记账等功能。</string>
     <string name="ai_key_warning_title">AI 智能记账未配置</string>
-    <string name="ai_key_warning_desc">点击配置密钥，开启一句话记账、语音记账等 AI 能力</string>
+    <string name="ai_key_warning_desc">点击选择提供商并配置 API Key</string>
     <string name="ai_key_how_to_get">如何获取？前往 siliconflow.cn 注册即可免费获得密钥。</string>
-
-    <!-- 资产账单余额显示 -->
-    <string name="asset_bill_balance_sheet_title">资产账单余额</string>
-    <string name="asset_bill_balance_sheet_hint">选择是否在资产页面显示账单余额信息</string>
-    <string name="asset_bill_balance_show_switch">显示账单余额</string>
-    <string name="asset_bill_balance_from_date">起始日期</string>
-    <string name="asset_bill_balance_reset_create">重置为创建日期</string>
-
-    <!-- 小票图片补充 -->
-    <string name="receipt_image_supplement_title">补充小票信息</string>
-    <string name="receipt_image_supplement_hint">如果小票信息识别不完整，请补充说明</string>
-    <string name="receipt_image_supplement_placeholder">请输入补充信息…</string>
-    <string name="receipt_image_supplement_confirm">确认</string>
-
-    <!-- AI 服务商配置 -->
-    <string name="ai_provider_setup_hint">选择服务商并填写 API Key</string>
-    <string name="ai_provider_setup_title">配置 AI 服务商</string>
-    <string name="ai_provider_setup_success_fmt">配置成功，已加载 %d 个模型</string>
-    <string name="ai_provider_setup_success_no_models">配置成功</string>
-    <string name="ai_provider_get_key_fmt">前往 %s 获取 Key</string>
-    <string name="ai_provider_open_link_failed">无法打开链接</string>
-    <string name="ai_provider_testing">测试连接中…</string>
-    <string name="ai_provider_auth_failed_fmt">%s 认证失败，请检查 API Key</string>
-    <string name="ai_provider_network_failed">网络连接失败，请检查网络</string>
-    <string name="ai_provider_test_failed">测试连接失败</string>
+    <string name="ai_service_config_btn">AI 服务配置</string>
+    <string name="ai_provider_setup_title">配置 AI 服务</string>
+    <string name="ai_provider_setup_hint">请选择 API 提供商并填写密钥。保存前会自动测试连接并加载可用模型。</string>
+    <string name="ai_provider_testing">正在测试…</string>
+    <string name="ai_provider_setup_success_fmt">配置成功，已加载 %1$d 个可用模型</string>
+    <string name="ai_provider_setup_success_no_models">配置成功，连接正常（未返回模型列表）</string>
+    <string name="ai_provider_auth_failed_fmt">认证失败：请检查 %1$s API Key</string>
+    <string name="ai_provider_network_failed">连接超时，请检查网络后重试</string>
+    <string name="ai_provider_test_failed">连接失败，请稍后重试</string>
+    <string name="ai_provider_get_key_fmt">前往 %1$s 官网获取 API Key</string>
+    <string name="ai_provider_open_link_failed">无法打开浏览器，请稍后重试</string>
+    <string name="ai_provider_current_label">API 提供商</string>
+    <string name="ai_provider_change">更换提供商</string>
+    <string name="ai_manual_model_selection">自主选择模型</string>
+    <string name="ai_manual_model_selection_hint">关闭时使用当前提供商的默认模型；开启后可自行挑选。</string>
+    <string name="ai_manual_model_disclaimer_title">确认开启自主选择模型？</string>
+    <string name="ai_manual_model_disclaimer_message">自行选择的模型可能与当前功能不匹配，导致记账、识图或语音识别异常；相关兼容性问题需要自行排查。\n\n建议优先使用默认模型。</string>
+    <string name="ai_restore_default_models">恢复默认模型</string>
+    <string name="ai_default_models_restored">已恢复为当前提供商的默认模型</string>
+    <string name="ai_default_model_readonly_hint">当前使用提供商默认模型（只读）</string>
+    <string name="ai_capability_not_supported_fmt">当前提供商（%1$s）不支持%2$s，请更换提供商或使用本地语音模型。</string>
+    <string name="ai_capability_vision">图片/截屏识别</string>
+    <string name="ai_capability_speech">云端语音转写</string>
+    <string name="ai_chat_model_follow_main_fmt">跟随主文本（%1$s）</string>
+    <string name="ai_chat_model_subtitle_follow_main_fmt">%1$s · %2$s</string>
+    <string name="ai_chat_model_subtitle_custom_fmt">%1$s · 聊天 %2$s</string>
 </resources>

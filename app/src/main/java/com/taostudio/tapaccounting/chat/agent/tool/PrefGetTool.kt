@@ -55,7 +55,6 @@ class PrefGetTool(private val context: Context) : AgentTool {
             "show_ai_image" -> Prefs.isShowAiImage(context)
             "show_screen_accounting" -> Prefs.isShowScreenAccounting(context)
             "multi_bill_enabled" -> Prefs.isMultiBillEnabled(context)
-            "multi_bill_fast_mode" -> Prefs.isMultiBillFastMode(context)
             "vibrate_feedback" -> Prefs.isVibrateFeedbackEnabled(context)
             "logging_enabled" -> Prefs.isLoggingEnabled(context)
             else -> null

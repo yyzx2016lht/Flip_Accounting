@@ -23,7 +23,7 @@ import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
 
 @Database(
     entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class, DeletedBill::class],
-    version = 21,
+    version = 24,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -260,12 +260,70 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_20_21 = object : Migration(20, 21) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Asset: billBalanceFromTime, showBillBalanceAfter
-                database.execSQL("ALTER TABLE assets ADD COLUMN billBalanceFromTime INTEGER NOT NULL DEFAULT 0")
-                database.execSQL("ALTER TABLE assets ADD COLUMN showBillBalanceAfter INTEGER NOT NULL DEFAULT 0")
-                // Bill: accountBalanceAfter, toAccountBalanceAfter (nullable)
+                // Asset columns (may already exist if user ran the v21 build previously)
+                try {
+                    database.execSQL("ALTER TABLE assets ADD COLUMN billBalanceFromTime INTEGER NOT NULL DEFAULT 0")
+                } catch (_: Exception) { /* column already exists */ }
+                try {
+                    database.execSQL("ALTER TABLE assets ADD COLUMN showBillBalanceAfter INTEGER NOT NULL DEFAULT 0")
+                } catch (_: Exception) { /* column already exists */ }
+                // Bill columns
                 database.execSQL("ALTER TABLE bills ADD COLUMN accountBalanceAfter REAL")
                 database.execSQL("ALTER TABLE bills ADD COLUMN toAccountBalanceAfter REAL")
+            }
+        }
+
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Fix default: showBillBalanceAfter should be 1 (true) for existing assets
+                database.execSQL("UPDATE assets SET showBillBalanceAfter = 1 WHERE showBillBalanceAfter = 0")
+                // Backfill billBalanceFromTime from createTime
+                database.execSQL(
+                    "UPDATE assets SET billBalanceFromTime = createTime WHERE billBalanceFromTime = 0"
+                )
+            }
+        }
+
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE assets ADD COLUMN includeInNetBeforeArchive INTEGER NOT NULL DEFAULT 1"
+                )
+                database.execSQL(
+                    "UPDATE assets SET includeInNetBeforeArchive = includeInNetAsset WHERE isArchived = 0"
+                )
+                // Archived rows already have includeInNetAsset=0 from archive; default restore to included.
+                database.execSQL(
+                    "UPDATE assets SET includeInNetBeforeArchive = 1 WHERE isArchived = 1"
+                )
+            }
+        }
+
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Fix balances start date that was copied from a too-new asset.createTime.
+                database.execSQL(
+                    """
+                    UPDATE assets
+                    SET billBalanceFromTime = (
+                        SELECT MIN(b.time)
+                        FROM bills b
+                        WHERE b.accountId = assets.id
+                           OR b.toAccountId = assets.id
+                           OR (assets.name != '' AND b.accountName = assets.name)
+                           OR (assets.name != '' AND b.toAccountName = assets.name)
+                    )
+                    WHERE billBalanceFromTime = createTime
+                      AND createTime > (
+                        SELECT MIN(b.time)
+                        FROM bills b
+                        WHERE b.accountId = assets.id
+                           OR b.toAccountId = assets.id
+                           OR (assets.name != '' AND b.accountName = assets.name)
+                           OR (assets.name != '' AND b.toAccountName = assets.name)
+                      )
+                    """.trimIndent()
+                )
             }
         }
 
@@ -293,7 +351,10 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_17_18,
                         MIGRATION_18_19,
                         MIGRATION_19_20,
-                        MIGRATION_20_21
+                        MIGRATION_20_21,
+                        MIGRATION_21_22,
+                        MIGRATION_22_23,
+                        MIGRATION_23_24
                     )
                     .build()
                 INSTANCE = instance
@@ -302,3 +363,4 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+

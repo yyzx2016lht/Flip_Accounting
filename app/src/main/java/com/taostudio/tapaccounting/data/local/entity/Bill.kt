@@ -48,6 +48,12 @@ data class Bill(
     val remark: String = "",
     val fee: Double = 0.0,
 
+    /** Balance of [accountId] asset immediately after this bill was recorded. */
+    val accountBalanceAfter: Double? = null,
+
+    /** Balance of [toAccountId] asset immediately after this bill was recorded (transfers). */
+    val toAccountBalanceAfter: Double? = null,
+
     // For future multi-book support
     val bookName: String = "日常账本",
 
@@ -57,11 +63,7 @@ data class Bill(
     val isSynced: Boolean = false,
 
     // 是否不计入统计
-    val excludeFromStats: Boolean = false,
-
-    // 资产余额快照
-    val accountBalanceAfter: Double? = null,   // 来源账户余额快照
-    val toAccountBalanceAfter: Double? = null  // 目标账户余额快照
+    val excludeFromStats: Boolean = false
 ) {
     companion object {
         const val TYPE_EXPENSE = 0

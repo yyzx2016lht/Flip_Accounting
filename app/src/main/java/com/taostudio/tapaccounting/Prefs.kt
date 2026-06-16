@@ -94,6 +94,14 @@ object Prefs {
     // --- AI settings ---
     fun getAiKey(ctx: Context): String = PrefsAiSupport.getAiKey(ctx)
     fun setAiKey(ctx: Context, key: String) = PrefsAiSupport.setAiKey(ctx, key)
+    fun getAiProviderKey(ctx: Context, providerId: String): String =
+        PrefsAiSupport.getAiProviderKey(ctx, providerId)
+    fun setAiProviderKey(ctx: Context, providerId: String, apiKey: String) =
+        PrefsAiSupport.setAiProviderKey(ctx, providerId, apiKey)
+    fun exportAiProviderKeysJson(ctx: Context): String =
+        PrefsAiSupport.exportAiProviderKeysJson(ctx)
+    fun importAiProviderKeysFromBackup(ctx: Context, json: String) =
+        PrefsAiSupport.importAiProviderKeysFromBackup(ctx, json)
 
     // Legacy compatibility field. New code should prefer getAiMultiModel().
     fun getAiModel(ctx: Context): String = PrefsAiSupport.getAiModel(ctx)
@@ -170,34 +178,39 @@ object Prefs {
     fun setAiModelsCache(ctx: Context, models: List<String>) =
         PrefsAiSupport.setAiModelsCache(ctx, models)
 
+    fun applyAiProviderConfigSync(
+        ctx: Context,
+        preset: AiProviderPreset,
+        apiKey: String,
+        modelsCache: List<String>? = null
+    ) = PrefsAiSupport.applyAiProviderConfigSync(ctx, preset, apiKey, modelsCache)
+
     fun getAiProvider(ctx: Context): String = PrefsAiSupport.getAiProvider(ctx)
     fun setAiProvider(ctx: Context, value: String) = PrefsAiSupport.setAiProvider(ctx, value)
-    fun getAiProviderKey(ctx: Context, providerId: String): String = PrefsAiSupport.getAiProviderKey(ctx, providerId)
 
     fun getAiUrl(ctx: Context): String = PrefsAiSupport.getAiUrl(ctx)
     fun setAiUrl(ctx: Context, url: String) = PrefsAiSupport.setAiUrl(ctx, url)
 
+    fun isAiConfigured(ctx: Context): Boolean = PrefsAiSupport.isAiConfigured(ctx)
+
     fun isAiManualModelSelectionEnabled(ctx: Context): Boolean =
         PrefsAiSupport.isAiManualModelSelectionEnabled(ctx)
+
     fun setAiManualModelSelectionEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiManualModelSelectionEnabled(ctx, enabled)
 
-    fun isAiChatModelFollowingMain(ctx: Context): Boolean =
-        PrefsAiSupport.isAiChatModelFollowingMain(ctx)
-    fun setAiChatModelFollowingMain(ctx: Context, enabled: Boolean) =
-        PrefsAiSupport.setAiChatModelFollowingMain(ctx, enabled)
-
-    fun resetChatModelOnProviderChange(ctx: Context) =
-        PrefsAiSupport.resetChatModelOnProviderChange(ctx)
-
-    fun applyAiProviderConfigSync(ctx: Context, preset: AiProviderPreset, apiKey: String, modelsCache: List<String>? = null) =
-        PrefsAiSupport.applyAiProviderConfigSync(ctx, preset, apiKey, modelsCache)
-
     fun isReceiptOcrRefineEnabled(ctx: Context): Boolean =
         PrefsAiSupport.isReceiptOcrRefineEnabled(ctx)
-    fun isReceiptImageDraftConfirmEnabled(ctx: Context): Boolean = false // TODO: implement
     fun setReceiptOcrRefineEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setReceiptOcrRefineEnabled(ctx, enabled)
+    fun isReceiptImageDraftConfirmEnabled(ctx: Context): Boolean =
+        PrefsAiSupport.isReceiptImageDraftConfirmEnabled(ctx)
+    fun setReceiptImageDraftConfirmEnabled(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setReceiptImageDraftConfirmEnabled(ctx, enabled)
+    fun isImageAccountingNaturalLanguage(ctx: Context): Boolean =
+        PrefsAiSupport.isImageAccountingNaturalLanguage(ctx)
+    fun setImageAccountingNaturalLanguage(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setImageAccountingNaturalLanguage(ctx, enabled)
     // --- Bill cache management ---
     fun addBill(ctx: Context, bill: Bill) = PrefsDataSupport.addBill(ctx, bill)
 
@@ -223,6 +236,11 @@ object Prefs {
         PrefsGeneralSupport.getExchangeRefreshInterval(ctx)
     fun setExchangeRefreshInterval(ctx: Context, interval: Long) =
         PrefsGeneralSupport.setExchangeRefreshInterval(ctx, interval)
+
+    fun getAssetAmountDisplayMode(ctx: Context): String =
+        PrefsGeneralSupport.getAssetAmountDisplayMode(ctx)
+    fun setAssetAmountDisplayMode(ctx: Context, mode: String) =
+        PrefsGeneralSupport.setAssetAmountDisplayMode(ctx, mode)
 
     // --- Display settings ---
     fun isShowAiText(ctx: Context): Boolean = PrefsDisplaySupport.isShowAiText(ctx)
@@ -256,10 +274,6 @@ object Prefs {
     fun isMultiBillNotSync(ctx: Context): Boolean = PrefsDisplaySupport.isMultiBillNotSync(ctx)
     fun setMultiBillNotSync(ctx: Context, enabled: Boolean) =
         PrefsDisplaySupport.setMultiBillNotSync(ctx, enabled)
-
-    fun isMultiBillFastMode(ctx: Context): Boolean = PrefsDisplaySupport.isMultiBillFastMode(ctx)
-    fun setMultiBillFastMode(ctx: Context, enabled: Boolean) =
-        PrefsDisplaySupport.setMultiBillFastMode(ctx, enabled)
 
     fun isShowBookEntry(ctx: Context): Boolean = PrefsDisplaySupport.isShowBookEntry(ctx)
     fun setShowBookEntry(ctx: Context, show: Boolean) =
@@ -433,6 +447,8 @@ object Prefs {
     /** Accounting entry mode: traditional input or AI chat. */
     fun getAiEntryMode(ctx: Context): Int = PrefsChatSupport.getAiEntryMode(ctx)
     fun setAiEntryMode(ctx: Context, mode: Int) = PrefsChatSupport.setAiEntryMode(ctx, mode)
+    fun isAiAgentEnabled(ctx: Context): Boolean = PrefsChatSupport.isAiAgentEnabled(ctx)
+    fun setAiAgentEnabled(ctx: Context, enabled: Boolean) = PrefsChatSupport.setAiAgentEnabled(ctx, enabled)
 
     fun getAiChatName(ctx: Context): String = PrefsChatSupport.getAiChatName(ctx)
     fun setAiChatName(ctx: Context, name: String) = PrefsChatSupport.setAiChatName(ctx, name)
@@ -458,7 +474,11 @@ object Prefs {
     fun setAiChatBgPath(ctx: Context, path: String) = PrefsChatSupport.setAiChatBgPath(ctx, path)
 
     fun getAiChatModel(ctx: Context): String = PrefsChatSupport.getAiChatModel(ctx)
+    fun isAiChatModelFollowingMain(ctx: Context): Boolean =
+        PrefsChatSupport.isAiChatModelFollowingMain(ctx)
     fun setAiChatModel(ctx: Context, value: String) = PrefsChatSupport.setAiChatModel(ctx, value)
+    fun resetChatModelOnProviderChange(ctx: Context) =
+        PrefsChatSupport.resetChatModelOnProviderChange(ctx)
 
     fun getAiChatReplyStyle(ctx: Context): String = PrefsChatSupport.getAiChatReplyStyle(ctx)
     fun setAiChatReplyStyle(ctx: Context, value: String) =
@@ -482,4 +502,3 @@ object Prefs {
         PrefsBackupSupport.serializeSettingsModules(ctx)
 
 }
-

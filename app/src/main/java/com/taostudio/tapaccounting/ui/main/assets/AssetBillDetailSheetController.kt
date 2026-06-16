@@ -26,6 +26,7 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.logic.BillAssetImpactService
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.ui.activity.EditBillActivity
@@ -326,19 +327,30 @@ internal class AssetBillDetailSheetController(
             }
 
             scope.launch(Dispatchers.IO) {
+                val fromAsset = bill.accountId?.let { db.assetDao().getAssetById(it) }
                 val toAsset = bill.toAccountId?.let { db.assetDao().getAssetById(it) }
-                val toAssetCurrency = toAsset?.currency ?: "CNY"
+                val fromAssetCurrency = fromAsset?.currency?.takeIf { it.isNotEmpty() } ?: bill.currency
+                val toAssetCurrency = toAsset?.currency?.takeIf { it.isNotEmpty() } ?: "CNY"
                 withContext(Dispatchers.Main) {
-                    val sourceCurrency = bill.currency
-                    val isCrossCurrency = !isRepayment && sourceCurrency != toAssetCurrency && bill.exchangeRate != 1.0
+                    val isCrossCurrency = !isRepayment &&
+                        !fromAssetCurrency.equals(toAssetCurrency, ignoreCase = true) &&
+                        bill.exchangeRate != 1.0
                     if (isCrossCurrency) {
                         tvAmountLabel.text = "转出金额"
-                        tvAmount.text = "$symbol${String.format(Locale.getDefault(), "%.2f", displayAmount)}"
+                        val transferOutAmount = if (fromAssetCurrency.equals(bill.currency, ignoreCase = true)) {
+                            bill.amount
+                        } else {
+                            BillAssetImpactService.convertAmountBetweenCurrencies(
+                                bill.amount,
+                                bill.currency,
+                                fromAssetCurrency
+                            )
+                        }
+                        tvAmount.text = BillDisplayFormatter.formatMoney(transferOutAmount, fromAssetCurrency)
                         val targetAmount = bill.amount * bill.exchangeRate
-                        val toSymbol = CurrencyManager.getSymbol(toAssetCurrency)
                         layoutIncoming.visibility = View.VISIBLE
                         lineIncoming.visibility = View.VISIBLE
-                        tvIncomingAmount.text = "$toSymbol${String.format(Locale.getDefault(), "%.2f", targetAmount)}"
+                        tvIncomingAmount.text = BillDisplayFormatter.formatMoney(targetAmount, toAssetCurrency)
                     } else {
                         tvAmountLabel.text = if (isRepayment) "还款金额" else "转账金额"
                         tvAmount.text = "$symbol${String.format(Locale.getDefault(), "%.2f", displayAmount)}"

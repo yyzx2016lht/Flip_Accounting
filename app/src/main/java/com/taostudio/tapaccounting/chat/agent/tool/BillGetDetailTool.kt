@@ -3,6 +3,7 @@ package com.taostudio.tapaccounting.chat.agent.tool
 import com.taostudio.tapaccounting.chat.agent.AgentTool
 import com.taostudio.tapaccounting.chat.agent.AgentToolResult
 import com.taostudio.tapaccounting.chat.agent.AgentSessionContext
+import com.taostudio.tapaccounting.chat.agent.AgentValidationResult
 import com.taostudio.tapaccounting.chat.agent.RiskLevel
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import org.json.JSONObject
@@ -24,6 +25,18 @@ class BillGetDetailTool(private val db: AppDatabase) : AgentTool {
             })
         })
         put("required", org.json.JSONArray().apply { put("billId") })
+    }
+
+    override suspend fun validate(params: JSONObject, context: AgentSessionContext): AgentValidationResult {
+        val billId = params.optLong("billId", 0)
+        if (billId <= 0) {
+            return AgentValidationResult.invalidParams("请提供有效的账单ID", listOf("billId"))
+        }
+        val bill = db.billDao().getBillById(billId)
+        if (bill == null) {
+            return AgentValidationResult.notFound("未找到ID为 $billId 的账单")
+        }
+        return AgentValidationResult.success()
     }
 
     override suspend fun execute(params: JSONObject, context: AgentSessionContext): AgentToolResult {
@@ -58,6 +71,7 @@ class BillGetDetailTool(private val db: AppDatabase) : AgentTool {
 
         return AgentToolResult.success(
             facts = JSONObject().apply {
+                put("billId", bill.id)
                 put("id", bill.id)
                 put("amount", bill.amount)
                 put("type", bill.type)

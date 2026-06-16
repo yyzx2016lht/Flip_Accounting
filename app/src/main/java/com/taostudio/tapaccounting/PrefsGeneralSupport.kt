@@ -11,6 +11,7 @@ object PrefsGeneralSupport {
     private const val KEY_LOGGING_ENABLED = "logging_enabled"
     private const val KEY_ACTIVE_CURRENCIES = "active_currencies_v1"
     private const val KEY_EXCHANGE_REFRESH_INTERVAL = "exchange_refresh_interval_v1"
+    private const val KEY_ASSET_AMOUNT_DISPLAY_MODE = "asset_amount_display_mode_v1"
     private const val KEY_SHIZUKU_PERSISTENCE = "advanced_shizuku_persistence"
     private const val KEY_SHIZUKU_MODE = "advanced_shizuku_mode"
     private const val KEY_VIBRATE_FEEDBACK = "vibrate_feedback"
@@ -140,6 +141,11 @@ object PrefsGeneralSupport {
         prefs(ctx).getLong(KEY_EXCHANGE_REFRESH_INTERVAL, 12 * 3600 * 1000L)
     fun setExchangeRefreshInterval(ctx: Context, interval: Long) =
         prefs(ctx).edit().putLong(KEY_EXCHANGE_REFRESH_INTERVAL, interval).apply()
+
+    fun getAssetAmountDisplayMode(ctx: Context): String =
+        prefs(ctx).getString(KEY_ASSET_AMOUNT_DISPLAY_MODE, "source:ALL;target:CNY") ?: "source:ALL;target:CNY"
+    fun setAssetAmountDisplayMode(ctx: Context, mode: String) =
+        prefs(ctx).edit().putString(KEY_ASSET_AMOUNT_DISPLAY_MODE, mode).apply()
 
     fun isQuickGestureEnabled(ctx: Context): Boolean {
         val p = prefs(ctx)

@@ -12,7 +12,6 @@ object PrefsDisplaySupport {
     private const val KEY_SHOW_HOME_TREND_CARD = "show_home_trend_card"
     private const val KEY_MULTI_BILL_ENABLED = "multi_bill_enabled"
     private const val KEY_MULTI_BILL_NOT_SYNC = "multi_bill_not_sync"
-    private const val KEY_MULTI_BILL_FAST_MODE = "multi_bill_fast_mode"
     private const val KEY_SHOW_BOOK_ENTRY = "show_book_entry"
     private const val KEY_OCR_MODE = "ocr_engine_mode"
     private const val KEY_RECEIPT_LANG_MODE = "receipt_lang_mode"
@@ -61,11 +60,6 @@ object PrefsDisplaySupport {
         prefs(ctx).getBoolean(KEY_MULTI_BILL_NOT_SYNC, false)
     fun setMultiBillNotSync(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_MULTI_BILL_NOT_SYNC, enabled).apply()
-
-    fun isMultiBillFastMode(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_MULTI_BILL_FAST_MODE, true)
-    fun setMultiBillFastMode(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean(KEY_MULTI_BILL_FAST_MODE, enabled).apply()
 
     fun isShowBookEntry(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_SHOW_BOOK_ENTRY, false)
     fun setShowBookEntry(ctx: Context, show: Boolean) =

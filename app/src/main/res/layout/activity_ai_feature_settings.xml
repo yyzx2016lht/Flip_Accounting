@@ -250,11 +250,44 @@
                                     app:trackTint="@color/switch_track_tint" />
                             </LinearLayout>
 
-                            <View
+                            <LinearLayout
+                                android:id="@+id/layout_ai_agent_entry"
                                 android:layout_width="match_parent"
-                                android:layout_height="0.5dp"
-                                android:layout_marginVertical="4dp"
-                                android:background="#E7ECF4" />
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="6dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/ai_agent_entry"
+                                        android:textColor="#1F2A3D"
+                                        android:textSize="@dimen/text_size_14"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="@string/ai_agent_entry_desc"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_11" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_ai_agent_mode"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
 
                             <LinearLayout
                                 android:layout_width="match_parent"
@@ -340,99 +373,6 @@
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp">
 
-
-
-                    <LinearLayout
-                        android:id="@+id/layout_ai_llm_router"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="6dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/ai_llm_router"
-                                android:textColor="#1F2A3D"
-                                android:textSize="@dimen/text_size_14"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="@string/ai_llm_router_desc"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_ai_llm_router"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:id="@+id/divider_ai_llm_router"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginVertical="4dp"
-                        android:background="#E7ECF4" />
-
-                    <LinearLayout
-                        android:id="@+id/layout_multi_bill_fast_mode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="6dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="详细记账"
-                                android:textColor="#1F2A3D"
-                                android:textSize="@dimen/text_size_14"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="@string/ai_detailed_accounting_desc"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_multi_bill_fast_mode"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginVertical="4dp"
-                        android:background="#E7ECF4" />
-
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -500,235 +440,343 @@
                     android:paddingBottom="10dp">
 
                     <LinearLayout
+                        android:id="@+id/group_voice_accounting"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="8dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/ai_voice_accounting"
-                                android:textColor="#1F2A3D"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="@string/ai_voice_accounting_desc"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_show_voice"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/layout_asr_engine"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_inset_panel"
-                        android:gravity="center_horizontal"
-                        android:orientation="vertical"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="10dp"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:text="@string/asr_engine_label"
-                            android:textColor="#4E5A6A"
-                            android:textSize="@dimen/text_size_14"
-                            android:textStyle="bold" />
+                        android:orientation="vertical">
 
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal">
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="8dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/ai_voice_accounting"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/ai_voice_accounting_desc"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_show_voice"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/layout_asr_engine"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:background="@drawable/bg_inset_panel"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="10dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="8dp"
+                                android:text="@string/asr_engine_label"
+                                android:textColor="#4E5A6A"
+                                android:textSize="@dimen/text_size_14"
+                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_asr_online"
+                                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                    android:layout_width="0dp"
+                                    android:layout_height="40dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="8dp"
+                                    android:text="@string/asr_online"
+                                    android:textSize="@dimen/text_size_13"
+                                    app:strokeColor="#DCE2EA"
+                                    app:cornerRadius="10dp" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_asr_offline"
+                                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                    android:layout_width="0dp"
+                                    android:layout_height="40dp"
+                                    android:layout_weight="1"
+                                    android:text="@string/asr_offline"
+                                    android:textSize="@dimen/text_size_13"
+                                    app:strokeColor="#DCE2EA"
+                                    app:cornerRadius="10dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/layout_asr_model"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_inset_panel"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="10dp"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/tv_asr_model_status"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="模型状态"
+                                    android:textColor="#5F6B7A"
+                                    android:textSize="@dimen/text_size_13"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
 
                             <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_asr_online"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:id="@+id/btn_asr_model_action"
+                                style="@style/Widget.MaterialComponents.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:minHeight="0dp"
+                                android:text="下载模型"
+                                android:textColor="#5C6BC0"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginBottom="6dp"
+                            android:background="#F0F2F5" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/group_image_accounting"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="8dp">
+
+                            <LinearLayout
                                 android:layout_width="0dp"
-                                android:layout_height="40dp"
+                                android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:layout_marginEnd="8dp"
-                                android:text="@string/asr_online"
-                                android:textSize="@dimen/text_size_13"
-                                app:strokeColor="#DCE2EA"
-                                app:cornerRadius="10dp" />
+                                android:orientation="vertical">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_asr_offline"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/ai_image_accounting"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/ai_image_accounting_desc"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_show_ai_image"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/layout_image_accounting_sub_settings"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingStart="24dp"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:id="@+id/layout_receipt_image_draft_confirm"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/receipt_image_draft_confirm"
+                                        android:textColor="#1F2A3D"
+                                        android:textSize="@dimen/text_size_15"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="@string/receipt_image_draft_confirm_desc"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_11" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_receipt_image_draft_confirm"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:id="@+id/layout_image_accounting_natural_language"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/image_accounting_natural_language"
+                                        android:textColor="#1F2A3D"
+                                        android:textSize="@dimen/text_size_15"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="@string/image_accounting_natural_language_desc"
+                                        android:textColor="#9AA4B2"
+                                        android:textSize="@dimen/text_size_11" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_image_accounting_natural_language"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="@color/switch_thumb_tint"
+                                    app:trackTint="@color/switch_track_tint" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginVertical="4dp"
+                            android:background="#F0F2F5" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/group_screen_accounting"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <!-- 截屏记账 -->
+                        <LinearLayout
+                            android:id="@+id/layout_screen_accounting"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="8dp">
+
+                            <LinearLayout
                                 android:layout_width="0dp"
-                                android:layout_height="40dp"
+                                android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="@string/asr_offline"
-                                android:textSize="@dimen/text_size_13"
-                                app:strokeColor="#DCE2EA"
-                                app:cornerRadius="10dp" />
-                        </LinearLayout>
-                    </LinearLayout>
+                                android:orientation="vertical">
 
-                    <LinearLayout
-                        android:id="@+id/layout_asr_model"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:background="@drawable/bg_inset_panel"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="10dp"
-                        android:visibility="gone">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/ai_screen_accounting"
+                                    android:textColor="#1F2A3D"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
 
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/ai_screen_accounting_desc"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
 
-                            <TextView
-                                android:id="@+id/tv_asr_model_status"
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_screen_accounting"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="模型状态"
-                                android:textColor="#5F6B7A"
-                                android:textSize="@dimen/text_size_13"
-                                android:textStyle="bold" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_asr_model_action"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:minHeight="0dp"
-                            android:text="下载模型"
-                            android:textColor="#5C6BC0"
-                            android:textSize="@dimen/text_size_12" />
+                        <TextView
+                            android:id="@+id/tv_screen_accounting_hint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:background="@drawable/bg_inset_panel"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp"
+                            android:text="@string/ai_screen_accounting_perm_hint"
+                            android:textColor="#9AA4B2"
+                            android:textSize="@dimen/text_size_10"
+                            android:visibility="gone" />
                     </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginBottom="6dp"
-                        android:background="#F0F2F5" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="8dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/ai_image_accounting"
-                                android:textColor="#1F2A3D"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="@string/ai_image_accounting_desc"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_show_ai_image"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginVertical="4dp"
-                        android:background="#F0F2F5" />
-
-                    <!-- 截屏记账 -->
-                    <LinearLayout
-                        android:id="@+id/layout_screen_accounting"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="8dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/ai_screen_accounting"
-                                android:textColor="#1F2A3D"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="@string/ai_screen_accounting_desc"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_screen_accounting"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tv_screen_accounting_hint"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_inset_panel"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="8dp"
-                        android:text="@string/ai_screen_accounting_perm_hint"
-                        android:textColor="#9AA4B2"
-                        android:textSize="@dimen/text_size_10"
-                        android:visibility="gone" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -737,17 +785,15 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:layout_marginBottom="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_manage_ai_rules"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    android:text="记账规则"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="8dp"
+                    android:text="@string/accounting_rules_btn"
                     android:textColor="#4E5A6A"
                     android:textSize="@dimen/text_size_14"
                     app:backgroundTint="#FFFFFF"
@@ -757,13 +803,13 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_ai_detailed_config"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
-                    android:text="@string/ai_core_model"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="@string/ai_service_config_btn"
                     android:textColor="#FFFFFF"
                     android:textSize="@dimen/text_size_14"
                     android:textStyle="bold"
+                    android:visibility="gone"
                     app:backgroundTint="#5C6BC0"
                     app:cornerRadius="12dp" />
             </LinearLayout>

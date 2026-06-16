@@ -2,6 +2,7 @@ package com.taostudio.tapaccounting
 
 import android.content.Context
 import android.util.Base64
+import com.google.gson.JsonObject
 import org.json.JSONObject
 import retrofit2.HttpException
 import java.io.File
@@ -60,6 +61,56 @@ internal fun cleanJsonString(input: String): String {
     if (s.startsWith("```")) s = s.removePrefix("```")
     if (s.endsWith("```")) s = s.removeSuffix("```")
     return s.trim()
+}
+
+internal fun adaptChatRequestForProvider(
+    providerId: String,
+    requestJson: JsonObject
+): JsonObject {
+    val adapted = requestJson.deepCopy()
+    val thinkingEnabled = adapted.remove("enable_thinking")?.asBoolean == true
+    val model = adapted.get("model")?.asString.orEmpty()
+
+    when (providerId) {
+        AiProviderRegistry.PROVIDER_DEEPSEEK -> {
+            adapted.add("thinking", JsonObject().apply {
+                addProperty("type", if (thinkingEnabled) "enabled" else "disabled")
+            })
+        }
+
+        AiProviderRegistry.PROVIDER_MIMO -> {
+            if (!model.endsWith("-asr")) {
+                adapted.add("thinking", JsonObject().apply {
+                    addProperty("type", if (thinkingEnabled) "enabled" else "disabled")
+                })
+            }
+        }
+
+        AiProviderRegistry.PROVIDER_KIMI -> {
+            if (model.startsWith("kimi-k2.5") || model.startsWith("kimi-k2.6")) {
+                adapted.add("thinking", JsonObject().apply {
+                    addProperty("type", if (thinkingEnabled) "enabled" else "disabled")
+                })
+                // 不覆盖调用方指定的 temperature，避免记账场景（temperature=0.3）被改为 1.0
+            }
+        }
+
+        else -> if (thinkingEnabled) {
+            adapted.addProperty("enable_thinking", true)
+        }
+    }
+
+    if (adapted.get("stream")?.asBoolean == true &&
+        providerId in setOf(
+            AiProviderRegistry.PROVIDER_DEEPSEEK,
+            AiProviderRegistry.PROVIDER_QWEN
+        )
+    ) {
+        adapted.add("stream_options", JsonObject().apply {
+            addProperty("include_usage", true)
+        })
+    }
+    return adapted
 }
 
 internal fun extractFirstJsonObjectText(input: String): String? {

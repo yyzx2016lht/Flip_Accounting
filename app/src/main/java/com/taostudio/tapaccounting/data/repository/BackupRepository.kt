@@ -152,6 +152,165 @@ class BackupRepository(private val db: AppDatabase) {
         }
     }
 
+    /**
+     * 合并恢复：只补充备份中有、本地没有的数据，不删除现有数据，不回退资产余额。
+     * - 资产/分类：按名称去重，已存在则跳过
+     * - 账单：按 时间+金额+类型+账户名 去重，已存在则跳过
+     * - 设置：覆盖写入（设置本身就是替换语义）
+     */
+    suspend fun mergeRestoreFullData(
+        assets: List<Asset>?,
+        bills: List<Bill>?,
+        categories: List<Category>?,
+        rules: List<AiRule>?,
+        chatMessages: List<ChatMessage>?
+    ): MergeRestoreResult {
+        var insertedAssets = 0
+        var skippedAssets = 0
+        var insertedCategories = 0
+        var skippedCategories = 0
+        var insertedBills = 0
+        var skippedBills = 0
+        var insertedRules = 0
+        var insertedChatMessages = 0
+
+        db.withTransaction {
+            val categoryIdMap = mutableMapOf<Long, Long>()
+            val assetIdMap = mutableMapOf<Long, Long>()
+
+            // ── 分类：按名称去重 ──
+            if (categories != null) {
+                val existingByName = db.categoryDao().getAllCategoriesList().associateBy { it.name }
+                val roots = categories.filter { it.parentId == null }
+                val children = categories.filter { it.parentId != null }
+
+                roots.forEach { cat ->
+                    val existing = existingByName[cat.name]
+                    if (existing != null) {
+                        categoryIdMap[cat.id] = existing.id
+                        skippedCategories++
+                    } else {
+                        val newId = db.categoryDao().insertCategory(cat.copy(id = 0))
+                        categoryIdMap[cat.id] = newId
+                        insertedCategories++
+                    }
+                }
+                children.forEach { cat ->
+                    val existing = existingByName[cat.name]
+                    if (existing != null) {
+                        categoryIdMap[cat.id] = existing.id
+                        skippedCategories++
+                    } else {
+                        val newParentId = cat.parentId?.let { categoryIdMap[it] }
+                        val newId = db.categoryDao().insertCategory(cat.copy(id = 0, parentId = newParentId))
+                        categoryIdMap[cat.id] = newId
+                        insertedCategories++
+                    }
+                }
+            }
+
+            // ── 资产：按名称去重 ──
+            if (assets != null) {
+                val existingByName = db.assetDao().getAllAssetsList().associateBy { it.name }
+                assets.forEach { asset ->
+                    val existing = existingByName[asset.name]
+                    if (existing != null) {
+                        assetIdMap[asset.id] = existing.id
+                        skippedAssets++
+                    } else {
+                        val newId = db.assetDao().insertAsset(asset.copy(id = 0))
+                        assetIdMap[asset.id] = newId
+                        insertedAssets++
+                    }
+                }
+            }
+
+            // ── 账单：按 时间+金额+类型+账户名 去重，不改资产余额 ──
+            if (bills != null) {
+                val existingCategoriesByName = db.categoryDao().getAllCategoriesList().associateBy { it.name }
+                val existingAssetsByName = db.assetDao().getAllAssetsList().associateBy { it.name }
+                val pendingRelated = mutableListOf<Pair<Long, Long>>()
+
+                bills.forEach { bill ->
+                    val isDuplicate = db.billDao().countDuplicateBills(
+                        time = bill.time,
+                        amount = bill.amount,
+                        type = bill.type,
+                        accountName = bill.accountName
+                    ) > 0
+
+                    if (isDuplicate) {
+                        skippedBills++
+                        return@forEach
+                    }
+
+                    val remappedCategoryId = resolveCategoryId(bill, categoryIdMap, existingCategoriesByName)
+                    val remappedAccountId = resolveAssetId(bill.accountId, bill.accountName, assetIdMap, existingAssetsByName)
+                    val remappedToAccountId = resolveAssetId(bill.toAccountId, bill.toAccountName, assetIdMap, existingAssetsByName)
+
+                    val insertedId = db.billDao().insertBill(
+                        bill.copy(
+                            id = 0,
+                            categoryId = remappedCategoryId,
+                            accountId = remappedAccountId,
+                            toAccountId = remappedToAccountId,
+                            categoryName = CategoryNameNormalizer.normalizeForStorage(bill.categoryName),
+                            relatedBillId = null
+                        )
+                    )
+                    insertedBills++
+                    bill.relatedBillId?.let { pendingRelated.add(insertedId to it) }
+                }
+
+                // 修复退款关联
+                pendingRelated.forEach { (newBillId, oldRelatedId) ->
+                    // 在备份账单中找 oldRelatedId 对应的新 ID
+                    val oldRelatedBill = bills.find { it.id == oldRelatedId } ?: return@forEach
+                    val match = db.billDao().countDuplicateBills(
+                        time = oldRelatedBill.time,
+                        amount = oldRelatedBill.amount,
+                        type = oldRelatedBill.type,
+                        accountName = oldRelatedBill.accountName
+                    )
+                    // 如果关联账单已存在（之前插入的或本地原有的），尝试匹配
+                    val candidates = db.billDao().getBillsBetweenTimesList(oldRelatedBill.time, oldRelatedBill.time)
+                    val relatedBill = candidates.find {
+                        it.amount == oldRelatedBill.amount &&
+                            it.type == oldRelatedBill.type &&
+                            it.accountName == oldRelatedBill.accountName
+                    }
+                    if (relatedBill != null) {
+                        val current = db.billDao().getBillById(newBillId) ?: return@forEach
+                        db.billDao().updateBill(current.copy(relatedBillId = relatedBill.id))
+                    }
+                }
+            }
+
+            // ── 规则：追加 ──
+            if (rules != null) {
+                rules.forEach {
+                    db.aiRuleDao().insertRule(it.copy(id = 0))
+                    insertedRules++
+                }
+            }
+
+            // ── 聊天记录：追加 ──
+            if (chatMessages != null) {
+                chatMessages.forEach { msg ->
+                    db.chatMessageDao().insert(msg.copy(id = 0))
+                    insertedChatMessages++
+                }
+            }
+        }
+
+        return MergeRestoreResult(
+            insertedAssets = insertedAssets, skippedAssets = skippedAssets,
+            insertedCategories = insertedCategories, skippedCategories = skippedCategories,
+            insertedBills = insertedBills, skippedBills = skippedBills,
+            insertedRules = insertedRules, insertedChatMessages = insertedChatMessages
+        )
+    }
+
     private fun remapChatBillReferences(msg: ChatMessage, billIdMap: Map<Long, Long>): ChatMessage {
         if (msg.msgType != 4 || billIdMap.isEmpty()) return msg
 
@@ -232,5 +391,16 @@ class BackupRepository(private val db: AppDatabase) {
         return set.toList()
     }
 }
+
+data class MergeRestoreResult(
+    val insertedAssets: Int = 0,
+    val skippedAssets: Int = 0,
+    val insertedCategories: Int = 0,
+    val skippedCategories: Int = 0,
+    val insertedBills: Int = 0,
+    val skippedBills: Int = 0,
+    val insertedRules: Int = 0,
+    val insertedChatMessages: Int = 0
+)
 
 

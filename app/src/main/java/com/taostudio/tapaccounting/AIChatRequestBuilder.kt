@@ -3,55 +3,6 @@ package com.taostudio.tapaccounting
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 
-fun buildMultiTurnChatRequest(
-    model: String,
-    temperature: Double = 0.7,
-    systemPrompt: String,
-    historyTurns: List<ChatTurn>,
-    userText: String
-): JsonObject {
-    val messages = JsonArray().apply {
-        add(buildTextMessage("system", systemPrompt))
-        for (turn in historyTurns) {
-            add(buildTextMessage(turn.role, turn.content))
-        }
-        add(buildTextMessage("user", userText))
-    }
-    return buildChatRequest(
-        model = model,
-        temperature = temperature,
-        messages = messages
-    )
-}
-
-fun adaptChatRequestForProvider(providerId: String, request: JsonObject): JsonObject {
-    val adapted = request.deepCopy()
-    when (providerId) {
-        AiProviderRegistry.PROVIDER_KIMI -> {
-            adapted.remove("enable_thinking")
-            if (!adapted.has("thinking")) {
-                adapted.add("thinking", JsonObject().apply { addProperty("type", "disabled") })
-            }
-            val temp = adapted.get("temperature")?.asDouble ?: 0.7
-            if (temp < 0.6) adapted.addProperty("temperature", 0.6)
-        }
-        AiProviderRegistry.PROVIDER_DEEPSEEK -> {
-            adapted.remove("enable_thinking")
-            if (!adapted.has("thinking")) {
-                adapted.add("thinking", JsonObject().apply { addProperty("type", "disabled") })
-            }
-            if (adapted.has("stream") && adapted.get("stream").asBoolean) {
-                adapted.add("stream_options", JsonObject().apply { addProperty("include_usage", true) })
-            }
-        }
-        AiProviderRegistry.PROVIDER_MIMO -> {
-            adapted.remove("enable_thinking")
-            adapted.remove("thinking")
-        }
-    }
-    return adapted
-}
-
 internal fun buildTextChatRequest(
     model: String,
     temperature: Double,
@@ -63,6 +14,33 @@ internal fun buildTextChatRequest(
 ): JsonObject {
     val messages = JsonArray().apply {
         systemPrompt?.let { add(buildTextMessage("system", it)) }
+        add(buildTextMessage("user", userText))
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        jsonObjectResponse = jsonObjectResponse,
+        stream = stream,
+        enableThinking = enableThinking
+    )
+}
+
+internal fun buildMultiTurnChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    historyTurns: List<ChatTurn> = emptyList(),
+    userText: String,
+    jsonObjectResponse: Boolean = false,
+    stream: Boolean = false,
+    enableThinking: Boolean = false
+): JsonObject {
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        historyTurns.forEach { turn ->
+            add(buildTextMessage(turn.role, turn.content))
+        }
         add(buildTextMessage("user", userText))
     }
     return buildChatRequest(
@@ -92,6 +70,38 @@ internal fun buildAudioChatRequest(
                 parts = listOf(
                     buildTextPart(leadText),
                     buildAudioPart(audioBase64, audioFormat)
+                )
+            )
+        )
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        enableThinking = enableThinking
+    )
+}
+
+internal fun buildMultiTurnVisionChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    historyTurns: List<ChatTurn> = emptyList(),
+    dataUrl: String,
+    userText: String,
+    enableThinking: Boolean = false
+): JsonObject {
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        historyTurns.forEach { turn ->
+            add(buildTextMessage(turn.role, turn.content))
+        }
+        add(
+            buildContentMessage(
+                role = "user",
+                parts = listOf(
+                    buildImagePart(dataUrl),
+                    buildTextPart(userText)
                 )
             )
         )
@@ -143,10 +153,8 @@ private fun buildChatRequest(
     return JsonObject().apply {
         addProperty("model", model)
         addProperty("temperature", temperature)
-        // Only send enable_thinking when true to avoid API compatibility issues.
-        if (enableThinking) {
-            addProperty("enable_thinking", true)
-        }
+        // Provider-specific request adaptation removes or converts this field before sending.
+        addProperty("enable_thinking", enableThinking)
         if (stream) addProperty("stream", true)
         add("messages", messages)
         if (jsonObjectResponse) {
@@ -193,4 +201,3 @@ private fun buildAudioPart(audioBase64: String, audioFormat: String): JsonObject
             addProperty("format", audioFormat)
         })
     }
-

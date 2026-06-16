@@ -160,6 +160,43 @@ internal object AIReceiptHelper {
         val totalKeywords = listOf("总计", "合计", "total", "sum", "suma", "razem")
         val lineRegex = Regex("""([0-9]+[.,][0-9]{2})\s*(PLN|EUR|USD|CNY|RMB|zł|ZŁ|zl|ZL)?""")
 
+        // 优先尝试解析新的 | 分隔格式（方向 | 商品/对象 | 金额 | 币种 | ...）
+        var parsedAsPipeFormat = false
+        content.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .forEach { line ->
+                if (line.contains("|")) {
+                    val parts = line.split("|").map { it.trim() }
+                    if (parts.size >= 4) {
+                        val direction = parts[0]  // 支出/收入/转账/还款
+                        val item = parts[1]       // 商品/对象
+                        val amount = parseReceiptPrice(parts[2])
+                        val currency = parts[3].ifBlank { fallbackCurrency }
+                        if (amount != null && amount > 0.0 && item.isNotBlank()) {
+                            // 方向信息附加到名称前，便于下游理解
+                            val prefixedName = when (direction) {
+                                "收入", "退款" -> "收入: $item"
+                                "转账" -> "转账: $item"
+                                "还款" -> "还款: $item"
+                                else -> item  // 支出不需要前缀
+                            }
+                            addReceiptItemIfUnique(summaryItems, prefixedName, amount, currency)
+                            parsedAsPipeFormat = true
+                        }
+                    }
+                }
+            }
+
+        // 如果 | 格式解析成功，直接返回
+        if (parsedAsPipeFormat && summaryItems.isNotEmpty()) {
+            return summaryItems.joinToString("\n") { item ->
+                formatReceiptSummaryLine(item.name, item.price, item.currency)
+            }
+        }
+
+        // Fallback：原有逻辑（"花了"关键词匹配）
+        summaryItems.clear()
         content.lineSequence()
             .map { it.trim() }
             .filter { it.isNotBlank() }
@@ -216,11 +253,6 @@ internal object AIReceiptHelper {
                 incomeCats.add("${parentNode.name} - ${childNode.name}")
             }
         }
-        val now = Date()
-        val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val weekFormat = SimpleDateFormat("EEEE", Locale.getDefault())
-        val currentTimeStr = "${timeFormat.format(now)} (${weekFormat.format(now)})"
-
         val basePrompt = AIPrompts.RECEIPT_BILL_PROMPT
 
         val hardenedPrompt = basePrompt + """
@@ -233,7 +265,7 @@ internal object AIReceiptHelper {
 5. 除非 OCR 原文明确存在且可确认，不要计算或猜测总计。
 """
 
-        return hardenedPrompt.replace("{{TIME}}", currentTimeStr)
+        return hardenedPrompt
             .replace("{{ASSETS}}", Gson().toJson(assets))
             .replace("{{EXPENSE_CATS}}", Gson().toJson(expenseCats))
             .replace("{{INCOME_CATS}}", Gson().toJson(incomeCats))
@@ -701,16 +733,5 @@ internal object AIReceiptHelper {
             .replace(" ", "")
     }
 
-    // ─────────────────────────────────────────────
-    // JSON 清洗（从 AIService 搬移过来保持独立性）
-    // ─────────────────────────────────────────────
-
-    fun cleanJsonString(input: String): String {
-        var s = input.trim()
-        if (s.startsWith("```json")) s = s.removePrefix("```json")
-        if (s.startsWith("```")) s = s.removePrefix("```")
-        if (s.endsWith("```")) s = s.removeSuffix("```")
-        return s.trim()
-    }
 }
 

@@ -3,6 +3,7 @@ package com.taostudio.tapaccounting.chat.agent.tool
 import com.taostudio.tapaccounting.chat.agent.AgentTool
 import com.taostudio.tapaccounting.chat.agent.AgentToolResult
 import com.taostudio.tapaccounting.chat.agent.AgentSessionContext
+import com.taostudio.tapaccounting.chat.agent.AgentValidationResult
 import com.taostudio.tapaccounting.chat.agent.RiskLevel
 import com.taostudio.tapaccounting.chat.query.QueryAction
 import com.taostudio.tapaccounting.chat.query.QueryAggregation
@@ -44,6 +45,31 @@ class StatsQueryCategoryTool(private val db: AppDatabase) : AgentTool {
             })
         })
         put("required", org.json.JSONArray().apply { put("categoryName") })
+    }
+
+    private val validTimeRangeKeys = setOf("today", "yesterday", "this_week", "last_week", "this_month", "last_month", "this_year")
+
+    override suspend fun validate(params: JSONObject, context: AgentSessionContext): AgentValidationResult {
+        val categoryName = params.optString("categoryName", "").trim()
+        if (categoryName.isEmpty()) {
+            return AgentValidationResult.invalidParams("请指定分类名称", listOf("categoryName"))
+        }
+
+        val timeRangeKey = params.optString("timeRangeKey", "this_month").trim().lowercase()
+        if (timeRangeKey !in validTimeRangeKeys) {
+            return AgentValidationResult.invalidParams(
+                "无效的时间范围: $timeRangeKey，可选值: ${validTimeRangeKeys.joinToString(", ")}",
+                listOf("timeRangeKey")
+            )
+        }
+
+        val categories = context.queryContext.categories
+        val matches = categories.filter { it.name.contains(categoryName, ignoreCase = true) }
+        if (matches.isEmpty()) {
+            return AgentValidationResult.notFound("未找到名为「$categoryName」的分类")
+        }
+
+        return AgentValidationResult.success()
     }
 
     override suspend fun execute(params: JSONObject, context: AgentSessionContext): AgentToolResult {

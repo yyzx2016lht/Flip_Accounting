@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
+import com.taostudio.tapaccounting.chat.agent.ChatConversationMode
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -260,9 +261,17 @@ class ChatSessionController(
             // 防止极端大历史在会话面板刷新时一次性全量加载导致内存峰值过高。
             db.chatMessageDao().getAllByBookLimited(getCurrentBookName(), sessionScanLimit)
         }
+        // Filter by mode using ChatConversationMode for consistent classification.
+        val currentMode = ChatConversationMode.fromActivityMode(
+            if (context.isAgentMode()) ChatActivity.MODE_AGENT else ChatActivity.MODE_ACCOUNTING
+        )
         val grouped = msgs
             .groupBy { (it.bookName.ifBlank { BookAccountManager.getDefaultBook(context) }) to it.conversationId }
-            .filterKeys { it.second.isNotBlank() }
+            .filterKeys { key ->
+                val convId = key.second
+                if (convId.isBlank()) return@filterKeys false
+                ChatConversationMode.belongsTo(convId, currentMode)
+            }
             .toMutableMap()
         val orderByFirstSeen = mutableMapOf<Pair<String, String>, Int>()
         grouped.entries
@@ -341,8 +350,18 @@ class ChatSessionController(
 
     private suspend fun switchToLatestConversationOrNew(bookName: String) {
         setCurrentBookName(bookName)
+        val currentMode = ChatConversationMode.fromActivityMode(
+            if (context.isAgentMode()) ChatActivity.MODE_AGENT else ChatActivity.MODE_ACCOUNTING
+        )
         val latest = withContext(Dispatchers.IO) {
-            db.chatMessageDao().getLatestConversationIdByBook(bookName).orEmpty()
+            when (currentMode) {
+                ChatConversationMode.AGENT -> {
+                    db.chatMessageDao().getLatestAgentConversationIdByBook(bookName).orEmpty()
+                }
+                ChatConversationMode.ACCOUNTING -> {
+                    db.chatMessageDao().getLatestAccountingConversationIdByBook(bookName).orEmpty()
+                }
+            }
         }
         setCurrentConversationId(if (latest.isNotBlank()) latest else newConversationId())
     }

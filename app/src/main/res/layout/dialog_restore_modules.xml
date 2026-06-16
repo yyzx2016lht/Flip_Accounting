@@ -29,24 +29,54 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:background="@drawable/bg_backup_warning"
+            android:background="@drawable/bg_backup_group"
             android:orientation="vertical"
             android:padding="14dp">
 
             <TextView
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="注意"
-                android:textColor="#CE5330"
-                android:textSize="13sp"
+                android:text="恢复模式"
+                android:textColor="#2D3C57"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
+            <RadioGroup
+                android:id="@+id/rg_restore_mode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rb_restore_merge"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:singleLine="true"
+                    android:text="合并（推荐）"
+                    android:textColor="#2D3C57"
+                    android:textSize="13sp" />
+
+                <RadioButton
+                    android:id="@+id/rb_restore_overwrite"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:singleLine="true"
+                    android:text="覆盖"
+                    android:textColor="#2D3C57"
+                    android:textSize="13sp" />
+            </RadioGroup>
+
             <TextView
+                android:id="@+id/tv_restore_mode_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="勾选的模块会覆盖当前数据，请确认后继续。"
-                android:textColor="#A96557"
+                android:text="合并模式：只补充不存在的数据，不删除现有记录，不回退资产余额。"
+                android:textColor="#6E7D95"
                 android:textSize="12sp" />
         </LinearLayout>
 

@@ -133,40 +133,69 @@
             android:id="@+id/layout_balance_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:visibility="gone"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:paddingBottom="24dp"
-            android:paddingTop="16dp"
+            android:paddingBottom="20dp"
+            android:paddingTop="12dp"
             app:layout_scrollFlags="scroll|enterAlways">
 
-            <TextView
-                android:id="@+id/tv_balance_label"
+            <LinearLayout
+                android:id="@+id/layout_balance_panel_tap"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="账户余额"
-                android:textColor="@color/text_secondary"
-                android:textSize="@dimen/text_size_14" />
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="8dp">
 
-            <TextView
-                android:id="@+id/tv_asset_balance"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="¥0.00"
-                android:textColor="@color/asset_overview_amount"
-                android:textSize="@dimen/text_size_28"
-                android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/tv_balance_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="账户余额"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_14" />
+
+                <TextView
+                    android:id="@+id/tv_asset_balance"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="¥0.00"
+                    android:textColor="@color/asset_overview_amount"
+                    android:textSize="@dimen/text_size_28"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tv_asset_remark"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="4dp"
                 android:textColor="@color/asset_summary_label"
                 android:textSize="@dimen/text_size_12"
                 android:visibility="gone"
                 tools:text="报销专用 · 不计入总资产" />
+
+            <TextView
+                android:id="@+id/tv_archive_action"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_book_overview_entry_btn"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:minWidth="112dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="收纳这个资产"
+                android:textColor="#4F75E2"
+                android:textSize="@dimen/text_size_12"
+                android:textStyle="bold" />
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 

@@ -23,6 +23,15 @@
         android:paddingHorizontal="12dp">
 
         <ImageView
+            android:id="@+id/btn_calendar_prev_year"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="6dp"
+            android:src="@drawable/ic_chevrons_left"
+            android:tint="#324860" />
+
+        <ImageView
             android:id="@+id/btn_calendar_prev_month"
             android:layout_width="32dp"
             android:layout_height="32dp"
@@ -34,8 +43,9 @@
         <TextView
             android:id="@+id/tv_calendar_month_title"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="32dp"
             android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
             android:gravity="center"
             android:textColor="@color/dialog_title"
             android:textSize="@dimen/dialog_title_size"
@@ -48,6 +58,15 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="6dp"
             android:src="@drawable/ic_chevron_right"
+            android:tint="#324860" />
+
+        <ImageView
+            android:id="@+id/btn_calendar_next_year"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="6dp"
+            android:src="@drawable/ic_chevrons_right"
             android:tint="#324860" />
     </LinearLayout>
 

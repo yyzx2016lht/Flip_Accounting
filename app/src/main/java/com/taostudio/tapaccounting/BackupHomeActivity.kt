@@ -3,8 +3,13 @@ package com.taostudio.tapaccounting
 import android.content.Intent
 import android.os.Bundle
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
+import com.taostudio.tapaccounting.data.backup.AutoBackupWorker
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class BackupHomeActivity : AppCompatActivity() {
 
@@ -52,6 +57,30 @@ class BackupHomeActivity : AppCompatActivity() {
                     .putExtra(BackupActivity.EXTRA_OPEN_SECTION, BackupActivity.SECTION_CSV)
                     .putExtra(BackupActivity.EXTRA_QUICK_ONESHOT, true)
             )
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateAutoBackupHint()
+    }
+
+    private fun updateAutoBackupHint() {
+        val tvHint = findViewById<TextView>(R.id.tv_quick_actions_hint) ?: return
+        if (AutoBackupWorker.isEnabled(this)) {
+            val lastTime = AutoBackupWorker.getLastBackupTime(this)
+            val interval = AutoBackupWorker.getIntervalHours(this)
+            val mode = if (AutoBackupWorker.getBackupMode(this) == "full") "完整" else "轻量"
+            val cloud = if (AutoBackupWorker.isCloudEnabled(this)) " + 云端" else ""
+            val status = if (lastTime > 0) {
+                val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                "上次：${sdf.format(Date(lastTime))}"
+            } else {
+                "等待首次备份"
+            }
+            tvHint.text = "自动备份已开启 · 每${interval}小时 · ${mode}${cloud}\n$status"
+        } else {
+            tvHint.text = "手动触发，不做后台自动同步，避免误覆盖。"
         }
     }
 }

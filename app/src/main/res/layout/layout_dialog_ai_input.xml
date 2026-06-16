@@ -73,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_ai_input_field"
                 android:gravity="top|start"
-                android:hint="刚才吃面微信花了15元&#10;或长按麦克风直接说话"
+                android:hint="@string/accounting_chat_input_hint"
                 android:lineSpacingExtra="4dp"
                 android:minHeight="88dp"
                 android:paddingHorizontal="14dp"

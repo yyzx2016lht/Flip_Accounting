@@ -17,14 +17,18 @@ data class Asset(
     val sortOrder: Int = 0,    // 排序（资产页面用）
     val pickerSortOrder: Int = 0, // 记账选择器中的排序（独立，不受资产页影响）
     val createTime: Long = System.currentTimeMillis(),
+    /** Whether bill rows on asset detail show backward-derived balance after each transaction. */
+    val showBillBalanceAfter: Boolean = true,
+    /** Start showing balances from this time (start of local day). 0 = use [createTime]. */
+    val billBalanceFromTime: Long = 0L,
     val assetCategory: String = CATEGORY_FUND, // 资产类别：资金(FUND) 或 信用卡(CREDIT_CARD)
     val creditLimit: Double = 0.0,  // 信用卡额度（0=未设置）
     val billingDay: Int = 0,         // 信用卡还款日（保留字段，暂不使用）
     val annualInterestRate: Double = 0.0, // 投资理财年化利率百分比，如 1.8 表示 1.8%
     val interestLastSettledAt: Long = System.currentTimeMillis(), // 最近一次自动结息时间
     val isArchived: Boolean = false, // 是否收纳，收纳后默认不出现在日常资产列表与记账选择器
-    val billBalanceFromTime: Long = 0L, // 账单余额起始时间
-    val showBillBalanceAfter: Boolean = false // 是否显示账单后余额
+    /** 收纳前是否计入总资产；移出收纳时恢复此值 */
+    val includeInNetBeforeArchive: Boolean = true
 ) {
     companion object {
         const val CATEGORY_FUND = "FUND"

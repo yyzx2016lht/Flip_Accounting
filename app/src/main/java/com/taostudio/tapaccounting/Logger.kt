@@ -28,6 +28,10 @@ object Logger {
         if (shouldWriteFile) writeLog(ctx, getLogFile(ctx), "[$tag] $message")
     }
 
+    fun d(tag: String, message: String) {
+        Log.d(tag, message)
+    }
+
     /** 写崩溃日志——不依赖 Prefs，崩溃必须记录 */
     fun crash(ctx: Context, thread: Thread, throwable: Throwable) {
         val sw = StringWriter()

@@ -85,7 +85,9 @@ class AgentNewToolsTest {
     @Test
     fun `buildPreviewMessage returns generic message for unknown tools`() {
         val tool = createDummyTool("unknown.tool", "未知工具", RiskLevel.WRITE)
-        val preview = AgentConfirmationController.buildPreviewMessage(tool, JSONObject())
+        val preview = kotlinx.coroutines.runBlocking {
+            AgentConfirmationController.buildPreviewMessage(tool, JSONObject())
+        }
         assertNotNull(preview)
         assertTrue(preview.contains("未知工具"))
     }

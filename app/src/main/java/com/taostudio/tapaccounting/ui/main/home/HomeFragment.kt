@@ -68,6 +68,7 @@ import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.CategoryIconHelper
 import com.taostudio.tapaccounting.CategoryIconPreloader
+import com.taostudio.tapaccounting.ChatActivity
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
@@ -523,7 +524,6 @@ class HomeFragment : Fragment() {
             type = currentType,
             isChartHidden = !Prefs.isShowHomeTrendCard(requireContext())
         )
-
         // 收集 StateFlow：Fragment 重建后立刻收到上次缓存的账单数据，无需等待新的 DB 查询
         val collectStartMs = System.currentTimeMillis()
         viewLifecycleOwner.lifecycleScope.launch {
@@ -1106,4 +1106,3 @@ class HomeFragment : Fragment() {
         refreshController.observeBillTableChanges()
     }
 }
-

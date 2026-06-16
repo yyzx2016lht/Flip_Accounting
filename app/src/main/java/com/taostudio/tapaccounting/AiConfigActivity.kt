@@ -28,6 +28,25 @@ class AiConfigActivity : AppCompatActivity() {
         FIXED_OFF
     }
 
+    private lateinit var tvCurrentProvider: TextView
+    private lateinit var tvProviderCapabilities: TextView
+    private lateinit var layoutProviderSelector: View
+    private lateinit var switchManualModelSelection: SwitchMaterial
+    private lateinit var tvDefaultModelReadonlyHint: TextView
+    private lateinit var btnRestoreDefaultModels: MaterialButton
+    private lateinit var tvSelectedModel: TextView
+    private lateinit var layoutModelSelector: View
+    private lateinit var btnVisionModel: Chip
+    private lateinit var btnSpeech: Chip
+
+    private var currentPreset: AiProviderPreset = AiProviderRegistry.allPresets().first()
+    private var currentMode = "text"
+    private var updatingManualSwitch = false
+    private lateinit var etKey: EditText
+    private lateinit var modeModels: MutableMap<String, String>
+    private lateinit var allModelsList: MutableList<String>
+    private lateinit var refreshProviderState: () -> Unit
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,13 +54,21 @@ class AiConfigActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btn_back_to_settings).setOnClickListener { finish() }
 
-        val etKey = findViewById<EditText>(R.id.et_api_key)
-        val tvSelectedModel = findViewById<TextView>(R.id.tv_selected_model)
-        val layoutModelSelector = findViewById<View>(R.id.layout_model_selector)
+        currentPreset = AiProviderRegistry.resolvePreset(this)
+
+        etKey = findViewById(R.id.et_api_key)
+        tvSelectedModel = findViewById(R.id.tv_selected_model)
+        layoutModelSelector = findViewById(R.id.layout_model_selector)
+        tvCurrentProvider = findViewById(R.id.tv_current_provider)
+        tvProviderCapabilities = findViewById(R.id.tv_provider_capabilities)
+        layoutProviderSelector = findViewById(R.id.layout_provider_selector)
+        switchManualModelSelection = findViewById(R.id.switch_manual_model_selection)
+        tvDefaultModelReadonlyHint = findViewById(R.id.tv_default_model_readonly_hint)
+        btnRestoreDefaultModels = findViewById(R.id.btn_restore_default_models)
 
         val btnTextModel = findViewById<Chip>(R.id.btn_text_model)
-        val btnVisionModel = findViewById<Chip>(R.id.btn_vision_model)
-        val btnSpeech = findViewById<Chip>(R.id.btn_speech_prompt)
+        btnVisionModel = findViewById(R.id.btn_vision_model)
+        btnSpeech = findViewById(R.id.btn_speech_prompt)
 
         val btnTest = findViewById<MaterialButton>(R.id.btn_test_conn)
         val btnSave = findViewById<View>(R.id.btn_save_config)
@@ -50,23 +77,23 @@ class AiConfigActivity : AppCompatActivity() {
         val tvThinkingScopeHint = findViewById<TextView>(R.id.tv_thinking_scope_hint)
         val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
 
-        etKey.setText(Prefs.getAiKey(this))
+        etKey.setText(Prefs.getAiProviderKey(this, currentPreset.id))
+        tvCurrentProvider.text = currentPreset.displayName
+        tvProviderCapabilities.text = AiProviderRegistry.capabilitySummary(currentPreset)
 
         switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)
         switchEnableReceiptOcrRefine.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setReceiptOcrRefineEnabled(this, isChecked)
         }
 
-        var currentMode = "text"
         var updatingThinkingUi = false
-        val modeModels = mutableMapOf(
-            "text" to Prefs.getAiMultiModel(this),
-            "vision" to Prefs.getAiReceiptVisionModel(this),
-            "speech" to Prefs.getAiSpeechModel(this)
+        modeModels = mutableMapOf(
+            "text" to effectiveModelForMode("text"),
+            "vision" to effectiveModelForMode("vision"),
+            "speech" to effectiveModelForMode("speech")
         )
 
-        val allModelsList = mutableListOf<String>()
-
+        allModelsList = mutableListOf()
         tvEditPrompt.visibility = View.GONE
 
         val cachedModels = Prefs.getAiModelsCache(this).map { it.trim() }.filter { it.isNotEmpty() }
@@ -74,8 +101,20 @@ class AiConfigActivity : AppCompatActivity() {
             allModelsList.addAll(cachedModels)
         }
 
-        fun updateModelDisplay() {
-            tvSelectedModel.text = modeModels[currentMode] ?: ""
+        layoutProviderSelector.setOnClickListener {
+            AiProviderSetupDialog.show(
+                activity = this,
+                initialProviderId = currentPreset.id,
+                cancelable = true,
+                onFinished = { result ->
+                    if (result != null) {
+                        applyProviderSetupResult(result)
+                    } else {
+                        etKey.setText(Prefs.getAiProviderKey(this, currentPreset.id))
+                        refreshProviderState()
+                    }
+                }
+            )
         }
 
         fun thinkingBindingForMode(mode: String): ThinkingBinding = when (mode) {
@@ -141,6 +180,11 @@ class AiConfigActivity : AppCompatActivity() {
         }
 
         fun showModelSearchDialog() {
+            if (!Prefs.isAiManualModelSelectionEnabled(this)) return
+            if (!isModeSupported(currentMode)) {
+                showCapabilityNotSupportedToast(currentMode)
+                return
+            }
             val dialogLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(48, 32, 48, 16)
@@ -173,7 +217,7 @@ class AiConfigActivity : AppCompatActivity() {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
-                    val query = s?.toString()?.trim() ?: ""
+                    val query = s?.toString()?.trim().orEmpty()
                     filteredList.clear()
                     if (query.isEmpty()) {
                         filteredList.addAll(allModelsList)
@@ -208,20 +252,41 @@ class AiConfigActivity : AppCompatActivity() {
             showModelSearchDialog()
         }
 
-        updateModelDisplay()
+        fun updateCapabilityChips() {
+            btnVisionModel.isEnabled = currentPreset.supportsVision
+            btnSpeech.isEnabled = currentPreset.supportsCloudSpeech
+            btnVisionModel.alpha = if (currentPreset.supportsVision) 1f else 0.45f
+            btnSpeech.alpha = if (currentPreset.supportsCloudSpeech) 1f else 0.45f
+        }
+
+        fun updateModelSelectionUi() {
+            val manual = Prefs.isAiManualModelSelectionEnabled(this)
+            layoutModelSelector.isEnabled = manual
+            layoutModelSelector.alpha = if (manual) 1f else 0.55f
+            tvDefaultModelReadonlyHint.visibility = if (manual) View.GONE else View.VISIBLE
+        }
 
         fun updateUI() {
             btnTextModel.isChecked = currentMode == "text"
             btnVisionModel.isChecked = currentMode == "vision"
             btnSpeech.isChecked = currentMode == "speech"
-
-            tvSelectedModel.text = modeModels[currentMode] ?: ""
+            tvSelectedModel.text = modeModels[currentMode].orEmpty().ifBlank {
+                defaultLabelForUnsupportedMode(currentMode)
+            }
             updateThinkingUi()
+            updateCapabilityChips()
+            updateModelSelectionUi()
         }
 
         fun switchMode(newMode: String) {
+            if (newMode != "text" && !isModeSupported(newMode)) {
+                showCapabilityNotSupportedToast(newMode)
+                return
+            }
             tvSelectedModel.text.toString().takeIf { it.isNotEmpty() }?.let {
-                modeModels[currentMode] = it
+                if (!it.startsWith("（")) {
+                    modeModels[currentMode] = it
+                }
             }
             currentMode = newMode
             updateUI()
@@ -231,31 +296,77 @@ class AiConfigActivity : AppCompatActivity() {
         btnVisionModel.setOnClickListener { switchMode("vision") }
         btnSpeech.setOnClickListener { switchMode("speech") }
 
+        refreshProviderState = {
+            currentPreset = AiProviderRegistry.resolvePreset(this)
+            tvCurrentProvider.text = currentPreset.displayName
+            tvProviderCapabilities.text = AiProviderRegistry.capabilitySummary(currentPreset)
+            etKey.setText(Prefs.getAiProviderKey(this, currentPreset.id))
+            reloadModelsCache()
+            syncModeModelsFromPrefs()
+            updateUI()
+        }
+
+        switchManualModelSelection.isChecked = Prefs.isAiManualModelSelectionEnabled(this)
+        switchManualModelSelection.setOnCheckedChangeListener { _, isChecked ->
+            if (updatingManualSwitch) return@setOnCheckedChangeListener
+            if (isChecked) {
+                showManualModelDisclaimer {
+                    Prefs.setAiManualModelSelectionEnabled(this, true)
+                    btnRestoreDefaultModels.visibility = View.VISIBLE
+                    updateModelSelectionUi()
+                }
+            } else {
+                Prefs.setAiManualModelSelectionEnabled(this, false)
+                AiProviderRegistry.applyDefaultModels(this, currentPreset)
+                modeModels["text"] = effectiveModelForMode("text")
+                modeModels["vision"] = effectiveModelForMode("vision")
+                modeModels["speech"] = effectiveModelForMode("speech")
+                btnRestoreDefaultModels.visibility = View.GONE
+                updateModelSelectionUi()
+                updateUI()
+            }
+        }
+        btnRestoreDefaultModels.visibility =
+            if (Prefs.isAiManualModelSelectionEnabled(this)) View.VISIBLE else View.GONE
+        btnRestoreDefaultModels.setOnClickListener {
+            AiProviderRegistry.applyDefaultModels(this, currentPreset)
+            modeModels["text"] = effectiveModelForMode("text")
+            modeModels["vision"] = effectiveModelForMode("vision")
+            modeModels["speech"] = effectiveModelForMode("speech")
+            updateUI()
+            Utils.toast(this, getString(R.string.ai_default_models_restored))
+        }
+
         btnTest.setOnClickListener {
             val key = etKey.text.toString().trim()
-            val url = Prefs.getAiUrl(this)
             if (key.isEmpty()) {
                 Utils.toast(this, getString(R.string.please_input_api_key))
                 return@setOnClickListener
             }
 
             btnTest.isEnabled = false
-            btnTest.text = "正在连接..."
+            btnTest.text = getString(R.string.ai_provider_testing)
 
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    val models = AIService.fetchModelsWithDetails(url, key)
+                    val models = AIService.fetchModelsForProvider(currentPreset, key)
                     withContext(Dispatchers.Main) {
                         btnTest.isEnabled = true
                         btnTest.text = "刷新并测试模型连接"
+                        Prefs.setAiKey(this@AiConfigActivity, key)
                         if (models.isNotEmpty()) {
                             val cleanedModels = models.map { it.trim() }.filter { it.isNotEmpty() }
+                            Prefs.setAiModelsCache(this@AiConfigActivity, cleanedModels)
                             allModelsList.clear()
                             allModelsList.addAll(cleanedModels)
-                            Prefs.setAiModelsCache(this@AiConfigActivity, cleanedModels)
-                            updateModelDisplay()
-                            Utils.toast(this@AiConfigActivity, "连接成功，已获取 ${cleanedModels.size} 个模型")
+                            syncModeModelsFromPrefs()
+                            updateUI()
+                            Utils.toast(this@AiConfigActivity, "连接成功，已加载 ${cleanedModels.size} 个可用模型")
                         } else {
+                            Prefs.setAiModelsCache(this@AiConfigActivity, emptyList())
+                            allModelsList.clear()
+                            syncModeModelsFromPrefs()
+                            updateUI()
                             Utils.toast(this@AiConfigActivity, "连接成功，但未找到可用模型")
                         }
                     }
@@ -263,7 +374,7 @@ class AiConfigActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         btnTest.isEnabled = true
                         btnTest.text = "刷新并测试模型连接"
-                        val msg = e.message ?: ""
+                        val msg = e.message.orEmpty()
                         Utils.toast(
                             this@AiConfigActivity,
                             when {
@@ -278,37 +389,51 @@ class AiConfigActivity : AppCompatActivity() {
         }
 
         btnSave.setOnClickListener {
-            tvSelectedModel.text.toString().takeIf { it.isNotEmpty() }?.let {
+            tvSelectedModel.text.toString().takeIf { it.isNotEmpty() && !it.startsWith("（") }?.let {
                 modeModels[currentMode] = it
             }
 
-            val verifiedModels = allModelsList.toSet()
-            if (verifiedModels.isNotEmpty()) {
-                modeModels.keys.toList().forEach { key ->
-                    val selected = modeModels[key].orEmpty()
-                    if (selected.isNotBlank() && selected !in verifiedModels) {
-                        modeModels[key] = ""
+            Prefs.setAiKey(this, etKey.text.toString().trim())
+
+            if (!Prefs.isAiManualModelSelectionEnabled(this)) {
+                AiProviderRegistry.applyDefaultModels(this, currentPreset)
+            } else {
+                val verifiedModels = allModelsList.toSet()
+                if (verifiedModels.isNotEmpty()) {
+                    modeModels.keys.toList().forEach { key ->
+                        val selected = modeModels[key].orEmpty()
+                        if (selected.isNotBlank() && selected !in verifiedModels) {
+                            modeModels[key] = ""
+                        }
                     }
                 }
+
+                val textModel = modeModels["text"].orEmpty().ifBlank { currentPreset.defaultTextModel }
+                val visionModel = if (currentPreset.supportsVision) {
+                    modeModels["vision"].orEmpty().ifBlank { currentPreset.defaultVisionModel }
+                } else {
+                    ""
+                }
+                val speechModel = if (currentPreset.supportsCloudSpeech) {
+                    modeModels["speech"].orEmpty().ifBlank { currentPreset.defaultSpeechModel }
+                } else {
+                    ""
+                }
+
+                Prefs.setAiModel(this, textModel)
+                Prefs.setAiMultiModel(this, textModel)
+                Prefs.setAiModifyModel(this, textModel)
+                Prefs.setAiCategoryRefineModel(this, textModel)
+                Prefs.setAiRouterModel(this, textModel)
+                Prefs.setAiQueryModel(this, textModel)
+                Prefs.setAiRuleModel(this, textModel)
+                Prefs.setAiReceiptModel(this, textModel)
+                Prefs.setAiReceiptOcrRefineModel(this, textModel)
+                Prefs.setAiReceiptVisionModel(this, visionModel)
+                Prefs.setAiScreenModel(this, visionModel)
+                Prefs.setAiSpeechModel(this, speechModel)
             }
 
-            Prefs.setAiKey(this, etKey.text.toString().trim())
-            val textModel = modeModels["text"].orEmpty()
-            val visionModel = modeModels["vision"].orEmpty()
-            val speechModel = modeModels["speech"].orEmpty()
-
-            Prefs.setAiModel(this, textModel)
-            Prefs.setAiMultiModel(this, textModel)
-            Prefs.setAiModifyModel(this, textModel)
-            Prefs.setAiCategoryRefineModel(this, textModel)
-            Prefs.setAiRouterModel(this, textModel)
-            Prefs.setAiQueryModel(this, textModel)
-            Prefs.setAiRuleModel(this, textModel)
-            Prefs.setAiReceiptModel(this, textModel)
-            Prefs.setAiReceiptVisionModel(this, visionModel)
-            Prefs.setAiScreenModel(this, visionModel)
-            Prefs.setAiReceiptOcrRefineModel(this, textModel)
-            Prefs.setAiSpeechModel(this, speechModel)
             val currentThinkingBinding = thinkingBindingForMode(currentMode)
             if (currentThinkingBinding != ThinkingBinding.FIXED_OFF) {
                 setThinkingEnabled(currentThinkingBinding, switchEnableThinkingCurrent.isChecked)
@@ -321,5 +446,94 @@ class AiConfigActivity : AppCompatActivity() {
 
         updateUI()
     }
-}
 
+    override fun onResume() {
+        super.onResume()
+        if (::tvCurrentProvider.isInitialized) {
+            refreshProviderState()
+        }
+    }
+
+    private fun applyProviderSetupResult(result: AiProviderSetupResult) {
+        etKey.setText(result.apiKey)
+        allModelsList.clear()
+        allModelsList.addAll(result.models)
+        Prefs.resetChatModelOnProviderChange(this)
+        refreshProviderState()
+    }
+
+    private fun reloadModelsCache() {
+        val cachedModels = Prefs.getAiModelsCache(this).map { it.trim() }.filter { it.isNotEmpty() }
+        allModelsList.clear()
+        allModelsList.addAll(cachedModels)
+    }
+
+    private fun syncModeModelsFromPrefs() {
+        modeModels["text"] = effectiveModelForMode("text")
+        modeModels["vision"] = effectiveModelForMode("vision")
+        modeModels["speech"] = effectiveModelForMode("speech")
+    }
+
+    private fun effectiveModelForMode(mode: String): String {
+        if (!Prefs.isAiManualModelSelectionEnabled(this)) {
+            return when (mode) {
+                "vision" -> if (currentPreset.supportsVision) currentPreset.defaultVisionModel else ""
+                "speech" -> if (currentPreset.supportsCloudSpeech) currentPreset.defaultSpeechModel else ""
+                else -> currentPreset.defaultTextModel
+            }
+        }
+        return when (mode) {
+            "text" -> Prefs.getAiMultiModel(this)
+            "vision" -> Prefs.getAiReceiptVisionModel(this)
+            "speech" -> Prefs.getAiSpeechModel(this)
+            else -> ""
+        }
+    }
+
+    private fun isModeSupported(mode: String): Boolean = when (mode) {
+        "vision" -> currentPreset.supportsVision
+        "speech" -> currentPreset.supportsCloudSpeech
+        else -> true
+    }
+
+    private fun defaultLabelForUnsupportedMode(mode: String): String = when (mode) {
+        "vision" -> if (!currentPreset.supportsVision) "（当前提供商不支持）" else ""
+        "speech" -> if (!currentPreset.supportsCloudSpeech) "（当前提供商不支持）" else ""
+        else -> ""
+    }
+
+    private fun showCapabilityNotSupportedToast(mode: String) {
+        val capability = when (mode) {
+            "vision" -> getString(R.string.ai_capability_vision)
+            "speech" -> getString(R.string.ai_capability_speech)
+            else -> return
+        }
+        Utils.toast(
+            this,
+            getString(R.string.ai_capability_not_supported_fmt, currentPreset.displayName, capability)
+        )
+    }
+
+    private fun showManualModelDisclaimer(onConfirm: () -> Unit) {
+        fun resetSwitch() {
+            if (Prefs.isAiManualModelSelectionEnabled(this)) return
+            updatingManualSwitch = true
+            switchManualModelSelection.isChecked = false
+            updatingManualSwitch = false
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.ai_manual_model_disclaimer_title)
+            .setMessage(R.string.ai_manual_model_disclaimer_message)
+            .setPositiveButton(R.string.confirm_btn) { _, _ -> onConfirm() }
+            .setNegativeButton(R.string.cancel_btn) { _, _ -> resetSwitch() }
+            .create()
+        dialog.setOnCancelListener { resetSwitch() }
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.86f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+}

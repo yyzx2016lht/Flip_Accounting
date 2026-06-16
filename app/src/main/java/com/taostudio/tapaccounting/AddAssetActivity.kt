@@ -409,6 +409,11 @@ class AddAssetActivity : AppCompatActivity() {
                 else -> System.currentTimeMillis()
             }
 
+            val createTime = existingAsset?.createTime ?: System.currentTimeMillis()
+            val balanceFromTime = when {
+                existingAsset != null && existingAsset.billBalanceFromTime > 0L -> existingAsset.billBalanceFromTime
+                else -> createTime
+            }
             val asset = Asset(
                 id = if (assetId == -1L) 0 else assetId,
                 name = name,
@@ -419,11 +424,16 @@ class AddAssetActivity : AppCompatActivity() {
                 icon = AssetIconDefaults.withDefault(selectedIcon),
                 remark = etRemark.text.toString(),
                 includeInNetAsset = swIncludeNet.isChecked,
+                createTime = createTime,
+                showBillBalanceAfter = existingAsset?.showBillBalanceAfter ?: true,
+                billBalanceFromTime = balanceFromTime,
                 assetCategory = selectedAssetCategory,
                 annualInterestRate = annualInterestRate,
                 interestLastSettledAt = interestLastSettledAt,
                 sortOrder = if (assetId == -1L) 0 else originalSortOrder,
-                pickerSortOrder = if (assetId == -1L) 0 else originalPickerSortOrder
+                pickerSortOrder = if (assetId == -1L) 0 else originalPickerSortOrder,
+                isArchived = existingAsset?.isArchived ?: false,
+                includeInNetBeforeArchive = existingAsset?.includeInNetBeforeArchive ?: true
             )
 
             if (assetId == -1L) {

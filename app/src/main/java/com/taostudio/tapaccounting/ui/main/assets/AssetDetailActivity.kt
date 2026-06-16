@@ -18,6 +18,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.switchmaterial.SwitchMaterial
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ContextThemeWrapper
@@ -47,7 +48,10 @@ import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.repository.AssetRepository
 import com.taostudio.tapaccounting.logic.BillAssetImpactService
+import com.taostudio.tapaccounting.logic.AssetBillBalanceHistory
+import com.taostudio.tapaccounting.logic.AssetBillBalanceDisplay
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
+import com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet
 import com.taostudio.tapaccounting.logic.BillDeleteHelper
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.logic.CurrencyUtils
@@ -82,6 +86,10 @@ class AssetDetailActivity : AppCompatActivity() {
     private lateinit var btnMsMove: TextView
     private lateinit var btnMsDelete: TextView
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
+    private lateinit var layoutBalancePanelTap: View
+    private lateinit var tvAssetBalance: TextView
+    private lateinit var tvAssetRemark: TextView
+    private lateinit var tvArchiveAction: TextView
     private lateinit var toolbarDoubleTapDetector: GestureDetector
     private var fabHiddenByScroll = false
     private var fabScrollAccumulator = 0
@@ -89,6 +97,8 @@ class AssetDetailActivity : AppCompatActivity() {
     private var assetId: Long = -1
     private var currentAsset: Asset? = null
     private var allAssetBills: List<Bill> = emptyList()
+    /** Per-bill balance after tx, derived backward from current asset balance (not stored snapshots). */
+    private var balanceAfterByBillId: Map<Long, Double> = emptyMap()
     private var searchQuery: String = ""
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val assetRepository by lazy { AssetRepository(db.assetDao(), db.billDao(), db) }
@@ -113,11 +123,6 @@ class AssetDetailActivity : AppCompatActivity() {
         val monthLabel: String,
         val inflow: Double,
         val outflow: Double
-    )
-
-    data class BalanceHeaderRow(
-        val balanceText: String,
-        val remarkText: String
     )
 
     data class BillRow(val bill: Bill)
@@ -176,6 +181,13 @@ class AssetDetailActivity : AppCompatActivity() {
         findViewById<View>(R.id.tv_btn_delete).setOnClickListener {
             showDeleteConfirmDialog()
         }
+
+        layoutBalancePanelTap = findViewById(R.id.layout_balance_panel_tap)
+        tvAssetBalance = findViewById(R.id.tv_asset_balance)
+        tvAssetRemark = findViewById(R.id.tv_asset_remark)
+        tvArchiveAction = findViewById(R.id.tv_archive_action)
+        layoutBalancePanelTap.setOnClickListener { showBillBalanceDisplaySheet() }
+        tvArchiveAction.setOnClickListener { toggleArchiveCurrentAsset() }
 
         rvTransactions.layoutManager = LinearLayoutManager(this)
         adapter = TransactionAdapter().apply {
@@ -393,6 +405,7 @@ class AssetDetailActivity : AppCompatActivity() {
                 updateAssetUI(cached.asset)
             }
             allAssetBills = cached.bills
+            recomputeBalanceAfterMap()
             applyBillSearch()
         }
 
@@ -415,6 +428,7 @@ class AssetDetailActivity : AppCompatActivity() {
             val assetName = currentAsset?.name.orEmpty()
             db.billDao().getBillsByAssetIdOrName(assetId, assetName).collectLatest { bills ->
                 allAssetBills = bills
+                recomputeBalanceAfterMap()
                 applyBillSearch()
                 detailCacheByAssetId[assetId] = AssetDetailCache(
                     asset = currentAsset,
@@ -476,8 +490,23 @@ class AssetDetailActivity : AppCompatActivity() {
             currency.contains(query)
     }
 
+    private fun recomputeBalanceAfterMap() {
+        val asset = currentAsset ?: return
+        balanceAfterByBillId = AssetBillBalanceHistory.computeBalanceAfterByBillId(
+            bills = allAssetBills,
+            assetId = assetId,
+            assetName = asset.name,
+            assetCurrency = asset.currency,
+            currentBalance = asset.balance
+        )
+        if (::adapter.isInitialized) {
+            adapter.setBalanceAfterByBillId(balanceAfterByBillId)
+        }
+    }
+
     private fun updateAssetUI(asset: Asset) {
         tvToolbarAssetName.text = asset.name
+        recomputeBalanceAfterMap()
         val balanceText = CurrencyUtils.formatAmount(asset.balance, asset.currency)
         val noteParts = mutableListOf<String>()
         if (asset.assetCategory == Asset.CATEGORY_INVESTMENT && asset.annualInterestRate != 0.0) {
@@ -487,9 +516,15 @@ class AssetDetailActivity : AppCompatActivity() {
         if (!asset.includeInNetAsset) noteParts += "不计入总资产"
         if (asset.isArchived) noteParts += "已收纳"
         val remarkText = noteParts.joinToString(" · ")
-        if (::adapter.isInitialized) {
-            adapter.updateBalanceHeader(balanceText, remarkText)
+        tvAssetBalance.text = balanceText
+        if (remarkText.isBlank()) {
+            tvAssetRemark.visibility = View.GONE
+        } else {
+            tvAssetRemark.visibility = View.VISIBLE
+            tvAssetRemark.text = remarkText
         }
+        tvArchiveAction.text = if (asset.isArchived) "移出收纳资产" else "收纳这个资产"
+        tvArchiveAction.setTextColor(Color.parseColor(if (asset.isArchived) "#4080FF" else "#4F75E2"))
     }
 
     private fun toggleArchiveCurrentAsset() {
@@ -504,6 +539,96 @@ class AssetDetailActivity : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
             }
+        }
+    }
+
+    private fun applyBillBalanceDisplayLocally(show: Boolean, fromTimeMillis: Long) {
+        val asset = currentAsset ?: return
+        currentAsset = asset.copy(
+            showBillBalanceAfter = show,
+            billBalanceFromTime = fromTimeMillis
+        )
+        if (::adapter.isInitialized) {
+            adapter.notifyBillBalanceDisplayChanged()
+        }
+    }
+
+    private fun showBillBalanceDisplaySheet() {
+        val asset = currentAsset ?: return
+        val dialog = BottomSheetDialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_asset_balance_display, null)
+        dialog.setContentView(view)
+
+        val switchShow = view.findViewById<SwitchMaterial>(R.id.switch_show_bill_balance)
+        val layoutFromDate = view.findViewById<View>(R.id.layout_balance_from_date)
+        val tvFromDate = view.findViewById<TextView>(R.id.tv_balance_from_date)
+        val tvResetCreate = view.findViewById<TextView>(R.id.tv_reset_balance_from_create)
+
+        var showBalance = asset.showBillBalanceAfter
+        var fromTime = asset.billBalanceFromTime.takeIf { it > 0L }
+            ?: AssetBillBalanceDisplay.assetCreationDayStart(asset, allAssetBills, assetId, asset.name)
+
+        fun commitDisplaySettings() {
+            applyBillBalanceDisplayLocally(showBalance, fromTime)
+            persistBillBalanceDisplay(showBalance, fromTime)
+        }
+
+        fun refreshUi() {
+            switchShow.setOnCheckedChangeListener(null)
+            switchShow.isChecked = showBalance
+            switchShow.setOnCheckedChangeListener { _, checked ->
+                showBalance = checked
+                refreshUi()
+                commitDisplaySettings()
+            }
+            layoutFromDate.alpha = if (showBalance) 1f else 0.45f
+            layoutFromDate.isEnabled = showBalance
+            tvResetCreate.isEnabled = showBalance
+            tvFromDate.text = AssetBillBalanceDisplay.formatFromDateLabel(fromTime)
+        }
+
+        layoutFromDate.setOnClickListener {
+            if (!showBalance) return@setOnClickListener
+            ElegantDatePickerSheet.show(
+                context = this,
+                initialTimeMillis = fromTime,
+                maxTimeMillis = System.currentTimeMillis()
+            ) { selected ->
+                fromTime = selected
+                refreshUi()
+                commitDisplaySettings()
+            }
+        }
+
+        tvResetCreate.setOnClickListener {
+            if (!showBalance) return@setOnClickListener
+            fromTime = AssetBillBalanceDisplay.assetCreationDayStart(asset, allAssetBills, assetId, asset.name)
+            refreshUi()
+            commitDisplaySettings()
+        }
+
+        refreshUi()
+        dialog.dismissWithAnimation = true
+        dialog.setOnShowListener { shown ->
+            val sheet = (shown as? BottomSheetDialog)
+                ?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                ?: return@setOnShowListener
+            BottomSheetBehavior.from(sheet).apply {
+                skipCollapsed = true
+                state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        }
+        dialog.show()
+    }
+
+    private fun persistBillBalanceDisplay(show: Boolean, fromTimeMillis: Long) {
+        val asset = currentAsset ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            db.assetDao().updateBillBalanceDisplay(
+                assetId = asset.id,
+                showBillBalanceAfter = show,
+                billBalanceFromTime = fromTimeMillis
+            )
         }
     }
 
@@ -574,11 +699,10 @@ class AssetDetailActivity : AppCompatActivity() {
     inner class TransactionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
         private val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
-        private val PAYLOAD_BALANCE_CHANGE = "PAYLOAD_BALANCE_CHANGE"
+        private val PAYLOAD_BALANCE_DISPLAY_CHANGE = "PAYLOAD_BALANCE_DISPLAY_CHANGE"
         private val PAYLOAD_HEADER_SELECTION_CHANGE = "PAYLOAD_HEADER_SELECTION_CHANGE"
-        private val typeBalanceHeader = 0
-        private val typeMonthHeader = 1
-        private val typeBillItem = 2
+        private val typeMonthHeader = 0
+        private val typeBillItem = 1
 
         private val rows = mutableListOf<Any>()
         private val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
@@ -586,25 +710,25 @@ class AssetDetailActivity : AppCompatActivity() {
         private val currentYearMonthLabelFormat = SimpleDateFormat("MM\u6708", Locale.getDefault())
         private val yearFormat = SimpleDateFormat("yyyy", Locale.getDefault())
         private val dateFormat = SimpleDateFormat("MM-dd", Locale.getDefault())
-        private var balanceHeaderRow = BalanceHeaderRow("¥0.00", "")
         var isMultiSelectMode: Boolean = false
         val selectedBills = mutableSetOf<Bill>()
         var onBillItemClick: ((Bill) -> Unit)? = null
         var onSelectionChanged: ((Int) -> Unit)? = null
+        private var balanceAfterByBillId: Map<Long, Double> = emptyMap()
 
-        fun updateBalanceHeader(balanceText: String, remarkText: String) {
-            val next = BalanceHeaderRow(balanceText, remarkText)
-            if (balanceHeaderRow == next) return
-            balanceHeaderRow = next
-            if (rows.firstOrNull() is BalanceHeaderRow) {
-                rows[0] = next
-                notifyItemChanged(0, PAYLOAD_BALANCE_CHANGE)
-            }
+        fun setBalanceAfterByBillId(map: Map<Long, Double>) {
+            if (balanceAfterByBillId == map) return
+            balanceAfterByBillId = map
+            notifyBillBalanceDisplayChanged()
+        }
+
+        fun notifyBillBalanceDisplayChanged() {
+            if (rows.isEmpty()) return
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_BALANCE_DISPLAY_CHANGE)
         }
 
         fun submitList(newList: List<Bill>) {
             rows.clear()
-            rows.add(balanceHeaderRow)
             if (newList.isNotEmpty()) {
                 val sorted = newList.sortedWith(compareByDescending<Bill> { it.time }.thenByDescending { it.id })
                 val grouped = sorted.groupBy { monthKeyFormat.format(Date(it.time)) }
@@ -687,7 +811,7 @@ class AssetDetailActivity : AppCompatActivity() {
         private fun selectableBillsForSection(headerPosition: Int): List<Bill> {
             return rows.asSequence()
                 .drop(headerPosition + 1)
-                .takeWhile { it !is MonthHeaderRow && it !is BalanceHeaderRow }
+                .takeWhile { it !is MonthHeaderRow }
                 .mapNotNull { (it as? BillRow)?.bill }
                 .toList()
         }
@@ -715,14 +839,13 @@ class AssetDetailActivity : AppCompatActivity() {
             isMultiSelectMode = true
             onSelectionChanged?.invoke(selectedBills.size)
             val nextHeader = ((headerPosition + 1) until rows.size)
-                .firstOrNull { rows[it] is MonthHeaderRow || rows[it] is BalanceHeaderRow }
+                .firstOrNull { rows[it] is MonthHeaderRow }
                 ?: rows.size
             notifyItemRangeChanged(headerPosition, nextHeader - headerPosition, PAYLOAD_SELECTION_CHANGE)
         }
 
         override fun getItemViewType(position: Int): Int {
             return when (rows[position]) {
-                is BalanceHeaderRow -> typeBalanceHeader
                 is MonthHeaderRow -> typeMonthHeader
                 is BillRow -> typeBillItem
                 else -> typeBillItem
@@ -732,9 +855,6 @@ class AssetDetailActivity : AppCompatActivity() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             val inflater = LayoutInflater.from(parent.context)
             return when (viewType) {
-                typeBalanceHeader -> BalanceHeaderViewHolder(
-                    inflater.inflate(R.layout.item_asset_detail_balance_header, parent, false)
-                )
                 typeMonthHeader -> MonthHeaderViewHolder(
                     inflater.inflate(R.layout.item_asset_month_header, parent, false)
                 )
@@ -744,7 +864,6 @@ class AssetDetailActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val row = rows[position]) {
-                is BalanceHeaderRow -> (holder as BalanceHeaderViewHolder).bind(row)
                 is MonthHeaderRow -> (holder as MonthHeaderViewHolder).bind(row, position)
                 is BillRow -> (holder as BillViewHolder).bind(row.bill, position)
             }
@@ -755,13 +874,6 @@ class AssetDetailActivity : AppCompatActivity() {
             position: Int,
             payloads: MutableList<Any>
         ) {
-            if (payloads.isNotEmpty() && holder is BalanceHeaderViewHolder) {
-                val row = rows.getOrNull(position) as? BalanceHeaderRow
-                if (row != null && payloads.contains(PAYLOAD_BALANCE_CHANGE)) {
-                    holder.bind(row)
-                    return
-                }
-            }
             if (payloads.isNotEmpty() && holder is BillViewHolder) {
                 val row = rows.getOrNull(position) as? BillRow
                 if (row != null) {
@@ -771,6 +883,10 @@ class AssetDetailActivity : AppCompatActivity() {
                     }
                     if (payloads.contains(PAYLOAD_SELECTION_CHANGE)) {
                         holder.updateSelection(row.bill)
+                        return
+                    }
+                    if (payloads.contains(PAYLOAD_BALANCE_DISPLAY_CHANGE)) {
+                        holder.updateBalanceAfter(row.bill)
                         return
                     }
                 }
@@ -795,31 +911,6 @@ class AssetDetailActivity : AppCompatActivity() {
                 holder.cancelIconLoad()
             }
             super.onViewRecycled(holder)
-        }
-
-        inner class BalanceHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
-            private val tvBalance = v.findViewById<TextView>(R.id.tv_header_balance)
-            private val tvRemark = v.findViewById<TextView>(R.id.tv_header_remark)
-            private val tvArchiveAction = v.findViewById<TextView>(R.id.tv_header_archive_action)
-
-            init {
-                tvArchiveAction.setOnClickListener {
-                    toggleArchiveCurrentAsset()
-                }
-            }
-
-            fun bind(row: BalanceHeaderRow) {
-                tvBalance.text = row.balanceText
-                if (row.remarkText.isBlank()) {
-                    tvRemark.visibility = View.GONE
-                } else {
-                    tvRemark.visibility = View.VISIBLE
-                    tvRemark.text = row.remarkText
-                }
-                val archived = currentAsset?.isArchived == true
-                tvArchiveAction.text = if (archived) "移出收纳资产" else "收纳这个资产"
-                tvArchiveAction.setTextColor(Color.parseColor(if (archived) "#4080FF" else "#4F75E2"))
-            }
         }
 
         inner class MonthHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
@@ -882,6 +973,29 @@ class AssetDetailActivity : AppCompatActivity() {
 
             fun updateSelection(bill: Bill) {
                 cbSelect.isChecked = selectedBills.contains(bill)
+            }
+
+            fun updateBalanceAfter(bill: Bill) {
+                val asset = currentAsset
+                if (asset == null || !AssetBillBalanceDisplay.shouldShowBalanceForBill(
+                        asset,
+                        bill.time,
+                        allAssetBills,
+                        assetId,
+                        asset.name
+                    )
+                ) {
+                    tvAsset.visibility = View.GONE
+                    return
+                }
+                val balanceAfter = balanceAfterByBillId[bill.id]
+                val currency = asset.currency
+                if (balanceAfter != null) {
+                    tvAsset.text = AssetBillBalanceHistory.formatBalanceAfterLabel(balanceAfter, currency)
+                    tvAsset.visibility = View.VISIBLE
+                } else {
+                    tvAsset.visibility = View.GONE
+                }
             }
 
             fun bind(bill: Bill, position: Int) {
@@ -967,30 +1081,7 @@ class AssetDetailActivity : AppCompatActivity() {
                 tvDetail.setTextColor(if (isRefund) Color.parseColor("#A1A8AF") else Color.parseColor("#999999"))
                 tvAsset.setTextColor(if (isRefund) Color.parseColor("#A1A8AF") else Color.parseColor("#999999"))
 
-                val refundSymbol = CurrencyManager.getSymbol(bill.currency)
-                val assetText = buildString {
-                    if (isTransfer) {
-                        append(bill.accountName)
-                        if (bill.toAccountName.isNotEmpty()) {
-                            append(" -> ")
-                            append(bill.toAccountName)
-                        }
-                    } else if (bill.accountName.isNotBlank()) {
-                        append(bill.accountName)
-                        if (!isRefund && refundAmount > 0.0) {
-                            append("(退款")
-                            append(refundSymbol)
-                            append(String.format(Locale.getDefault(), "%.2f", refundAmount))
-                            append(")")
-                        }
-                    }
-                }
-                if (assetText.isNotEmpty()) {
-                    tvAsset.text = assetText
-                    tvAsset.visibility = View.VISIBLE
-                } else {
-                    tvAsset.visibility = View.GONE
-                }
+                updateBalanceAfter(bill)
 
                 if (!showCategoryIcon) {
                     iconContainer.setBackgroundColor(Color.TRANSPARENT)

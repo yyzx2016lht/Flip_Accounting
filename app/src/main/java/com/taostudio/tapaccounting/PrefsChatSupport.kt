@@ -7,6 +7,7 @@ object PrefsChatSupport {
     private const val PREFS_NAME = "flip_prefs"
     private const val KEY_SHOW_AI_CHAT_ENTRY = "show_ai_chat_entry"
     private const val KEY_AI_ENTRY_MODE = "ai_entry_mode"
+    private const val KEY_AI_AGENT_ENABLED = "ai_agent_enabled"
     private const val KEY_AI_CHAT_NAME = "ai_chat_name"
     private const val KEY_AI_CHAT_IDENTITY = "ai_chat_identity"
     private const val KEY_USER_CHAT_NAME = "user_chat_name"
@@ -30,6 +31,11 @@ object PrefsChatSupport {
         prefs(ctx).getInt(KEY_AI_ENTRY_MODE, Prefs.AI_ENTRY_MODE_TRADITIONAL)
     fun setAiEntryMode(ctx: Context, mode: Int) =
         prefs(ctx).edit().putInt(KEY_AI_ENTRY_MODE, mode).apply()
+
+    fun isAiAgentEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_AGENT_ENABLED, false)
+    fun setAiAgentEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_AGENT_ENABLED, enabled).apply()
 
     fun getAiChatName(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_CHAT_NAME, "小记") ?: "小记"
@@ -66,15 +72,26 @@ object PrefsChatSupport {
     fun setAiChatBgPath(ctx: Context, path: String) =
         prefs(ctx).edit().putString(KEY_AI_CHAT_BG_PATH, path).apply()
 
-    fun getAiChatModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_CHAT_MODEL, "") ?: "").ifBlank { Prefs.getAiMultiModel(ctx) }
-
-    /** Raw stored value without fallback, used by AiModelSlots to determine if user explicitly set a chat model. */
     fun getAiChatModelRaw(ctx: Context): String =
-        prefs(ctx).getString(KEY_AI_CHAT_MODEL, "") ?: ""
+        (prefs(ctx).getString(KEY_AI_CHAT_MODEL, "") ?: "").trim()
 
-    fun setAiChatModel(ctx: Context, value: String) =
-        prefs(ctx).edit().putString(KEY_AI_CHAT_MODEL, value).apply()
+    fun isAiChatModelFollowingMain(ctx: Context): Boolean =
+        getAiChatModelRaw(ctx).isBlank()
+
+    fun getAiChatModel(ctx: Context): String = AiModelSlots.resolveChatModel(ctx)
+
+    fun setAiChatModel(ctx: Context, value: String) {
+        prefs(ctx).edit()
+            .putString(KEY_AI_CHAT_MODEL, value.trim())
+            .commit()
+    }
+
+    fun resetChatModelOnProviderChange(ctx: Context) {
+        prefs(ctx).edit()
+            .putString(KEY_AI_CHAT_MODEL, "")
+            .remove(KEY_AI_CHAT_MODEL_AUDIO_SUPPORT)
+            .commit()
+    }
 
     fun getAiChatReplyStyle(ctx: Context): String =
         (prefs(ctx).getString(KEY_AI_CHAT_REPLY_STYLE, "cute") ?: "cute").ifBlank { "cute" }
@@ -119,4 +136,3 @@ object PrefsChatSupport {
         editor.apply()
     }
 }
-

@@ -8,28 +8,23 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.ViewGroup
-import android.widget.AdapterView
 import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class AiFeatureSettingsActivity : AppCompatActivity() {
 
     private lateinit var btnAiDetailConfig: com.google.android.material.button.MaterialButton
     private lateinit var btnManageAiRules: com.google.android.material.button.MaterialButton
     private lateinit var layoutAiKeyWarning: View
+    private var pendingSetupDialog = false
+    private var refreshProviderCapabilities: (() -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,63 +32,54 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btn_back_ai_feature).setOnClickListener { finish() }
         setupAiFeatureSettings()
+        pendingSetupDialog = !Prefs.isAiConfigured(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateAiDetailConfigButton()
+        refreshProviderCapabilities?.invoke()
+        if (pendingSetupDialog && !Prefs.isAiConfigured(this)) {
+            pendingSetupDialog = false
+            showProviderSetupDialog(cancelable = true)
+        }
     }
 
     private fun setupAiFeatureSettings() {
         val layoutAiMain = findViewById<View>(R.id.layout_ai_main_entry)
         val switchShowAi = findViewById<CompoundButton>(R.id.switch_show_ai)
         val switchAiChatMode = findViewById<CompoundButton>(R.id.switch_ai_chat_mode)
+        val switchAiAgentMode = findViewById<CompoundButton>(R.id.switch_ai_agent_mode)
         val switchShowAiChatEntry = findViewById<CompoundButton>(R.id.switch_show_ai_chat_entry)
         val showAiChatEntryRow = switchShowAiChatEntry.parent as? View
         val layoutOpenAiChatPage = findViewById<View>(R.id.layout_open_ai_chat_page)
-        val layoutMultiBillFastMode = findViewById<View>(R.id.layout_multi_bill_fast_mode)
-        val switchAiLlmRouter = findViewById<CompoundButton>(R.id.switch_ai_llm_router)
-        val layoutAiLlmRouter = findViewById<View>(R.id.layout_ai_llm_router)
-        val dividerAiLlmRouter = findViewById<View>(R.id.divider_ai_llm_router)
+        val layoutAiAgentEntry = findViewById<View>(R.id.layout_ai_agent_entry)
         // AI 总开关由设置中心控制，这里只展示具体能力配置。
         (switchShowAi.parent as? View)?.visibility = View.GONE
         layoutAiMain.visibility = View.VISIBLE
 
-        switchAiChatMode.isChecked = Prefs.getAiEntryMode(this) == Prefs.AI_ENTRY_MODE_CHAT
-        fun updateMultiBillUiVisibility() {
-            layoutMultiBillFastMode.visibility = View.VISIBLE
-        }
+        (switchAiChatMode.parent as? View)?.visibility = View.VISIBLE
+        layoutOpenAiChatPage.visibility = View.VISIBLE
+        switchAiChatMode.isChecked =
+            Prefs.getAiEntryMode(this) == Prefs.AI_ENTRY_MODE_CHAT
         switchAiChatMode.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setAiEntryMode(
                 this,
-                if (isChecked) Prefs.AI_ENTRY_MODE_CHAT else Prefs.AI_ENTRY_MODE_TRADITIONAL
+                if (isChecked) Prefs.AI_ENTRY_MODE_CHAT
+                else Prefs.AI_ENTRY_MODE_TRADITIONAL
             )
-            updateMultiBillUiVisibility()
+            // Agent 功能暂时下线，不需要更新入口可见性
         }
-        layoutOpenAiChatPage.setOnClickListener { switchAiChatMode.performClick() }
+        layoutOpenAiChatPage.setOnClickListener {
+            switchAiChatMode.performClick()
+        }
+
+        // Agent 功能暂时下线：隐藏入口，强制关闭
+        Prefs.setAiAgentEnabled(this, false)
+        layoutAiAgentEntry.visibility = View.GONE
 
         Prefs.setShowAiChatEntry(this, false)
         showAiChatEntryRow?.visibility = View.GONE
-
-        val switchMultiBillFastMode = findViewById<CompoundButton>(R.id.switch_multi_bill_fast_mode)
-        switchMultiBillFastMode.apply {
-            // UI 显示为“详细记账”：开启详细=底层关闭极简
-            isChecked = !Prefs.isMultiBillFastMode(this@AiFeatureSettingsActivity)
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setMultiBillFastMode(this@AiFeatureSettingsActivity, !isChecked)
-            }
-        }
-        layoutMultiBillFastMode.apply {
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { switchMultiBillFastMode.performClick() }
-        }
-
-        updateMultiBillUiVisibility()
-        layoutAiLlmRouter.visibility = View.GONE
-        dividerAiLlmRouter.visibility = View.GONE
-        switchAiLlmRouter.apply {
-            isChecked = Prefs.isAiLlmRouterEnabled(this@AiFeatureSettingsActivity)
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setAiLlmRouterEnabled(this@AiFeatureSettingsActivity, isChecked)
-            }
-        }
-
         findViewById<CompoundButton>(R.id.switch_local_rule_override)?.apply {
             val unifiedLocalRuleEnabled =
                 Prefs.isAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity) ||
@@ -157,7 +143,13 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                             .setMessage("确定要删除本地模型数据释放空间吗？")
                             .setPositiveButton("删除") { _, _ ->
                                 LocalAsrService.deleteModel(this@AiFeatureSettingsActivity)
-                                Prefs.setAsrMode(this@AiFeatureSettingsActivity, Prefs.ASR_MODE_API)
+                                val supportsCloudSpeech = AiProviderRegistry
+                                    .resolvePreset(this@AiFeatureSettingsActivity)
+                                    .supportsCloudSpeech
+                                Prefs.setAsrMode(
+                                    this@AiFeatureSettingsActivity,
+                                    if (supportsCloudSpeech) Prefs.ASR_MODE_API else Prefs.ASR_MODE_WHISPER
+                                )
                                 updateAsrUi()
                             }
                             .setNegativeButton("取消", null)
@@ -211,10 +203,27 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         }
         updateAsrUi()
 
-        findViewById<CompoundButton>(R.id.switch_show_ai_image).apply {
+        val layoutImageAccountingSubSettings = findViewById<View>(R.id.layout_image_accounting_sub_settings)
+        val switchShowAiImage = findViewById<CompoundButton>(R.id.switch_show_ai_image).apply {
             isChecked = Prefs.isShowAiImage(this@AiFeatureSettingsActivity)
+            layoutImageAccountingSubSettings.visibility = if (isChecked) View.VISIBLE else View.GONE
             setOnCheckedChangeListener { _, isChecked ->
                 Prefs.setShowAiImage(this@AiFeatureSettingsActivity, isChecked)
+                layoutImageAccountingSubSettings.visibility = if (isChecked) View.VISIBLE else View.GONE
+            }
+        }
+        val layoutReceiptImageDraftConfirm = findViewById<View>(R.id.layout_receipt_image_draft_confirm)
+        val switchReceiptImageDraftConfirm = findViewById<CompoundButton>(R.id.switch_receipt_image_draft_confirm).apply {
+            isChecked = Prefs.isReceiptImageDraftConfirmEnabled(this@AiFeatureSettingsActivity)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setReceiptImageDraftConfirmEnabled(this@AiFeatureSettingsActivity, isChecked)
+            }
+        }
+        val layoutImageAccountingNaturalLanguage = findViewById<View>(R.id.layout_image_accounting_natural_language)
+        val switchImageAccountingNaturalLanguage = findViewById<CompoundButton>(R.id.switch_image_accounting_natural_language).apply {
+            isChecked = Prefs.isImageAccountingNaturalLanguage(this@AiFeatureSettingsActivity)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setImageAccountingNaturalLanguage(this@AiFeatureSettingsActivity, isChecked)
             }
         }
 
@@ -253,25 +262,57 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
 
         updateScreenAccountingVisibility()
 
+        refreshProviderCapabilities = {
+            val preset = AiProviderRegistry.resolvePreset(this)
+            if (!preset.supportsCloudSpeech && Prefs.getAsrMode(this) == Prefs.ASR_MODE_API) {
+                Prefs.setAsrMode(this, Prefs.ASR_MODE_WHISPER)
+            }
+            btnAsrOnline.isEnabled = preset.supportsCloudSpeech
+            btnAsrOnline.alpha = if (preset.supportsCloudSpeech) 1f else 0.45f
+
+            switchShowAiImage.isEnabled = preset.supportsVision
+            (switchShowAiImage.parent as? View)?.alpha = if (preset.supportsVision) 1f else 0.45f
+            layoutImageAccountingSubSettings.isEnabled = preset.supportsVision
+            layoutImageAccountingSubSettings.alpha = if (preset.supportsVision) 1f else 0.45f
+            layoutReceiptImageDraftConfirm.isEnabled = preset.supportsVision
+            layoutReceiptImageDraftConfirm.alpha = if (preset.supportsVision) 1f else 0.45f
+            switchReceiptImageDraftConfirm.isEnabled = preset.supportsVision
+            layoutImageAccountingNaturalLanguage.isEnabled = preset.supportsVision
+            layoutImageAccountingNaturalLanguage.alpha = if (preset.supportsVision) 1f else 0.45f
+            switchImageAccountingNaturalLanguage.isEnabled = preset.supportsVision
+            switchScreenAccounting.isEnabled = preset.supportsVision
+            layoutScreenAccounting.alpha = if (preset.supportsVision) 1f else 0.45f
+            if (!preset.supportsVision) {
+                switchShowAiImage.isChecked = false
+                switchScreenAccounting.isChecked = false
+            }
+            updateAsrUi()
+        }
+        refreshProviderCapabilities?.invoke()
+
         btnManageAiRules = findViewById(R.id.btn_manage_ai_rules)
         layoutAiKeyWarning = findViewById(R.id.layout_ai_key_warning)
         btnManageAiRules.setOnClickListener {
             startActivity(Intent(this, AiRuleManageActivity::class.java))
         }
-        layoutAiKeyWarning.setOnClickListener { showAiProviderSetupDialog() }
+        layoutAiKeyWarning.setOnClickListener { showProviderSetupDialog(cancelable = true) }
 
         btnAiDetailConfig = findViewById(R.id.btn_ai_detailed_config)
+        btnAiDetailConfig.setOnClickListener {
+            startActivity(Intent(this, AiConfigActivity::class.java))
+        }
         updateAiDetailConfigButton()
 
         try {
             val toggleIds = intArrayOf(
                 R.id.switch_ai_chat_mode,
+                R.id.switch_ai_agent_mode,
                 R.id.switch_show_ai_chat_entry,
-                R.id.switch_ai_llm_router,
                 R.id.switch_local_rule_override,
-                R.id.switch_multi_bill_fast_mode,
                 R.id.switch_show_voice,
                 R.id.switch_show_ai_image,
+                R.id.switch_receipt_image_draft_confirm,
+                R.id.switch_image_accounting_natural_language,
                 R.id.switch_screen_accounting
             )
 
@@ -289,49 +330,28 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
     }
 
     private fun updateAiDetailConfigButton() {
-        val detailUnlocked = Prefs.isAiDetailConfigUnlocked(this)
-        val hasApiKey = Prefs.getAiKey(this).isNotBlank()
-        if (detailUnlocked) {
-            layoutAiKeyWarning.visibility = View.GONE
-            btnAiDetailConfig.visibility = View.VISIBLE
-            updateRuleButtonLayout(locked = false)
-            btnAiDetailConfig.text = getString(R.string.ai_core_model)
-            btnAiDetailConfig.setTextColor(Color.parseColor("#FFFFFF"))
-            btnAiDetailConfig.setBackgroundColor(Color.parseColor("#5C6BC0"))
-            btnAiDetailConfig.strokeColor = null
-            btnAiDetailConfig.setOnClickListener {
-                startActivity(Intent(this, AiConfigActivity::class.java))
-            }
-        } else {
-            layoutAiKeyWarning.visibility = if (hasApiKey) View.GONE else View.VISIBLE
-            btnAiDetailConfig.visibility = View.GONE
-            updateRuleButtonLayout(locked = true)
-        }
+        val configured = Prefs.isAiConfigured(this)
+        layoutAiKeyWarning.visibility = if (configured) View.GONE else View.VISIBLE
+        btnAiDetailConfig.visibility = if (configured) View.VISIBLE else View.GONE
     }
 
-    private fun updateRuleButtonLayout(locked: Boolean) {
-        val lp = btnManageAiRules.layoutParams
-        if (lp is LinearLayout.LayoutParams) {
-            lp.marginEnd = if (locked) 0 else resources.displayMetrics.density.times(6).toInt()
-            lp.height = resources.displayMetrics.density.times(if (locked) 52 else 44).toInt()
-            lp.width = 0
-            lp.weight = 1f
-            btnManageAiRules.layoutParams = lp
-        } else if (lp is ViewGroup.MarginLayoutParams) {
-            lp.marginEnd = if (locked) 0 else resources.displayMetrics.density.times(6).toInt()
-            btnManageAiRules.layoutParams = lp
-        }
-        btnManageAiRules.text = getString(R.string.accounting_rules_btn)
+    private fun updateAgentEntryVisibility(
+        chatEnabled: Boolean,
+        layoutAiAgentEntry: View,
+        switchAiAgentMode: CompoundButton
+    ) {
+        layoutAiAgentEntry.visibility = if (chatEnabled) View.VISIBLE else View.GONE
+        switchAiAgentMode.isEnabled = chatEnabled
+        layoutAiAgentEntry.alpha = if (chatEnabled) 1f else 0.45f
     }
 
-    private fun showAiProviderSetupDialog() {
+    private fun showProviderSetupDialog(cancelable: Boolean) {
         AiProviderSetupDialog.show(
             activity = this,
             initialProviderId = Prefs.getAiProvider(this),
-            cancelable = true
-        ) {
-            updateAiDetailConfigButton()
-        }
+            cancelable = cancelable,
+            onFinished = { updateAiDetailConfigButton() }
+        )
     }
 
     private fun showAiDetailConfigUnlockDialog() {

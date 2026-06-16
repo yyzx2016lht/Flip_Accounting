@@ -7,6 +7,8 @@ import org.json.JSONObject
 object PrefsAiSupport {
     private const val PREFS_NAME = "flip_prefs"
     private const val KEY_AI_KEY = "ai_api_key"
+    private const val KEY_AI_PROVIDER_KEYS = "ai_provider_keys_v1"
+    private const val KEY_AI_PROVIDER_KEYS_MIGRATED = "ai_provider_keys_migrated_v1"
     // Legacy text-model key kept for backward compatibility.
     private const val KEY_AI_MODEL = "ai_model_id"
     private const val KEY_AI_MULTI_MODEL = "ai_multi_model_id"
@@ -24,8 +26,11 @@ object PrefsAiSupport {
     private const val KEY_AI_SCREEN_MODEL = "ai_screen_model_id"
     private const val KEY_SCREEN_VISION_SUPPORTED_MODELS = "screen_vision_supported_models"
     private const val KEY_RECEIPT_OCR_REFINE_ENABLED = "receipt_ocr_refine_enabled"
+    private const val KEY_RECEIPT_IMAGE_DRAFT_CONFIRM = "receipt_image_draft_confirm_enabled"
+    private const val KEY_IMAGE_ACCOUNTING_NATURAL_LANGUAGE = "image_accounting_natural_language"
     private const val KEY_AI_RECEIPT_OCR_REFINE_MODEL = "ai_receipt_ocr_refine_model_id"
     private const val KEY_AI_SPEECH_MODEL = "ai_speech_model_id"
+    private const val KEY_AI_MANUAL_MODEL_SELECTION = "ai_manual_model_selection_v1"
     private const val KEY_AI_ENABLE_THINKING = "ai_enable_thinking"
     private const val KEY_AI_THINKING_MULTI_BILL = "ai_thinking_multi_bill"
     private const val KEY_AI_THINKING_MODIFY_BILL = "ai_thinking_modify_bill"
@@ -44,12 +49,102 @@ object PrefsAiSupport {
     private const val DEFAULT_VISION_MODEL = "Qwen/Qwen3-VL-30B-A3B-Instruct"
     private const val DEFAULT_SPEECH_MODEL = "FunAudioLLM/SenseVoiceSmall"
 
-    fun getAiKey(ctx: Context): String = prefs(ctx).getString(KEY_AI_KEY, "") ?: ""
-    fun setAiKey(ctx: Context, key: String) = prefs(ctx).edit().putString(KEY_AI_KEY, key).apply()
+    fun getAiKey(ctx: Context): String {
+        migrateLegacyProviderKeysIfNeeded(ctx)
+        return prefs(ctx).getString(KEY_AI_KEY, "")?.trim().orEmpty()
+    }
 
-    // Per-provider key storage (delegates to single key for now)
-    fun getAiProviderKey(ctx: Context, providerId: String): String = getAiKey(ctx)
-    fun setAiProviderKey(ctx: Context, providerId: String, apiKey: String) = setAiKey(ctx, apiKey)
+    fun getAiProviderKey(ctx: Context, providerId: String): String {
+        val id = providerId.trim()
+        if (id.isBlank()) return ""
+        return readProviderKeysMap(ctx)[id].orEmpty()
+    }
+
+    fun setAiKey(ctx: Context, key: String) {
+        setAiProviderKey(ctx, getAiProvider(ctx), key)
+    }
+
+    fun exportAiProviderKeysJson(ctx: Context): String {
+        migrateLegacyProviderKeysIfNeeded(ctx)
+        return prefs(ctx).getString(KEY_AI_PROVIDER_KEYS, "").orEmpty()
+    }
+
+    fun importAiProviderKeysFromBackup(ctx: Context, json: String) {
+        val map = decodeProviderKeys(json)
+        val editor = prefs(ctx).edit()
+            .putString(KEY_AI_PROVIDER_KEYS, encodeProviderKeys(map))
+            .putBoolean(KEY_AI_PROVIDER_KEYS_MIGRATED, true)
+        val activeKey = map[getAiProvider(ctx)].orEmpty()
+        if (activeKey.isNotBlank()) {
+            editor.putString(KEY_AI_KEY, activeKey)
+        }
+        editor.commit()
+    }
+
+    fun setAiProviderKey(ctx: Context, providerId: String, apiKey: String) {
+        val id = providerId.trim()
+        if (id.isBlank()) return
+        val trimmed = apiKey.trim()
+        val map = readProviderKeysMap(ctx).toMutableMap()
+        if (trimmed.isEmpty()) {
+            map.remove(id)
+        } else {
+            map[id] = trimmed
+        }
+        val editor = prefs(ctx).edit()
+            .putString(KEY_AI_PROVIDER_KEYS, encodeProviderKeys(map))
+        if (getAiProvider(ctx) == id) {
+            editor.putString(KEY_AI_KEY, trimmed)
+        }
+        editor.commit()
+    }
+
+    private fun migrateLegacyProviderKeysIfNeeded(ctx: Context) {
+        val p = prefs(ctx)
+        if (p.getBoolean(KEY_AI_PROVIDER_KEYS_MIGRATED, false)) return
+        val map = readProviderKeysMapRaw(ctx).toMutableMap()
+        val legacyKey = p.getString(KEY_AI_KEY, "")?.trim().orEmpty()
+        if (legacyKey.isNotEmpty()) {
+            map.putIfAbsent(getAiProvider(ctx), legacyKey)
+        }
+        if (map.isNotEmpty()) {
+            p.edit().putString(KEY_AI_PROVIDER_KEYS, encodeProviderKeys(map)).apply()
+        }
+        p.edit().putBoolean(KEY_AI_PROVIDER_KEYS_MIGRATED, true).apply()
+    }
+
+    private fun readProviderKeysMap(ctx: Context): Map<String, String> {
+        migrateLegacyProviderKeysIfNeeded(ctx)
+        return readProviderKeysMapRaw(ctx)
+    }
+
+    private fun readProviderKeysMapRaw(ctx: Context): Map<String, String> =
+        decodeProviderKeys(prefs(ctx).getString(KEY_AI_PROVIDER_KEYS, null))
+
+    private fun encodeProviderKeys(map: Map<String, String>): String {
+        val obj = JSONObject()
+        map.forEach { (providerId, apiKey) ->
+            if (providerId.isNotBlank() && apiKey.isNotBlank()) {
+                obj.put(providerId, apiKey)
+            }
+        }
+        return obj.toString()
+    }
+
+    private fun decodeProviderKeys(raw: String?): Map<String, String> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return runCatching {
+            val obj = JSONObject(raw)
+            buildMap {
+                val keys = obj.keys()
+                while (keys.hasNext()) {
+                    val id = keys.next()
+                    val key = obj.optString(id, "").trim()
+                    if (key.isNotEmpty()) put(id, key)
+                }
+            }
+        }.getOrDefault(emptyMap())
+    }
 
     fun getAiModel(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_MODEL, DEFAULT_MAIN_MODEL) ?: DEFAULT_MAIN_MODEL
@@ -73,7 +168,7 @@ object PrefsAiSupport {
 
     // Hidden legacy field. Current product flow no longer exposes router configuration.
     fun getAiRouterModel(ctx: Context): String =
-        prefs(ctx).getString(KEY_AI_ROUTER_MODEL, DEFAULT_ROUTER_MODEL) ?: DEFAULT_ROUTER_MODEL
+        (prefs(ctx).getString(KEY_AI_ROUTER_MODEL, "") ?: "").ifBlank { getAiMultiModel(ctx) }
     fun setAiRouterModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_ROUTER_MODEL, value).apply()
     fun isAiLlmRouterEnabled(ctx: Context): Boolean =
@@ -97,8 +192,16 @@ object PrefsAiSupport {
     fun setAiReceiptModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_RECEIPT_MODEL, value).apply()
 
-    fun getAiReceiptVisionModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_RECEIPT_VISION_MODEL, "") ?: "").ifBlank { DEFAULT_VISION_MODEL }
+    fun getAiReceiptVisionModel(ctx: Context): String {
+        val saved = (prefs(ctx).getString(KEY_AI_RECEIPT_VISION_MODEL, "") ?: "").trim()
+        if (saved.isNotEmpty()) return saved
+        val preset = AiProviderRegistry.presetFor(getAiProvider(ctx))
+        return if (preset?.supportsVision == true) {
+            preset.defaultVisionModel.ifBlank { DEFAULT_VISION_MODEL }
+        } else {
+            ""
+        }
+    }
     fun setAiReceiptVisionModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_RECEIPT_VISION_MODEL, value).apply()
 
@@ -129,10 +232,16 @@ object PrefsAiSupport {
     fun setAiReceiptOcrRefineModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_RECEIPT_OCR_REFINE_MODEL, value).apply()
 
-    fun getAiSpeechModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_SPEECH_MODEL, "") ?: "").ifBlank {
-            DEFAULT_SPEECH_MODEL
+    fun getAiSpeechModel(ctx: Context): String {
+        val saved = (prefs(ctx).getString(KEY_AI_SPEECH_MODEL, "") ?: "").trim()
+        if (saved.isNotEmpty()) return saved
+        val preset = AiProviderRegistry.presetFor(getAiProvider(ctx))
+        return if (preset?.supportsCloudSpeech == true) {
+            preset.defaultSpeechModel.ifBlank { DEFAULT_SPEECH_MODEL }
+        } else {
+            ""
         }
+    }
     fun setAiSpeechModel(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_SPEECH_MODEL, value).apply()
 
@@ -172,6 +281,48 @@ object PrefsAiSupport {
     fun setAiModelsCache(ctx: Context, models: List<String>) =
         prefs(ctx).edit().putStringSet(KEY_AI_MODELS_CACHE, models.toSet()).apply()
 
+    /** Atomically persist provider switch so UI can read updated values immediately. */
+    fun applyAiProviderConfigSync(
+        ctx: Context,
+        preset: AiProviderPreset,
+        apiKey: String,
+        modelsCache: List<String>? = null
+    ) {
+        val textModel = preset.defaultTextModel
+        val visionModel = if (preset.supportsVision && preset.defaultVisionModel.isNotBlank()) {
+            preset.defaultVisionModel
+        } else {
+            ""
+        }
+        val speechModel = if (preset.supportsCloudSpeech && preset.defaultSpeechModel.isNotBlank()) {
+            preset.defaultSpeechModel
+        } else {
+            ""
+        }
+        val providerId = preset.id.trim().ifBlank { AiProviderRegistry.PROVIDER_SILICONFLOW }
+        val providerKeys = readProviderKeysMap(ctx).toMutableMap()
+        providerKeys[providerId] = apiKey.trim()
+        val editor = prefs(ctx).edit()
+            .putString(KEY_AI_PROVIDER, providerId)
+            .putString(KEY_AI_URL, preset.baseUrl)
+            .putString(KEY_AI_KEY, apiKey.trim())
+            .putString(KEY_AI_PROVIDER_KEYS, encodeProviderKeys(providerKeys))
+            .putString(KEY_AI_MODEL, textModel)
+            .putString(KEY_AI_MULTI_MODEL, textModel)
+            .putString(KEY_AI_MODIFY_MODEL, textModel)
+            .putString(KEY_AI_CATEGORY_REFINE_MODEL, textModel)
+            .putString(KEY_AI_RULE_MODEL, textModel)
+            .putString(KEY_AI_RECEIPT_MODEL, textModel)
+            .putString(KEY_AI_RECEIPT_OCR_REFINE_MODEL, textModel)
+            .putString(KEY_AI_ROUTER_MODEL, textModel)
+            .putString(KEY_AI_QUERY_MODEL, textModel)
+            .putString(KEY_AI_RECEIPT_VISION_MODEL, visionModel)
+            .putString(KEY_AI_SCREEN_MODEL, visionModel)
+            .putString(KEY_AI_SPEECH_MODEL, speechModel)
+        editor.putStringSet(KEY_AI_MODELS_CACHE, modelsCache.orEmpty().toSet())
+        editor.commit()
+    }
+
     fun defaultSpeechModelForUrl(rawBaseUrl: String): String {
         val baseUrl = rawBaseUrl.lowercase()
         return when {
@@ -180,45 +331,53 @@ object PrefsAiSupport {
         }
     }
 
-    fun isAiManualModelSelectionEnabled(ctx: Context): Boolean =
-        prefs(ctx).getBoolean("ai_manual_model_selection_enabled", false)
-    fun setAiManualModelSelectionEnabled(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean("ai_manual_model_selection_enabled", enabled).apply()
-
-    fun isAiChatModelFollowingMain(ctx: Context): Boolean =
-        prefs(ctx).getBoolean("ai_chat_model_following_main", true)
-    fun setAiChatModelFollowingMain(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean("ai_chat_model_following_main", enabled).apply()
-
-    fun resetChatModelOnProviderChange(ctx: Context) {
-        prefs(ctx).edit().putString("ai_chat_model", "").apply()
-    }
-
-    fun applyAiProviderConfigSync(ctx: Context, preset: AiProviderPreset, apiKey: String, modelsCache: List<String>?) {
-        val editor = prefs(ctx).edit()
-        editor.putString(KEY_AI_KEY, apiKey)
-        editor.putString(KEY_AI_PROVIDER, preset.id)
-        editor.putString(KEY_AI_URL, preset.baseUrl)
-        if (modelsCache != null) {
-            editor.putStringSet(KEY_AI_MODELS_CACHE, modelsCache.toSet())
-        }
-        editor.apply()
-    }
-
     fun getAiProvider(ctx: Context): String =
-        prefs(ctx).getString(KEY_AI_PROVIDER, "硅基流动") ?: "硅基流动"
-    fun setAiProvider(ctx: Context, value: String) =
-        prefs(ctx).edit().putString(KEY_AI_PROVIDER, value).apply()
+        prefs(ctx).getString(KEY_AI_PROVIDER, AiProviderRegistry.PROVIDER_SILICONFLOW)
+            ?: AiProviderRegistry.PROVIDER_SILICONFLOW
 
-    fun getAiUrl(ctx: Context): String =
-        prefs(ctx).getString(KEY_AI_URL, "https://api.siliconflow.cn") ?: "https://api.siliconflow.cn"
-    fun setAiUrl(ctx: Context, url: String) =
-        prefs(ctx).edit().putString(KEY_AI_URL, url).apply()
+    fun setAiProvider(ctx: Context, value: String) {
+        val normalized = value.trim().ifBlank { AiProviderRegistry.PROVIDER_SILICONFLOW }
+        prefs(ctx).edit().putString(KEY_AI_PROVIDER, normalized).apply()
+    }
+
+    fun getAiUrl(ctx: Context): String {
+        val saved = prefs(ctx).getString(KEY_AI_URL, "")?.trim().orEmpty()
+        if (saved.isNotEmpty()) return saved
+        return AiProviderRegistry.presetFor(getAiProvider(ctx))?.baseUrl
+            ?: "https://api.siliconflow.cn"
+    }
+
+    fun setAiUrl(ctx: Context, url: String) {
+        val normalized = url.trim().ifBlank {
+            AiProviderRegistry.presetFor(getAiProvider(ctx))?.baseUrl.orEmpty()
+        }
+        if (normalized.isNotEmpty()) {
+            prefs(ctx).edit().putString(KEY_AI_URL, normalized).apply()
+        }
+    }
+
+    fun isAiConfigured(ctx: Context): Boolean = getAiKey(ctx).isNotBlank()
+
+    fun isAiManualModelSelectionEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_AI_MANUAL_MODEL_SELECTION, false)
+
+    fun setAiManualModelSelectionEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_AI_MANUAL_MODEL_SELECTION, enabled).apply()
 
     fun isReceiptOcrRefineEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_RECEIPT_OCR_REFINE_ENABLED, false)
     fun setReceiptOcrRefineEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_RECEIPT_OCR_REFINE_ENABLED, enabled).apply()
+
+    fun isReceiptImageDraftConfirmEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_RECEIPT_IMAGE_DRAFT_CONFIRM, true)
+    fun setReceiptImageDraftConfirmEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_RECEIPT_IMAGE_DRAFT_CONFIRM, enabled).apply()
+
+    fun isImageAccountingNaturalLanguage(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_IMAGE_ACCOUNTING_NATURAL_LANGUAGE, false)
+    fun setImageAccountingNaturalLanguage(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_IMAGE_ACCOUNTING_NATURAL_LANGUAGE, enabled).apply()
 
     fun addOcrDebugRecord(ctx: Context, text: String, source: String = "local_ocr_before_ai") {
         if (text.isBlank()) return

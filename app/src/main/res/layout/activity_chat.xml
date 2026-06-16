@@ -89,7 +89,7 @@
                 android:id="@+id/btn_switch_model"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="切换"
+                android:text="@string/chat_model_button"
                 android:textColor="#3390EC"
                 android:textSize="13sp"
                 android:paddingHorizontal="10dp"
@@ -123,6 +123,41 @@
             app:layout_constraintBottom_toTopOf="@id/layout_chat_bottom"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/layout_agent_empty_state"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingHorizontal="32dp"
+            android:layout_marginTop="72dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/toolbar_chat"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <TextView
+                android:id="@+id/tv_agent_empty_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/agent_empty_hint"
+                android:textColor="@color/chat_bill_detail_text"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp" />
+
+            <TextView
+                android:id="@+id/tv_agent_empty_examples"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="@string/agent_empty_examples"
+                android:textColor="@color/chat_bill_category_text"
+                android:textSize="13sp"
+                android:lineSpacingExtra="6dp" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/layout_voice_record_overlay"
@@ -272,6 +307,61 @@
                     android:textColor="@color/chat_bill_detail_text"
                     android:textSize="12sp"
                     android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/layout_pending_images"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_chat_attachment_panel"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:visibility="gone"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/tv_pending_image_count"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="已选择 1 张图片"
+                            android:textColor="@color/chat_bill_category_text"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btn_clear_pending_images"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="4dp"
+                            android:text="清空"
+                            android:textColor="@color/chat_bill_detail_text"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/container_pending_images"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="6dp" />
+                    </HorizontalScrollView>
+                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/layout_chat_input_row"

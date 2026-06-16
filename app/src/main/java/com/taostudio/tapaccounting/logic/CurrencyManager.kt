@@ -84,6 +84,19 @@ object CurrencyManager {
         return amountCny * rate
     }
 
+    fun convert(amount: Double, fromCurrency: String, toCurrency: String): Double {
+        val from = normalizeCurrency(fromCurrency)
+        val to = normalizeCurrency(toCurrency)
+        if (from == to) return amount
+        return convertFromCny(convertToCny(amount, from), to)
+    }
+
+    fun hasConversionRate(fromCurrency: String, toCurrency: String): Boolean {
+        val from = normalizeCurrency(fromCurrency)
+        val to = normalizeCurrency(toCurrency)
+        return hasRate(from) && hasRate(to)
+    }
+
     fun getSupportedCurrencies(): List<String> {
         val popular = listOf("CNY", "USD", "EUR", "PLN", "HKD", "JPY", "GBP")
         val all = linkedSetOf<String>()

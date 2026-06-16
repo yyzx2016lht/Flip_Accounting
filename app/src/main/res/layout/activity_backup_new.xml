@@ -618,6 +618,233 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:id="@+id/card_auto_backup"
+                android:layout_marginTop="12dp"
+                app:cardBackgroundColor="@color/settings_card_bg"
+                app:cardCornerRadius="@dimen/settings_card_radius"
+                app:cardElevation="0dp"
+                app:strokeColor="#DEE6F2"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="自动备份"
+                        android:textColor="@color/settings_item_title"
+                        android:textSize="@dimen/text_size_16"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="12dp"
+                        android:lineSpacingExtra="2dp"
+                        android:text="开启后按设定间隔自动备份到默认目录，也可同时同步到云端。"
+                        android:textColor="#8C98A8"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_backup_group"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="启用自动备份"
+                                android:textColor="#2D3C57"
+                                android:textSize="14sp" />
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_auto_backup"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="#5C80EA"
+                                app:trackTint="#C8D6EC" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/group_auto_backup_options"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:background="#E0E7F0" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:text="备份间隔"
+                                android:textColor="#2D3C57"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <RadioGroup
+                                android:id="@+id/rg_auto_backup_interval"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:orientation="horizontal">
+
+                                <RadioButton
+                                    android:id="@+id/rb_interval_6h"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:singleLine="true"
+                                    android:text="6小时"
+                                    android:textColor="#2D3C57"
+                                    android:textSize="13sp" />
+
+                                <RadioButton
+                                    android:id="@+id/rb_interval_12h"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:checked="true"
+                                    android:singleLine="true"
+                                    android:text="12小时"
+                                    android:textColor="#2D3C57"
+                                    android:textSize="13sp" />
+
+                                <RadioButton
+                                    android:id="@+id/rb_interval_24h"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:singleLine="true"
+                                    android:text="24小时"
+                                    android:textColor="#2D3C57"
+                                    android:textSize="13sp" />
+                            </RadioGroup>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:text="备份模式"
+                                android:textColor="#2D3C57"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <RadioGroup
+                                android:id="@+id/rg_auto_backup_mode"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:orientation="horizontal">
+
+                                <RadioButton
+                                    android:id="@+id/rb_auto_mode_lite"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:checked="true"
+                                    android:singleLine="true"
+                                    android:text="轻量"
+                                    android:textColor="#2D3C57"
+                                    android:textSize="13sp" />
+
+                                <RadioButton
+                                    android:id="@+id/rb_auto_mode_full"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:singleLine="true"
+                                    android:text="完整"
+                                    android:textColor="#2D3C57"
+                                    android:textSize="13sp" />
+                            </RadioGroup>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:layout_marginTop="12dp"
+                                android:background="#E0E7F0" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="自动云端同步"
+                                        android:textColor="#2D3C57"
+                                        android:textSize="14sp" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="需先配置下方 WebDAV"
+                                        android:textColor="#8C98A8"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <com.google.android.material.switchmaterial.SwitchMaterial
+                                    android:id="@+id/switch_auto_cloud"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:thumbTint="#5C80EA"
+                                    app:trackTint="#C8D6EC" />
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:layout_marginTop="12dp"
+                                android:background="#E0E7F0" />
+
+                            <TextView
+                                android:id="@+id/tv_auto_backup_status"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:text="尚未自动备份"
+                                android:textColor="#6E7D95"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:id="@+id/card_cloud_backup"
                 android:layout_marginTop="12dp"
                 app:cardBackgroundColor="@color/settings_card_bg"
@@ -909,6 +1136,95 @@
                         app:iconGravity="textStart"
                         app:iconPadding="8dp"
                         app:iconTint="#6C7F9B" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/card_cleanup_bills"
+                android:layout_marginTop="12dp"
+                app:cardBackgroundColor="@color/settings_card_bg"
+                app:cardCornerRadius="@dimen/settings_card_radius"
+                app:cardElevation="0dp"
+                app:strokeColor="#DEE6F2"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="清理账单"
+                        android:textColor="@color/settings_item_title"
+                        android:textSize="@dimen/text_size_16"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="14dp"
+                        android:lineSpacingExtra="2dp"
+                        android:text="直接删除账单，不进回收站，不回退资产余额。适合清理历史数据，请谨慎操作。"
+                        android:textColor="#D46B6B"
+                        android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_cleanup_by_date"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:letterSpacing="0"
+                        android:text="按日期范围清理"
+                        android:textColor="#4F5E74"
+                        android:textSize="14sp"
+                        app:backgroundTint="#EAF0FB"
+                        app:cornerRadius="10dp"
+                        app:icon="@drawable/ic_calendar"
+                        app:iconGravity="textStart"
+                        app:iconPadding="8dp"
+                        app:iconTint="#6C7F9B" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_cleanup_by_book"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:letterSpacing="0"
+                        android:text="按账本清空"
+                        android:textColor="#4F5E74"
+                        android:textSize="14sp"
+                        app:backgroundTint="#EAF0FB"
+                        app:cornerRadius="10dp"
+                        app:icon="@drawable/ic_restore_action"
+                        app:iconGravity="textStart"
+                        app:iconPadding="8dp"
+                        app:iconTint="#6C7F9B" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_cleanup_all"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:letterSpacing="0"
+                        android:text="清空全部账单"
+                        android:textColor="#D46B6B"
+                        android:textSize="14sp"
+                        app:cornerRadius="10dp"
+                        app:icon="@drawable/ic_delete"
+                        app:iconGravity="textStart"
+                        app:iconPadding="8dp"
+                        app:iconTint="#D46B6B"
+                        app:strokeColor="#F0C0C0"
+                        app:strokeWidth="1dp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

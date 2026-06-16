@@ -88,264 +88,385 @@
                         android:layout_marginStart="0dp"
                         android:background="#F0F0F0" />
 
-                    <!-- 翻转唤出 -->
+                    <!-- group_flip: 翻转唤出 -->
                     <LinearLayout
+                        android:id="@+id/group_flip"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="翻转手机"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="翻转手机后触发你选择的快捷动作"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_flip_enable"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="翻转手机"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="翻转手机后触发你选择的快捷动作"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_flip_enable"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginStart="0dp"
+                            android:background="#F0F0F0" />
                     </LinearLayout>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginStart="0dp"
-                        android:background="#F0F0F0" />
-
-                    <!-- 敲击背板 -->
+                    <!-- group_tap: 敲击背板 -->
                     <LinearLayout
+                        android:id="@+id/group_tap"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="敲击背板"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="敲击手机背面触发你选择的快捷动作"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_tap_enable"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="敲击背板"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="敲击手机背面触发你选择的快捷动作"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_tap_enable"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
+                        <View
+                            android:id="@+id/divider_before_landscape_disable"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginStart="0dp"
+                            android:background="#F0F0F0" />
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/divider_before_landscape_disable"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginStart="0dp"
-                        android:background="#F0F0F0" />
-
-                    <!-- 横屏状态不检测 -->
+                    <!-- group_landscape_disable: 横屏状态不检测 -->
                     <LinearLayout
-                        android:id="@+id/row_landscape_disable"
+                        android:id="@+id/group_landscape_disable"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:id="@+id/row_landscape_disable"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="横屏状态不检测"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="启用后，横屏时将忽略翻转和敲击触发"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_landscape_disable"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="横屏状态不检测"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="启用后，横屏时将忽略翻转和敲击触发"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_landscape_disable"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
+                        <View
+                            android:id="@+id/divider_before_hide_recents"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginStart="0dp"
+                            android:background="#F0F0F0" />
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/divider_before_hide_recents"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginStart="0dp"
-                        android:background="#F0F0F0" />
-
-                    <!-- 隐藏后台卡片 -->
+                    <!-- group_hide_recents: 隐藏后台卡片 -->
                     <LinearLayout
-                        android:id="@+id/row_hide_recents"
+                        android:id="@+id/group_hide_recents"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:id="@+id/row_hide_recents"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="隐藏后台卡片"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="实验性功能，测试是否解决杀后台问题"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_hide_recents"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="隐藏后台卡片"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="实验性功能，测试是否解决杀后台问题"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_hide_recents"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
+                        <View
+                            android:id="@+id/divider_before_vibration_feedback"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginStart="0dp"
+                            android:background="#F0F0F0" />
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/divider_before_vibration_feedback"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginStart="0dp"
-                        android:background="#F0F0F0" />
-
-                    <!-- 弹窗震动反馈 -->
+                    <!-- group_vibration_feedback: 弹窗震动反馈 -->
                     <LinearLayout
-                        android:id="@+id/row_vibration_feedback"
+                        android:id="@+id/group_vibration_feedback"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:id="@+id/row_vibration_feedback"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="弹窗震动反馈"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="识别到手势时通过轻震动提示"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_vibration_feedback"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="弹窗震动反馈"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="识别到手势时通过轻震动提示"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_vibration_feedback"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
+                        <View
+                            android:id="@+id/divider_before_save_vibrate"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginStart="0dp"
+                            android:background="#F0F0F0" />
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/divider_before_save_vibrate"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:layout_marginStart="0dp"
-                        android:background="#F0F0F0" />
-
-                    <!-- 记账成功震动 -->
+                    <!-- group_save_vibrate: 记账成功震动 -->
                     <LinearLayout
-                        android:id="@+id/row_save_vibrate"
+                        android:id="@+id/group_save_vibrate"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:id="@+id/row_save_vibrate"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="记账成功震动"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="记账保存成功后通过轻震动提示"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_save_vibrate"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="记账成功震动"
-                                android:textColor="#1A2744"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="记账保存成功后通过轻震动提示"
-                                android:textColor="#9AA4B2"
-                                android:textSize="@dimen/text_size_11" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_save_vibrate"
-                            android:layout_width="wrap_content"
+                        <View
+                            android:id="@+id/divider_before_whitelist"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:layout_marginStart="0dp"
+                            android:background="#F0F0F0" />
+                    </LinearLayout>
+
+                    <!-- group_whitelist: 白名单模式（LAST in card, no divider, visibility moved to group） -->
+                    <LinearLayout
+                        android:id="@+id/group_whitelist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:id="@+id/layout_whitelist_container"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="白名单模式"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="只在指定应用内触发手势记账（需 Shizuku 授权）"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_whitelist_mode"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/layout_whitelist_manage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0.5dp"
+                                android:background="#F0F0F0" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_manage_whitelist"
+                                style="@style/Widget.MaterialComponents.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:layout_marginBottom="2dp"
+                                android:layout_marginStart="8dp"
+                                android:text="管理白名单应用"
+                                android:textColor="#5C6BC0"
+                                android:textSize="@dimen/text_size_12" />
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -640,409 +761,458 @@
                             android:textColor="#333333" />
                     </LinearLayout>
 
-                    <!-- 高级设置入口 -->
+                    <!-- group_tap_advanced_toggle: 高级设置入口 -->
                     <LinearLayout
-                        android:id="@+id/btn_tap_advanced_toggle"
+                        android:id="@+id/group_tap_advanced_toggle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="?attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_gray">
+                        <LinearLayout
+                            android:id="@+id/btn_tap_advanced_toggle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_gray">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_settings"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="14dp"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="高级敲击设置"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/tv_tap_advanced_summary"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="模型、功耗和推理参数"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/iv_tap_advanced_chevron"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="#CCCCCC" />
+                        </LinearLayout>
+
+                        <View
+                            android:id="@+id/divider_after_tap_advanced_toggle"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
+                    </LinearLayout>
+
+                    <!-- group_tap_model: 模型选择 -->
+                    <LinearLayout
+                        android:id="@+id/group_tap_model"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:id="@+id/btn_tap_model"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_indigo">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_ai_net_robot"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="模型选择"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/tv_tap_model_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="默认模型"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_settings"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="14dp"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="高级敲击设置"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:id="@+id/tv_tap_advanced_summary"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="模型、功耗和推理参数"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="#CCCCCC" />
                         </LinearLayout>
 
-                        <ImageView
-                            android:id="@+id/iv_tap_advanced_chevron"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_chevron_right"
-                            app:tint="#CCCCCC" />
+                        <View
+                            android:id="@+id/divider_after_tap_model"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/divider_after_tap_advanced_toggle"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- 模型选择 -->
+                    <!-- group_tap_nnapi: NNAPI 低功耗推理 -->
                     <LinearLayout
-                        android:id="@+id/btn_tap_model"
+                        android:id="@+id/group_tap_nnapi"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="?attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
+                        android:orientation="vertical">
 
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_indigo">
+                        <LinearLayout
+                            android:id="@+id/layout_tap_nnapi"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_green">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_exchange"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="低功耗推理"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="使用 NPU 加速，更省电"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_tap_nnapi"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <View
+                            android:id="@+id/divider_after_tap_nnapi"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
+                    </LinearLayout>
+
+                    <!-- group_tap_low_power: 全程 ML 模式 -->
+                    <LinearLayout
+                        android:id="@+id/group_tap_low_power"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:id="@+id/layout_tap_low_power"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_teal">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_power"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="全程 ML 高灵敏模式"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                     android:text="开启后始终使用加速度计、陀螺仪和模型检测；关闭后静止一段时间会进入动态省电"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_tap_low_power"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <View
+                            android:id="@+id/divider_after_tap_low_power"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
+                    </LinearLayout>
+
+                    <!-- group_tap_triple: 三击模式 -->
+                    <LinearLayout
+                        android:id="@+id/group_tap_triple"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:id="@+id/layout_tap_triple"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_purple">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_tap"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="三击模式"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="连敲三次触发单独动作，开启后双击响应会变慢"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_tap_triple"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
+                    </LinearLayout>
+
+                    <!-- group_tap_action_double: 双击动作 -->
+                    <LinearLayout
+                        android:id="@+id/group_tap_action_double"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:id="@+id/btn_tap_action_double"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_orange">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_category_tree"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="双击动作"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/tv_tap_action_double_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="弹出记账悬浮窗"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_ai_net_robot"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="模型选择"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:id="@+id/tv_tap_model_name"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="默认模型"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="#CCCCCC" />
                         </LinearLayout>
-
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_chevron_right"
-                            app:tint="#CCCCCC" />
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/divider_after_tap_model"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- NNAPI 低功耗推理 -->
+                    <!-- group_tap_action_triple: 三击动作（LAST in card, no divider, visibility moved to group） -->
                     <LinearLayout
-                        android:id="@+id/layout_tap_nnapi"
+                        android:id="@+id/group_tap_action_triple"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_green">
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_exchange"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="低功耗推理"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="使用 NPU 加速，更省电"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_tap_nnapi"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:id="@+id/divider_after_tap_nnapi"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- 全程 ML 模式 -->
-                    <LinearLayout
-                        android:id="@+id/layout_tap_low_power"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_teal">
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_power"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="全程 ML 高灵敏模式"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                 android:text="开启后始终使用加速度计、陀螺仪和模型检测；关闭后静止一段时间会进入动态省电"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_tap_low_power"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:id="@+id/divider_after_tap_low_power"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- 三击模式 -->
-                    <LinearLayout
-                        android:id="@+id/layout_tap_triple"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_purple">
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_tap"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="三击模式"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="连敲三次触发单独动作，开启后双击响应会变慢"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
-                        </LinearLayout>
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_tap_triple"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- 双击动作 -->
-                    <LinearLayout
-                        android:id="@+id/btn_tap_action_double"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="?attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_orange">
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_category_tree"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="双击动作"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:id="@+id/tv_tap_action_double_name"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="弹出记账悬浮窗"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
-                        </LinearLayout>
-
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_chevron_right"
-                            app:tint="#CCCCCC" />
-                    </LinearLayout>
-
-                    <!-- 三击动作（跟随三击模式开关显示） -->
-                    <LinearLayout
-                        android:id="@+id/btn_tap_action_triple"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="?attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp"
+                        android:orientation="vertical"
                         android:visibility="gone">
 
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_pink">
+                        <LinearLayout
+                            android:id="@+id/btn_tap_action_triple"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_pink">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_category_tree"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="三击动作"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/tv_tap_action_triple_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="弹出记账悬浮窗"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_category_tree"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="三击动作"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:id="@+id/tv_tap_action_triple_name"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="弹出记账悬浮窗"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="#CCCCCC" />
                         </LinearLayout>
-
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_chevron_right"
-                            app:tint="#CCCCCC" />
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -1097,185 +1267,206 @@
                         app:backgroundTint="#E45649"
                         app:cornerRadius="10dp" />
 
-                    <!-- 电池优化豁免 -->
+                    <!-- group_battery_optimization: 电池优化豁免 -->
                     <LinearLayout
-                        android:id="@+id/layout_battery_optimization"
+                        android:id="@+id/group_battery_optimization"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_orange">
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_keep_alive"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:id="@+id/layout_battery_optimization"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_orange">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_keep_alive"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:text="电池优化豁免"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="电池优化豁免"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="关闭电池优化，防止系统杀死后台服务"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_battery_optimization"
+                                style="@style/Widget.MaterialComponents.Button.TextButton"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="关闭电池优化，防止系统杀死后台服务"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
+                                android:layout_height="36dp"
+                                android:text="去设置"
+                                android:textColor="#5C6BC0"
+                                android:textSize="@dimen/text_size_13" />
                         </LinearLayout>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_battery_optimization"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:text="去设置"
-                            android:textColor="#5C6BC0"
-                            android:textSize="@dimen/text_size_13" />
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
                     </LinearLayout>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- 通知权限 -->
+                    <!-- group_notification_permission: 通知权限 -->
                     <LinearLayout
-                        android:id="@+id/layout_notification_permission"
+                        android:id="@+id/group_notification_permission"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_blue">
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_keep_alive"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:id="@+id/layout_notification_permission"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_blue">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_keep_alive"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="通知权限（可选）"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/tv_notification_status"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="无常驻通知模式下，仅录音等临时场景会使用"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switch_notification_permission"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="通知权限（可选）"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:id="@+id/tv_notification_status"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="无常驻通知模式下，仅录音等临时场景会使用"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
+                                app:thumbTint="@color/switch_thumb_tint"
+                                app:trackTint="@color/switch_track_tint" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switch_notification_permission"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            app:thumbTint="@color/switch_thumb_tint"
-                            app:trackTint="@color/switch_track_tint" />
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
                     </LinearLayout>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- 无障碍服务 -->
+                    <!-- group_accessibility_service: 无障碍服务 -->
                     <LinearLayout
-                        android:id="@+id/layout_accessibility_service"
+                        android:id="@+id/group_accessibility_service"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingVertical="10dp">
-
-                        <FrameLayout
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="@drawable/bg_icon_badge_purple">
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_profile_shizuku_guard"
-                                android:tint="#FFFFFF" />
-                        </FrameLayout>
+                        android:orientation="vertical">
 
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:id="@+id/layout_accessibility_service"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="14dp"
-                            android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingVertical="10dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_purple">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_shizuku_guard"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:text="无障碍服务"
-                                android:textColor="#333333"
-                                android:textSize="@dimen/text_size_15"
-                                android:textStyle="bold" />
-                            <TextView
-                                android:id="@+id/tv_accessibility_status"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="无障碍服务"
+                                    android:textColor="#333333"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/tv_accessibility_status"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="用于截屏记账和后台保活"
+                                    android:textColor="#999999"
+                                    android:textSize="@dimen/text_size_12" />
+                            </LinearLayout>
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_accessibility_service"
+                                style="@style/Widget.MaterialComponents.Button.TextButton"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="用于截屏记账和后台保活"
-                                android:textColor="#999999"
-                                android:textSize="@dimen/text_size_12" />
+                                android:layout_height="36dp"
+                                android:text="去开启"
+                                android:textColor="#5C6BC0"
+                                android:textSize="@dimen/text_size_13" />
                         </LinearLayout>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_accessibility_service"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:text="去开启"
-                            android:textColor="#5C6BC0"
-                            android:textSize="@dimen/text_size_13" />
+                        <View
+                            android:id="@+id/divider_after_accessibility_service"
+                            android:layout_width="match_parent"
+                            android:layout_height="0.5dp"
+                            android:background="#F0F0F0"
+                            android:layout_marginVertical="4dp" />
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/divider_after_accessibility_service"
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="#F0F0F0"
-                        android:layout_marginVertical="4dp" />
-
-                    <!-- 隐藏后台卡片 -->
+                    <!-- 隐藏后台卡片 (not wrapped - not in spec) -->
                     <LinearLayout
                         android:id="@+id/row_hide_recents_bottom"
                         android:layout_width="match_parent"
