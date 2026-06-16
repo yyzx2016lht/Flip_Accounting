@@ -180,7 +180,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="3dp"
-                                android:text="完成悬浮窗和后台运行设置后，翻转和敲击会更稳定。"
+                                android:text="@string/gesture_setup_hint"
                                 android:textColor="#8A5A00"
                                 android:textSize="@dimen/text_size_12" />
                         </LinearLayout>
@@ -1032,7 +1032,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="关闭后仍可正常记账，但为获得最优体验，建议继续添加并启用资产功能。"
+                                    android:text="@string/asset_disable_hint"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -1428,7 +1428,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="被电池管家强停后尝试清除 stopped 并重启"
+                                    android:text="@string/keep_alive_auto_restart_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11"
                                     android:layout_marginTop="1dp" />
@@ -1496,7 +1496,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="开启后显示多币种与汇率入口，并在记账时可选币种"
+                                    android:text="@string/multi_currency_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>

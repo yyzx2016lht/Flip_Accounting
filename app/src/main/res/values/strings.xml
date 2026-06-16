@@ -64,6 +64,25 @@
     <string name="ai_accounting_entry">记账页增加 AI 入口</string>
     <string name="ai_accounting_entry_desc">在传统记账弹窗底部显示切换入口。</string>
 
+    <!-- 手势设置 -->
+    <string name="tap_always_on_desc">始终使用传感器检测，关闭后自动省电</string>
+    <string name="tap_triple_desc">连敲三次触发单独动作，开启后双击响应会变慢</string>
+    <string name="flip_sensitivity_hint">灵敏度越高越容易触发，过高可能误触</string>
+    <string name="tap_sensitivity_hint">灵敏度越高越容易触发，过高可能误触</string>
+    <string name="whitelist_desc">只在指定应用内触发手势记账</string>
+    <string name="keep_alive_minimal_desc">无常驻通知时，仅录音等临时场景使用</string>
+
+    <!-- 个人设置 -->
+    <string name="asset_disable_hint">关闭后仍可记账，建议保持开启</string>
+    <string name="keep_alive_auto_restart_desc">被系统清理后自动恢复运行</string>
+    <string name="multi_currency_desc">显示多币种与汇率入口，记账时可选币种</string>
+    <string name="gesture_setup_hint">完成悬浮窗和后台设置后，手势更稳定</string>
+
+    <!-- AI 配置 -->
+    <string name="ocr_refine_desc">开启后先做本地结构提取再整理</string>
+    <string name="model_usage_desc">主文本用于记账/分类，视觉用于图片识别</string>
+    <string name="chat_model_hint">留空则跟随主文本模型</string>
+
     <!-- Agent 模式 -->
     <string name="agent_mode_title">AI 助手</string>
     <string name="chat_mode_accounting">记账</string>

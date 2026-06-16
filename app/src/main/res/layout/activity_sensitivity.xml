@@ -431,7 +431,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="2dp"
-                                    android:text="只在指定应用内触发手势记账（需 Shizuku 授权）"
+                                    android:text="@string/whitelist_desc"
                                     android:textColor="#9AA4B2"
                                     android:textSize="@dimen/text_size_11" />
                             </LinearLayout>
@@ -558,7 +558,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="灵敏度越高，翻转动作越容易触发。过高可能导致误触。"
+                        android:text="@string/flip_sensitivity_hint"
                         android:textSize="@dimen/text_size_12"
                         android:textColor="#999999"
                         android:lineSpacingExtra="4dp" />
@@ -715,7 +715,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="灵敏度越高，越容易触发敲击检测。过高可能导致误触。"
+                        android:text="@string/tap_sensitivity_hint"
                         android:textSize="@dimen/text_size_12"
                         android:textColor="#999999"
                         android:lineSpacingExtra="4dp" />
@@ -1007,7 +1007,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                     android:text="开启后始终使用加速度计、陀螺仪和模型检测；关闭后静止一段时间会进入动态省电"
+                                     android:text="@string/tap_always_on_desc"
                                     android:textColor="#999999"
                                     android:textSize="@dimen/text_size_12" />
                             </LinearLayout>
@@ -1072,7 +1072,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="连敲三次触发单独动作，开启后双击响应会变慢"
+                                    android:text="@string/tap_triple_desc"
                                     android:textColor="#999999"
                                     android:textSize="@dimen/text_size_12" />
                             </LinearLayout>
@@ -1378,7 +1378,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="1dp"
-                                    android:text="无常驻通知模式下，仅录音等临时场景会使用"
+                                    android:text="@string/keep_alive_minimal_desc"
                                     android:textColor="#999999"
                                     android:textSize="@dimen/text_size_12" />
                             </LinearLayout>
