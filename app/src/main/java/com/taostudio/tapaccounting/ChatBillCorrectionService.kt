@@ -277,7 +277,7 @@ class ChatBillCorrectionService(
             BillValidationResult(billsToSave, errors)
         }
 
-        if (validation.errors.isNotEmpty() || validation.bills.size != rawBills.size) {
+        if (validation.bills.isEmpty()) {
             appendAiTextMessage(
                 "这次识别结果还不够完整，我没有保存账单：\n${validation.errors.joinToString("\n")}",
                 false,
@@ -285,6 +285,15 @@ class ChatBillCorrectionService(
                 conversationId
             )
             return emptyList()
+        }
+
+        if (validation.errors.isNotEmpty()) {
+            appendAiTextMessage(
+                "部分账单已保存，以下未能保存：\n${validation.errors.joinToString("\n")}",
+                false,
+                activeBookName,
+                conversationId
+            )
         }
 
         val (savedBills, msgId, billsJsonArr) = withContext(Dispatchers.IO) {

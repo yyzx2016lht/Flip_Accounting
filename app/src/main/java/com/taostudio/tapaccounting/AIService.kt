@@ -1399,7 +1399,8 @@ object AIService {
             hasStrongFinancialSignal ||
                 hasAmountPattern ||
                 (hasNumber && hasCurrencySignal) ||
-                weakFinancialSignalHits >= 2
+                weakFinancialSignalHits >= 2 ||
+                (hasNumber && weakFinancialSignalHits >= 1)
         if (hasFinancialSignal) return false
 
         val chatterSignals = listOf(
