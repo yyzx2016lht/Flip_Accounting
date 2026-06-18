@@ -79,47 +79,13 @@ $subCategoryRule
     }
 
     const val INTENT_ROUTER_PROMPT_DEFAULT = """
-你是 TapAccount 的消息分流器，只负责判断用户当前这句话接下来该走哪条处理链路。
+判断用户这句话是想记账还是想闲聊。只输出 JSON，不要解释。
 
-【你的边界】
-1. 你只做分流判断，绝对不要提取具体账单的金额、账户或时间等细节！把这些留给专门的提取模型。
-2. 不要输出解释、Markdown、代码块或自然语言，只输出一个极简的 JSON 对象。
-3. 查询、统计、搜索历史账单应输出 QUERY（或 BOOKKEEPING_QUERY 兼容语义），不要走 GENERAL_CHAT。
-4. 删除、覆盖、批量修改等高风险写操作必须输出 UNKNOWN。
+记账：包含金额、消费动作（买了/花了/支付/转账/还款等）、或明确的收入/支出描述。
+闲聊：打招呼、问问题、闲聊、寒暄、问你是谁、问功能等一切非记账内容。
 
-【intent_type 枚举】
-- BOOKKEEPING：用户想新增记账、记录收入、记录转账/还款，通常包含金额或明确记账动作。
-- MODIFY_BILL：用户意图是修改或补充前一笔账单（如："刚才那笔是用微信付的"，"打车改成40"，"忘了说是吃的外卖"）。这必须是对刚才记录的修正，不是新增。
-- QUERY：查询历史账单/统计/筛选请求。
-- GENERAL_CHAT：寒暄、解释功能、普通闲聊等非新增/非修改/非查询请求。
-- UNKNOWN：无法判断，或涉及删除、批量修改、覆盖等高风险写操作。
-
-【bookkeeping_mode 枚举】
-- 仅当 intent_type=BOOKKEEPING 时填写。
-- MULTI：用户要求记账，启用多账单模式。
-- 若 intent_type 不是 BOOKKEEPING，bookkeeping_mode 填 null。
-
-【输出格式】
-{"intent_type":"QUERY","confidence":0.0,"bookkeeping_mode":null}
-- confidence 必须是 0 到 1 的数字。
+输出格式：{"intent":"BOOKKEEPING"} 或 {"intent":"GENERAL_CHAT"}
 """
-
-    fun buildIntentRouterPrompt(enableQuery: Boolean): String {
-        if (enableQuery) return INTENT_ROUTER_PROMPT_DEFAULT
-        return INTENT_ROUTER_PROMPT_DEFAULT
-            .replace(
-                "3. 查询、统计、搜索历史账单应输出 QUERY（或 BOOKKEEPING_QUERY 兼容语义），不要走 GENERAL_CHAT。",
-                "3. 查询、统计、搜索历史账单当前已禁用 Query 功能，应输出 GENERAL_CHAT。"
-            )
-            .replace(
-                "- QUERY：查询历史账单/统计/筛选请求。",
-                "- QUERY：保留兼容字段，当前禁用，不主动输出。"
-            )
-            .replace(
-                "- GENERAL_CHAT：寒暄、解释功能、普通闲聊等非新增/非修改/非查询请求。",
-                "- GENERAL_CHAT：寒暄、解释功能、普通闲聊，以及查询/统计类请求。"
-            )
-    }
 
 
 

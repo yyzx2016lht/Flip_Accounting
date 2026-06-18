@@ -6,20 +6,12 @@ import org.junit.Test
 
 class AIPromptsTest {
     @Test
-    fun intentRouterPromptIncludesQueryRuleWhenEnabled() {
-        val prompt = AIPrompts.buildIntentRouterPrompt(enableQuery = true)
+    fun intentRouterPromptContainsKeyElements() {
+        val prompt = AIPrompts.INTENT_ROUTER_PROMPT_DEFAULT
 
-        assertTrue(prompt.contains("应输出 QUERY"))
-        assertFalse(prompt.contains("当前已禁用 Query 功能"))
-    }
-
-    @Test
-    fun intentRouterPromptRemovesQueryRoutingWhenDisabled() {
-        val prompt = AIPrompts.buildIntentRouterPrompt(enableQuery = false)
-
-        assertTrue(prompt.contains("当前已禁用 Query 功能"))
-        assertTrue(prompt.contains("查询/统计类请求"))
-        assertFalse(prompt.contains("应输出 QUERY（或 BOOKKEEPING_QUERY 兼容语义）"))
+        assertTrue(prompt.contains("BOOKKEEPING"))
+        assertTrue(prompt.contains("GENERAL_CHAT"))
+        assertTrue(prompt.contains("intent"))
     }
 }
 

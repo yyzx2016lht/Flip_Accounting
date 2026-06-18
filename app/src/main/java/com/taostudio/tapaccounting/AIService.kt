@@ -46,7 +46,6 @@ object AIService {
     const val RECEIPT_VISION_RETRY_PROMPT_DEFAULT= AIPrompts.RECEIPT_VISION_RETRY_PROMPT_DEFAULT
     const val IMAGE_ACCOUNTING_PROMPT   = AIPrompts.IMAGE_ACCOUNTING_PROMPT
     const val CHAT_ASSISTANT_PROMPT_DEFAULT      = AIPrompts.CHAT_ASSISTANT_PROMPT_DEFAULT
-    const val INTENT_ROUTER_PROMPT_DEFAULT       = AIPrompts.INTENT_ROUTER_PROMPT_DEFAULT
     private const val MAX_ACCOUNTING_INPUT_CHARS = 12000
 
     private const val MAX_ASSISTANT_INPUT_CHARS = 4000
@@ -829,10 +828,9 @@ object AIService {
     }
 
     /**
-     * 轻量意图分类：判断用户输入是记账、闲聊还是查询。
+     * 轻量意图分类：判断用户输入是记账还是闲聊。
      * 仅用于聊天入口，悬浮窗记账不走此函数。
-     * 模型选择：优先用视觉模型（多模态平台），没有则 fallback 到文本模型。
-     * @return "BOOKKEEPING" / "GENERAL_CHAT" / "QUERY" / "UNKNOWN"
+     * @return "BOOKKEEPING" / "GENERAL_CHAT"
      */
     suspend fun classifyIntent(ctx: Context, userText: String): String {
         val apiKey = Prefs.getAiKey(ctx)
@@ -840,11 +838,10 @@ object AIService {
         val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveTextModel(ctx) }
         if (model.isBlank()) return "BOOKKEEPING"
 
-        val systemPrompt = AIPrompts.buildIntentRouterPrompt(enableQuery = false)
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.1,
-            systemPrompt = systemPrompt,
+            systemPrompt = AIPrompts.INTENT_ROUTER_PROMPT_DEFAULT,
             userText = userText,
             enableThinking = false
         )
@@ -862,12 +859,10 @@ object AIService {
             val cleaned = cleanJsonString(content)
             val jsonText = extractFirstJsonObjectText(cleaned)
             val json = runCatching { jsonText?.let { org.json.JSONObject(it) } }.getOrNull()
-            val intent = json?.optString("intent_type", "BOOKKEEPING") ?: "BOOKKEEPING"
+            val intent = json?.optString("intent", "BOOKKEEPING") ?: "BOOKKEEPING"
             Logger.d(ctx, "AIService", "classifyIntent: input=${userText.take(50)}, result=$intent")
             when (intent) {
-                "BOOKKEEPING", "GENERAL_CHAT" -> intent
-                // QUERY 功能暂未实现，MODIFY_BILL 已移除，均 fallback 到记账
-                "QUERY", "UNKNOWN", "MODIFY_BILL" -> "BOOKKEEPING"
+                "GENERAL_CHAT" -> "GENERAL_CHAT"
                 else -> "BOOKKEEPING"
             }
         } catch (e: Exception) {
