@@ -12,6 +12,7 @@ import com.google.gson.JsonObject
 import android.util.Base64
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -71,34 +72,51 @@ object AIService {
             AIPromptsWithoutAccount.MULTI_BILL_PROMPT_DEFAULT
         }
 
-    private fun getApi(ctx: Context): SiliconFlowApi {
-        val baseUrl = normalizeBaseUrl(Prefs.getAiUrl(ctx))
-        val client = OkHttpClient.Builder()
+    private val sharedClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
             .connectTimeout(API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(API_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
             .build()
-        return Retrofit.Builder()
+    }
+
+    private val speechClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(SPEECH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(SPEECH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(SPEECH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectionPool(ConnectionPool(2, 5, TimeUnit.MINUTES))
+            .build()
+    }
+
+    @Volatile private var cachedApi: Pair<String, SiliconFlowApi>? = null
+    @Volatile private var cachedSpeechApi: Pair<String, SiliconFlowApi>? = null
+
+    private fun getApi(ctx: Context): SiliconFlowApi {
+        val baseUrl = normalizeBaseUrl(Prefs.getAiUrl(ctx))
+        cachedApi?.let { (url, api) -> if (url == baseUrl) return api }
+        val api = Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(client)
+            .client(sharedClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(SiliconFlowApi::class.java)
+        cachedApi = baseUrl to api
+        return api
     }
 
     private fun getSpeechApi(ctx: Context): SiliconFlowApi {
         val baseUrl = normalizeBaseUrl(Prefs.getAiUrl(ctx))
-        val client = OkHttpClient.Builder()
-            .connectTimeout(SPEECH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(SPEECH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .writeTimeout(SPEECH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .build()
-        return Retrofit.Builder()
+        cachedSpeechApi?.let { (url, api) -> if (url == baseUrl) return api }
+        val api = Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(client)
+            .client(speechClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(SiliconFlowApi::class.java)
+        cachedSpeechApi = baseUrl to api
+        return api
     }
 
     suspend fun speechToText(ctx: Context, audioFile: File): String? {
@@ -701,10 +719,11 @@ object AIService {
             matchedPromptRules = matchedPromptRules
         )
         val requestJson = if (isFromChat && chatTurns.isNotEmpty()) {
-            buildMultiImageVisionChatRequest(
+            buildMultiTurnMultiImageVisionChatRequest(
                 model = model,
                 temperature = 0.1,
                 systemPrompt = systemPrompt,
+                historyTurns = chatTurns,
                 dataUrls = dataUrls,
                 userText = userText,
                 enableThinking = enableThinkingForVision(ctx)

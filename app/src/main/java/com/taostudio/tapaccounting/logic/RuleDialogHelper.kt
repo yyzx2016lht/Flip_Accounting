@@ -82,7 +82,6 @@ object RuleDialogHelper {
                 val remark = referenceText ?: ""
                 val prompt = DEFAULT_RULE_PROMPT
                     .replace("{{REMARK}}", remark)
-                    .replace("{{TYPE}}", spType.selectedItemPosition.toString())
                     .replace("{{CATEGORY}}", tvCategory.text.toString())
                 try {
                     val result = AIService.simpleChat(ctx, prompt)

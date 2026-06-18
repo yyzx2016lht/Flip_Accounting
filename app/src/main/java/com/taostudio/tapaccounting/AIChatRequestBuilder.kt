@@ -167,6 +167,35 @@ internal fun buildMultiImageVisionChatRequest(
     )
 }
 
+internal fun buildMultiTurnMultiImageVisionChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    historyTurns: List<ChatTurn> = emptyList(),
+    dataUrls: List<String>,
+    userText: String,
+    enableThinking: Boolean = false
+): JsonObject {
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        historyTurns.forEach { turn ->
+            add(buildTextMessage(turn.role, turn.content))
+        }
+        add(
+            buildContentMessage(
+                role = "user",
+                parts = dataUrls.map { buildImagePart(it) } + listOf(buildTextPart(userText))
+            )
+        )
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        enableThinking = enableThinking
+    )
+}
+
 private fun buildChatRequest(
     model: String,
     temperature: Double,
