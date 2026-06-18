@@ -285,12 +285,6 @@ object AIService {
             val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
-                if (shouldTreatAsNoBillChatter(safeUserInput, root)) {
-                    return JSONObject().apply {
-                        put("no_bill", true)
-                        put("reply", "这句更像是在聊天，不像记账内容，我就先不帮你生成账单啦。")
-                    }
-                }
                 enforceExpenseForReceiptSummaries(root, safeUserInput)
 
                 normalizeAccountingResult(
@@ -1261,74 +1255,6 @@ object AIService {
             "mastercard", "刷卡", "支付", "超市", "商店", "biedronka", "pln", "eur")
         val incomeSignals = listOf("工资", "收入", "收款", "收到", "到账", "退款到账", "报销到账", "转入", "打款给我")
         return expenseSignals.count { normalized.contains(it) } >= 2 && incomeSignals.none { normalized.contains(it) }
-    }
-
-    private fun shouldTreatAsNoBillChatter(userInput: String, root: JSONObject): Boolean {
-        val normalizedInput = userInput.trim().lowercase(Locale.ROOT)
-        if (normalizedInput.isBlank()) return true
-        if (looksLikeReceiptExpenseSummary(normalizedInput)) return false
-
-        val strongFinancialSignals = listOf(
-            "花了", "消费", "支出", "购买", "付款", "支付", "转账", "还款", "报销", "退款",
-            "收入", "收款", "到账", "记账", "记一笔", "入账", "提现", "充值", "扣款", "账单",
-            "工资", "报销到账"
-        )
-        val weakFinancialSignals = listOf("花", "买", "赚")
-        val currencySignals = listOf("€", "$", "¥", "￥", "元", "块", "毛", "角", "pln", "cny", "usd", "eur", "rmb")
-        val hasStrongFinancialSignal = strongFinancialSignals.any { normalizedInput.contains(it) }
-        val weakFinancialSignalHits = weakFinancialSignals.count { normalizedInput.contains(it) }
-        val hasNumber = Regex("\\d").containsMatchIn(normalizedInput)
-        val hasCurrencySignal = currencySignals.any { normalizedInput.contains(it) }
-        val hasAmountPattern = Regex("""\d+(?:[.,]\d{1,2})?\s*(元|块|人民币|rmb|cny|usd|eur|pln|¥|￥|\$|€)""")
-            .containsMatchIn(normalizedInput)
-        val hasFinancialSignal =
-            hasStrongFinancialSignal ||
-                hasAmountPattern ||
-                (hasNumber && hasCurrencySignal) ||
-                weakFinancialSignalHits >= 2 ||
-                (hasNumber && weakFinancialSignalHits >= 1)
-        if (hasFinancialSignal) return false
-
-        val chatterSignals = listOf(
-            "你好", "您好", "哈喽", "嗨", "hello", "hi", "早上好", "晚上好", "午安",
-            "在吗", "聊天", "聊聊天", "陪我", "打个招呼", "介绍", "介绍下", "自我介绍",
-            "说说话", "陪我说话", "你是谁", "你叫什么", "今天过得怎么样", "开心吗"
-        )
-        val inputLooksLikeChatter = chatterSignals.any { normalizedInput.contains(it) } ||
-            normalizedInput.endsWith("吗") || normalizedInput.endsWith("呢") || normalizedInput.endsWith("?") || normalizedInput.endsWith("？")
-
-        val billCandidates = when {
-            root.has("bills") -> {
-                val bills = root.optJSONArray("bills") ?: JSONArray()
-                List(bills.length()) { index -> bills.optJSONObject(index) }.filterNotNull()
-            }
-            root.has("amount") -> listOf(root)
-            else -> emptyList()
-        }
-        if (billCandidates.isEmpty()) {
-            // 当模型返回 {"bills":[]} 这种空壳结果时，若输入本身不像记账，则按闲聊处理。
-            val emptyBillArray = root.has("bills") && (root.optJSONArray("bills")?.length() ?: 0) == 0
-            if (emptyBillArray) {
-                return inputLooksLikeChatter || !hasFinancialSignal
-            }
-            return false
-        }
-
-        val allCandidatesLookEmpty = billCandidates.all { bill ->
-            val amount = bill.optDouble("amount", 0.0)
-            val category = bill.optString("category_name", "").trim()
-            val asset = bill.optString("asset_name", "").trim()
-            val toAsset = bill.optString("to_asset_name", "").trim()
-            amount <= 0.0 &&
-                asset.isBlank() &&
-                toAsset.isBlank() &&
-                category in setOf("", "其他", "其它", "其他/::/其他")
-        }
-
-        if (!allCandidatesLookEmpty) return false
-
-        // 兜底：输入本身完全不像记账，同时 AI 只产出了 0 元/空资产/其他分类 的空壳账单，直接视为 no_bill。
-        return inputLooksLikeChatter || !hasFinancialSignal
     }
 
     private suspend fun loadActivePromptRules(ctx: Context): List<DbAiRule> = withContext(Dispatchers.IO) {
