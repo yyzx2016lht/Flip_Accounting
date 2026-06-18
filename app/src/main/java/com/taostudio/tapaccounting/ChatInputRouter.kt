@@ -9,14 +9,10 @@ object ChatInputRouter {
 
     /**
      * Decide which pipeline the current send action should use.
-     *
-     * @param chatMode              [ChatActivity.MODE_ACCOUNTING].
-     * @param isExplicitAccounting  true when the user tapped the "记账" button.
+     * All inputs go through intent routing in callAiAccounting(), so always return ACCOUNTING.
      */
-    fun resolveInputAction(chatMode: Int, isExplicitAccounting: Boolean): InputAction = when {
-        chatMode == ChatActivity.MODE_ACCOUNTING -> InputAction.ACCOUNTING
-        else -> InputAction.ACCOUNTING
-    }
+    fun resolveInputAction(chatMode: Int, isExplicitAccounting: Boolean): InputAction =
+        InputAction.ACCOUNTING
 
     /**
      * Returns `true` when [action] means the content should be sent to the accounting prompt.
