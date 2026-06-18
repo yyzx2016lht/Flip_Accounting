@@ -447,8 +447,6 @@ object Prefs {
     /** Accounting entry mode: traditional input or AI chat. */
     fun getAiEntryMode(ctx: Context): Int = PrefsChatSupport.getAiEntryMode(ctx)
     fun setAiEntryMode(ctx: Context, mode: Int) = PrefsChatSupport.setAiEntryMode(ctx, mode)
-    fun isAiAgentEnabled(ctx: Context): Boolean = PrefsChatSupport.isAiAgentEnabled(ctx)
-    fun setAiAgentEnabled(ctx: Context, enabled: Boolean) = PrefsChatSupport.setAiAgentEnabled(ctx, enabled)
 
     fun getAiChatName(ctx: Context): String = PrefsChatSupport.getAiChatName(ctx)
     fun setAiChatName(ctx: Context, name: String) = PrefsChatSupport.setAiChatName(ctx, name)

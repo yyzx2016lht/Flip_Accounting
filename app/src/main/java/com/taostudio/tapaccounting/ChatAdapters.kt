@@ -528,11 +528,7 @@ class ChatAdapter(
             container.removeAllViews()
 
             item.bills.forEachIndexed { index, bill ->
-                val isPreviewBeforeBill =
-                    item.billInteractionMode == ChatActivity.BILL_INTERACTION_CONFIRM_MODIFICATION &&
-                        item.bills.size >= 2 &&
-                        index == 0
-                val deprecated = item.isDeprecated || item.deprecatedBillIds.contains(bill.id) || isPreviewBeforeBill
+                val deprecated = item.isDeprecated || item.deprecatedBillIds.contains(bill.id)
                 val card = LayoutInflater.from(itemView.context)
                     .inflate(R.layout.item_chat_bill_card, container, false)
                 val tvCat = card.findViewById<TextView>(R.id.tv_chat_bill_category)
@@ -670,47 +666,6 @@ class ChatAdapter(
                                 .into(ivIcon)
                         }
                     }
-                }
-
-                if (item.billInteractionMode != ChatActivity.BILL_INTERACTION_NONE) {
-                    if (deprecated) {
-                        btnEdit.visibility = View.GONE
-                        btnDelete.visibility = View.GONE
-                    } else {
-                        val allowActionOnThisCard =
-                            item.billInteractionMode != ChatActivity.BILL_INTERACTION_CONFIRM_MODIFICATION ||
-                                index == item.bills.lastIndex
-                        if (!allowActionOnThisCard) {
-                            btnEdit.visibility = View.GONE
-                            btnDelete.visibility = View.GONE
-                        } else {
-                            btnEdit.visibility = View.VISIBLE
-                            btnDelete.visibility = View.VISIBLE
-                            when (item.billInteractionMode) {
-                                ChatActivity.BILL_INTERACTION_SELECT_TARGET -> {
-                                    btnEdit.text = context.getString(R.string.select_this_bill)
-                                    btnDelete.text = context.getString(R.string.cancel)
-                                }
-                                ChatActivity.BILL_INTERACTION_CONFIRM_MODIFICATION -> {
-                                    btnEdit.text = context.getString(R.string.confirm_edit)
-                                    btnDelete.text = context.getString(R.string.cancel)
-                                }
-                            }
-                            btnEdit.setOnClickListener {
-                                onInteractiveBillAction(item, bill, ChatActivity.BILL_INTERACTIVE_ACTION_PRIMARY)
-                            }
-                            btnDelete.setOnClickListener {
-                                onInteractiveBillAction(item, bill, ChatActivity.BILL_INTERACTIVE_ACTION_SECONDARY)
-                            }
-                        }
-                    }
-                    etAmount.visibility = View.GONE
-                    tvAmount.visibility = View.VISIBLE
-                    tvAmount.setOnClickListener(null)
-                    etAmount.setOnEditorActionListener(null)
-                    etAmount.setOnFocusChangeListener(null)
-                    container.addView(card)
-                    return@forEachIndexed
                 }
 
                 btnEdit.setOnClickListener {

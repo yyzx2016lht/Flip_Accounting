@@ -1186,7 +1186,7 @@
                         android:textSize="14sp"
                         app:backgroundTint="#EAF0FB"
                         app:cornerRadius="10dp"
-                        app:icon="@drawable/ic_calendar"
+                        app:icon="@drawable/ic_home_calendar"
                         app:iconGravity="textStart"
                         app:iconPadding="8dp"
                         app:iconTint="#6C7F9B" />

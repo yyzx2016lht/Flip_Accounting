@@ -18,17 +18,13 @@ internal data class AIAccountingPromptContext(
     val dbAssets: List<Asset>,
     val assetInfoList: List<Map<String, String>>,
     val assetNames: List<String>,
+    val assetCurrencyMap: Map<String, String>,  // asset name → currency code
     val expenseCats: List<String>,
     val incomeCats: List<String>,
     val currencies: List<String>,
     val currentTimeStr: String,
     val assetFeatureEnabled: Boolean,
-    val availableBooks: List<String>,
-    val demoAsset: String,
-    val demoExpenseCat: String,
-    val demoIncomeCat: String,
-    val expenseLeafCats: List<String>,
-    val incomeLeafCats: List<String>
+    val availableBooks: List<String>
 )
 
 internal suspend fun buildAccountingPromptContext(ctx: Context): AIAccountingPromptContext {
@@ -52,6 +48,12 @@ internal suspend fun buildAccountingPromptContext(ctx: Context): AIAccountingPro
         dbAssets.map { it.name }.ifEmpty { Prefs.getAssets(ctx).map { it.name } }
     } else {
         emptyList()
+    }
+    val assetCurrencyMap = if (assetFeatureEnabled) {
+        dbAssets.filter { it.currency.isNotEmpty() && it.currency != "CNY" }
+            .associate { it.name to it.currency }
+    } else {
+        emptyMap()
     }
     val catRepo = CategoryRepository(db.categoryDao())
     val expenseCats = buildCategoryOptions(withContext(Dispatchers.IO) { catRepo.getCategoryTree(0) })
@@ -82,19 +84,13 @@ internal suspend fun buildAccountingPromptContext(ctx: Context): AIAccountingPro
         dbAssets = dbAssets,
         assetInfoList = assetInfoList,
         assetNames = assetNames,
+        assetCurrencyMap = assetCurrencyMap,
         expenseCats = expenseCats,
         incomeCats = incomeCats,
         currencies = CurrencyManager.getEnabledCurrencies(ctx),
         currentTimeStr = currentTimeStr,
         assetFeatureEnabled = assetFeatureEnabled,
-        availableBooks = availableBooks,
-        demoAsset = assetNames.firstOrNull() ?: "微信",
-        demoExpenseCat = expenseCats.firstOrNull() ?: "其他",
-        demoIncomeCat = incomeCats.firstOrNull() ?: "工资",
-        // Category options here are "父类" or "父类 - 子类" (not "/::/").
-        // Leaf hints should be the last segment (child name when exists).
-        expenseLeafCats = expenseCats.map { it.substringAfterLast(" - ").trim() }.distinct(),
-        incomeLeafCats = incomeCats.map { it.substringAfterLast(" - ").trim() }.distinct()
+        availableBooks = availableBooks
     )
 }
 
@@ -114,13 +110,18 @@ internal fun normalizeAccountingResult(
     assetNames: List<String>,
     assetFeatureEnabled: Boolean,
     referenceText: String = "",
-    nowMillis: Long = System.currentTimeMillis()
+    nowMillis: Long = System.currentTimeMillis(),
+    assetCurrencyMap: Map<String, String> = emptyMap()
 ) {
     fun normalizeBillJson(bill: JSONObject, index: Int) {
         val rawType = bill.optInt("type", 0)
         val type = normalizeBillType(rawType)
         bill.put("type", type)
         normalizeBillTime(bill, referenceText, nowMillis, index)
+
+        // 币种自动继承：资产绑定了非 CNY 币种时，自动覆盖
+        inheritAssetCurrency(bill, assetCurrencyMap)
+
         if (type == DbBill.TYPE_TRANSFER) {
             if (rawType == 3 || bill.optInt("subType", 0) == DbBill.SUBTYPE_REPAYMENT || bill.optString("category_name") == "还款") {
                 bill.put("subType", DbBill.SUBTYPE_REPAYMENT)
@@ -160,6 +161,27 @@ internal fun normalizeAccountingResult(
         enforceTransferRequiresValidAssets(root, assetNames, expenseCats)
     } else {
         enforceNoAssetMode(root)
+    }
+}
+
+/**
+ * 资产币种自动继承：当 asset_name 匹配到绑定了非 CNY 币种的资产时，自动覆盖 currency。
+ * 对 transfer 类型同时处理 to_asset_name。
+ */
+private fun inheritAssetCurrency(bill: JSONObject, assetCurrencyMap: Map<String, String>) {
+    if (assetCurrencyMap.isEmpty()) return
+    val fromAsset = bill.optString("asset_name", "").trim()
+    if (fromAsset.isNotBlank()) {
+        assetCurrencyMap[fromAsset]?.let { bill.put("currency", it) }
+    }
+    val toAsset = bill.optString("to_asset_name", "").trim()
+    if (toAsset.isNotBlank()) {
+        // transfer 的 to_asset_name 币种写入 target_currency（跨币种转账场景）
+        assetCurrencyMap[toAsset]?.let {
+            if (!bill.has("target_currency") || bill.optString("target_currency", "").isBlank()) {
+                bill.put("target_currency", it)
+            }
+        }
     }
 }
 

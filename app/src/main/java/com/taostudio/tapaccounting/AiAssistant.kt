@@ -21,6 +21,8 @@ import androidx.core.view.WindowCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
@@ -37,6 +39,7 @@ class AiAssistant(private val ctx: Context) {
     private var btnExpandPreview: TextView? = null
     private var btnStartRecordNow: View? = null
     private var analyzeJob: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var lastReceiptImageUri: Uri? = null
     private var currentHideStreamText: Boolean = false
 
@@ -59,7 +62,7 @@ class AiAssistant(private val ctx: Context) {
         defaultText: String? = null,
         mode: Int = MODE_INPUT,
         isMultiMode: Boolean? = null,
-        hideStreamText: Boolean = false,
+        hideStreamText: Boolean = true,
         onResult: (JSONObject) -> Unit
     ) {
         if (!ensureOverlayPermission()) return
@@ -367,7 +370,7 @@ class AiAssistant(private val ctx: Context) {
     ) {
         analyzeJob?.cancel()
         val hideStream = currentHideStreamText
-        analyzeJob = CoroutineScope(Dispatchers.IO).launch {
+        analyzeJob = scope.launch {
             try {
                 val streamState = OverlayStreamUiState()
                 val streamedRaw = StringBuilder()
@@ -679,7 +682,7 @@ class AiAssistant(private val ctx: Context) {
             dismiss()
         }
 
-        analyzeJob = CoroutineScope(Dispatchers.IO).launch {
+        analyzeJob = scope.launch {
             try {
                 val payload = ReceiptImageInputHelper.readImagePayload(ctx, imageUri)
                     ?: throw IllegalArgumentException("无法读取图片")
@@ -761,7 +764,7 @@ class AiAssistant(private val ctx: Context) {
             dismiss()
         }
 
-        analyzeJob = CoroutineScope(Dispatchers.IO).launch {
+        analyzeJob = scope.launch {
             try {
                 val summary = ReceiptOcrHelper.analyzeImageByMultimodal(ctx, imageUri, supplementText) { progressMsg ->
                     Handler(Looper.getMainLooper()).post {
@@ -781,35 +784,6 @@ class AiAssistant(private val ctx: Context) {
                 withContext(Dispatchers.Main) {
                     dismiss()
                     Utils.toast(ctx, ctx.getString(R.string.toast_image_parse_failed))
-                }
-            }
-        }
-    }
-
-    private fun startReceiptAnalysis(ocrText: String, onResult: (JSONObject) -> Unit) {
-        analyzeJob?.cancel()
-        analyzeJob = CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val summary = AIService.analyzeReceiptByOcrText(ctx, ocrText)
-                withContext(Dispatchers.Main) {
-                    showReceiptSummary(summary, "", onResult)
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                withContext(Dispatchers.Main) {
-                    dismiss()
-                    Utils.toast(ctx, ctx.getString(R.string.toast_canceled))
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    Utils.toast(ctx, ctx.getString(R.string.toast_receipt_parse_failed))
-                    val dialog = currentDialog ?: return@withContext
-                    val v = dialog.findViewById<View>(android.R.id.content) ?: return@withContext
-                    v.findViewById<View>(R.id.layout_loading)?.visibility = View.GONE
-                    v.findViewById<View>(R.id.layout_input)?.visibility = View.VISIBLE
-                    v.findViewById<View>(R.id.btn_close)?.visibility = View.VISIBLE
-                    tvThinkingLog?.text = ctx.getString(R.string.parse_failed_retry)
-                    dialog.setCancelable(true)
                 }
             }
         }
@@ -875,7 +849,7 @@ class AiAssistant(private val ctx: Context) {
         dialog.setCancelable(false)
 
         analyzeJob?.cancel()
-        analyzeJob = CoroutineScope(Dispatchers.IO).launch {
+        analyzeJob = scope.launch {
             try {
                 val summary = ReceiptOcrHelper.analyzeImageByMultimodal(ctx, imageUri) { progressMsg ->
                     Handler(Looper.getMainLooper()).post {

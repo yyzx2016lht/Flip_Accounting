@@ -30,11 +30,8 @@ const val OCR_MODE_MULTIMODAL = 1   // 直接多模态 AI（发送图片）
 
 object AIService {
     private const val MAX_AUDIO_INLINE_BYTES = 8L * 1024L * 1024L
-    private const val MODIFY_BILL_LOG_TAG = "ModifyBill"
     private const val ACCOUNTING_MULTI_LOG_TAG = "AccountingMulti"
     private const val ACCOUNTING_AUDIO_MULTI_LOG_TAG = "AccountingAudioMulti"
-    private const val RECEIPT_OCR_LOG_TAG = "ReceiptOcr"
-    private const val RECEIPT_OCR_REFINE_LOG_TAG = "ReceiptOcrRefine"
     private const val RECEIPT_VISION_LOG_TAG = "ReceiptVision"
     private const val SCREEN_ACCOUNTING_LOG_TAG = "ScreenAccounting"
     private const val ACCOUNTING_ASSISTANT_LOG_TAG = "AccountingAssistant"
@@ -44,19 +41,13 @@ object AIService {
     private const val AI_CACHE_LOG_TAG = "AICache"
 
     const val MULTI_BILL_PROMPT_DEFAULT = AIPrompts.MULTI_BILL_PROMPT_DEFAULT
-    const val MODIFY_BILL_PROMPT_DEFAULT          = AIPrompts.MODIFY_BILL_PROMPT_DEFAULT
     val RULE_EXTRACT_PROMPT_DEFAULT              get() = com.taostudio.tapaccounting.logic.RuleDialogHelper.DEFAULT_RULE_PROMPT
-    const val RECEIPT_BILL_PROMPT                = AIPrompts.RECEIPT_BILL_PROMPT
-    const val RECEIPT_BILL_PROMPT_CN             = AIPrompts.RECEIPT_BILL_PROMPT_CN
-    const val RECEIPT_BILL_PROMPT_FOREIGN        = AIPrompts.RECEIPT_BILL_PROMPT_FOREIGN
     const val RECEIPT_VISION_RETRY_PROMPT_DEFAULT= AIPrompts.RECEIPT_VISION_RETRY_PROMPT_DEFAULT
     const val IMAGE_ACCOUNTING_PROMPT   = AIPrompts.IMAGE_ACCOUNTING_PROMPT
-    const val RECEIPT_OCR_REFINE_PROMPT_DEFAULT  = AIPrompts.RECEIPT_OCR_REFINE_PROMPT_DEFAULT
-    const val MULTI_BILL_PROMPT_CONCISE          = AIPrompts.MULTI_BILL_PROMPT_CONCISE
     const val CHAT_ASSISTANT_PROMPT_DEFAULT      = AIPrompts.CHAT_ASSISTANT_PROMPT_DEFAULT
     const val INTENT_ROUTER_PROMPT_DEFAULT       = AIPrompts.INTENT_ROUTER_PROMPT_DEFAULT
     private const val MAX_ACCOUNTING_INPUT_CHARS = 12000
-    private const val MAX_OCR_TEXT_CHARS = 14000
+
     private const val MAX_ASSISTANT_INPUT_CHARS = 4000
     private const val MAX_ASSISTANT_SUMMARY_CHARS = 2500
     private const val API_CONNECT_TIMEOUT_SECONDS = 60L
@@ -234,7 +225,7 @@ object AIService {
         val aiName = if (isFromChat) Prefs.getAiChatName(ctx).trim().ifBlank { "小记" } else ""
         val userPrompt = buildAccountingUserPrompt(
             userInput = safeUserInput,
-            currentTimeStr = promptContext.currentTimeStr,
+            promptContext = promptContext,
             matchedPromptRules = matchedPromptRules,
             assetFeatureEnabled = promptContext.assetFeatureEnabled,
             isFromChat = isFromChat,
@@ -290,7 +281,8 @@ object AIService {
                     incomeCats = promptContext.incomeCats,
                     assetNames = promptContext.assetNames,
                     assetFeatureEnabled = promptContext.assetFeatureEnabled,
-                    referenceText = safeUserInput
+                    referenceText = safeUserInput,
+                    assetCurrencyMap = promptContext.assetCurrencyMap
                 )
                 if (Prefs.isLocalRuleOverrideEnabled(ctx)) {
                     applyLocalRuleOverrideOnResult(root, safeUserInput, promptRules)
@@ -300,7 +292,8 @@ object AIService {
                         incomeCats = promptContext.incomeCats,
                         assetNames = promptContext.assetNames,
                         assetFeatureEnabled = promptContext.assetFeatureEnabled,
-                        referenceText = safeUserInput
+                        referenceText = safeUserInput,
+                        assetCurrencyMap = promptContext.assetCurrencyMap
                     )
                 }
                 Logger.d(ctx, AI_IO_LOG_TAG, "[记账] FINAL: ${root.toString().take(3000)}")
@@ -344,7 +337,7 @@ object AIService {
         val promptContext = buildAccountingPromptContext(ctx)
         val promptRules = loadActivePromptRules(ctx)
 
-        val systemPrompt = buildAudioAccountingSystemPrompt(
+        val systemPrompt = buildAccountingSystemPrompt(
             ctx = ctx,
             promptContext = promptContext,
             isFromChat = isFromChat
@@ -359,7 +352,7 @@ object AIService {
             val aiName = if (isFromChat) Prefs.getAiChatName(ctx).trim().ifBlank { "小记" } else ""
             val leadText = buildAccountingUserPrompt(
                 userInput = "这是一段用户口述记账语音。请严格按系统提示词要求提取账单 JSON。",
-                currentTimeStr = promptContext.currentTimeStr,
+                promptContext = promptContext,
                 matchedPromptRules = emptyList(),
                 assetFeatureEnabled = promptContext.assetFeatureEnabled,
                 isFromChat = isFromChat,
@@ -403,7 +396,8 @@ object AIService {
                     expenseCats = promptContext.expenseCats,
                     incomeCats = promptContext.incomeCats,
                     assetNames = promptContext.assetNames,
-                    assetFeatureEnabled = promptContext.assetFeatureEnabled
+                    assetFeatureEnabled = promptContext.assetFeatureEnabled,
+                    assetCurrencyMap = promptContext.assetCurrencyMap
                 )
                 if (Prefs.isLocalRuleOverrideEnabled(ctx)) {
                     applyLocalRuleOverrideOnResult(root, "[语音输入]", promptRules)
@@ -412,7 +406,8 @@ object AIService {
                         expenseCats = promptContext.expenseCats,
                         incomeCats = promptContext.incomeCats,
                         assetNames = promptContext.assetNames,
-                        assetFeatureEnabled = promptContext.assetFeatureEnabled
+                        assetFeatureEnabled = promptContext.assetFeatureEnabled,
+                        assetCurrencyMap = promptContext.assetCurrencyMap
                     )
                 }
                 Logger.d(ctx, AI_IO_LOG_TAG, "[语音记账] FINAL: ${root.toString().take(3000)}")
@@ -563,9 +558,17 @@ object AIService {
                 append(supplement)
             }
         }
+        // 加载本地纠错规则（用 supplementText 匹配，无补充说明时跳过）
+        val matchedPromptRules = if (supplementText.isNotBlank() && Prefs.isAiPromptCorrectionEnabled(ctx)) {
+            val promptRules = loadActivePromptRules(ctx)
+            findMatchedPromptRules(supplementText, promptRules)
+        } else {
+            emptyList()
+        }
         val userText = buildScreenAccountingUserText(
-            currentTimeStr = promptContext.currentTimeStr,
-            taskInstruction = taskInstruction
+            promptContext = promptContext,
+            taskInstruction = taskInstruction,
+            matchedPromptRules = matchedPromptRules
         )
         val requestJson = if (isFromChat && chatTurns.isNotEmpty()) {
             buildMultiTurnVisionChatRequest(
@@ -616,7 +619,8 @@ object AIService {
                     incomeCats = promptContext.incomeCats,
                     assetNames = promptContext.assetNames,
                     assetFeatureEnabled = promptContext.assetFeatureEnabled,
-                    referenceText = supplementText
+                    referenceText = supplementText,
+                    assetCurrencyMap = promptContext.assetCurrencyMap
                 )
                 if (!isFromChat) {
                     markVisualAccountingReviewDraft(
@@ -640,125 +644,197 @@ object AIService {
         }
     }
 
-    suspend fun analyzeReceiptByOcrText(ctx: Context, ocrText: String): String {
-        Logger.d(ctx, "AIService", "analyzeReceiptByOcrText, text length=${ocrText.length}")
-        Logger.d(ctx, AI_IO_LOG_TAG, "[票据OCR] USER: ${ocrText.take(2000)}")
+    /**
+     * 多图直出记账：一次性把所有图片发给多模态，直接返回 JSON 结果。
+     */
+    suspend fun analyzeScreenAccountingByImages(
+        ctx: Context,
+        images: List<Pair<String, String>>,
+        isMultiModeOverride: Boolean? = null,
+        sourceKind: String = "receipt_image",
+        supplementText: String = "",
+        onProgress: ((String) -> Unit)? = null,
+        isFromChat: Boolean = false,
+        chatTurns: List<ChatTurn> = emptyList()
+    ): JSONObject? {
+        Logger.d(ctx, "AIService", "analyzeScreenAccountingByImages: multi-image multimodal accounting, count=${images.size} fromChat=$isFromChat")
+        if (images.isEmpty()) throw IllegalArgumentException("图片列表不能为空")
         val apiKey = Prefs.getAiKey(ctx)
-        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        if (apiKey.isBlank()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
-        val model = AiModelSlots.resolveTextModel(ctx)
-        val systemPrompt = AIReceiptHelper.buildReceiptSystemPrompt(ctx, ocrText)
-        val cleanedOcrText = shortenForModel(
-            AIReceiptHelper.preprocessOcrTextForReceipt(ocrText),
-            MAX_OCR_TEXT_CHARS
+        val model = AiModelSlots.resolveVisionModel(ctx)
+        if (model.isBlank()) throw IllegalArgumentException("请先在智能配置中选择视觉重试模型")
+
+        val promptContext = buildAccountingPromptContext(ctx)
+        val systemPrompt = buildScreenAccountingSystemPrompt(
+            ctx = ctx,
+            promptContext = promptContext,
+            isFromChat = isFromChat
         )
-        val knownPatternSummary = AIReceiptHelper.buildReceiptSummaryDirectlyFromOcr(ocrText)
 
-        if (!knownPatternSummary.isNullOrBlank() && Prefs.isReceiptOcrRefineEnabled(ctx)) {
-            try {
-                val refined = refineReceiptSummaryWithTextModel(ctx, knownPatternSummary, ocrText)
-                Logger.d(ctx, "AIService", "Using OCR pattern candidates -> LLM refine summary")
-                return refined
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                Logger.d(ctx, "AIService", "OCR pattern->LLM refine failed, continue. errType=${e.javaClass.simpleName}")
+        val dataUrls = images.map { (base64, mime) -> "data:$mime;base64,$base64" }
+        val taskInstruction = buildString {
+            if (isFromChat) {
+                append("这是${images.size}张用于记账识别的图片，请逐一分析每张图片，只提取真实交易信息，返回记账账单 JSON。")
+                append("\n成功提取交易：{\"bills\":[...], \"assistant_reply\":\"一句自然的中文回复\"}；无交易/纯闲聊：{\"no_bill\":true, \"reply\":\"...\"}。")
+                append("\n不要输出 requires_review、natural_summary、risk_flags、source_kind 等字段。不要输出 Markdown、代码块或额外文字。")
+            } else {
+                append("这是${images.size}张用于记账识别的图片，请逐一分析每张图片，只提取真实交易信息，返回待核对的账单草稿 JSON。")
+                append("\n统一使用多账单格式，返回：{\"source_kind\":\"image\",\"requires_review\":true,\"confidence\":0.0,\"natural_summary\":\"...\",\"risk_flags\":[],\"bills\":[...]}。")
+                append("\nnatural_summary 用中文概括用户需要核对的内容；risk_flags 标记风险项。没有风险时返回空数组。")
             }
+            val supplement = supplementText.trim()
+            if (supplement.isNotBlank()) {
+                append("\n\n用户补充说明（优先参考）：\n")
+                append(supplement)
+            }
+        }
+        val matchedPromptRules = if (supplementText.isNotBlank() && Prefs.isAiPromptCorrectionEnabled(ctx)) {
+            val promptRules = loadActivePromptRules(ctx)
+            findMatchedPromptRules(supplementText, promptRules)
+        } else {
+            emptyList()
+        }
+        val userText = buildScreenAccountingUserText(
+            promptContext = promptContext,
+            taskInstruction = taskInstruction,
+            matchedPromptRules = matchedPromptRules
+        )
+        val requestJson = if (isFromChat && chatTurns.isNotEmpty()) {
+            buildMultiImageVisionChatRequest(
+                model = model,
+                temperature = 0.1,
+                systemPrompt = systemPrompt,
+                dataUrls = dataUrls,
+                userText = userText,
+                enableThinking = enableThinkingForVision(ctx)
+            )
+        } else {
+            buildMultiImageVisionChatRequest(
+                model = model,
+                temperature = 0.1,
+                systemPrompt = systemPrompt,
+                dataUrls = dataUrls,
+                userText = userText,
+                enableThinking = enableThinkingForVision(ctx)
+            )
         }
 
         return try {
-            fun buildRequestJson(forceJsonResponse: Boolean): com.google.gson.JsonObject {
-                val localHintBlock = if (knownPatternSummary.isNullOrBlank()) ""
-                    else "参考候选商品（来自本地OCR结构提取，仅供校验）：\n$knownPatternSummary\n\n"
-                return buildTextChatRequest(
-                    model = model,
-                    temperature = 0.1,
-                    systemPrompt = systemPrompt,
-                    userText = "请执行「小票结构化提取」并严格只返回一个 JSON 对象。\nJSON 结构：\n{\n  \"currency\": \"PLN\",\n  \"items\": [\n    {\"name\":\"商品名\",\"price\":5.89,\"currency\":\"PLN\"}\n  ]\n}\n\n约束：\n1. 只保留同时具备「商品名 + 实付金额」的商品行。\n2. 不要输出总计行、税率行、NIP、日期时间、店铺编号、Discount 等非商品行。\n3. OCR 重复行只保留一条，不能重复计数。\n4. 价格必须来自 OCR 原文，禁止臆造。\n5. 若存在\"数量 x 单价 金额\"结构，优先使用该结构确定数量和最终实付金额。\n6. 如果遇到 Opust/Discount，应使用折后金额（净额）作为该商品金额。\n\n${localHintBlock}以下是 OCR 文本：\n$cleanedOcrText",
-                    jsonObjectResponse = forceJsonResponse,
-                    enableThinking = enableThinkingForVision(ctx)
-                )
-            }
-
-            val streamed = try {
-                requestChatContentStreamedWithReasoning(
-                    ctx = ctx,
-                    apiKey = apiKey,
-                    requestJson = buildRequestJson(forceJsonResponse = true),
-                    logReasoning = enableThinkingForVision(ctx),
-                    reasoningLogTag = RECEIPT_OCR_LOG_TAG
-                )
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                Logger.d(ctx, "AIService", "Receipt OCR json_object mode failed, retry. errType=${e.javaClass.simpleName}")
-                requestChatContentStreamedWithReasoning(
-                    ctx = ctx,
-                    apiKey = apiKey,
-                    requestJson = buildRequestJson(forceJsonResponse = false),
-                    logReasoning = enableThinkingForVision(ctx),
-                    reasoningLogTag = RECEIPT_OCR_LOG_TAG
-                )
-            }
+            onProgress?.invoke("正在识别图片中的交易...")
+            val streamed = requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = enableThinkingForVision(ctx),
+                reasoningLogTag = SCREEN_ACCOUNTING_LOG_TAG,
+                onContentDelta = if (onProgress == null) null else { delta ->
+                    if (delta.isNotBlank()) onProgress("AI_STREAM_TEXT::$delta")
+                },
+                onProgressChars = null
+            )
             if (!streamed.completed) {
-                throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("OCR 结构化流式回复未完整结束")
+                throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("多图记账流式回复未完整结束")
             }
             val content = streamed.content
-            Logger.d(ctx, "AIService", "Receipt OCR structured response received: contentLen=${content.length}")
-            AIReceiptHelper.buildReceiptSummaryFromStructured(content, ocrText)
+            Logger.d(ctx, "AIService", "Multi-image accounting response: $content")
+            val result = parseAnalyzeResult(content, isMultiMode = true)
+
+            result?.let { root ->
+                normalizeAccountingResult(
+                    root = root,
+                    expenseCats = promptContext.expenseCats,
+                    incomeCats = promptContext.incomeCats,
+                    assetNames = promptContext.assetNames,
+                    assetFeatureEnabled = promptContext.assetFeatureEnabled,
+                    referenceText = supplementText,
+                    assetCurrencyMap = promptContext.assetCurrencyMap
+                )
+                if (!isFromChat) {
+                    markVisualAccountingReviewDraft(
+                        root = root,
+                        sourceKind = sourceKind,
+                        naturalSummary = supplementText.trim(),
+                        includePaymentMethod = promptContext.assetFeatureEnabled
+                    )
+                }
+            }
+            result
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            val fallback = knownPatternSummary ?: AIReceiptHelper.buildReceiptSummaryHeuristicFallback(ocrText)
-            if (!fallback.isNullOrBlank()) {
-                Logger.dPriv(
-                    ctx,
-                    "AIService",
-                    "analyzeReceiptByOcrText failed, using fallback: errType=${e.javaClass.simpleName}",
-                    "Receipt OCR fallback detail=${detailedHttpError(e)}"
-                )
-                fallback
-            } else {
             Logger.dPriv(
                 ctx,
                 "AIService",
-                "analyzeReceiptByOcrText failed: errType=${e.javaClass.simpleName}",
-                "Receipt OCR failure detail=${detailedHttpError(e)}"
+                "analyzeScreenAccountingByImages failed: errType=${e.javaClass.simpleName}",
+                "Multi-image accounting failure detail=${detailedHttpError(e)}"
             )
-                throw e
-            }
+            throw e
         }
     }
 
-    private suspend fun refineReceiptSummaryWithTextModel(ctx: Context, localSummary: String, originalOcrText: String): String {
+    /**
+     * 多图自然语言摘要：一次性把所有图片发给多模态，返回文字摘要。
+     */
+    suspend fun analyzeReceiptByImages(
+        ctx: Context,
+        images: List<Pair<String, String>>,
+        supplementText: String = ""
+    ): String {
+        Logger.d(ctx, "AIService", "analyzeReceiptByImages: multi-image multimodal OCR, count=${images.size}")
+        if (images.isEmpty()) throw IllegalArgumentException("图片列表不能为空")
         val apiKey = Prefs.getAiKey(ctx)
-        if (apiKey.isEmpty()) return localSummary
+        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
 
-        val model = Prefs.getAiReceiptOcrRefineModel(ctx)
-        val systemPrompt = AIPrompts.RECEIPT_OCR_REFINE_PROMPT_DEFAULT
-        val cleanedOcrText = shortenForModel(
-            AIReceiptHelper.preprocessOcrTextForReceipt(originalOcrText),
-            MAX_OCR_TEXT_CHARS
-        )
+        val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveTextModel(ctx) }
+        val promptContext = buildAccountingPromptContext(ctx)
+        val systemPrompt = AIPrompts.RECEIPT_VISION_RETRY_PROMPT_DEFAULT +
+            AIPrompts.buildReceiptVisionPaymentMethodRule(
+                promptContext.assetFeatureEnabled,
+                promptContext.assetNames
+            )
+        val dataUrls = images.map { (base64, mime) -> "data:$mime;base64,$base64" }
+        val userText = buildString {
+            append("请分析这${images.size}张用于记账的图片，提取时间、对象/商品、支付方式（仅在资产功能开启时）、金额，转为自然语言清单。每行一条交易，不要输出其他内容。")
+            val supplement = supplementText.trim()
+            if (supplement.isNotBlank()) {
+                append("\n\n用户补充说明（优先参考）：\n")
+                append(supplement)
+            }
+        }
 
-        val requestJson = buildTextChatRequest(
+        val requestJson = buildMultiImageVisionChatRequest(
             model = model,
             temperature = 0.1,
             systemPrompt = systemPrompt,
-            userText = "本地OCR已提取清单（金额可信）：\n$localSummary\n\n原始OCR（仅用于校对，不允许引入新金额）：\n$cleanedOcrText",
+            dataUrls = dataUrls,
+            userText = userText,
             enableThinking = enableThinkingForVision(ctx)
         )
 
-        val streamed = requestChatContentStreamedWithReasoning(
-            ctx = ctx,
-            apiKey = apiKey,
-            requestJson = requestJson,
-            logReasoning = enableThinkingForVision(ctx),
-            reasoningLogTag = RECEIPT_OCR_REFINE_LOG_TAG
-        )
-        if (!streamed.completed) {
-            return localSummary
+        return try {
+            val streamed = requestChatContentStreamedWithReasoning(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                logReasoning = enableThinkingForVision(ctx),
+                reasoningLogTag = RECEIPT_VISION_LOG_TAG
+            )
+            if (!streamed.completed) {
+                throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("多图识别流式回复未完整结束")
+            }
+            val content = ReceiptImageInputHelper.normalizeVisionSummary(streamed.content)
+            Logger.d(ctx, "AIService", "Multi-image receipt response received: contentLen=${content.length}")
+            content
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Logger.dPriv(
+                ctx,
+                "AIService",
+                "analyzeReceiptByImages failed: errType=${e.javaClass.simpleName}",
+                "Multi-image receipt failure detail=${detailedHttpError(e)}"
+            )
+            throw e
         }
-        val content = streamed.content.trim()
-        return AIReceiptHelper.sanitizeReceiptSummaryText(content, originalOcrText)
-            ?: content.ifBlank { localSummary }
     }
 
     suspend fun fetchModels(ctx: Context, apiKey: String): List<String> =
@@ -853,6 +929,55 @@ object AIService {
         return parsed.sorted()
     }
 
+    /**
+     * 轻量意图分类：判断用户输入是记账、闲聊还是查询。
+     * 仅用于聊天入口，悬浮窗记账不走此函数。
+     * 模型选择：优先用视觉模型（多模态平台），没有则 fallback 到文本模型。
+     * @return "BOOKKEEPING" / "GENERAL_CHAT" / "QUERY" / "UNKNOWN"
+     */
+    suspend fun classifyIntent(ctx: Context, userText: String): String {
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isBlank()) return "BOOKKEEPING"
+        val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveTextModel(ctx) }
+        if (model.isBlank()) return "BOOKKEEPING"
+
+        val systemPrompt = AIPrompts.buildIntentRouterPrompt(enableQuery = false)
+        val requestJson = buildTextChatRequest(
+            model = model,
+            temperature = 0.1,
+            systemPrompt = systemPrompt,
+            userText = userText,
+            enableThinking = false
+        )
+
+        return try {
+            val content = requestAccountingContentStreamed(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                onProgress = null,
+                emitTextDelta = false,
+                logReasoning = false,
+                reasoningLogTag = "IntentRouter"
+            )
+            val cleaned = cleanJsonString(content)
+            val jsonText = extractFirstJsonObjectText(cleaned)
+            val json = runCatching { jsonText?.let { org.json.JSONObject(it) } }.getOrNull()
+            val intent = json?.optString("intent_type", "BOOKKEEPING") ?: "BOOKKEEPING"
+            Logger.d(ctx, "AIService", "classifyIntent: input=${userText.take(50)}, result=$intent")
+            when (intent) {
+                "BOOKKEEPING", "GENERAL_CHAT" -> intent
+                // QUERY 功能暂未实现，MODIFY_BILL 已移除，均 fallback 到记账
+                "QUERY", "UNKNOWN", "MODIFY_BILL" -> "BOOKKEEPING"
+                else -> "BOOKKEEPING"
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Logger.d(ctx, "AIService", "classifyIntent failed: ${e.message}, fallback to BOOKKEEPING")
+            "BOOKKEEPING"
+        }
+    }
+
     suspend fun simpleChat(ctx: Context, prompt: String): String {
         val apiKey = Prefs.getAiKey(ctx)
         val model = AiModelSlots.resolveTextModel(ctx)
@@ -873,62 +998,6 @@ object AIService {
             throw streamed.parseError ?: streamed.transportError ?: IllegalStateException("简单聊天流式回复未完整结束")
         }
         return streamed.content
-    }
-
-    suspend fun generateAccountingModifyReply(
-        ctx: Context,
-        userInput: String,
-        oldBillJson: String
-    ): String {
-        val apiKey = Prefs.getAiKey(ctx)
-        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
-        Logger.d(ctx, AI_IO_LOG_TAG, "[修改] USER: ${userInput.take(1000)}")
-        val model = AiModelSlots.resolveTextModel(ctx)
-        val safeInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
-        val promptContext = buildAccountingPromptContext(ctx)
-        val systemPrompt = renderModifyBillPrompt(AIPrompts.MODIFY_BILL_PROMPT_DEFAULT, promptContext)
-        val requestJson = buildTextChatRequest(
-            model = model,
-            temperature = 0.0,
-            systemPrompt = systemPrompt,
-            userText = "上一批次账单列表（JSON数组）：\n$oldBillJson\n\n用户修改指令：$safeInput",
-            jsonObjectResponse = true,
-            enableThinking = false
-        )
-        val streamResult = runCatching {
-            requestChatContentStreamedWithReasoning(
-                ctx = ctx,
-                apiKey = apiKey,
-                requestJson = requestJson,
-                logReasoning = false,
-                reasoningLogTag = MODIFY_BILL_LOG_TAG
-            )
-        }.getOrElse {
-            Logger.d(ctx, MODIFY_BILL_LOG_TAG, "stream failed, fallback raw request, err=${(it as? Exception ?: Exception(it.message)).javaClass.simpleName}")
-            val response = getApi(ctx).chatRaw(
-                "Bearer $apiKey",
-                adaptChatRequestForProvider(Prefs.getAiProvider(ctx), requestJson)
-            )
-            StreamResult(
-                content = response.choices.firstOrNull()?.message?.content?.trim().orEmpty(),
-                reasoning = "",
-                completed = true,
-                sawDone = true
-            )
-        }
-        if (!streamResult.completed) {
-            throw IllegalStateException("流式修改回复未完整结束")
-        }
-        Logger.d(ctx, AI_IO_LOG_TAG, "[修改] AI: ${streamResult.content.take(3000)}")
-        return streamResult.content
-    }
-
-    private fun renderModifyBillPrompt(prompt: String, promptContext: AIAccountingPromptContext): String {
-        return prompt
-            .replace("{{ASSETS}}", Gson().toJson(promptContext.assetInfoList))
-            .replace("{{EXPENSE_CATS}}", Gson().toJson(promptContext.expenseCats))
-            .replace("{{INCOME_CATS}}", Gson().toJson(promptContext.incomeCats))
-            .replace("{{CURRENCIES}}", Gson().toJson(promptContext.currencies))
     }
 
     suspend fun generateAccountingAssistantReply(

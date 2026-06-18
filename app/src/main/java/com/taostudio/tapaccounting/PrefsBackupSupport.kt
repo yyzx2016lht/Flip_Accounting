@@ -52,7 +52,6 @@ object PrefsBackupSupport {
     private const val KEY_AI_PROVIDER = "ai_provider"
     private const val KEY_AI_MODELS_CACHE = "ai_models_cache"
     private const val KEY_AI_ENTRY_MODE = "ai_entry_mode"
-    private const val KEY_AI_AGENT_ENABLED = "ai_agent_enabled"
     private const val KEY_AI_CHAT_NAME = "ai_chat_name"
     private const val KEY_AI_CHAT_IDENTITY = "ai_chat_identity"
     private const val KEY_USER_CHAT_NAME = "user_chat_name"
@@ -166,7 +165,6 @@ object PrefsBackupSupport {
         if (root.has("show_home_trend_card_v1")) edit.putBoolean(KEY_SHOW_HOME_TREND_CARD, root.getBoolean("show_home_trend_card_v1"))
         if (root.has("show_book_entry_v1")) edit.putBoolean(KEY_SHOW_BOOK_ENTRY, root.getBoolean("show_book_entry_v1"))
         if (root.has("show_ai_chat_entry_v1")) edit.putBoolean(KEY_SHOW_AI_CHAT_ENTRY, root.getBoolean("show_ai_chat_entry_v1"))
-        if (root.has("ai_agent_enabled_v1")) edit.putBoolean(KEY_AI_AGENT_ENABLED, root.getBoolean("ai_agent_enabled_v1"))
         if (root.has("save_ocr_debug_v1")) edit.putBoolean(KEY_SAVE_OCR_DEBUG, root.getBoolean("save_ocr_debug_v1"))
         if (root.has("amount_grouping_v1")) edit.putBoolean("amount_grouping_enabled", root.getBoolean("amount_grouping_v1"))
         if (root.has("bill_show_category_icon_v1")) edit.putBoolean(KEY_BILL_SHOW_CATEGORY_ICON, root.getBoolean("bill_show_category_icon_v1"))
@@ -332,7 +330,6 @@ object PrefsBackupSupport {
             put("show_home_trend_card_v1", Prefs.isShowHomeTrendCard(ctx))
             put("show_book_entry_v1", Prefs.isShowBookEntry(ctx))
             put("show_ai_chat_entry_v1", Prefs.isShowAiChatEntry(ctx))
-            put("ai_agent_enabled_v1", Prefs.isAiAgentEnabled(ctx))
             put("save_ocr_debug_v1", Prefs.isSaveOcrDebugEnabled(ctx))
             put("amount_grouping_v1", Prefs.isAmountGroupingEnabled(ctx))
             put("bill_show_category_icon_v1", Prefs.isShowBillCategoryIcon(ctx))
@@ -429,7 +426,7 @@ object PrefsBackupSupport {
             "settings_general" to filterSettingsModule(full, "quick_gesture_enabled_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "asset_feature_enabled_v1", "app_white_list_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1", "cloud_webdav_url_v1", "cloud_webdav_user_v1", "cloud_webdav_pass_v1", "cloud_webdav_dir_v1", "cloud_device_name_v1"),
             "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "save_ocr_debug_v1", "amount_grouping_v1", "bill_show_category_icon_v1", "bill_show_full_category_v1", "bill_remark_priority_v1"),
             "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_provider_keys_v1", "ai_text_model_v1", "ai_vision_model_v1", "ai_online_speech_model_v1", "screen_vision_supported_models_v1", "ai_models_cache_v1", "asr_mode_v1", "asr_download_source_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1", "ai_thinking_modify_bill_v1", "ai_thinking_category_refine_v1"),
-            "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_agent_enabled_v1", "ai_chat_name_v1", "ai_chat_identity_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
+            "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "ai_chat_identity_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
             "settings_books" to filterSettingsModule(full, "book_accounts_v1", "collapsed_book_accounts_v1", "selected_book_v1", "default_book_v1", "book_colors_v1", "book_banners_v1"),
             "settings_advanced_runtime" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1"),
             "settings_advanced" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1", "show_multi_cur_v1", "show_screen_accounting_v1")

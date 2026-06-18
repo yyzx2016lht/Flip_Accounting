@@ -75,16 +75,8 @@ class AiConfigActivity : AppCompatActivity() {
         val tvEditPrompt = findViewById<TextView>(R.id.tv_edit_prompt)
         val switchEnableThinkingCurrent = findViewById<SwitchMaterial>(R.id.switch_enable_thinking_current)
         val tvThinkingScopeHint = findViewById<TextView>(R.id.tv_thinking_scope_hint)
-        val switchEnableReceiptOcrRefine = findViewById<SwitchMaterial>(R.id.switch_enable_receipt_ocr_refine)
 
         etKey.setText(Prefs.getAiProviderKey(this, currentPreset.id))
-        tvCurrentProvider.text = currentPreset.displayName
-        tvProviderCapabilities.text = AiProviderRegistry.capabilitySummary(currentPreset)
-
-        switchEnableReceiptOcrRefine.isChecked = Prefs.isReceiptOcrRefineEnabled(this)
-        switchEnableReceiptOcrRefine.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setReceiptOcrRefineEnabled(this, isChecked)
-        }
 
         var updatingThinkingUi = false
         modeModels = mutableMapOf(
@@ -110,7 +102,9 @@ class AiConfigActivity : AppCompatActivity() {
                     if (result != null) {
                         applyProviderSetupResult(result)
                     } else {
-                        etKey.setText(Prefs.getAiProviderKey(this, currentPreset.id))
+        etKey.setText(Prefs.getAiProviderKey(this, currentPreset.id))
+        tvCurrentProvider.text = currentPreset.displayName
+        tvProviderCapabilities.text = AiProviderRegistry.capabilitySummary(currentPreset)
                         refreshProviderState()
                     }
                 }
@@ -438,8 +432,6 @@ class AiConfigActivity : AppCompatActivity() {
             if (currentThinkingBinding != ThinkingBinding.FIXED_OFF) {
                 setThinkingEnabled(currentThinkingBinding, switchEnableThinkingCurrent.isChecked)
             }
-            Prefs.setReceiptOcrRefineEnabled(this, switchEnableReceiptOcrRefine.isChecked)
-
             Utils.toast(this, getString(R.string.ai_config_saved))
             finish()
         }

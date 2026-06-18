@@ -5,14 +5,10 @@ import android.net.Uri
 /**
  * Determines which processing pipeline a user input should be routed to.
  *
- * ACCOUNTING          — the + entry; text and images always go to the accounting prompt.
- * AGENT_CHAT          — the Agent entry default; free-form conversation, images are context only.
- * AGENT_TO_ACCOUNTING — explicit "记账" button inside Agent; routes current content to accounting.
+ * ACCOUNTING — text and images always go to the accounting prompt.
  */
 enum class InputAction {
-    ACCOUNTING,
-    AGENT_CHAT,
-    AGENT_TO_ACCOUNTING
+    ACCOUNTING
 }
 
 /**

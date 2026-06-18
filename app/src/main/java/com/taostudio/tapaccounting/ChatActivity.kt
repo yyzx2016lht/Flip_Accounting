@@ -61,7 +61,6 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.ui.common.StatusBarStyle
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.AiRule
-import com.taostudio.tapaccounting.chat.agent.ChatConversationMode
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import com.taostudio.tapaccounting.logic.BillAssetImpactService
 import com.taostudio.tapaccounting.logic.BillMutationService
@@ -87,16 +86,6 @@ class ChatActivity : AppCompatActivity() {
     private val maxVoiceRecordBytes = 8L * 1024L * 1024L
     private val maxVoiceRecordDurationSec = 180
     private enum class RuleSaveOutcome { SAVED, OVERWRITTEN, CANCELED }
-    private data class PendingBillSelection(
-        val token: String,
-        val continuation: CancellableContinuation<Bill?>
-    )
-
-    private data class PendingBillConfirmation(
-        val token: String,
-        val continuation: CancellableContinuation<Boolean>
-    )
-
     companion object {
         const val MSG_TYPE_USER_TEXT = 0
         const val MSG_TYPE_USER_IMAGE = 1
@@ -104,8 +93,6 @@ class ChatActivity : AppCompatActivity() {
         const val MSG_TYPE_AI_TEXT = 3
         const val MSG_TYPE_AI_BILL = 4
         const val BILL_INTERACTION_NONE = 0
-        const val BILL_INTERACTION_SELECT_TARGET = 1
-        const val BILL_INTERACTION_CONFIRM_MODIFICATION = 2
         const val BILL_INTERACTIVE_ACTION_PRIMARY = 1
         const val BILL_INTERACTIVE_ACTION_SECONDARY = 2
 
@@ -113,7 +100,6 @@ class ChatActivity : AppCompatActivity() {
         const val EXTRA_CONVERSATION_ID = "extra_conversation_id"
         const val EXTRA_MODE = "extra_chat_mode"
         const val MODE_ACCOUNTING = 0
-        const val MODE_AGENT = 1
         private const val EXTRA_SCROLL_TO_MSG_ID = "scroll_to_msg_id"
 
         private const val REQ_PICK_IMAGE = 101
@@ -159,7 +145,6 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var btnVoiceSelectionCancel: TextView
     private lateinit var btnVoiceSelectionDelete: TextView
     private lateinit var layoutChatInputRow: View
-    private lateinit var layoutAgentEmptyState: View
     private lateinit var layoutPendingImages: View
     private lateinit var containerPendingImages: LinearLayout
     private lateinit var tvPendingImageCount: TextView
@@ -187,16 +172,12 @@ class ChatActivity : AppCompatActivity() {
             decideSingleOrMultiForChat = ::decideSingleOrMultiForChat,
             processBillResult = ::processBillResult,
             confirmVisualAccountingDraft = ::confirmVisualAccountingDraftInChat,
-            processBillModifyResult = { json, text, oldBill -> billCorrectionService.processBillModifyResult(json, text, oldBill) },
             buildBillSummary = ::buildBillSummary,
             transcribeVoiceToTextWithFallback = ::transcribeVoiceToTextWithFallback,
-            chooseModifyTargetBill = ::chooseModifyTargetBill,
             persistAiTextMessage = ::persistAiTextMessage,
             db = db,
             getCurrentBookName = { currentBookName },
-            getCurrentConversationId = { currentConversationId },
-            isAgentMode = { chatMode == MODE_AGENT && Prefs.isAiAgentEnabled(this) },
-            onMessagesChanged = { updateAgentEmptyState() }
+            getCurrentConversationId = { currentConversationId }
         )
     }
     private val billCorrectionService by lazy {
@@ -214,8 +195,7 @@ class ChatActivity : AppCompatActivity() {
             setCurrentBookName = { currentBookName = it },
             getCurrentConversationId = { currentConversationId },
             parseTimeToMillis = ::parseTimeToMillis,
-            buildBillMessageContent = ::buildBillMessageContent,
-            confirmBillModifyPreview = ::confirmBillModifyPreviewInChat
+            buildBillMessageContent = ::buildBillMessageContent
         )
     }
     private val voiceController: ChatVoiceController by lazy {
@@ -519,7 +499,7 @@ class ChatActivity : AppCompatActivity() {
 
     private var currentBookName: String = BookAccountManager.DEFAULT_BOOK
     private var currentConversationId: String = ""
-    private var chatMode: Int = MODE_AGENT
+    private var chatMode: Int = MODE_ACCOUNTING
     private var pendingScrollToMessageId: Long = -1L
     private val deprecatedBillMessageIds = mutableSetOf<Long>()
     private var pendingHabitSuggestion: HabitRuleSuggestion? = null
@@ -539,8 +519,6 @@ class ChatActivity : AppCompatActivity() {
     private val pendingTranscriptRevealAnimations = mutableSetOf<String>()
     private val visibleTranscriptPaths = mutableSetOf<String>()
     private val transcribingPaths = mutableSetOf<String>()
-    private var pendingBillSelection: PendingBillSelection? = null
-    private var pendingBillConfirmation: PendingBillConfirmation? = null
     private var inlineAmountEditingBillId: Long? = null
 
     private val sampleRate = 16000
@@ -647,7 +625,6 @@ class ChatActivity : AppCompatActivity() {
         tvVoiceSelectionCount = findViewById(R.id.tv_voice_selection_count)
         btnVoiceSelectionCancel = findViewById(R.id.btn_voice_selection_cancel)
         btnVoiceSelectionDelete = findViewById(R.id.btn_voice_selection_delete)
-        layoutAgentEmptyState = findViewById(R.id.layout_agent_empty_state)
     }
 
     private fun applySessionDrawerAdaptiveWidth() {
@@ -672,39 +649,14 @@ class ChatActivity : AppCompatActivity() {
     private fun applyChatMode() {
         btnMoreInput.visibility = View.VISIBLE
         updateModeControls()
-        updateAgentEmptyState()
     }
 
     private fun updateModeControls() {
-        val agentEnabled = Prefs.isAiAgentEnabled(this)
         btnSwitchModel.text = getString(R.string.chat_model_button)
         btnSwitchModel.setTextColor(Color.parseColor("#3390EC"))
         btnSwitchModel.setBackgroundResource(R.drawable.bg_search_box)
-        etInput.hint = if (agentEnabled) {
-            getString(R.string.unified_ai_input_hint)
-        } else {
-            getString(R.string.accounting_chat_input_hint)
-        }
+        etInput.hint = getString(R.string.accounting_chat_input_hint)
     }
-
-    /**
-     * Show Agent empty state when in Agent mode with no display messages.
-     * Hides when messages exist or when in accounting mode.
-     */
-    fun updateAgentEmptyState() {
-        if (!::layoutAgentEmptyState.isInitialized) return
-        val composerHasContent =
-            (::etInput.isInitialized && etInput.text?.isNotBlank() == true) || pendingImages.isNotEmpty()
-        layoutAgentEmptyState.visibility = if (
-            Prefs.isAiAgentEnabled(this) && chatMode == MODE_AGENT && displayMessages.isEmpty() && !composerHasContent
-        ) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
-    }
-
-    fun isAgentMode(): Boolean = chatMode == MODE_AGENT && Prefs.isAiAgentEnabled(this)
 
     private fun setupSessionDrawer() {
         sessionController.setupSessionDrawer()
@@ -737,7 +689,6 @@ class ChatActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: android.text.Editable?) {
                 updateInputActionUi()
-                updateAgentEmptyState()
             }
         })
         updateInputActionUi()
@@ -894,12 +845,8 @@ class ChatActivity : AppCompatActivity() {
 
         val fromIntentConversation = intent?.getStringExtra(EXTRA_CONVERSATION_ID).orEmpty().trim()
         if (fromIntentConversation.isNotEmpty()) {
-            // Mode consistency: if the conversationId belongs to a different mode,
-            // correct the mode rather than loading cross-mode history.
-            val intentMode = ChatConversationMode.modeOf(fromIntentConversation)
-            val requestedMode = ChatConversationMode.fromActivityMode(chatMode)
-            if (intentMode != requestedMode) {
-                // Intent conversation belongs to different mode — create new conversation in current mode
+            // Reject agent-prefixed conversation IDs — create a new accounting conversation.
+            if (fromIntentConversation.startsWith("agent_")) {
                 currentConversationId = newConversationId()
                 return
             }
@@ -912,11 +859,8 @@ class ChatActivity : AppCompatActivity() {
             if (msg != null) {
                 if (msg.bookName.isNotBlank()) currentBookName = msg.bookName
                 if (msg.conversationId.isNotBlank()) {
-                    // Mode consistency check for scroll-to-message
-                    val msgMode = ChatConversationMode.modeOf(msg.conversationId)
-                    val requestedMode = ChatConversationMode.fromActivityMode(chatMode)
-                    if (msgMode != requestedMode) {
-                        // Message belongs to different mode — create new conversation
+                    // Reject agent-prefixed conversation IDs
+                    if (msg.conversationId.startsWith("agent_")) {
                         currentConversationId = newConversationId()
                         return
                     }
@@ -926,23 +870,12 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        // Use mode-specific query to find the latest conversation.
-        // Both use GLOB which treats '_' as literal (unlike LIKE).
-        val currentMode = ChatConversationMode.fromActivityMode(chatMode)
-        val latest = when (currentMode) {
-            ChatConversationMode.AGENT -> {
-                db.chatMessageDao().getLatestAgentConversationIdByBook(currentBookName).orEmpty()
-            }
-            ChatConversationMode.ACCOUNTING -> {
-                db.chatMessageDao().getLatestAccountingConversationIdByBook(currentBookName).orEmpty()
-            }
-        }
+        val latest = db.chatMessageDao().getLatestAccountingConversationIdByBook(currentBookName).orEmpty()
         currentConversationId = if (latest.isNotBlank()) latest else newConversationId()
     }
 
     private fun newConversationId(): String {
-        val mode = ChatConversationMode.fromActivityMode(chatMode)
-        return ChatConversationMode.createId(mode)
+        return "conv_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}"
     }
 
     private fun startNewConversation() {
@@ -1032,32 +965,15 @@ class ChatActivity : AppCompatActivity() {
                 appendAiTextMessage(getString(R.string.voice_not_clear), isLoading = false)
                 return@launch
             }
-            if (chatMode == MODE_AGENT && Prefs.isAiAgentEnabled(this@ChatActivity)) {
-                // Agent mode: fetch history snapshot BEFORE saving voice message.
-                // This ensures the current voice message is NOT in the snapshot,
-                // and we avoid any race condition or text-matching dedup.
-                val historySnapshot = withContext(Dispatchers.IO) {
-                    db.chatMessageDao().getRecentMessages(
-                        currentBookName, currentConversationId, 80
-                    )
-                }
-                // Save ONE voice message with transcript. This is the ONLY user DB record.
-                appendUserVoiceMessage(copiedFile, durationSec, transcript)
-                removeLoadingMessage(loadingIdx)
-                // Process through Agent with the pre-fetched snapshot.
-                // persistUserMessage=false inside — no additional text message is saved.
-                messagePipeline.processAgentTextWithSnapshot(transcript, historySnapshot)
-            } else {
-                // Accounting mode: save voice message, then process through accounting pipeline
-                appendUserVoiceMessage(copiedFile, durationSec, "")
-                callAiAccounting(
-                    userText = transcript,
-                    appendUserBubble = false,
-                    forceTextReply = true,
-                    loadingIdxOverride = loadingIdx,
-                    loadingBootstrapText = "正在理解你的消息..."
-                )
-            }
+            // Save voice message, then process through accounting pipeline
+            appendUserVoiceMessage(copiedFile, durationSec, "")
+            callAiAccounting(
+                userText = transcript,
+                appendUserBubble = false,
+                forceTextReply = true,
+                loadingIdxOverride = loadingIdx,
+                loadingBootstrapText = "正在理解你的消息..."
+            )
         }
     }
 
@@ -1224,7 +1140,6 @@ class ChatActivity : AppCompatActivity() {
     private fun sendText() {
         val text = etInput.text?.toString().orEmpty().trim()
         val images = pendingImages.toList()
-        val agentEnabled = Prefs.isAiAgentEnabled(this)
 
         if (text.isEmpty() && images.isEmpty()) {
             messagePipeline.sendText()  // Pipeline handles the empty-toast
@@ -1239,11 +1154,7 @@ class ChatActivity : AppCompatActivity() {
         etInput.setText("")
         pendingImages.clear()
         updatePendingImagePreview()
-        if (chatMode == MODE_AGENT && agentEnabled) {
-            dispatchImagesToAgent(images, text)
-        } else {
-            dispatchToAccounting(text, images)
-        }
+        dispatchToAccounting(text, images)
     }
 
     /**
@@ -1265,28 +1176,6 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Send the original images and optional text to the unified multimodal Agent.
-     */
-    private fun dispatchImagesToAgent(images: List<PendingImage>, text: String) {
-        lifecycleScope.launch {
-            // Fetch snapshot BEFORE saving — so current messages are excluded
-            val snapshot = withContext(Dispatchers.IO) {
-                db.chatMessageDao().getRecentMessages(
-                    currentBookName, currentConversationId, 80
-                )
-            }
-            // Show image bubbles
-            images.forEach { img ->
-                appendUserMessage("", MSG_TYPE_USER_IMAGE, img.uri?.toString().orEmpty())
-            }
-            if (text.isNotBlank()) {
-                appendUserMessage(text, MSG_TYPE_USER_TEXT)
-            }
-            messagePipeline.processAgentMultimodalWithSnapshot(text, images, snapshot)
-        }
-    }
-
     private fun onImageReady(uri: Uri, base64: String, mime: String) {
         if (ChatImageComposer.isAtLimit(pendingImages.size)) {
             Utils.toast(this, getString(R.string.toast_max_images, ChatImageComposer.MAX_PENDING_IMAGES))
@@ -1303,13 +1192,11 @@ class ChatActivity : AppCompatActivity() {
 
         if (pendingImages.isEmpty()) {
             layoutPendingImages.visibility = View.GONE
-            updateAgentEmptyState()
             return
         }
 
         layoutPendingImages.visibility = View.VISIBLE
         tvPendingImageCount.text = getString(R.string.selected_image_count, pendingImages.size)
-        updateAgentEmptyState()
 
         val density = resources.displayMetrics.density
         val size = (68 * density).toInt()
@@ -1547,74 +1434,6 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun chooseModifyTargetBill(userText: String, candidates: List<Bill>): Bill? {
-        if (candidates.isEmpty()) return null
-        val displayCandidates = candidates.take(3)
-        val token = "bill_select_${UUID.randomUUID()}"
-        return withContext(Dispatchers.Main) {
-            suspendCancellableCoroutine { cont ->
-                if (isFinishing || isDestroyed) {
-                    cont.resume(null)
-                    return@suspendCancellableCoroutine
-                }
-                pendingBillSelection?.continuation?.takeIf { it.isActive }?.resume(null)
-                pendingBillSelection = PendingBillSelection(token = token, continuation = cont)
-                appendAiTextMessage(
-                    "我找到了 ${displayCandidates.size} 笔可能匹配的账单，请在下方点「选这笔」确认要修改哪一笔。",
-                    isLoading = false
-                )
-                appendInteractiveBillCard(
-                    bills = displayCandidates,
-                    hint = "指令：${userText.take(36)}",
-                    interactionMode = BILL_INTERACTION_SELECT_TARGET,
-                    interactionToken = token
-                )
-                cont.invokeOnCancellation {
-                    if (pendingBillSelection?.token == token) {
-                        pendingBillSelection = null
-                    }
-                    runOnUiThread { removeInteractiveBillCard(token, deletePersisted = true) }
-                }
-            }
-        }
-    }
-
-    private suspend fun confirmBillModifyPreviewInChat(
-        oldBill: Bill,
-        newBill: Bill,
-        changes: List<String>
-    ): Boolean {
-        val token = "bill_confirm_${UUID.randomUUID()}"
-        val previewBeforeId = if (oldBill.id > 0L) -oldBill.id else -System.currentTimeMillis()
-        val beforePreviewBill = oldBill.copy(id = previewBeforeId)
-        return withContext(Dispatchers.Main) {
-            suspendCancellableCoroutine { cont ->
-                if (isFinishing || isDestroyed) {
-                    cont.resume(false)
-                    return@suspendCancellableCoroutine
-                }
-                pendingBillConfirmation?.continuation?.takeIf { it.isActive }?.resume(false)
-                pendingBillConfirmation = PendingBillConfirmation(token = token, continuation = cont)
-                appendInteractiveBillCard(
-                    bills = listOf(beforePreviewBill, newBill),
-                    hint = if (changes.isNotEmpty()) {
-                        "改前（上） / 改后（下）\n${changes.take(2).joinToString("；")}"
-                    } else {
-                        "改前（上） / 改后（下）"
-                    },
-                    interactionMode = BILL_INTERACTION_CONFIRM_MODIFICATION,
-                    interactionToken = token
-                )
-                cont.invokeOnCancellation {
-                    if (pendingBillConfirmation?.token == token) {
-                        pendingBillConfirmation = null
-                    }
-                    runOnUiThread { removeInteractiveBillCard(token, deletePersisted = true) }
-                }
-            }
-        }
-    }
-
     private fun formatBillBrief(bill: Bill): String {
         val typeLabel = when (bill.type) {
             Bill.TYPE_INCOME -> getString(R.string.income)
@@ -1628,127 +1447,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun onInteractiveBillAction(item: ChatDisplayItem, bill: Bill, action: Int) {
-        when (item.billInteractionMode) {
-            BILL_INTERACTION_SELECT_TARGET -> {
-                val pending = pendingBillSelection
-                if (pending == null || pending.token != item.billInteractionToken) return
-                removeInteractiveBillCard(item.billInteractionToken, deletePersisted = true)
-                pendingBillSelection = null
-                when (action) {
-                    BILL_INTERACTIVE_ACTION_PRIMARY -> {
-                        if (pending.continuation.isActive) pending.continuation.resume(bill)
-                    }
-                    BILL_INTERACTIVE_ACTION_SECONDARY -> {
-                        appendAiTextMessage("已取消修改。", isLoading = false)
-                        if (pending.continuation.isActive) pending.continuation.resume(null)
-                    }
-                }
-            }
-            BILL_INTERACTION_CONFIRM_MODIFICATION -> {
-                val pending = pendingBillConfirmation
-                if (pending == null || pending.token != item.billInteractionToken) return
-                pendingBillConfirmation = null
-                when (action) {
-                    BILL_INTERACTIVE_ACTION_PRIMARY -> {
-                        if (pending.continuation.isActive) pending.continuation.resume(true)
-                    }
-                    BILL_INTERACTIVE_ACTION_SECONDARY -> {
-                        removeInteractiveBillCard(item.billInteractionToken, deletePersisted = true)
-                        appendAiTextMessage("已取消修改。", isLoading = false)
-                        if (pending.continuation.isActive) pending.continuation.resume(false)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun appendInteractiveBillCard(
-        bills: List<Bill>,
-        hint: String,
-        interactionMode: Int,
-        interactionToken: String,
-        deprecatedBillIds: Set<Long> = emptySet()
-    ) {
-        if (bills.isEmpty()) return
-        val snapshotContent = buildBillMessageContent(
-            bills = bills,
-            deprecatedBillIds = deprecatedBillIds,
-            snapshotOnly = true
-        )
-        val rowTimestamp = System.currentTimeMillis()
-        displayMessages.add(
-            ChatDisplayItem(
-                msgType = MSG_TYPE_AI_BILL,
-                content = snapshotContent,
-                bills = bills.toMutableList(),
-                timestamp = rowTimestamp,
-                isLoading = false,
-                deprecatedBillIds = deprecatedBillIds.toMutableSet(),
-                billHint = hint,
-                billInteractionMode = interactionMode,
-                billInteractionToken = interactionToken
-            )
-        )
-        adapter.notifyItemInserted(displayMessages.lastIndex)
-        scrollToBottom(force = true)
-    }
-
-    private fun finalizeConfirmedPreviewCard(token: String) {
-        if (token.isBlank()) return
-        val idx = displayMessages.indexOfFirst { item ->
-            item.msgType == MSG_TYPE_AI_BILL &&
-                item.billInteractionToken == token &&
-                item.billInteractionMode == BILL_INTERACTION_CONFIRM_MODIFICATION
-        }
-        if (idx < 0) return
-        val current = displayMessages[idx]
-        if (current.bills.isEmpty()) return
-        val beforePreviewId = current.bills.first().id
-        val finalizedDeprecatedIds = current.deprecatedBillIds.toMutableSet().apply {
-            clear()
-            if (beforePreviewId != 0L) add(beforePreviewId)
-        }
-        val updatedContent = buildBillMessageContent(
-            bills = current.bills,
-            deprecatedBillIds = finalizedDeprecatedIds,
-            editedBillIds = current.editedBillIds,
-            snapshotOnly = true
-        )
-        displayMessages[idx] = current.copy(
-            content = updatedContent,
-            deprecatedBillIds = finalizedDeprecatedIds,
-            billHint = "",
-            billInteractionMode = BILL_INTERACTION_NONE,
-            billInteractionToken = ""
-        )
-        adapter.notifyItemChanged(idx)
-        val msgId = displayMessages[idx].dbId
-        if (msgId > 0L) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                db.chatMessageDao().getById(msgId)?.let { oldMsg ->
-                    db.chatMessageDao().update(oldMsg.copy(content = updatedContent))
-                }
-            }
-        }
-    }
-
-    private fun removeInteractiveBillCard(token: String, deletePersisted: Boolean = true) {
-        if (token.isBlank()) return
-        val idx = displayMessages.indexOfFirst { item ->
-            item.msgType == MSG_TYPE_AI_BILL && item.billInteractionToken == token
-        }
-        if (idx < 0) return
-        val removedDbId = displayMessages[idx].dbId
-        displayMessages.removeAt(idx)
-        adapter.notifyItemRemoved(idx)
-        if (idx <= displayMessages.lastIndex) {
-            adapter.notifyItemRangeChanged(idx, displayMessages.size - idx)
-        }
-        if (deletePersisted && removedDbId > 0L) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                db.chatMessageDao().deleteByIds(listOf(removedDbId))
-            }
-        }
+        // No interactive bill actions remain after agent mode removal.
     }
 
     private fun parseTimeToMillis(timeStr: String): Long {
@@ -1940,7 +1639,6 @@ class ChatActivity : AppCompatActivity() {
 
     private fun appendUserMessage(text: String, type: Int, imageUri: String = "") {
         messagePersistenceController.appendUserMessage(text, type, imageUri)
-        updateAgentEmptyState()
     }
 
     private fun appendUserVoiceMessage(audioFile: File, durationSec: Int, transcript: String): ChatDisplayItem {
@@ -1988,10 +1686,6 @@ class ChatActivity : AppCompatActivity() {
     override fun onDestroy() {
         messagePipeline.cancelCurrentRequest(showInterruptedMessage = false)
         aiScopeJob.cancel()
-        pendingBillSelection?.continuation?.takeIf { it.isActive }?.resume(null)
-        pendingBillSelection = null
-        pendingBillConfirmation?.continuation?.takeIf { it.isActive }?.resume(false)
-        pendingBillConfirmation = null
         super.onDestroy()
         clearPendingLongPress()
         stopVoicePlayback()

@@ -33,7 +33,7 @@ interface ChatMessageDao {
     @Query("SELECT conversationId FROM chat_messages WHERE bookName = :bookName ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestConversationIdByBook(bookName: String): String?
 
-    @Deprecated("Use getLatestAgentConversationIdByBook or getLatestAccountingConversationIdByBook instead. LIKE treats _ as wildcard.")
+    @Deprecated("Use getLatestAccountingConversationIdByBook instead. LIKE treats _ as wildcard.")
     @Query("SELECT conversationId FROM chat_messages WHERE bookName = :bookName AND conversationId LIKE :convIdPrefix ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestConversationIdByBookAndPrefix(bookName: String, convIdPrefix: String): String?
 
@@ -45,15 +45,6 @@ interface ChatMessageDao {
      */
     @Query("SELECT conversationId FROM chat_messages WHERE bookName = :bookName AND conversationId NOT GLOB 'agent_*' ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestAccountingConversationIdByBook(bookName: String): String?
-
-    /**
-     * Get the latest conversation ID for Agent mode.
-     * Only matches conversations with IDs starting with "agent_" (literal underscore).
-     * Uses GLOB which treats '_' as a literal character (unlike LIKE).
-     * "agentX123", "agent-123" will NOT match.
-     */
-    @Query("SELECT conversationId FROM chat_messages WHERE bookName = :bookName AND conversationId GLOB 'agent_*' ORDER BY timestamp DESC LIMIT 1")
-    suspend fun getLatestAgentConversationIdByBook(bookName: String): String?
 
     @Query("SELECT * FROM chat_messages WHERE content LIKE :query ORDER BY timestamp DESC")
     suspend fun search(query: String): List<ChatMessage>

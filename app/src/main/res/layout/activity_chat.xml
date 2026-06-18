@@ -125,41 +125,6 @@
             app:layout_constraintEnd_toEndOf="parent" />
 
         <LinearLayout
-            android:id="@+id/layout_agent_empty_state"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:paddingHorizontal="32dp"
-            android:layout_marginTop="72dp"
-            android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/toolbar_chat"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <TextView
-                android:id="@+id/tv_agent_empty_hint"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="@string/agent_empty_hint"
-                android:textColor="@color/chat_bill_detail_text"
-                android:textSize="14sp"
-                android:lineSpacingExtra="4dp" />
-
-            <TextView
-                android:id="@+id/tv_agent_empty_examples"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center"
-                android:text="@string/agent_empty_examples"
-                android:textColor="@color/chat_bill_category_text"
-                android:textSize="13sp"
-                android:lineSpacingExtra="6dp" />
-        </LinearLayout>
-
-        <LinearLayout
             android:id="@+id/layout_voice_record_overlay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

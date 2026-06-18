@@ -142,6 +142,31 @@ internal fun buildVisionChatRequest(
     )
 }
 
+internal fun buildMultiImageVisionChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    dataUrls: List<String>,
+    userText: String,
+    enableThinking: Boolean = false
+): JsonObject {
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        add(
+            buildContentMessage(
+                role = "user",
+                parts = dataUrls.map { buildImagePart(it) } + listOf(buildTextPart(userText))
+            )
+        )
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        enableThinking = enableThinking
+    )
+}
+
 private fun buildChatRequest(
     model: String,
     temperature: Double,

@@ -400,8 +400,7 @@ class MainActivity : AppCompatActivity() {
                         )
                         .putExtra(
                             ChatActivity.EXTRA_MODE,
-                            if (Prefs.isAiAgentEnabled(this)) ChatActivity.MODE_AGENT
-                            else ChatActivity.MODE_ACCOUNTING
+                            ChatActivity.MODE_ACCOUNTING
                         )
                 )
             } else {

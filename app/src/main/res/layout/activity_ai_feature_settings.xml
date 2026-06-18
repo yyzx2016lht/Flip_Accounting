@@ -251,45 +251,6 @@
                             </LinearLayout>
 
                             <LinearLayout
-                                android:id="@+id/layout_ai_agent_entry"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:gravity="center_vertical"
-                                android:orientation="horizontal"
-                                android:paddingVertical="6dp">
-
-                                <LinearLayout
-                                    android:layout_width="0dp"
-                                    android:layout_height="wrap_content"
-                                    android:layout_weight="1"
-                                    android:orientation="vertical">
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="@string/ai_agent_entry"
-                                        android:textColor="#1F2A3D"
-                                        android:textSize="@dimen/text_size_14"
-                                        android:textStyle="bold" />
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="2dp"
-                                        android:text="@string/ai_agent_entry_desc"
-                                        android:textColor="#9AA4B2"
-                                        android:textSize="@dimen/text_size_11" />
-                                </LinearLayout>
-
-                                <com.google.android.material.switchmaterial.SwitchMaterial
-                                    android:id="@+id/switch_ai_agent_mode"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    app:thumbTint="@color/switch_thumb_tint"
-                                    app:trackTint="@color/switch_track_tint" />
-                            </LinearLayout>
-
-                            <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:gravity="center_vertical"

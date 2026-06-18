@@ -867,7 +867,7 @@ object OverlayDialogs {
             }
         }
         rv.isNestedScrollingEnabled = true
-        rv.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+        rv.overScrollMode = View.OVER_SCROLL_NEVER
 
         val adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {

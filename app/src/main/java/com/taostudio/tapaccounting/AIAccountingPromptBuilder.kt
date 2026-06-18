@@ -10,78 +10,28 @@ internal fun buildAccountingSystemPrompt(
     promptContext: AIAccountingPromptContext,
     isFromChat: Boolean = false
 ): String {
-    // System prompt 对 Chat/非Chat 完全相同，差异通过 user message 表达 → 缓存 100% 互通
+    // System prompt 尽量静态（规则文本），动态数据通过 user message 表达 → 提升缓存命中率
     var prompt = accountingBasePrompt(promptContext.assetFeatureEnabled)
     val hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
     prompt = adaptPromptForCategoryDepth(prompt = prompt, hasSecondLevel = hasSecondLevel)
 
     prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildExampleAntiLeakRule()
-    prompt += AIPrompts.buildRemarksRichnessRule()
     prompt += AIPrompts.buildCategoryRulesCompact(hasSecondLevel)
     prompt += AIPrompts.buildBookFieldRule(promptContext.availableBooks)
     prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildAccountingDateRule()
 
-    prompt += AIPrompts.buildReceiptSemanticRule()
     prompt += if (!promptContext.assetFeatureEnabled) {
-        AIPrompts.buildNoAssetAccountingRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
+        // 传完整分类路径（而非叶子名），与 buildCategoryRulesCompact 的格式要求一致
+        AIPrompts.buildNoAssetAccountingRule(promptContext.expenseCats, promptContext.incomeCats)
     } else {
-        AIPrompts.buildMultiFastModeRule(promptContext.expenseCats, promptContext.incomeCats)
+        AIPrompts.buildExecutionModeRule()
     }
 
     prompt += AIPrompts.buildOutputJsonRuleWithTargetFields()
 
-    return renderPromptTemplate(
-        prompt = prompt,
-        promptContext = promptContext,
-        assets = promptContext.assetInfoList,
-        expenseCats = promptContext.expenseCats,
-        incomeCats = promptContext.incomeCats
-    )
-}
-
-/**
- * 已废弃：不再支持直接音频记账，音频统一转写后走文本记账流程。
- */
-@Deprecated("Audio accounting removed, use buildAccountingSystemPrompt instead")
-internal fun buildAudioAccountingSystemPrompt(
-    ctx: Context,
-    promptContext: AIAccountingPromptContext,
-    isFromChat: Boolean = false
-): String {
-    // System prompt 对 Chat/非Chat 完全相同，差异通过 user message 表达 → 缓存 100% 互通
-    var prompt = accountingBasePrompt(promptContext.assetFeatureEnabled)
-    val hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
-    prompt = adaptPromptForCategoryDepth(prompt = prompt, hasSecondLevel = hasSecondLevel)
-
-    prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildVoiceInputRule()
-    prompt += AIPrompts.buildExampleAntiLeakRule()
-    prompt += AIPrompts.buildRemarksRichnessRule()
-    prompt += AIPrompts.buildCategoryRulesCompact(hasSecondLevel)
-    prompt += AIPrompts.buildBookFieldRule(promptContext.availableBooks)
-    prompt += AIPrompts.buildRepaymentRule(creditCardNames(promptContext), promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints(promptContext), promptContext.assetFeatureEnabled)
-    prompt += AIPrompts.buildAccountingDateRule()
-
-    prompt += AIPrompts.buildReceiptSemanticRule()
-    prompt += if (!promptContext.assetFeatureEnabled) {
-        AIPrompts.buildNoAssetAccountingRule(promptContext.expenseLeafCats, promptContext.incomeLeafCats)
-    } else {
-        AIPrompts.buildMultiFastModeRule(promptContext.expenseCats, promptContext.incomeCats)
-    }
-
-    prompt += AIPrompts.buildOutputJsonRuleWithBookField()
-
-    return renderPromptTemplate(
-        prompt = prompt,
-        promptContext = promptContext,
-        assets = promptContext.assetInfoList,
-        expenseCats = promptContext.expenseCats,
-        incomeCats = promptContext.incomeCats
-    )
+    return prompt
 }
 
 internal fun buildScreenAccountingSystemPrompt(
@@ -90,11 +40,15 @@ internal fun buildScreenAccountingSystemPrompt(
     isFromChat: Boolean = false
 ): String {
     // 统一使用同一个图片记账 prompt，输出格式差异由 taskInstruction / user message 控制
+    // System prompt 完全静态（不含任何动态数据），数据通过 user message 注入
     var prompt = AIPrompts.IMAGE_ACCOUNTING_PROMPT
 
     // 动态规则对两个场景通用，且不与基础 prompt 冲突
+    prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
     val hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
     prompt += AIPrompts.buildCategoryRulesCompact(hasSecondLevel)
+    prompt += AIPrompts.buildExampleAntiLeakRule()
+    prompt += AIPrompts.buildAccountingDateRule()
     prompt += AIPrompts.buildVisualPaymentMethodRule(
         promptContext.assetFeatureEnabled,
         promptContext.assetNames
@@ -106,19 +60,7 @@ internal fun buildScreenAccountingSystemPrompt(
         prompt += AIPrompts.buildRepaymentRule(creditCardNames, true)
     }
 
-    // 非人民币资产补充（动态）
-    val assetCurrencyHints = assetCurrencyHints(promptContext)
-    if (promptContext.assetFeatureEnabled && assetCurrencyHints.isNotEmpty()) {
-        prompt += AIPrompts.buildAssetCurrencyRule(assetCurrencyHints, true)
-    }
-
-    return renderPromptTemplate(
-        prompt = prompt,
-        promptContext = promptContext,
-        assets = promptContext.assetInfoList,
-        expenseCats = promptContext.expenseCats,
-        incomeCats = promptContext.incomeCats
-    )
+    return prompt
 }
 
 private fun accountingBasePrompt(assetFeatureEnabled: Boolean): String =
@@ -188,6 +130,12 @@ internal fun adaptPromptForCategoryDepth(prompt: String, hasSecondLevel: Boolean
     val normalized = prompt
         .lineSequence()
         .filterNot { line -> removableKeywords.any { key -> line.contains(key) } }
+        .map { line ->
+            // 无二级分类时，将示例中的 "XX - YY" 分类格式替换为只保留父类
+            if (!hasSecondLevel && line.contains("category_name") && line.contains(" - ")) {
+                line.replace(Regex(""""category_name"\s*:\s*"([^"]+)\s*-\s*[^"]+""""), """"category_name":"$1"""")
+            } else line
+        }
         .joinToString("\n")
         .trim()
     val rule = if (hasSecondLevel) {
@@ -203,19 +151,32 @@ private fun creditCardNames(promptContext: AIAccountingPromptContext): List<Stri
         .filter { it.assetCategory == Asset.CATEGORY_CREDIT_CARD }
         .map { it.name }
 
-private fun assetCurrencyHints(promptContext: AIAccountingPromptContext): List<String> =
-    promptContext.dbAssets
-        .filter { it.currency.isNotEmpty() && it.currency != "CNY" }
-        .map { "\"${it.name}\"(${it.currency})" }
+/**
+ * 构建动态数据块，注入到 user message 开头。
+ * 包含资产、分类、币种、时间等每次请求可能变化的数据。
+ */
+internal fun buildDataBlock(promptContext: AIAccountingPromptContext): String = buildString {
+    appendLine("【数据上下文】")
+    if (promptContext.assetFeatureEnabled && promptContext.assetInfoList.isNotEmpty()) {
+        appendLine("资产库：${Gson().toJson(promptContext.assetInfoList)}")
+    }
+    appendLine("支出分类：${Gson().toJson(promptContext.expenseCats)}")
+    appendLine("收入分类：${Gson().toJson(promptContext.incomeCats)}")
+    appendLine("币种列表：${Gson().toJson(promptContext.currencies)}")
+    appendLine("当前时间：${promptContext.currentTimeStr}")
+}
 
 internal fun buildAccountingUserPrompt(
     userInput: String,
-    currentTimeStr: String,
+    promptContext: AIAccountingPromptContext,
     matchedPromptRules: List<DbAiRule>,
     assetFeatureEnabled: Boolean,
     isFromChat: Boolean = false,
     aiName: String = ""
 ): String = buildString {
+    // 数据上下文注入到 user message 开头，system prompt 保持静态 → 缓存友好
+    append(buildDataBlock(promptContext))
+    appendLine()
     // Chat 场景的差异通过 user message 表达，不污染 system prompt → 缓存互通
     if (isFromChat) {
         appendLine("【场景】对话记账模式。你需要理解对话上下文中的指代（如「同上」「刚才那笔」「再来一笔」），并在成功记账后输出 assistant_reply 字段作为对用户的自然语言回复。纯闲聊、追问、寒暄返回 no_bill + reply。")
@@ -226,7 +187,6 @@ internal fun buildAccountingUserPrompt(
     } else {
         appendLine("【场景】独立记账模式。直接输出账单 JSON，不需要 assistant_reply。")
     }
-    appendLine("【参考时间】$currentTimeStr")
     if (matchedPromptRules.isNotEmpty()) {
         append(
             buildPromptCorrectionBlock(
@@ -241,28 +201,20 @@ internal fun buildAccountingUserPrompt(
 }
 
 internal fun buildScreenAccountingUserText(
-    currentTimeStr: String,
-    taskInstruction: String
-): String = buildString {
-    appendLine("【参考时间】$currentTimeStr")
-    append(taskInstruction)
-}
-
-private fun renderPromptTemplate(
-    prompt: String,
     promptContext: AIAccountingPromptContext,
-    assets: List<Map<String, String>>,
-    expenseCats: List<String>,
-    incomeCats: List<String>
-): String {
-    return prompt
-        .replace("{{ASSETS}}", Gson().toJson(assets))
-        .replace("{{EXPENSE_CATS}}", Gson().toJson(expenseCats))
-        .replace("{{INCOME_CATS}}", Gson().toJson(incomeCats))
-        .replace("{{CURRENCIES}}", Gson().toJson(promptContext.currencies))
-        .replace("{{TIME}}", promptContext.currentTimeStr)
-        .replace("{{DEMO_ASSET}}", promptContext.demoAsset)
-        .replace("{{DEMO_EXPENSE_CAT}}", promptContext.demoExpenseCat)
-        .replace("{{DEMO_INCOME_CAT}}", promptContext.demoIncomeCat)
+    taskInstruction: String,
+    matchedPromptRules: List<DbAiRule> = emptyList()
+): String = buildString {
+    // 数据上下文注入到 user message 开头
+    append(buildDataBlock(promptContext))
+    if (matchedPromptRules.isNotEmpty()) {
+        append(buildPromptCorrectionBlock(
+            matchedPromptRules,
+            includeCategory = true,
+            includeAccount = promptContext.assetFeatureEnabled
+        ))
+    }
+    appendLine()
+    append(taskInstruction)
 }
 

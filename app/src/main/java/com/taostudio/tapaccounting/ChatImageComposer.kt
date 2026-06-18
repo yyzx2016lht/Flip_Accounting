@@ -102,52 +102,6 @@ object ChatImageComposer {
      */
     fun isMultiImagePayload(raw: String): Boolean = raw.startsWith(MULTIMODAL_MULTI_PREFIX)
 
-    // ---- agent multi-image context -------------------------------------------
-
-    /**
-     * Format the combined context text the Agent receives when the user sends
-     * multiple images.  Each image's OCR result is labelled so the Agent can
-     * distinguish them.
-     */
-    fun formatAgentMultiImageContext(ocrResults: List<String>, userText: String): String = buildString {
-        append("[用户发送了${ocrResults.size}张图片]")
-        ocrResults.forEachIndexed { index, ocr ->
-            append("\n图片${index + 1}内容：")
-            append(ocr.ifBlank { "（未识别到内容）" })
-        }
-        if (userText.isNotBlank()) {
-            append("\n用户说：")
-            append(userText)
-        }
-    }
-
-    /**
-     * Convenience overload for a single image that preserves backward compat
-     * with the old "[用户发送了一张图片]" format.
-     */
-    fun formatAgentSingleImageContext(ocrText: String, userText: String): String = buildString {
-        append("[用户发送了一张图片]")
-        if (ocrText.isNotBlank()) {
-            append("\n图片内容：")
-            append(ocrText)
-        }
-        if (userText.isNotBlank()) {
-            append("\n用户说：")
-            append(userText)
-        }
-    }
-
-    /**
-     * Route to the right formatter based on image count.
-     */
-    fun formatAgentImageContext(ocrResults: List<String>, userText: String): String {
-        return if (ocrResults.size <= 1) {
-            formatAgentSingleImageContext(ocrResults.firstOrNull().orEmpty(), userText)
-        } else {
-            formatAgentMultiImageContext(ocrResults, userText)
-        }
-    }
-
     // ---- remove by index (returns new list) ----------------------------------
 
     /**

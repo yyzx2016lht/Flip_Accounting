@@ -68,35 +68,6 @@ object ReceiptOcrHelper {
     }
 
     /**
-     * 模式一：本地 ML Kit OCR → AI 文本分析（返回自然语言摘要）
-     */
-    private suspend fun analyzeByLocalOcr(
-        ctx: Context,
-        imageUri: Uri,
-        onProgress: (String) -> Unit
-    ): String {
-        onProgress("正在本地识别图片文字...")
-
-        // 1. 用 ML Kit 提取文本
-        val bitmap = loadBitmapFromUri(ctx, imageUri)
-        val ocrText = recognizeTextFromBitmap(bitmap)
-
-        if (ocrText.isBlank()) {
-            throw IllegalArgumentException("未能从图片中识别到任何文字，请确保图片清晰")
-        }
-
-        Logger.d(ctx, "ReceiptOcrHelper", "OCR done: textLen=${ocrText.length}")
-        if (Prefs.isSaveOcrDebugEnabled(ctx)) {
-            Prefs.addOcrDebugRecord(ctx, ocrText, source = "local_ocr_before_ai")
-        }
-        onProgress("文字识别完成，正在 AI 解析账单...")
-
-        // 2. 将 OCR 文本发给 AI
-        // 返回 String
-        return AIService.analyzeReceiptByOcrText(ctx, ocrText)
-    }
-
-    /**
      * 模式二：多模态 AI（图片 Base64 直发）（返回自然语言摘要）
      */
     private suspend fun analyzeByMultimodal(

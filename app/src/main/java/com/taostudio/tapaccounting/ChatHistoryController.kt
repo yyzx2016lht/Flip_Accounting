@@ -193,7 +193,6 @@ class ChatHistoryController(
                 rvSessionListProvider().adapter = sessionAdapterProvider()
                 sessionAdapterProvider().submit(allSessionRowsProvider().toList())
             }
-            context.updateAgentEmptyState()
         }
     }
 

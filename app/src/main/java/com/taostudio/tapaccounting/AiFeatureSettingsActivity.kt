@@ -49,11 +49,9 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val layoutAiMain = findViewById<View>(R.id.layout_ai_main_entry)
         val switchShowAi = findViewById<CompoundButton>(R.id.switch_show_ai)
         val switchAiChatMode = findViewById<CompoundButton>(R.id.switch_ai_chat_mode)
-        val switchAiAgentMode = findViewById<CompoundButton>(R.id.switch_ai_agent_mode)
         val switchShowAiChatEntry = findViewById<CompoundButton>(R.id.switch_show_ai_chat_entry)
         val showAiChatEntryRow = switchShowAiChatEntry.parent as? View
         val layoutOpenAiChatPage = findViewById<View>(R.id.layout_open_ai_chat_page)
-        val layoutAiAgentEntry = findViewById<View>(R.id.layout_ai_agent_entry)
         // AI 总开关由设置中心控制，这里只展示具体能力配置。
         (switchShowAi.parent as? View)?.visibility = View.GONE
         layoutAiMain.visibility = View.VISIBLE
@@ -68,15 +66,10 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 if (isChecked) Prefs.AI_ENTRY_MODE_CHAT
                 else Prefs.AI_ENTRY_MODE_TRADITIONAL
             )
-            // Agent 功能暂时下线，不需要更新入口可见性
         }
         layoutOpenAiChatPage.setOnClickListener {
             switchAiChatMode.performClick()
         }
-
-        // Agent 功能暂时下线：隐藏入口，强制关闭
-        Prefs.setAiAgentEnabled(this, false)
-        layoutAiAgentEntry.visibility = View.GONE
 
         Prefs.setShowAiChatEntry(this, false)
         showAiChatEntryRow?.visibility = View.GONE
@@ -306,7 +299,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         try {
             val toggleIds = intArrayOf(
                 R.id.switch_ai_chat_mode,
-                R.id.switch_ai_agent_mode,
                 R.id.switch_show_ai_chat_entry,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,
@@ -333,16 +325,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val configured = Prefs.isAiConfigured(this)
         layoutAiKeyWarning.visibility = if (configured) View.GONE else View.VISIBLE
         btnAiDetailConfig.visibility = if (configured) View.VISIBLE else View.GONE
-    }
-
-    private fun updateAgentEntryVisibility(
-        chatEnabled: Boolean,
-        layoutAiAgentEntry: View,
-        switchAiAgentMode: CompoundButton
-    ) {
-        layoutAiAgentEntry.visibility = if (chatEnabled) View.VISIBLE else View.GONE
-        switchAiAgentMode.isEnabled = chatEnabled
-        layoutAiAgentEntry.alpha = if (chatEnabled) 1f else 0.45f
     }
 
     private fun showProviderSetupDialog(cancelable: Boolean) {

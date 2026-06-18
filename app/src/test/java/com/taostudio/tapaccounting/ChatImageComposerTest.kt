@@ -15,10 +15,8 @@ import org.junit.Test
  *  2. Adding beyond limit is rejected.
  *  3. Multi-image payload encode/decode round-trip.
  *  4. Single-image payload falls back to legacy format.
- *  5. Agent multi-image context labels each image (图片1, 图片2, …).
- *  6. Agent single-image context preserves old format.
- *  7. removeAt produces correct list.
- *  8. Edge cases: empty list, out-of-range index, etc.
+ *  5. removeAt produces correct list.
+ *  6. Edge cases: empty list, out-of-range index, etc.
  */
 class ChatImageComposerTest {
 
@@ -192,60 +190,6 @@ class ChatImageComposerTest {
         assertFalse(ChatImageComposer.isMultiImagePayload(ReceiptImageInputHelper.MULTIMODAL_PREFIX + "abc|mime|"))
     }
 
-    // ---- agent multi-image context -------------------------------------------
-
-    @Test
-    fun `formatAgentMultiImageContext labels each image`() {
-        val ocr = listOf("星巴克 35元", "面包 12元", "牛奶 8元")
-        val result = ChatImageComposer.formatAgentMultiImageContext(ocr, "用支付宝付的")
-        assertTrue(result.contains("[用户发送了3张图片]"))
-        assertTrue(result.contains("图片1内容：星巴克 35元"))
-        assertTrue(result.contains("图片2内容：面包 12元"))
-        assertTrue(result.contains("图片3内容：牛奶 8元"))
-        assertTrue(result.contains("用户说：用支付宝付的"))
-    }
-
-    @Test
-    fun `formatAgentMultiImageContext handles blank OCR`() {
-        val ocr = listOf("", "some text", "")
-        val result = ChatImageComposer.formatAgentMultiImageContext(ocr, "")
-        assertTrue(result.contains("图片1内容：（未识别到内容）"))
-        assertTrue(result.contains("图片2内容：some text"))
-        assertTrue(result.contains("图片3内容：（未识别到内容）"))
-        assertFalse(result.contains("用户说："))
-    }
-
-    @Test
-    fun `formatAgentSingleImageContext preserves old format`() {
-        val result = ChatImageComposer.formatAgentSingleImageContext("OCR结果", "备注")
-        assertTrue(result.startsWith("[用户发送了一张图片]"))
-        assertTrue(result.contains("图片内容：OCR结果"))
-        assertTrue(result.contains("用户说：备注"))
-    }
-
-    @Test
-    fun `formatAgentImageContext routes to single for one result`() {
-        val result = ChatImageComposer.formatAgentImageContext(listOf("OCR"), "text")
-        assertTrue(result.startsWith("[用户发送了一张图片]"))
-        assertTrue(result.contains("图片内容：OCR"))
-    }
-
-    @Test
-    fun `formatAgentImageContext routes to multi for multiple results`() {
-        val result = ChatImageComposer.formatAgentImageContext(listOf("A", "B"), "text")
-        assertTrue(result.startsWith("[用户发送了2张图片]"))
-        assertTrue(result.contains("图片1内容：A"))
-        assertTrue(result.contains("图片2内容：B"))
-    }
-
-    @Test
-    fun `formatAgentImageContext empty list still produces marker`() {
-        val result = ChatImageComposer.formatAgentImageContext(emptyList(), "text")
-        // Empty list → single-image formatter with empty OCR
-        assertTrue(result.startsWith("[用户发送了一张图片]"))
-        assertTrue(result.contains("用户说：text"))
-    }
-
     // ---- multi-image payload preserves all images (not just first) -----------
 
     @Test
@@ -258,16 +202,6 @@ class ChatImageComposerTest {
         for (i in 1..9) {
             assertEquals("img_$i", decoded.images[i - 1].base64)
         }
-    }
-
-    // ---- agent context does not contain MULTIMODAL prefix --------------------
-
-    @Test
-    fun `agent multi-image context does not contain MULTIMODAL prefix`() {
-        val result = ChatImageComposer.formatAgentMultiImageContext(listOf("a", "b"), "text")
-        assertFalse(result.contains(ReceiptImageInputHelper.MULTIMODAL_PREFIX))
-        assertFalse(result.contains(ReceiptImageInputHelper.MULTIMODAL_DIRECT_PREFIX))
-        assertFalse(result.contains(ChatImageComposer.MULTIMODAL_MULTI_PREFIX))
     }
 
     // ---- helpers -------------------------------------------------------------

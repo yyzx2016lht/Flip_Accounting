@@ -18,7 +18,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
-import com.taostudio.tapaccounting.chat.agent.ChatConversationMode
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -148,13 +147,12 @@ class ChatSearchActivity : AppCompatActivity() {
     }
 
     private fun navigateToChat(msg: ChatMessage) {
-        val mode = ChatConversationMode.modeOf(msg.conversationId)
         val intent = Intent(this, ChatActivity::class.java).apply {
             putExtra("scroll_to_msg_id", msg.id)
             val targetBook = if (msg.bookName.isNotBlank()) msg.bookName else sourceBookName
             if (targetBook.isNotBlank()) putExtra(ChatActivity.EXTRA_SOURCE_BOOK, targetBook)
             if (msg.conversationId.isNotBlank()) putExtra(ChatActivity.EXTRA_CONVERSATION_ID, msg.conversationId)
-            putExtra(ChatActivity.EXTRA_MODE, ChatConversationMode.toActivityMode(mode))
+            putExtra(ChatActivity.EXTRA_MODE, ChatActivity.MODE_ACCOUNTING)
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         startActivity(intent)

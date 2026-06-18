@@ -7,7 +7,6 @@ object PrefsChatSupport {
     private const val PREFS_NAME = "flip_prefs"
     private const val KEY_SHOW_AI_CHAT_ENTRY = "show_ai_chat_entry"
     private const val KEY_AI_ENTRY_MODE = "ai_entry_mode"
-    private const val KEY_AI_AGENT_ENABLED = "ai_agent_enabled"
     private const val KEY_AI_CHAT_NAME = "ai_chat_name"
     private const val KEY_AI_CHAT_IDENTITY = "ai_chat_identity"
     private const val KEY_USER_CHAT_NAME = "user_chat_name"
@@ -31,11 +30,6 @@ object PrefsChatSupport {
         prefs(ctx).getInt(KEY_AI_ENTRY_MODE, Prefs.AI_ENTRY_MODE_TRADITIONAL)
     fun setAiEntryMode(ctx: Context, mode: Int) =
         prefs(ctx).edit().putInt(KEY_AI_ENTRY_MODE, mode).apply()
-
-    fun isAiAgentEnabled(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_AI_AGENT_ENABLED, false)
-    fun setAiAgentEnabled(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean(KEY_AI_AGENT_ENABLED, enabled).apply()
 
     fun getAiChatName(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_CHAT_NAME, "小记") ?: "小记"
