@@ -405,7 +405,7 @@ class OverlayManager(private val ctx: Context) {
     }
 
     private fun launchSystemScreenCaptureActivity() {
-        ScreenCaptureActivity.onRecognitionResult = { result -> handleScreenCaptureResult(result) }
+        ScreenCaptureActivity.onRecognitionResult = { result -> handleAiResult(result) }
         ScreenCaptureActivity.onRecognitionError = { message -> handleScreenCaptureError(message) }
         ScreenCaptureActivity.onRecognitionCancelled = { handleScreenCaptureCancelled() }
         val intent = android.content.Intent(ctx, ScreenCaptureActivity::class.java).apply {
@@ -451,23 +451,15 @@ class OverlayManager(private val ctx: Context) {
                 }
 
                 Logger.d(ctx, "OverlayManager", "Shizuku screencap succeeded. bytes=${bytes.size}, size=${bitmap.width}x${bitmap.height}")
+                val uri = bitmapToTempUri(bitmap)
                 withContext(Dispatchers.Main) {
-                    updateScreenCaptureLoadingStatus(ctx.getString(R.string.recognizing_screen))
-                    updateScreenCaptureLoadingHint(ctx.getString(R.string.ai_extracting_transactions))
-                }
-
-                val result = AIService.analyzeScreenAccountingByImage(
-                    ctx = ctx,
-                    imageBase64 = bitmapToBase64(bitmap),
-                    mimeType = "image/jpeg",
-                    isMultiModeOverride = true
-                ) ?: JSONObject().apply {
-                    put("no_bill", true)
-                    put("reply", ctx.getString(R.string.toast_no_bill_found))
-                }
-
-                withContext(Dispatchers.Main) {
-                    handleScreenCaptureResult(result)
+                    hideScreenCaptureLoadingOverlay()
+                    finishScreenCaptureFlow(restoreOverlay = false)
+                    if (uri != null) {
+                        aiAssistant.analyzeImage(uri, handleAiResult)
+                    } else {
+                        Utils.toast(ctx, ctx.getString(R.string.toast_capture_failed))
+                    }
                 }
             } catch (e: Exception) {
                 Logger.d(ctx, "OverlayManager", "Shizuku in-place screen recognition failed: ${e.message}")
@@ -500,31 +492,14 @@ class OverlayManager(private val ctx: Context) {
                     }
 
                     Logger.d(ctx, "OverlayManager", "Accessibility screencap succeeded. size=${bitmap.width}x${bitmap.height}")
+                    val uri = bitmapToTempUri(bitmap)
                     CoroutineScope(Dispatchers.Main).launch {
-                        updateScreenCaptureLoadingStatus(ctx.getString(R.string.recognizing_screen))
-                        updateScreenCaptureLoadingHint(ctx.getString(R.string.ai_extracting_transactions))
-                    }
-
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val result = AIService.analyzeScreenAccountingByImage(
-                                ctx = ctx,
-                                imageBase64 = bitmapToBase64(bitmap),
-                                mimeType = "image/jpeg",
-                                isMultiModeOverride = true
-                            ) ?: JSONObject().apply {
-                                put("no_bill", true)
-                                put("reply", ctx.getString(R.string.toast_no_bill_found))
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                handleScreenCaptureResult(result)
-                            }
-                        } catch (e: Exception) {
-                            Logger.d(ctx, "OverlayManager", "Accessibility screen recognition failed: ${e.message}")
-                            withContext(Dispatchers.Main) {
-                                handleScreenCaptureError(ctx.getString(R.string.toast_capture_failed))
-                            }
+                        hideScreenCaptureLoadingOverlay()
+                        finishScreenCaptureFlow(restoreOverlay = false)
+                        if (uri != null) {
+                            aiAssistant.analyzeImage(uri, handleAiResult)
+                        } else {
+                            Utils.toast(ctx, ctx.getString(R.string.toast_capture_failed))
                         }
                     }
                 }
@@ -540,149 +515,6 @@ class OverlayManager(private val ctx: Context) {
                 }
             }
         }
-    }
-
-    private fun handleScreenCaptureResult(result: JSONObject) {
-        Logger.d(
-            ctx,
-            "OverlayManager",
-            "Screen capture recognition result received. no_bill=${result.optBoolean("no_bill", false)}, hasBills=${result.has("bills")}, hasAmount=${result.has("amount")}"
-        )
-        if (!result.optBoolean("no_bill", false)) {
-            AIService.markVisualAccountingReviewDraft(
-                root = result,
-                sourceKind = "screen_capture",
-                includePaymentMethod = Prefs.isAssetFeatureEnabled(ctx)
-            )
-        }
-        val shouldRestoreOverlay = shouldRestoreOverlayForScreenResult(result)
-        hideScreenCaptureLoadingOverlay()
-        if (shouldRestoreOverlay) {
-            setOverlayVisible(true)
-            markOverlayRestoredNow()
-        }
-        finishScreenCaptureFlow(restoreOverlay = false)
-        if (result.optBoolean("no_bill", false)) {
-            Utils.toast(ctx, result.optString("reply", ctx.getString(R.string.toast_no_bill_found)))
-        } else {
-            showScreenCaptureDraftDialog(result)
-        }
-    }
-
-    private fun showScreenCaptureDraftDialog(result: JSONObject) {
-        val draft = result.optString("natural_summary", "").trim()
-            .ifBlank { buildDraftTextFromResult(result) }
-        if (draft.isBlank()) {
-            Utils.toast(ctx, ctx.getString(R.string.toast_no_draft))
-            return
-        }
-
-        val themeContext = android.view.ContextThemeWrapper(ctx, R.style.Theme_TapAccounting)
-        val view = LayoutInflater.from(themeContext).inflate(R.layout.dialog_visual_accounting_draft, null)
-        val title = view.findViewById<TextView>(R.id.tv_visual_draft_title)
-        val hint = view.findViewById<TextView>(R.id.tv_visual_draft_hint)
-        val etDraft = view.findViewById<android.widget.EditText>(R.id.et_visual_draft)
-        val btnCancel = view.findViewById<TextView>(R.id.btn_visual_draft_cancel)
-        val btnConfirm = view.findViewById<TextView>(R.id.btn_visual_draft_confirm)
-
-        title.text = ctx.getString(R.string.verify_screenshot_title)
-        hint.text = ctx.getString(R.string.verify_screenshot_hint)
-        btnConfirm.text = ctx.getString(R.string.generate_bill)
-        etDraft.setText(draft)
-        etDraft.setSelection(draft.length)
-
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(themeContext)
-            .setView(view)
-            .create()
-
-        btnCancel.setOnClickListener {
-            dialog.dismiss()
-            Utils.toast(ctx, ctx.getString(R.string.toast_capture_canceled))
-        }
-        btnConfirm.setOnClickListener {
-            val edited = etDraft.text?.toString().orEmpty().trim()
-            if (edited.isBlank()) {
-                Utils.toast(ctx, ctx.getString(R.string.keep_recognizable_bill_content))
-                return@setOnClickListener
-            }
-            dialog.dismiss()
-            analyzeConfirmedScreenDraft(edited)
-        }
-
-        OverlayDialogs.showOverlayCenterDialog(
-            dialog = dialog,
-            ctx = ctx,
-            widthRatio = 0.92f,
-            cancelOnTouchOutside = false,
-            useSolidPanelBackground = false
-        )
-        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-    }
-
-    private fun buildDraftTextFromResult(result: JSONObject): String {
-        val bills = result.optJSONArray("bills") ?: return ""
-        val lines = mutableListOf<String>()
-        for (i in 0 until bills.length()) {
-            val bill = bills.optJSONObject(i) ?: continue
-            val typeText = when (bill.optInt("type", 0)) {
-                Bill.TYPE_INCOME -> ctx.getString(R.string.income)
-                Bill.TYPE_TRANSFER -> ctx.getString(R.string.transfer)
-                else -> ctx.getString(R.string.expense)
-            }
-            val remark = bill.optString("remarks", "").ifBlank { bill.optString("remark", "") }
-            val amount = bill.optDouble("amount", 0.0)
-            val currency = bill.optString("currency", "CNY").ifBlank { "CNY" }
-            val time = bill.optString("time", "")
-            val asset = bill.optString("asset_name", "")
-            val paymentText = if (Prefs.isAssetFeatureEnabled(ctx) && asset.isNotBlank()) "，用了${asset}支付" else ""
-            val timeText = if (time.isNotBlank()) "，时间 $time" else ""
-            lines += "$typeText ${remark.ifBlank { "待确认事项" }} 花了 $amount $currency$paymentText$timeText"
-        }
-        return lines.joinToString("\n")
-    }
-
-    private fun analyzeConfirmedScreenDraft(confirmedDraft: String) {
-        showScreenCaptureLoadingOverlay(ctx.getString(R.string.generating_bill_progress))
-        updateScreenCaptureLoadingHint(ctx.getString(R.string.extracting_from_confirmed_text))
-        screenCaptureJob?.cancel()
-        screenCaptureJob = CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val result = AIService.analyzeAccounting(
-                    ctx = ctx,
-                    userInput = confirmedDraft,
-                    isMultiModeOverride = true
-                ) ?: JSONObject().apply {
-                    put("no_bill", true)
-                    put("reply", ctx.getString(R.string.toast_no_bill_found))
-                }
-                AIService.markVisualAccountingReviewDraft(
-                    root = result,
-                    sourceKind = "screen_capture",
-                    naturalSummary = confirmedDraft,
-                    includePaymentMethod = Prefs.isAssetFeatureEnabled(ctx)
-                )
-                withContext(Dispatchers.Main) {
-                    hideScreenCaptureLoadingOverlay()
-                    if (result.optBoolean("no_bill", false)) {
-                        Utils.toast(ctx, result.optString("reply", ctx.getString(R.string.toast_no_bill_found)))
-                    } else {
-                        handleAiResult(result)
-                    }
-                }
-            } catch (e: Exception) {
-                Logger.d(ctx, "OverlayManager", "Confirmed screen draft analyze failed: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    hideScreenCaptureLoadingOverlay()
-                    Utils.toast(ctx, ctx.getString(R.string.toast_generate_bill_failed))
-                }
-            }
-        }
-    }
-
-    private fun shouldRestoreOverlayForScreenResult(result: JSONObject): Boolean {
-        val isMulti = true
-        val isAutoSaveMultiBills = isMulti && result.has("bills") && Prefs.isMultiBillNotSync(ctx)
-        return result.optBoolean("requires_review", false) || !isAutoSaveMultiBills
     }
 
     private fun handleScreenCaptureError(message: String) {
@@ -932,25 +764,21 @@ class OverlayManager(private val ctx: Context) {
         captureScanAnimator = null
     }
 
-    private fun bitmapToBase64(bitmap: Bitmap): String {
+    private fun bitmapToTempUri(bitmap: Bitmap): android.net.Uri? {
         val maxDim = 1440
         val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
-            val ratio = minOf(
-                maxDim.toFloat() / bitmap.width,
-                maxDim.toFloat() / bitmap.height
-            )
-            Bitmap.createScaledBitmap(
-                bitmap,
-                (bitmap.width * ratio).toInt(),
-                (bitmap.height * ratio).toInt(),
-                true
-            )
-        } else {
-            bitmap
+            val ratio = minOf(maxDim.toFloat() / bitmap.width, maxDim.toFloat() / bitmap.height)
+            Bitmap.createScaledBitmap(bitmap, (bitmap.width * ratio).toInt(), (bitmap.height * ratio).toInt(), true)
+        } else bitmap
+        val dir = java.io.File(ctx.cacheDir, "screen_captures").apply { mkdirs() }
+        val file = java.io.File(dir, "screenshot_${System.currentTimeMillis()}.jpg")
+        return try {
+            file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, 88, it) }
+            android.net.Uri.fromFile(file)
+        } catch (e: Exception) {
+            Logger.d(ctx, "OverlayManager", "bitmapToTempUri failed: ${e.message}")
+            null
         }
-        val output = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 88, output)
-        return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
     }
 
     private fun processNextPendingBill() {
