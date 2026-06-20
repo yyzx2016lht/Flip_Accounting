@@ -911,16 +911,14 @@ class OverlayManager(private val ctx: Context) {
                 override fun onAnimationEnd(animation: Animator) {
                     currentViewAnimator = null
                     currentAnimator = null
-                    if (cancelled) {
-                        isRemovingOverlay = false
-                        return
-                    }
                     view.visibility = View.INVISIBLE
                     runCatching { windowManager?.removeView(view) }
                     overlayView = null
                     overlayParams = null
                     isRemovingOverlay = false
-                    handlePostRemove(isSaved)
+                    if (!cancelled) {
+                        handlePostRemove(isSaved)
+                    }
                 }
             })
         currentViewAnimator?.start()
