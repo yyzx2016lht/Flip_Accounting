@@ -670,6 +670,14 @@ class OverlayManager(private val ctx: Context) {
         screenCaptureJob = null
         if (restoreOverlay) {
             setOverlayVisible(true)
+        } else {
+            // 不恢复悬浮窗时清理旧视图，避免 showOverlay 因 overlayView!=null 跳过重建
+            overlayView?.let { v ->
+                cancelOverlayAnimations(v)
+                runCatching { windowManager?.removeView(v) }
+            }
+            overlayView = null
+            overlayParams = null
         }
         screenCaptureTriggerBtn?.isEnabled = true
         screenCaptureTriggerBtn?.animate()?.alpha(1f)?.setDuration(120L)?.start()
