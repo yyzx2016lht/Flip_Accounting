@@ -645,6 +645,12 @@ class AiAssistant(private val ctx: Context) {
         naturalLanguage: Boolean,
         onResult: (JSONObject) -> Unit
     ) {
+        // 安全关闭 showSupplementInput 的旧弹窗：
+        // 先移除 dismiss 监听，避免它将 currentDialog 置空，
+        // 然后 dismiss 旧弹窗，最后清空引用。
+        currentDialog?.setOnDismissListener(null)
+        currentDialog?.dismiss()
+        currentDialog = null
         if (naturalLanguage) {
             analyzeImageNaturalLanguage(imageUri, supplementText, onResult)
         } else {
