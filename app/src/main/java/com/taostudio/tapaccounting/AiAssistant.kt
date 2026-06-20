@@ -214,9 +214,11 @@ class AiAssistant(private val ctx: Context) {
         ctx.getString(R.string.overlay_hidden_stream_status)
 
     private fun buildOverlayStreamingPreview(raw: String, previous: String): String? {
-        return StreamingBillPreview.formatOverlayPreview(raw, previous) { remark, category, amount, currency ->
+        val result = StreamingBillPreview.formatOverlayPreview(raw, previous) { remark, category, amount, currency ->
             formatOverlayBillPreviewLine(remark, category, amount, currency)
         }
+        Logger.d(ctx, "StreamPreview", "buildOverlay: rawLen=${raw.length}, result=${result?.take(80)}")
+        return result
     }
 
     private fun applyOverlayStreamProgress(
@@ -229,6 +231,7 @@ class AiAssistant(private val ctx: Context) {
             if (delta.isBlank()) return
             streamState.started = true
             streamedRaw.append(delta)
+            Logger.d(ctx, "StreamPreview", "rawLen=${streamedRaw.length}, delta=${delta.take(30)}")
             val candidate = buildOverlayStreamingPreview(streamedRaw.toString(), streamState.lastPreview) ?: return
             if (!StreamingBillPreview.shouldUpdateUi(streamState.lastPreview, candidate, streamState.lastUpdateMs)) {
                 return
@@ -368,6 +371,7 @@ class AiAssistant(private val ctx: Context) {
         visualReviewSource: String? = null,
         visualDraftText: String = ""
     ) {
+        Logger.d(ctx, "StreamPreview", "startAnalysis called, text=${text.take(50)}, hideStream=$currentHideStreamText")
         analyzeJob?.cancel()
         val hideStream = currentHideStreamText
         analyzeJob = scope.launch {
@@ -584,17 +588,21 @@ class AiAssistant(private val ctx: Context) {
     }
 
     fun analyzeImage(imageUri: Uri, onResult: (JSONObject) -> Unit) {
+        analyzeImages(listOf(imageUri), onResult)
+    }
+
+    fun analyzeImages(imageUris: List<Uri>, onResult: (JSONObject) -> Unit) {
         if (!ensureOverlayPermission()) return
-        lastReceiptImageUri = imageUri
+        if (imageUris.isEmpty()) return
+        lastReceiptImageUri = imageUris.first()
 
         val needSupplement = Prefs.isReceiptImageDraftConfirmEnabled(ctx)
         val naturalLanguage = Prefs.isImageAccountingNaturalLanguage(ctx)
 
         if (needSupplement) {
-            // 先弹出补充输入框，用户输入补充文本后再进行图片记账
-            showSupplementInput(imageUri, naturalLanguage, onResult)
+            showSupplementInput(imageUris, naturalLanguage, onResult)
         } else {
-            dispatchImageAccounting(imageUri, supplementText = "", naturalLanguage, onResult)
+            dispatchImageAccounting(imageUris, supplementText = "", naturalLanguage, onResult)
         }
     }
 
@@ -602,7 +610,7 @@ class AiAssistant(private val ctx: Context) {
      * 弹出补充输入框，用户输入补充文本后分发到对应的图片记账路径。
      */
     private fun showSupplementInput(
-        imageUri: Uri,
+        imageUris: List<Uri>,
         naturalLanguage: Boolean,
         onResult: (JSONObject) -> Unit
     ) {
@@ -629,7 +637,7 @@ class AiAssistant(private val ctx: Context) {
         btnIdentify.text = ctx.getString(R.string.start_recognition)
         btnIdentify.setOnClickListener {
             val supplement = etInput.text.toString().trim()
-            dispatchImageAccounting(imageUri, supplement, naturalLanguage, onResult)
+            dispatchImageAccounting(imageUris, supplement, naturalLanguage, onResult)
         }
         btnClose.setOnClickListener { dismiss() }
 
@@ -640,7 +648,7 @@ class AiAssistant(private val ctx: Context) {
      * 根据输出模式分发到对应的图片记账路径。
      */
     private fun dispatchImageAccounting(
-        imageUri: Uri,
+        imageUris: List<Uri>,
         supplementText: String,
         naturalLanguage: Boolean,
         onResult: (JSONObject) -> Unit
@@ -652,15 +660,15 @@ class AiAssistant(private val ctx: Context) {
         currentDialog?.dismiss()
         currentDialog = null
         if (naturalLanguage) {
-            analyzeImageNaturalLanguage(imageUri, supplementText, onResult)
+            analyzeImageNaturalLanguage(imageUris, supplementText, onResult)
         } else {
-            analyzeImageDirect(imageUri, supplementText, onResult)
+            analyzeImageDirect(imageUris, supplementText, onResult)
         }
     }
 
-    private fun analyzeImageDirect(imageUri: Uri, supplementText: String, onResult: (JSONObject) -> Unit) {
+    private fun analyzeImageDirect(imageUris: List<Uri>, supplementText: String, onResult: (JSONObject) -> Unit) {
         if (!ensureOverlayPermission()) return
-        lastReceiptImageUri = imageUri
+        lastReceiptImageUri = imageUris.first()
 
         val (dialog, view) = createDialog(cancelable = false)
         currentDialog = dialog
@@ -690,30 +698,52 @@ class AiAssistant(private val ctx: Context) {
 
         analyzeJob = scope.launch {
             try {
-                val payload = ReceiptImageInputHelper.readImagePayload(ctx, imageUri)
-                    ?: throw IllegalArgumentException("无法读取图片")
+                val payloads = imageUris.mapNotNull { uri ->
+                    ReceiptImageInputHelper.readImagePayload(ctx, uri)
+                }
+                if (payloads.isEmpty()) throw IllegalArgumentException("无法读取图片")
                 val streamedRaw = StringBuilder()
                 val streamState = OverlayStreamUiState()
                 withContext(Dispatchers.Main) {
                     updateLoadingText(ctx.getString(R.string.analyzing_image_transactions))
                 }
-                val result = AIService.analyzeScreenAccountingByImage(
-                    ctx = ctx,
-                    imageBase64 = payload.base64,
-                    mimeType = payload.mime,
-                    sourceKind = "receipt_image",
-                    supplementText = supplementText,
-                    onProgress = { status ->
-                        Handler(Looper.getMainLooper()).post {
-                            if (currentDialog?.isShowing != true) return@post
-                            if (status.startsWith("AI_STREAM_TEXT::")) {
-                                applyOverlayStreamProgress(status, streamedRaw, streamState)
-                            } else if (!streamState.started) {
-                                updateLoadingText(ctx.getString(R.string.analyzing_image_transactions))
+                val result = if (payloads.size == 1) {
+                    AIService.analyzeScreenAccountingByImage(
+                        ctx = ctx,
+                        imageBase64 = payloads[0].base64,
+                        mimeType = payloads[0].mime,
+                        sourceKind = "receipt_image",
+                        supplementText = supplementText,
+                        onProgress = { status ->
+                            Handler(Looper.getMainLooper()).post {
+                                Logger.d(ctx, "StreamPreview", "onProgress: status=${status.take(60)}, dialogShowing=${currentDialog?.isShowing}")
+                                if (currentDialog?.isShowing != true) return@post
+                                if (status.startsWith("AI_STREAM_TEXT::")) {
+                                    applyOverlayStreamProgress(status, streamedRaw, streamState)
+                                } else if (!streamState.started) {
+                                    updateLoadingText(ctx.getString(R.string.analyzing_image_transactions))
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                } else {
+                    AIService.analyzeScreenAccountingByImages(
+                        ctx = ctx,
+                        images = payloads.map { it.base64 to it.mime },
+                        sourceKind = "receipt_image",
+                        supplementText = supplementText,
+                        onProgress = { status ->
+                            Handler(Looper.getMainLooper()).post {
+                                if (currentDialog?.isShowing != true) return@post
+                                if (status.startsWith("AI_STREAM_TEXT::")) {
+                                    applyOverlayStreamProgress(status, streamedRaw, streamState)
+                                } else if (!streamState.started) {
+                                    updateLoadingText(ctx.getString(R.string.analyzing_image_transactions))
+                                }
+                            }
+                        }
+                    )
+                }
                 withContext(Dispatchers.Main) {
                     if (result == null) {
                         Utils.toast(ctx, ctx.getString(R.string.toast_parse_failed))
@@ -742,9 +772,9 @@ class AiAssistant(private val ctx: Context) {
         }
     }
 
-    private fun analyzeImageNaturalLanguage(imageUri: Uri, supplementText: String, onResult: (JSONObject) -> Unit) {
+    private fun analyzeImageNaturalLanguage(imageUris: List<Uri>, supplementText: String, onResult: (JSONObject) -> Unit) {
         if (!ensureOverlayPermission()) return
-        lastReceiptImageUri = imageUri
+        lastReceiptImageUri = imageUris.first()
 
         val (dialog, view) = createDialog(cancelable = false)
         currentDialog = dialog
@@ -757,7 +787,7 @@ class AiAssistant(private val ctx: Context) {
         view.findViewById<View>(R.id.layout_input)?.visibility = View.GONE
         view.findViewById<View>(R.id.layout_loading)?.visibility = View.VISIBLE
         view.findViewById<View>(R.id.layout_result)?.visibility = View.GONE
-        view.findViewById<View>(R.id.btn_close)?.visibility = View.GONE
+        view.findViewById<View>(R.id.btn_close)?.visibility = View.VISIBLE
         tvRecordedTextPreview?.visibility = View.GONE
         btnStartRecordNow?.visibility = View.GONE
         btnExpandPreview?.visibility = View.GONE
@@ -772,7 +802,7 @@ class AiAssistant(private val ctx: Context) {
 
         analyzeJob = scope.launch {
             try {
-                val summary = ReceiptOcrHelper.analyzeImageByMultimodal(ctx, imageUri, supplementText) { progressMsg ->
+                val summary = ReceiptOcrHelper.analyzeImagesByMultimodal(ctx, imageUris, supplementText) { progressMsg ->
                     Handler(Looper.getMainLooper()).post {
                         tvThinkingLog?.text = progressMsg
                     }
@@ -796,6 +826,7 @@ class AiAssistant(private val ctx: Context) {
     }
 
     private fun showReceiptSummary(summary: String, supplementText: String, onResult: (JSONObject) -> Unit) {
+        currentHideStreamText = true  // 确保走流式预览路径
         val dialog = currentDialog ?: return
         val view = dialog.findViewById<View>(android.R.id.content) ?: return
 
@@ -815,6 +846,8 @@ class AiAssistant(private val ctx: Context) {
         etInput.setText(mergedSummary)
         etInput.setSelection(mergedSummary.length)
         etInput.hint = ctx.getString(R.string.verify_receipt_hint)
+        // 启用滚动，配合 maxHeight 限制高度
+        etInput.movementMethod = android.text.method.ScrollingMovementMethod.getInstance()
 
         btnIdentify.text = ctx.getString(R.string.generate_bill)
         btnIdentify.setOnClickListener {

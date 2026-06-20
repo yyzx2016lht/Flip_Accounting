@@ -56,13 +56,13 @@ object AddBillEntrySheetLauncher {
         if (Prefs.isShowAiImage(activity)) {
             btnAiImage?.visibility = android.view.View.VISIBLE
             btnAiImage?.setOnClickListener {
-                ImagePickerActivity.onImagePicked = { uri ->
-                    ImagePickerActivity.onImagePicked = null
+                ImagePickerActivity.onImagesPicked = { uris ->
+                    ImagePickerActivity.onImagesPicked = null
                     ImagePickerActivity.onPickCancelled = null
-                    aiAssistant.analyzeImage(uri, handleAiResult)
+                    aiAssistant.analyzeImages(uris, handleAiResult)
                 }
                 ImagePickerActivity.onPickCancelled = {
-                    ImagePickerActivity.onImagePicked = null
+                    ImagePickerActivity.onImagesPicked = null
                     ImagePickerActivity.onPickCancelled = null
                 }
                 activity.startActivity(Intent(activity, ImagePickerActivity::class.java))

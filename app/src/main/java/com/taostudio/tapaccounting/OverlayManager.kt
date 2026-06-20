@@ -295,14 +295,15 @@ class OverlayManager(private val ctx: Context) {
             btnAiImage?.visibility = View.VISIBLE
             btnAiImage?.setOnClickListener {
                 overlayView?.visibility = View.INVISIBLE
-                ImagePickerActivity.onImagePicked = { uri ->
-                    ImagePickerActivity.onImagePicked = null
+                ImagePickerActivity.onImagesPicked = { uris ->
+                    ImagePickerActivity.onImagesPicked = null
                     ImagePickerActivity.onPickCancelled = null
                     overlayView?.visibility = View.VISIBLE
-                    aiAssistant.analyzeImage(uri, handleAiResult)
+                    Logger.d(ctx, "StreamPreview", "onImagesPicked: count=${uris.size}")
+                    aiAssistant.analyzeImages(uris, handleAiResult)
                 }
                 ImagePickerActivity.onPickCancelled = {
-                    ImagePickerActivity.onImagePicked = null
+                    ImagePickerActivity.onImagesPicked = null
                     ImagePickerActivity.onPickCancelled = null
                     overlayView?.visibility = View.VISIBLE
                 }

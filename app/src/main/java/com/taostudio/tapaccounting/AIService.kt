@@ -1341,6 +1341,7 @@ object AIService {
                         }
                         if (contentDelta.isNotEmpty()) {
                             contentBuilder.append(contentDelta)
+                            Logger.d(ctx, "AIService", "SSE delta: len=${contentDelta.length}, total=${contentBuilder.length}")
                             onContentDelta?.invoke(contentDelta)
                             val currentLen = contentBuilder.length
                             if (onProgressChars != null && currentLen - lastProgressLen >= 120) {
@@ -1425,31 +1426,31 @@ object AIService {
         logReasoning: Boolean = false,
         reasoningLogTag: String = "AIService"
     ): String {
-        return try {
-            val streamed = requestChatContentStreamedWithReasoning(
-                ctx = ctx,
-                apiKey = apiKey,
-                requestJson = requestJson,
-                logReasoning = logReasoning,
-                reasoningLogTag = reasoningLogTag,
-                onContentDelta = if (emitTextDelta) { delta -> onProgress?.invoke("AI_STREAM_TEXT::$delta") } else null,
-                onProgressChars = if (emitTextDelta) null else { currentLen -> onProgress?.invoke("正在整理账单...（已接收 $currentLen 字）") }
-            )
-            if (!streamed.completed) {
-                val reason = streamed.parseError ?: streamed.transportError ?: IllegalStateException("SSE stream ended before [DONE]")
-                throw reason
-            }
-            streamed.content
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "Accounting stream failed, fallback raw request, err=${e.javaClass.simpleName}")
-            val response = getApi(ctx).chatRaw(
-                "Bearer $apiKey",
-                adaptChatRequestForProvider(Prefs.getAiProvider(ctx), requestJson)
-            )
-            response.choices.firstOrNull()?.message?.content
-                ?: throw IllegalStateException("API returned empty choices in fallback path")
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = requestJson,
+            logReasoning = logReasoning,
+            reasoningLogTag = reasoningLogTag,
+            onContentDelta = if (emitTextDelta) { delta -> onProgress?.invoke("AI_STREAM_TEXT::$delta") } else null,
+            onProgressChars = if (emitTextDelta) null else { currentLen -> onProgress?.invoke("正在整理账单...（已接收 $currentLen 字）") }
+        )
+        if (streamed.completed) {
+            return streamed.content
         }
+        // 流式未完成但已收到部分内容，直接使用（不 fallback 到非流式）
+        if (streamed.content.isNotBlank()) {
+            Logger.d(ctx, "AIService", "Stream incomplete but has content (${streamed.content.length} chars), using partial result")
+            return streamed.content
+        }
+        // 完全没有内容，才 fallback 到非流式
+        Logger.d(ctx, "AIService", "Stream empty, fallback raw request, err=${streamed.transportError?.javaClass?.simpleName}")
+        val response = getApi(ctx).chatRaw(
+            "Bearer $apiKey",
+            adaptChatRequestForProvider(Prefs.getAiProvider(ctx), requestJson)
+        )
+        return response.choices.firstOrNull()?.message?.content
+            ?: throw IllegalStateException("API returned empty choices in fallback path")
     }
 
     private fun buildRawRequest(request: ChatRequest): com.google.gson.JsonObject {

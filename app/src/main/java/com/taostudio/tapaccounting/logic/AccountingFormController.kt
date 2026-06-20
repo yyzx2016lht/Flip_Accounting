@@ -1082,22 +1082,6 @@ class AccountingFormController(
         return !ctx.isFinishing && !ctx.isDestroyed
     }
 
-    /** 根据用户输入文本关键字自动匹配并切换账本（不走 AI） */
-    private fun tryAutoSwitchBookByKeyword(text: String) {
-        val books = BookAccountManager.getDisplayBookAccounts(
-            context = ctx,
-            books = BookAccountManager.getBookAccounts(ctx),
-            includeAllBook = false,
-            collapsedGroupExpanded = false
-        ).filter { it != BookAccountManager.COLLAPSED_BOOK_GROUP }
-        val matched = books.firstOrNull { name -> name.isNotEmpty() && text.contains(name) }
-        if (matched != null && matched != selectedFormBook) {
-            selectedFormBook = matched
-            tvBook.text = matched
-            Utils.toast(ctx, ctx.getString(R.string.toast_auto_switch_book, matched))
-        }
-    }
-
     private fun showExchangeDialog() {
         val money = parseAmountInput() ?: 0.0
         scope.launch(Dispatchers.IO) {
@@ -2271,10 +2255,6 @@ class AccountingFormController(
         val remarks = json.takeIf { it.has("remarks") }?.optString("remarks")
         val remark = json.takeIf { it.has("remark") }?.optString("remark")
         lastAiSuggestOriginalText = remarks ?: remark ?: original
-
-        // 根据用户原始输入文本自动切换账本（不走 AI）
-        val rawText = original ?: remarks ?: remark
-        if (!rawText.isNullOrEmpty()) tryAutoSwitchBookByKeyword(rawText)
 
         val isFromAi = json.has("original_text_from_user")
         if (isFromAi) {

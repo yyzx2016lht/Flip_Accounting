@@ -49,6 +49,32 @@ object ReceiptOcrHelper {
     }
 
     /**
+     * 多图自然语言分析：逐张处理，合并结果。
+     */
+    suspend fun analyzeImagesByMultimodal(
+        ctx: Context,
+        imageUris: List<Uri>,
+        supplementText: String = "",
+        onProgress: (String) -> Unit = {}
+    ): String {
+        if (imageUris.size == 1) {
+            return analyzeByMultimodal(ctx, imageUris.first(), supplementText, onProgress)
+        }
+        val results = mutableListOf<String>()
+        for ((index, uri) in imageUris.withIndex()) {
+            onProgress("正在分析第 ${index + 1}/${imageUris.size} 张图片...")
+            val summary = analyzeByMultimodal(ctx, uri, "", onProgress)
+            if (summary.isNotBlank() && !summary.contains("未识别到")) {
+                results.add(summary)
+            }
+        }
+        if (results.isEmpty()) {
+            throw IllegalArgumentException("所有图片均未识别到可记账内容")
+        }
+        return results.joinToString("\n")
+    }
+
+    /**
      * 仅执行本地 OCR，返回原始文字，不调用 AI。
      * 供「预览模式」使用：OCR 完展示给用户确认，用户点发送后再调 AI。
      */

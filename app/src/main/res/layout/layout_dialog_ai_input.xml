@@ -75,10 +75,12 @@
                 android:gravity="top|start"
                 android:hint="@string/accounting_chat_input_hint"
                 android:lineSpacingExtra="4dp"
+                android:maxHeight="240dp"
                 android:minHeight="88dp"
                 android:paddingHorizontal="14dp"
                 android:paddingTop="13dp"
                 android:paddingBottom="13dp"
+                android:scrollbars="vertical"
                 android:textColor="#22324A"
                 android:textColorHint="#97A5B8"
                 android:textSize="14sp" />

@@ -104,15 +104,11 @@ class ChatMediaController(
 
     fun pickImages() {
         if (!ensureAiImageFeatureEnabled()) return
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        val intent = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
             type = "image/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
             putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         }
-        context.startActivityForResult(
-            Intent.createChooser(intent, "选择图片（可多选）"),
-            reqPickImage
-        )
+        context.startActivityForResult(intent, reqPickImage)
     }
 
     fun pickBgImage() {

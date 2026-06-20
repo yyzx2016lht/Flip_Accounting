@@ -20,7 +20,9 @@ class ImagePickerActivity : Activity() {
     companion object {
         private const val REQUEST_PICK_IMAGE = 1001
 
-        /** 图片选择结果回调（由 OverlayManager 注册） */
+        /** 多图选择结果回调（由 OverlayManager 注册） */
+        var onImagesPicked: ((List<Uri>) -> Unit)? = null
+        /** 单图兼容回调 */
         var onImagePicked: ((Uri) -> Unit)? = null
         var onPickCancelled: (() -> Unit)? = null
     }
@@ -32,27 +34,49 @@ class ImagePickerActivity : Activity() {
     }
 
     private fun openImagePicker() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+        val intent = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
             type = "image/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         }
-        startActivityForResult(Intent.createChooser(intent, getString(R.string.pick_receipt_image)), REQUEST_PICK_IMAGE)
+        startActivityForResult(intent, REQUEST_PICK_IMAGE)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_PICK_IMAGE) {
-            val uri = data?.data
-            if (resultCode == RESULT_OK && uri != null) {
-                val stableUri = runCatching { copyImageToCache(uri) }
-                    .getOrElse { err ->
-                        err.printStackTrace()
+            Logger.d(this, "StreamPreview", "onActivityResult: resultCode=$resultCode, data=${data != null}, clipData=${data?.clipData?.itemCount}")
+            if (resultCode == RESULT_OK && data != null) {
+                val uris = mutableListOf<Uri>()
+                val clipData = data.clipData
+                if (clipData != null) {
+                    // 多选
+                    for (i in 0 until clipData.itemCount) {
+                        uris.add(clipData.getItemAt(i).uri)
+                    }
+                } else if (data.data != null) {
+                    // 单选
+                    uris.add(data.data!!)
+                }
+                Logger.d(this, "StreamPreview", "onActivityResult: uris=${uris.size}, onImagesPicked=${onImagesPicked != null}, onImagePicked=${onImagePicked != null}")
+                if (uris.isEmpty()) {
+                    onPickCancelled?.invoke()
+                } else {
+                    val stableUris = uris.mapNotNull { uri ->
+                        runCatching { copyImageToCache(uri) }.getOrNull()
+                    }
+                    if (stableUris.isEmpty()) {
                         Toast.makeText(this, getString(R.string.image_read_failed), Toast.LENGTH_SHORT).show()
                         onPickCancelled?.invoke()
-                        finish()
-                        return
+                    } else {
+                        // 优先调多图回调，兼容单图回调
+                        val multiCb = onImagesPicked
+                        if (multiCb != null) {
+                            multiCb(stableUris)
+                        } else {
+                            onImagePicked?.invoke(stableUris.first())
+                        }
                     }
-                onImagePicked?.invoke(stableUri)
+                }
             } else {
                 onPickCancelled?.invoke()
             }
@@ -78,4 +102,3 @@ class ImagePickerActivity : Activity() {
         return Uri.fromFile(outFile)
     }
 }
-
