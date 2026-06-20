@@ -131,8 +131,9 @@ class OverlayManager(private val ctx: Context) {
         if (resultJson.has("bills")) {
             val billsArray = resultJson.getJSONArray("bills")
             if (Prefs.isMultiBillNotSync(ctx) && !requiresReview) {
+                val aiBookName = resultJson.optString("book_name", "").trim()
                 for (i in 0 until billsArray.length()) {
-                    saveJsonToLocal(billsArray.getJSONObject(i))
+                    saveJsonToLocal(billsArray.getJSONObject(i), aiBookName)
                 }
                 Utils.toast(ctx, ctx.getString(R.string.toast_recognized_saved, billsArray.length()))
                 if (overlayView != null) removeOverlay()
@@ -972,7 +973,7 @@ class OverlayManager(private val ctx: Context) {
         }
     }
 
-    private fun saveJsonToLocal(obj: JSONObject) {
+    private fun saveJsonToLocal(obj: JSONObject, aiBookName: String = "") {
         val typeIndex = obj.optInt("type", 0)
         val amount = obj.optDouble("amount", 0.0)
         val asset1 = obj.optString("asset_name", "")
@@ -1036,7 +1037,9 @@ class OverlayManager(private val ctx: Context) {
                 categoryName = categoryName,
                 time = parsedTime,
                 remark = remark,
-                bookName = BookAccountManager.getSelectedBook(ctx)
+                bookName = aiBookName.takeIf { name ->
+                    name.isNotEmpty() && BookAccountManager.getBookAccounts(ctx).any { it == name }
+                } ?: BookAccountManager.getSelectedBook(ctx)
             )
             com.taostudio.tapaccounting.logic.BillMutationService.insertBillAndApplyImpact(db, bill)
         }

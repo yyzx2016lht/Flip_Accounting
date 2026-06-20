@@ -2256,6 +2256,16 @@ class AccountingFormController(
         val remark = json.takeIf { it.has("remark") }?.optString("remark")
         lastAiSuggestOriginalText = remarks ?: remark ?: original
 
+        // 根据 AI 返回的 book_name 切换账本
+        val aiBookName = json.optString("book_name", "").trim()
+        if (aiBookName.isNotEmpty() && aiBookName != selectedFormBook) {
+            val books = BookAccountManager.getBookAccounts(ctx)
+            if (books.any { it == aiBookName }) {
+                selectedFormBook = aiBookName
+                tvBook.text = aiBookName
+            }
+        }
+
         val isFromAi = json.has("original_text_from_user")
         if (isFromAi) {
             lastAiSuggestType = json.optInt("type", -1).takeIf { it != -1 }
@@ -2282,7 +2292,11 @@ class AccountingFormController(
             if (isNotSync) {
                 scope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(ctx)
-                    val writableBook = BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
+                    val aiBookName = json.optString("book_name", "").trim()
+                    val books = BookAccountManager.getBookAccounts(ctx)
+                    val resolvedBook = aiBookName.takeIf { name ->
+                        name.isNotEmpty() && books.any { it == name }
+                    } ?: BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
                     for (i in 0 until billsArray.length()) {
                         val obj = billsArray.getJSONObject(i)
                         
@@ -2342,7 +2356,7 @@ class AccountingFormController(
                             categoryName = cat,
                             time = parsedTime,
                             remark = remark,
-                            bookName = writableBook
+                            bookName = resolvedBook
                         )
                         BillMutationService.insertBillAndApplyImpact(db, bill)
                     }
