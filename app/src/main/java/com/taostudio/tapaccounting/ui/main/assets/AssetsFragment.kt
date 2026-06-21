@@ -391,7 +391,7 @@ class AssetsFragment : Fragment() {
                     val target = segments["target"]
                         ?.trim()
                         ?.uppercase()
-                        ?.takeIf { it == "NONE" || CurrencyData.isSelectableCurrencyCode(it) }
+                        ?.takeIf { CurrencyData.isSelectableCurrencyCode(it) }
                         ?: "CNY"
                     return AssetAmountDisplayMode(source, target)
                 }
@@ -418,13 +418,11 @@ class AssetsFragment : Fragment() {
         val mode = AssetAmountDisplayMode.parse(Prefs.getAssetAmountDisplayMode(requireContext()))
         val enabledTargets = CurrencyManager.getEnabledCurrencies(requireContext())
             .map { it.uppercase() }
-            .toSet() + "CNY" + "NONE"
+            .toSet() + "CNY"
         var target = mode.targetCurrency.uppercase().takeIf { enabledTargets.contains(it) } ?: "CNY"
         val source = mode.sourceCurrency
             ?.uppercase()
             ?.takeIf { CurrencyData.isSelectableCurrencyCode(it) }
-        // 全部范围 + 不折算 = 无效组合，回退到 CNY
-        if (source == null && target == "NONE") target = "CNY"
         return AssetAmountDisplayMode(sourceCurrency = source, targetCurrency = target)
     }
 
@@ -436,8 +434,7 @@ class AssetsFragment : Fragment() {
     private fun displayModeLabel(mode: AssetAmountDisplayMode): String {
         val source = mode.sourceCurrency?.uppercase() ?: "全部"
         val target = mode.targetCurrency.uppercase()
-        val targetLabel = if (target == "NONE") "不折算" else "折算 $target"
-        return "范围 $source · $targetLabel"
+        return "范围 $source · 折算 $target"
     }
 
     private fun currencyDisplayName(currency: String): String {
@@ -454,20 +451,15 @@ class AssetsFragment : Fragment() {
 
     private fun displayCurrency(): String = amountDisplayMode.targetCurrency.uppercase()
 
-    private fun isNoConversion(): Boolean = amountDisplayMode.targetCurrency.equals("NONE", ignoreCase = true)
-
     private fun displayAmount(asset: Asset): Double {
-        if (isNoConversion()) return asset.balance
         return CurrencyManager.convert(asset.balance, asset.currency, amountDisplayMode.targetCurrency)
     }
 
     private fun requiresRates(assets: List<Asset>): Boolean {
-        if (isNoConversion()) return false
         return assets.any { !it.currency.equals(amountDisplayMode.targetCurrency, ignoreCase = true) }
     }
 
     private fun hasMissingRatesForDisplay(assets: List<Asset>): Boolean {
-        if (isNoConversion()) return false
         return assets.any { !CurrencyManager.hasConversionRate(it.currency, amountDisplayMode.targetCurrency) }
     }
 
@@ -579,12 +571,11 @@ class AssetsFragment : Fragment() {
                     val newSource = if (code == "ALL") null else code.uppercase()
                     // 切换范围时自动调整折算币种
                     val newTarget = if (newSource != null) {
-                        // 选了具体币种 → 自动不折算
-                        "NONE"
+                        // 选了具体币种 → 折算币种默认选中相同币种（无需换算，但能正常显示金额）
+                        newSource
                     } else {
-                        // 选了全部 → 如果当前是不折算则切回 CNY
-                        if (amountDisplayMode.targetCurrency.equals("NONE", ignoreCase = true)) "CNY"
-                        else amountDisplayMode.targetCurrency
+                        // 选了全部 → 保持当前折算币种
+                        amountDisplayMode.targetCurrency
                     }
                     applyDisplayMode(amountDisplayMode.copy(sourceCurrency = newSource, targetCurrency = newTarget))
                     refreshAssetDrawerContent()
@@ -611,7 +602,7 @@ class AssetsFragment : Fragment() {
                 },
                 items = targetCurrencyCandidates().filter { currencyMatches(it, targetSearchQuery) },
                 selectedCode = displayCurrency(),
-                codeLabel = { if (it.equals("NONE", ignoreCase = true)) "不折算" else it.uppercase() },
+                codeLabel = { it.uppercase() },
                 onSelect = { code ->
                     applyDisplayMode(amountDisplayMode.copy(targetCurrency = code.uppercase()))
                     refreshAssetDrawerContent()
@@ -721,7 +712,6 @@ class AssetsFragment : Fragment() {
 
     private fun targetSelectorSubtitle(): String {
         val code = displayCurrency()
-        if (code == "NONE") return "不折算"
         return "${code.uppercase()} · ${currencyDisplayName(code)}"
     }
 
@@ -989,10 +979,6 @@ class AssetsFragment : Fragment() {
 
     private fun targetCurrencyCandidates(): List<String> {
         val base = linkedSetOf<String>()
-        // 范围选了具体币种时才显示"不折算"（同一币种无需换算）
-        if (amountDisplayMode.sourceCurrency != null) {
-            base.add("NONE")
-        }
         base.add("CNY")
         base.addAll(CurrencyManager.getEnabledCurrencies(requireContext()).map { it.uppercase() })
         return base.toList()
@@ -1009,9 +995,6 @@ class AssetsFragment : Fragment() {
     private fun currencyMatches(code: String, query: String): Boolean {
         val q = query.trim()
         if (q.isEmpty()) return true
-        if (code.equals("NONE", ignoreCase = true)) {
-            return "NONE".contains(q, ignoreCase = true) || "不折算".contains(q, ignoreCase = true)
-        }
         return CurrencyData.getInfo(code)?.matches(q) == true || code.contains(q, ignoreCase = true)
     }
 
@@ -1023,15 +1006,6 @@ class AssetsFragment : Fragment() {
     private fun updateHeader(assets: List<Asset>) {
         val displayAssets = filterAssetsForMode(assets)
         val includedAssets = displayAssets.filter { it.includeInNetAsset && !it.isArchived }
-
-        // 不折算模式：不同币种无法求和，显示占位符
-        if (isNoConversion()) {
-            tvNetAsset.text = "—"
-            tvTotalAsset.text = "—"
-            tvTotalDebt.text = "—"
-            tvRateStatus.visibility = View.GONE
-            return
-        }
 
         val needsRates = requiresRates(includedAssets)
         val hasMissingIncludedRates = hasMissingRatesForDisplay(includedAssets)
@@ -1173,14 +1147,13 @@ class AssetsFragment : Fragment() {
         val density = resources.displayMetrics.density
 
         // ── 汇率检测 ──
-        val noConversion = isNoConversion()
-        val hasMissingRate = if (noConversion) false else hasMissingRatesForDisplay(group)
+        val hasMissingRate = hasMissingRatesForDisplay(group)
         val currency = displayCurrency()
 
-        val total = if (noConversion || hasMissingRate) 0.0 else group
+        val total = if (hasMissingRate) 0.0 else group
             .filter { it.includeInNetAsset && !it.isArchived }
             .sumOf { displayAmount(it) }
-        val excludedTotal = if (noConversion || hasMissingRate) 0.0 else group
+        val excludedTotal = if (hasMissingRate) 0.0 else group
             .filterNot { it.includeInNetAsset && !it.isArchived }
             .sumOf { displayAmount(it) }
 
@@ -1220,7 +1193,6 @@ class AssetsFragment : Fragment() {
 
         val tvTotal = TextView(ctx).apply {
             text = when {
-                noConversion -> "—"
                 hasMissingRate -> "需要网络更新"
                 else -> CurrencyUtils.formatAmount(total, currency)
             }
@@ -1388,7 +1360,6 @@ class AssetsFragment : Fragment() {
         }
         val tvExcludedSummary = TextView(ctx).apply {
             text = when {
-                noConversion -> "不计入总资产：—"
                 hasMissingRate -> "不计入总资产：汇率未加载"
                 else -> "不计入总资产：${CurrencyUtils.formatAmount(excludedTotal, currency)}"
             }
