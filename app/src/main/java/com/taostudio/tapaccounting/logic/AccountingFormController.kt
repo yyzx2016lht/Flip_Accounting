@@ -46,6 +46,7 @@ class AccountingFormController(
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var editingBillId: Long? = null
+    private var isSaving: Boolean = false
     private val etMoney: EditText = rootView.findViewById(R.id.et_amount)
     private val spType: Spinner = rootView.findViewById(R.id.spinner_type)
     private val layoutAccount: View = rootView.findViewById(R.id.layout_account)
@@ -1423,6 +1424,7 @@ class AccountingFormController(
     }
 
     private fun handleSave() {
+        if (isSaving) return
         val money = parseAmountInput() ?: 0.0
         if (money <= 0) {
             Utils.toast(ctx, ctx.getString(R.string.toast_input_amount))
@@ -1528,8 +1530,10 @@ class AccountingFormController(
             return
         }
 
+        isSaving = true
         scope.launch(Dispatchers.IO) {
-            val db = AppDatabase.getDatabase(ctx)
+            try {
+                val db = AppDatabase.getDatabase(ctx)
             val writableBook = BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
             val timeStr = tvTime.text.toString()
             val parsedTimeLong = try {
@@ -1707,7 +1711,7 @@ class AccountingFormController(
                         db = db,
                         oldBill = oldBill,
                         newBill = rBill,
-                        applyAssetImpact = false
+                        applyAssetImpact = true
                     )
                 } catch (e: IllegalArgumentException) {
                     withContext(Dispatchers.Main) {
@@ -1764,14 +1768,9 @@ class AccountingFormController(
                     rBill = BillMutationService.upsertBillAndApplyImpact(
                         db = db,
                         bill = rBill,
-                        applyAssetImpact = false
+                        applyAssetImpact = true
                     )
                 }
-            }
-
-            // Apply new balances（退款路径已在 withTransaction 内完成，此处仅处理非退款路径和编辑路径）
-            if (latestRefundSource == null) {
-                BillAssetImpactService.applyBillBalanceImpact(db, rBill)
             }
 
             val scheduleForInvestment = pendingInvestmentSchedule
@@ -1857,6 +1856,11 @@ class AccountingFormController(
                     processNextPendingBill()
                 } else {
                     onCloseRequest(true)
+                }
+            }
+            } finally {
+                withContext(Dispatchers.Main + NonCancellable) {
+                    isSaving = false
                 }
             }
         }

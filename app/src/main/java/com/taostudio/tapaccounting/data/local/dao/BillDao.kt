@@ -325,11 +325,11 @@ interface BillDao {
     suspend fun migrateCategoryByName(name: String, newCategoryId: Long)
 
     /**
-     * 将 categoryName 精确匹配或以 "% - name" 结尾的账单 categoryId 置 null（解除关联）
+     * 清除已删除分类关联的账单 categoryName（categoryId 已被外键 SET NULL，此处清理残留名称）
      */
     @Query("""
         UPDATE bills
-        SET categoryId = NULL
+        SET categoryName = ''
         WHERE categoryId IS NULL
           AND (
               categoryName = :name
