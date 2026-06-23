@@ -452,68 +452,63 @@ class ChatMessagePipeline(
                             }
                         }
                     } else {
-                        // 纯文字：AI Router 四分类
+                        // 纯文字：所有输入先走 AI Router
                         val queryDraftMgr = context.queryDraftManager
 
-                        // 0. 多轮修正：如果已有活跃草稿，先尝试本地修正/执行指令
+                        // 窄文本命令：仅当有 active draft 时，完全匹配才执行
                         if (queryDraftMgr.hasActiveDraft()) {
-                            val queryContext = withContext(Dispatchers.IO) {
-                                context.buildQueryContext()
-                            }
-                            val correction = queryDraftMgr.detectExecutionCommand(userText)
-                            if (correction is com.taostudio.tapaccounting.chat.query.QueryDraftCorrection.ExecuteStats) {
-                                removeLoadingMessage(loadingKey)
-                                val result = withContext(Dispatchers.IO) {
-                                    queryDraftMgr.executeStats(queryContext)
+                            val trimmed = userText.trim()
+                            val isExactStats = trimmed == "统计" || trimmed == "统计金额"
+                            val isExactSearch = trimmed == "搜索" || trimmed == "搜索账单"
+                            val isExactCancel = trimmed == "取消"
+
+                            if (isExactStats || isExactSearch || isExactCancel) {
+                                if (isExactCancel) {
+                                    removeLoadingMessage(loadingKey)
+                                    queryDraftMgr.clearDraft()
+                                    appendAiTextMessage("已取消查询。", false, requestContext.bookName, requestContext.conversationId)
+                                    return@launch
                                 }
-                                if (result != null) {
+                                val queryContext = withContext(Dispatchers.IO) {
+                                    context.buildQueryContext()
+                                }
+                                val draft = queryDraftMgr.currentDraft!!
+                                if (isExactStats) {
+                                    removeLoadingMessage(loadingKey)
+                                    val result = withContext(Dispatchers.IO) {
+                                        queryDraftMgr.executeStats(draft, queryContext)
+                                    }
                                     appendQueryResultMessage(result)
+                                    return@launch
                                 }
-                                return@launch
-                            }
-                            if (correction is com.taostudio.tapaccounting.chat.query.QueryDraftCorrection.ExecuteSearch) {
-                                removeLoadingMessage(loadingKey)
-                                val bills = withContext(Dispatchers.IO) {
-                                    queryDraftMgr.executeSearch(queryContext)
-                                }
-                                if (bills != null) {
+                                if (isExactSearch) {
+                                    removeLoadingMessage(loadingKey)
+                                    val bills = withContext(Dispatchers.IO) {
+                                        queryDraftMgr.executeSearch(draft, queryContext)
+                                    }
                                     val result = com.taostudio.tapaccounting.chat.query.QueryResult(
-                                        draft = queryDraftMgr.currentDraft!!,
+                                        draft = draft,
                                         billCount = bills.size,
-                                        totalAmount = bills.filter {
-                                            it.type == com.taostudio.tapaccounting.data.local.entity.Bill.TYPE_EXPENSE &&
-                                                it.subType != com.taostudio.tapaccounting.data.local.entity.Bill.SUBTYPE_REFUND
-                                        }.sumOf { it.amount },
+                                        totalAmount = bills.filterNot { it.excludeFromStats }
+                                            .filter { it.type == com.taostudio.tapaccounting.data.local.entity.Bill.TYPE_EXPENSE &&
+                                                it.subType != com.taostudio.tapaccounting.data.local.entity.Bill.SUBTYPE_REFUND }
+                                            .sumOf { it.amount },
                                         billsPreview = bills.take(3).map {
                                             com.taostudio.tapaccounting.chat.query.BillPreview(
-                                                id = it.id,
-                                                time = it.time,
-                                                type = it.type,
-                                                amount = it.amount,
-                                                remark = it.remark,
+                                                id = it.id, time = it.time, type = it.type,
+                                                amount = it.amount, remark = it.remark,
                                                 categoryName = it.categoryName,
-                                                accountName = it.accountName,
-                                                currency = it.currency
+                                                accountName = it.accountName, currency = it.currency
                                             )
                                         }
                                     )
                                     appendQueryResultMessage(result)
+                                    return@launch
                                 }
-                                return@launch
                             }
-                            val applied = withContext(Dispatchers.IO) {
-                                queryDraftMgr.applyCorrection(userText, queryContext)
-                            }
-                            if (applied) {
-                                removeLoadingMessage(loadingKey)
-                                queryDraftMgr.currentDraft?.let { appendQueryDraftMessage(it) }
-                                return@launch
-                            }
-                            // 修正不匹配，清除草稿继续正常流程
-                            queryDraftMgr.clearDraft()
                         }
 
-                        // 1. AI Router 四分类
+                        // AI Router 四分类
                         val routerResult = withContext(Dispatchers.IO) {
                             AIService.classifyRouterIntent(context, userText)
                         }
@@ -558,10 +553,11 @@ class ChatMessagePipeline(
                                 return@launch
                             }
                             "ACCOUNTING_QUERY" -> {
-                                // 2. AI Query Extractor 提取查询草稿
+                                // AI Query Extractor 提取查询草稿
                                 updateLoadingMessage(loadingKey, "正在分析查询...")
+                                val existingDraft = queryDraftMgr.currentDraft
                                 val aiDraftJson = withContext(Dispatchers.IO) {
-                                    AIService.extractQueryDraft(context, userText)
+                                    AIService.extractQueryDraft(context, userText, existingDraft)
                                 }
                                 if (!canWriteForRequest(requestContext)) return@launch
                                 removeLoadingMessage(loadingKey)
@@ -576,7 +572,6 @@ class ChatMessagePipeline(
                                     return@launch
                                 }
 
-                                // 校验 AI 输出
                                 val aiIntent = aiDraftJson.optString("intent", "UNSUPPORTED")
                                 if (aiIntent == "UNSUPPORTED") {
                                     val reason = aiDraftJson.optString("reason", "")
@@ -594,10 +589,22 @@ class ChatMessagePipeline(
                                     return@launch
                                 }
 
-                                // 解析为 QueryDraft
                                 val queryContext = withContext(Dispatchers.IO) {
                                     context.buildQueryContext()
                                 }
+
+                                if (aiIntent == "UPDATE_DRAFT" && existingDraft != null) {
+                                    // AI 判断为更新现有草稿
+                                    val updated = queryDraftMgr.updateFromAiExtract(aiDraftJson, queryContext)
+                                    if (updated != null) {
+                                        appendQueryDraftMessage(updated)
+                                    } else {
+                                        appendAiTextMessage("更新查询条件失败，请重试。", false, requestContext.bookName, requestContext.conversationId)
+                                    }
+                                    return@launch
+                                }
+
+                                // QUERY_DRAFT → 新建草稿
                                 val draft = queryDraftMgr.createFromAiExtract(aiDraftJson, userText, queryContext)
                                 if (draft != null) {
                                     appendQueryDraftMessage(draft)

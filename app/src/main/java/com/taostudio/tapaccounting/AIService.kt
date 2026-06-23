@@ -927,19 +927,48 @@ object AIService {
 
     /**
      * 查询参数提取器：当 Router 判断为 ACCOUNTING_QUERY 时，提取结构化查询草稿 JSON。
+     * @param existingDraft 当前活跃的查询草稿（如有），用于多轮修正
      * @return 解析后的 JSONObject，包含 intent/queryType/slots 等字段；失败返回 null
      */
-    suspend fun extractQueryDraft(ctx: Context, userText: String): org.json.JSONObject? {
+    suspend fun extractQueryDraft(
+        ctx: Context,
+        userText: String,
+        existingDraft: com.taostudio.tapaccounting.chat.query.QueryDraft? = null
+    ): org.json.JSONObject? {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) return null
         val model = AiModelSlots.resolveTextModel(ctx)
         if (model.isBlank()) return null
 
+        // 如果有 existingDraft，将其序列化到 userText 中，让 AI 知道当前草稿状态
+        val effectiveUserText = if (existingDraft != null) {
+            val draftJson = org.json.JSONObject().apply {
+                put("currentDraft", org.json.JSONObject().apply {
+                    put("keyword", existingDraft.keyword ?: org.json.JSONObject.NULL)
+                    put("categoryName", existingDraft.categoryName ?: org.json.JSONObject.NULL)
+                    put("assetName", existingDraft.assetName ?: org.json.JSONObject.NULL)
+                    put("billType", existingDraft.billType.name)
+                    put("bookScope", existingDraft.bookScope.name)
+                    put("timeRange", existingDraft.timeRange?.let {
+                        org.json.JSONObject().apply {
+                            put("label", it.label ?: org.json.JSONObject.NULL)
+                            put("startMillis", it.startMillis ?: org.json.JSONObject.NULL)
+                            put("endMillis", it.endMillis ?: org.json.JSONObject.NULL)
+                        }
+                    } ?: org.json.JSONObject.NULL)
+                })
+                put("userText", userText)
+            }
+            draftJson.toString()
+        } else {
+            userText
+        }
+
         val requestJson = buildTextChatRequest(
             model = model,
             temperature = 0.1,
             systemPrompt = AIPrompts.QUERY_EXTRACTOR_PROMPT,
-            userText = userText,
+            userText = effectiveUserText,
             jsonObjectResponse = true,
             enableThinking = false
         )

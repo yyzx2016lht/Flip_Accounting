@@ -131,7 +131,75 @@ class QueryDraftManager(
     }
 
     /**
-     * 尝试将用户输入识别为对当前草稿的修正。
+     * 从 AI Query Extractor 的 UPDATE_DRAFT 输出合并更新当前草稿。
+     * AI 只输出需要更新的字段，未出现的字段保持原值。
+     */
+    fun updateFromAiExtract(aiJson: org.json.JSONObject, context: QueryContext): QueryDraft? {
+        val existing = currentDraft ?: return null
+        val slotsObj = aiJson.optJSONObject("slots") ?: return null
+
+        val newKeyword = slotsObj.optString("keyword", "").ifBlank { null } ?: existing.keyword
+        val newCategoryName = slotsObj.optString("categoryName", "").ifBlank { null } ?: existing.categoryName
+        val newAssetName = slotsObj.optString("assetName", "").ifBlank { null } ?: existing.assetName
+        val newBillTypeStr = slotsObj.optString("billType", "").ifBlank { null }
+        val newBillType = newBillTypeStr?.let { runCatching { QueryBillType.valueOf(it) }.getOrNull() } ?: existing.billType
+        val newBookScopeStr = slotsObj.optString("bookScope", "").ifBlank { null }
+        val newBookScope = newBookScopeStr?.let { runCatching { BookScope.valueOf(it) }.getOrNull() } ?: existing.bookScope
+
+        // 时间范围
+        val rangeObj = slotsObj.optJSONObject("timeRange")
+        val newTimeRange = if (rangeObj != null) {
+            val startMillis = rangeObj.optLong("startMillis", 0L).takeIf { it > 0L }
+            val endMillis = rangeObj.optLong("endMillis", 0L).takeIf { it > 0L }
+            val label = rangeObj.optString("label", "").ifBlank { null }
+            if (startMillis != null && endMillis != null) {
+                QueryTimeRange(startMillis = startMillis, endMillis = endMillis, label = label)
+            } else {
+                label?.let { resolveTimeRangeByLabel(it, context) } ?: existing.timeRange
+            }
+        } else existing.timeRange
+
+        // 解析资产和分类 ID
+        val resolvedAsset = newAssetName?.let { name ->
+            context.assets.firstOrNull { it.name.contains(name, ignoreCase = true) || name.contains(it.name, ignoreCase = true) }
+        }
+        val resolvedCategory = newCategoryName?.let { name ->
+            context.categories.firstOrNull { it.name.contains(name, ignoreCase = true) || name.contains(it.name, ignoreCase = true) }
+        }
+
+        val updated = existing.copy(
+            keyword = newKeyword,
+            categoryId = resolvedCategory?.id ?: existing.categoryId,
+            categoryName = resolvedCategory?.name ?: newCategoryName,
+            assetId = resolvedAsset?.id ?: existing.assetId,
+            assetName = resolvedAsset?.name ?: newAssetName,
+            bookScope = newBookScope,
+            bookName = if (newBookScope == BookScope.CURRENT) context.currentBookName else existing.bookName,
+            billType = newBillType,
+            timeRange = newTimeRange,
+            updatedAt = System.currentTimeMillis()
+        )
+
+        currentDraft = updated
+        lastResult = null
+        return updated
+    }
+
+    /**
+     * 更新指定卡片的草稿（手动编辑用）。
+     * 同步更新 currentDraft（如果编辑的是当前草稿）。
+     */
+    fun updateDraft(draftId: String, updatedDraft: QueryDraft) {
+        currentDraft?.let {
+            if (it.id == draftId) {
+                currentDraft = updatedDraft
+                lastResult = null
+            }
+        }
+    }
+
+    /**
+     * 尝试将用户输入识别为对当前草稿的修正（仅窄文本命令）。
      * 如果是修正，更新 currentDraft 并返回 true；否则返回 false。
      */
     suspend fun applyCorrection(userText: String, context: QueryContext): Boolean {
@@ -195,21 +263,18 @@ class QueryDraftManager(
     }
 
     /**
-     * 执行统计查询。
-     * 返回结构化的 QueryResult。
+     * 执行统计查询（使用指定草稿）。
+     * 按 draft.billType 正确统计，排除 excludeFromStats。
      */
-    suspend fun executeStats(context: QueryContext): QueryResult? {
-        val draft = currentDraft ?: return null
+    suspend fun executeStats(draft: QueryDraft, context: QueryContext): QueryResult {
         val bills = loadAndFilterBills(draft, context)
 
-        val expenseBills = bills.filter {
-            (it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND) ||
-                it.subType == Bill.SUBTYPE_REFUND
-        }
-        val totalAmount = expenseBills.sumOf { it.amount }
-        val billCount = expenseBills.size
+        // 排除不计入统计的账单
+        val statBills = bills.filterNot { it.excludeFromStats }
+        val totalAmount = statBills.sumOf { it.amount }
+        val billCount = statBills.size
 
-        val preview = expenseBills.take(3).map { bill ->
+        val preview = statBills.take(3).map { bill ->
             BillPreview(
                 id = bill.id,
                 time = bill.time,
@@ -222,7 +287,7 @@ class QueryDraftManager(
             )
         }
 
-        val topCategories = expenseBills
+        val topCategories = statBills
             .groupBy { it.categoryName.ifBlank { "未分类" } }
             .mapValues { (_, rows) -> CategoryAmount(
                 categoryName = rows.first().categoryName.ifBlank { "未分类" },
@@ -244,13 +309,22 @@ class QueryDraftManager(
         return result
     }
 
+    /** 执行统计查询（使用当前草稿） */
+    suspend fun executeStats(context: QueryContext): QueryResult? {
+        return currentDraft?.let { executeStats(it, context) }
+    }
+
     /**
-     * 执行搜索查询。
+     * 执行搜索查询（使用指定草稿）。
      * 返回匹配的账单列表。
      */
-    suspend fun executeSearch(context: QueryContext): List<Bill>? {
-        val draft = currentDraft ?: return null
+    suspend fun executeSearch(draft: QueryDraft, context: QueryContext): List<Bill> {
         return loadAndFilterBills(draft, context)
+    }
+
+    /** 执行搜索查询（使用当前草稿） */
+    suspend fun executeSearch(context: QueryContext): List<Bill>? {
+        return currentDraft?.let { executeSearch(it, context) }
     }
 
     /** 清除当前草稿 */

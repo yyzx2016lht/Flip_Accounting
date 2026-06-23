@@ -80,7 +80,11 @@ class ChatAdapter(
     private val onQueryDraftSearch: (ChatDisplayItem) -> Unit = {},
     private val onQueryDraftCancel: (ChatDisplayItem) -> Unit = {},
     private val onQueryResultViewDetails: (ChatDisplayItem) -> Unit = {},
-    private val onQueryResultEditConditions: (ChatDisplayItem) -> Unit = {}
+    private val onQueryResultEditConditions: (ChatDisplayItem) -> Unit = {},
+    private val onQueryDraftEditKeyword: (ChatDisplayItem) -> Unit = {},
+    private val onQueryDraftEditDate: (ChatDisplayItem) -> Unit = {},
+    private val onQueryDraftEditBillType: (ChatDisplayItem) -> Unit = {},
+    private val onQueryDraftEditBookScope: (ChatDisplayItem) -> Unit = {}
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private val imageThumbSizeCache = mutableMapOf<String, Pair<Int, Int>>()
     private val imageThumbSizeLoading = mutableSetOf<String>()
@@ -954,6 +958,15 @@ class ChatAdapter(
                 com.taostudio.tapaccounting.chat.query.BookScope.ALL -> context.getString(R.string.query_all_books)
                 else -> context.getString(R.string.query_current_book)
             }
+
+            // 行点击编辑
+            rowKeyword.setOnClickListener { onQueryDraftEditKeyword(item) }
+            val rowTime = itemView.findViewById<View>(R.id.row_time)
+            rowTime?.setOnClickListener { onQueryDraftEditDate(item) }
+            val rowBillType = itemView.findViewById<View>(R.id.row_bill_type)
+            rowBillType?.setOnClickListener { onQueryDraftEditBillType(item) }
+            val rowBook = itemView.findViewById<View>(R.id.row_book)
+            rowBook?.setOnClickListener { onQueryDraftEditBookScope(item) }
 
             // 按钮
             btnStats.setOnClickListener { onQueryDraftStats(item) }
