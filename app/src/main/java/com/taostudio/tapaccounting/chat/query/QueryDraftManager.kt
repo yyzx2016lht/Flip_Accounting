@@ -30,7 +30,7 @@ class QueryDraftManager(
     private val dateFormat = SimpleDateFormat("MM-dd", Locale.getDefault())
 
     /**
-     * 尝试将用户输入解析为查询草稿。
+     * 尝试将用户输入解析为查询草稿（本地规则，仅用于测试/辅助）。
      * 如果解析成功，设置 currentDraft 并返回；否则返回 null。
      */
     suspend fun parseAndCreateDraft(userText: String, context: QueryContext): QueryDraft? {
@@ -38,6 +38,96 @@ class QueryDraftManager(
         currentDraft = draft
         lastResult = null
         return draft
+    }
+
+    /**
+     * 从 AI Query Extractor 的 JSON 输出创建查询草稿。
+     * 这是正式的产品入口，由 AI Router 明确判断为 ACCOUNTING_QUERY 后调用。
+     */
+    fun createFromAiExtract(aiJson: org.json.JSONObject, sourceText: String, context: QueryContext): QueryDraft? {
+        val intent = aiJson.optString("intent", "UNSUPPORTED")
+        if (intent == "UNSUPPORTED" || intent == "CLARIFY") return null
+
+        val slotsObj = aiJson.optJSONObject("slots") ?: return null
+
+        // 解析 queryType
+        val queryTypeStr = aiJson.optString("queryType", "AMOUNT_TOTAL")
+        val queryType = runCatching { QueryType.valueOf(queryTypeStr) }.getOrDefault(QueryType.AMOUNT_TOTAL)
+
+        // 解析 timeRange
+        val rangeObj = slotsObj.optJSONObject("timeRange")
+        val timeRange = if (rangeObj != null) {
+            val startMillis = rangeObj.optLong("startMillis", 0L).takeIf { it > 0L }
+            val endMillis = rangeObj.optLong("endMillis", 0L).takeIf { it > 0L }
+            val label = rangeObj.optString("label", "").ifBlank { null }
+            if (startMillis != null && endMillis != null) {
+                QueryTimeRange(startMillis = startMillis, endMillis = endMillis, label = label)
+            } else {
+                // AI 没给具体时间，尝试用 label 本地解析
+                label?.let { resolveTimeRangeByLabel(it, context) }
+            }
+        } else null
+
+        // 解析 billType
+        val billTypeStr = slotsObj.optString("billType", "EXPENSE")
+        val billType = runCatching { QueryBillType.valueOf(billTypeStr) }.getOrDefault(QueryBillType.EXPENSE)
+
+        // 解析 bookScope
+        val bookScopeStr = slotsObj.optString("bookScope", "CURRENT")
+        val bookScope = runCatching { BookScope.valueOf(bookScopeStr) }.getOrDefault(BookScope.CURRENT)
+
+        // 解析 aggregation
+        val aggregationStr = slotsObj.optString("aggregation", "TOTAL")
+        val aggregation = runCatching { QueryAggregation.valueOf(aggregationStr) }.getOrDefault(QueryAggregation.TOTAL)
+
+        // 解析关键词、分类、资产
+        val keyword = slotsObj.optString("keyword", "").ifBlank { null }
+        val categoryName = slotsObj.optString("categoryName", "").ifBlank { null }
+        val assetName = slotsObj.optString("assetName", "").ifBlank { null }
+        val bookName = slotsObj.optString("bookName", "").ifBlank { null }
+
+        // 解析资产和分类 ID
+        val resolvedAsset = assetName?.let { name ->
+            context.assets.firstOrNull { it.name.contains(name, ignoreCase = true) || name.contains(it.name, ignoreCase = true) }
+        }
+        val resolvedCategory = categoryName?.let { name ->
+            context.categories.firstOrNull { it.name.contains(name, ignoreCase = true) || name.contains(it.name, ignoreCase = true) }
+        }
+
+        val confidence = aiJson.optDouble("confidence", 0.0).coerceIn(0.0, 1.0)
+
+        val draft = QueryDraft(
+            queryType = queryType,
+            keyword = keyword,
+            categoryId = resolvedCategory?.id,
+            categoryName = resolvedCategory?.name ?: categoryName,
+            assetId = resolvedAsset?.id,
+            assetName = resolvedAsset?.name ?: assetName,
+            bookScope = bookScope,
+            bookName = if (bookScope == BookScope.CURRENT) context.currentBookName else bookName,
+            billType = billType,
+            timeRange = timeRange,
+            aggregation = aggregation,
+            sourceText = sourceText,
+            confidence = confidence
+        )
+
+        currentDraft = draft
+        lastResult = null
+        return draft
+    }
+
+    /** 根据 label 文本本地解析时间范围（AI 没给 startMillis/endMillis 时的兜底） */
+    private fun resolveTimeRangeByLabel(label: String, context: QueryContext): QueryTimeRange? {
+        val zoneId = ZoneId.of(context.timezoneId)
+        val today = Instant.ofEpochMilli(context.nowMillis).atZone(zoneId).toLocalDate()
+        val parsed = AiTimeRangeParser.parse(label, today, zoneId) ?: return null
+        return QueryTimeRange(
+            startMillis = parsed.startMillis,
+            endMillis = parsed.endMillis,
+            rangeKey = normalizeRangeKey(parsed.phrase),
+            label = parsed.phrase
+        )
     }
 
     /**

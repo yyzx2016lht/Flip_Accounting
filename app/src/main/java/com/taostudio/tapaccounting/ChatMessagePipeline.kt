@@ -452,47 +452,14 @@ class ChatMessagePipeline(
                             }
                         }
                     } else {
-                        // 纯文字：意图分类
-                        val intent = withContext(Dispatchers.IO) {
-                            AIService.classifyIntent(context, userText)
-                        }
-                        if (!canWriteForRequest(requestContext)) return@launch
-                        if (intent == "GENERAL_CHAT") {
-                            updateLoadingMessage(loadingKey, "正在思考...")
-                            val streamedText = StringBuffer()
-                            val chatReply = withContext(Dispatchers.IO) {
-                                AIService.generateGeneralChatReply(
-                                    ctx = context,
-                                    userInput = userText,
-                                    chatTurns = chatHistoryTurns,
-                                    onDelta = { delta ->
-                                        streamedText.append(delta)
-                                        runOnUiIfAlive {
-                                            if (canWriteForRequest(requestContext)) {
-                                                updateLoadingMessage(loadingKey, streamedText.toString())
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                            if (!canWriteForRequest(requestContext)) return@launch
-                            removeLoadingMessage(loadingKey)
-                            if (chatReply.completed && chatReply.content.isNotBlank()) {
-                                appendAiTextMessage(chatReply.content, false, requestContext.bookName, requestContext.conversationId)
-                            } else {
-                                appendAiTextMessage("回复生成失败，请重试。", false, requestContext.bookName, requestContext.conversationId)
-                            }
-                            return@launch
-                        }
-
-                        // 查询草稿路由（仅纯文字，非图片）
+                        // 纯文字：AI Router 四分类
                         val queryDraftMgr = context.queryDraftManager
-                        val queryContext = withContext(Dispatchers.IO) {
-                            context.buildQueryContext()
-                        }
 
-                        // 1. 检查是否是对当前草稿的修正
+                        // 0. 多轮修正：如果已有活跃草稿，先尝试本地修正/执行指令
                         if (queryDraftMgr.hasActiveDraft()) {
+                            val queryContext = withContext(Dispatchers.IO) {
+                                context.buildQueryContext()
+                            }
                             val correction = queryDraftMgr.detectExecutionCommand(userText)
                             if (correction is com.taostudio.tapaccounting.chat.query.QueryDraftCorrection.ExecuteStats) {
                                 removeLoadingMessage(loadingKey)
@@ -546,14 +513,105 @@ class ChatMessagePipeline(
                             queryDraftMgr.clearDraft()
                         }
 
-                        // 2. 尝试解析为新的查询草稿
-                        val newDraft = withContext(Dispatchers.IO) {
-                            queryDraftMgr.parseAndCreateDraft(userText, queryContext)
+                        // 1. AI Router 四分类
+                        val routerResult = withContext(Dispatchers.IO) {
+                            AIService.classifyRouterIntent(context, userText)
                         }
-                        if (newDraft != null) {
-                            removeLoadingMessage(loadingKey)
-                            appendQueryDraftMessage(newDraft)
-                            return@launch
+                        if (!canWriteForRequest(requestContext)) return@launch
+
+                        when (routerResult.intent) {
+                            "GENERAL_CHAT" -> {
+                                updateLoadingMessage(loadingKey, "正在思考...")
+                                val streamedText = StringBuffer()
+                                val chatReply = withContext(Dispatchers.IO) {
+                                    AIService.generateGeneralChatReply(
+                                        ctx = context,
+                                        userInput = userText,
+                                        chatTurns = chatHistoryTurns,
+                                        onDelta = { delta ->
+                                            streamedText.append(delta)
+                                            runOnUiIfAlive {
+                                                if (canWriteForRequest(requestContext)) {
+                                                    updateLoadingMessage(loadingKey, streamedText.toString())
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                                if (!canWriteForRequest(requestContext)) return@launch
+                                removeLoadingMessage(loadingKey)
+                                if (chatReply.completed && chatReply.content.isNotBlank()) {
+                                    appendAiTextMessage(chatReply.content, false, requestContext.bookName, requestContext.conversationId)
+                                } else {
+                                    appendAiTextMessage("回复生成失败，请重试。", false, requestContext.bookName, requestContext.conversationId)
+                                }
+                                return@launch
+                            }
+                            "UNSUPPORTED_WRITE" -> {
+                                removeLoadingMessage(loadingKey)
+                                appendAiTextMessage(
+                                    context.getString(com.taostudio.tapaccounting.R.string.query_write_rejected),
+                                    false,
+                                    requestContext.bookName,
+                                    requestContext.conversationId
+                                )
+                                return@launch
+                            }
+                            "ACCOUNTING_QUERY" -> {
+                                // 2. AI Query Extractor 提取查询草稿
+                                updateLoadingMessage(loadingKey, "正在分析查询...")
+                                val aiDraftJson = withContext(Dispatchers.IO) {
+                                    AIService.extractQueryDraft(context, userText)
+                                }
+                                if (!canWriteForRequest(requestContext)) return@launch
+                                removeLoadingMessage(loadingKey)
+
+                                if (aiDraftJson == null) {
+                                    appendAiTextMessage(
+                                        "查询解析失败，请重试或换一种说法。",
+                                        false,
+                                        requestContext.bookName,
+                                        requestContext.conversationId
+                                    )
+                                    return@launch
+                                }
+
+                                // 校验 AI 输出
+                                val aiIntent = aiDraftJson.optString("intent", "UNSUPPORTED")
+                                if (aiIntent == "UNSUPPORTED") {
+                                    val reason = aiDraftJson.optString("reason", "")
+                                    val msg = if (reason == "SHOULD_USE_ACCOUNTING_CREATE_FLOW") {
+                                        "这看起来像是记账，请直接说金额和消费内容。"
+                                    } else {
+                                        context.getString(com.taostudio.tapaccounting.R.string.query_write_rejected)
+                                    }
+                                    appendAiTextMessage(msg, false, requestContext.bookName, requestContext.conversationId)
+                                    return@launch
+                                }
+                                if (aiIntent == "CLARIFY") {
+                                    val question = aiDraftJson.optString("clarifyQuestion", "你想查什么？能再具体一点吗？")
+                                    appendAiTextMessage(question, false, requestContext.bookName, requestContext.conversationId)
+                                    return@launch
+                                }
+
+                                // 解析为 QueryDraft
+                                val queryContext = withContext(Dispatchers.IO) {
+                                    context.buildQueryContext()
+                                }
+                                val draft = queryDraftMgr.createFromAiExtract(aiDraftJson, userText, queryContext)
+                                if (draft != null) {
+                                    appendQueryDraftMessage(draft)
+                                } else {
+                                    appendAiTextMessage(
+                                        "查询条件解析失败，请重试。",
+                                        false,
+                                        requestContext.bookName,
+                                        requestContext.conversationId
+                                    )
+                                }
+                                return@launch
+                            }
+                            // ACCOUNTING_CREATE → 继续走记账流程
                         }
                     }
 

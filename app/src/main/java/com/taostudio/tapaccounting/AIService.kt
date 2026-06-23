@@ -29,6 +29,13 @@ import java.util.concurrent.TimeUnit
 const val OCR_MODE_LOCAL      = 0   // 本地 ML Kit OCR + 文本 AI
 const val OCR_MODE_MULTIMODAL = 1   // 直接多模态 AI（发送图片）
 
+/** AI Router 四分类结果 */
+data class RouterResult(
+    val intent: String,  // ACCOUNTING_CREATE, ACCOUNTING_QUERY, GENERAL_CHAT, UNSUPPORTED_WRITE
+    val confidence: Double,
+    val reason: String?
+)
+
 object AIService {
     private const val MAX_AUDIO_INLINE_BYTES = 8L * 1024L * 1024L
     private const val ACCOUNTING_MULTI_LOG_TAG = "AccountingMulti"
@@ -869,6 +876,93 @@ object AIService {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Logger.d(ctx, "AIService", "classifyIntent failed: ${e.message}, fallback to BOOKKEEPING")
             "BOOKKEEPING"
+        }
+    }
+
+    /**
+     * 四分类 Router：区分 ACCOUNTING_CREATE / ACCOUNTING_QUERY / GENERAL_CHAT / UNSUPPORTED_WRITE。
+     * 仅用于聊天入口，替代旧的二分类 classifyIntent。
+     */
+    suspend fun classifyRouterIntent(ctx: Context, userText: String): RouterResult {
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isBlank()) return RouterResult("ACCOUNTING_CREATE", 1.0, "no_api_key")
+        val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveTextModel(ctx) }
+        if (model.isBlank()) return RouterResult("ACCOUNTING_CREATE", 1.0, "no_model")
+
+        val requestJson = buildTextChatRequest(
+            model = model,
+            temperature = 0.1,
+            systemPrompt = AIPrompts.INTENT_ROUTER_V2_PROMPT,
+            userText = userText,
+            jsonObjectResponse = true,
+            enableThinking = false
+        )
+
+        return try {
+            val content = requestAccountingContentStreamed(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                onProgress = null,
+                emitTextDelta = false,
+                logReasoning = false,
+                reasoningLogTag = "IntentRouterV2"
+            )
+            val cleaned = cleanJsonString(content)
+            val jsonText = extractFirstJsonObjectText(cleaned)
+            val json = runCatching { jsonText?.let { org.json.JSONObject(it) } }.getOrNull()
+            val intent = json?.optString("intent", "GENERAL_CHAT") ?: "GENERAL_CHAT"
+            val confidence = json?.optDouble("confidence", 0.0) ?: 0.0
+            val reason = json?.optString("reason", "") ?: ""
+            Logger.d(ctx, "AIService", "classifyRouterIntent: input=${userText.take(50)}, result=$intent")
+            val validIntents = setOf("ACCOUNTING_CREATE", "ACCOUNTING_QUERY", "GENERAL_CHAT", "UNSUPPORTED_WRITE")
+            val normalizedIntent = if (intent in validIntents) intent else "GENERAL_CHAT"
+            RouterResult(normalizedIntent, confidence.coerceIn(0.0, 1.0), reason)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Logger.d(ctx, "AIService", "classifyRouterIntent failed: ${e.message}, fallback to ACCOUNTING_CREATE")
+            RouterResult("ACCOUNTING_CREATE", 0.0, "error: ${e.message}")
+        }
+    }
+
+    /**
+     * 查询参数提取器：当 Router 判断为 ACCOUNTING_QUERY 时，提取结构化查询草稿 JSON。
+     * @return 解析后的 JSONObject，包含 intent/queryType/slots 等字段；失败返回 null
+     */
+    suspend fun extractQueryDraft(ctx: Context, userText: String): org.json.JSONObject? {
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isBlank()) return null
+        val model = AiModelSlots.resolveTextModel(ctx)
+        if (model.isBlank()) return null
+
+        val requestJson = buildTextChatRequest(
+            model = model,
+            temperature = 0.1,
+            systemPrompt = AIPrompts.QUERY_EXTRACTOR_PROMPT,
+            userText = userText,
+            jsonObjectResponse = true,
+            enableThinking = false
+        )
+
+        return try {
+            val content = requestAccountingContentStreamed(
+                ctx = ctx,
+                apiKey = apiKey,
+                requestJson = requestJson,
+                onProgress = null,
+                emitTextDelta = false,
+                logReasoning = false,
+                reasoningLogTag = "QueryExtractor"
+            )
+            val cleaned = cleanJsonString(content)
+            val jsonText = extractFirstJsonObjectText(cleaned)
+            val json = runCatching { jsonText?.let { org.json.JSONObject(it) } }.getOrNull()
+            Logger.d(ctx, "AIService", "extractQueryDraft: input=${userText.take(50)}, intent=${json?.optString("intent")}")
+            json
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Logger.d(ctx, "AIService", "extractQueryDraft failed: ${e.message}")
+            null
         }
     }
 
