@@ -1158,6 +1158,7 @@ class BackupActivity : AppCompatActivity() {
                 val result = backupRepository.mergeRestoreFullData(
                     assets = if (options.restoreAssets) dataMap["assets"]?.let { DataExportManager.deserializeAssets(it) } else null,
                     bills = if (options.restoreBills) dataMap["bills"]?.let { DataExportManager.deserializeBills(it) } else null,
+                    investmentLots = if (options.restoreBills) dataMap["investment_lots"]?.let { DataExportManager.deserializeInvestmentLots(it) } else null,
                     categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
                     rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
                     chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null

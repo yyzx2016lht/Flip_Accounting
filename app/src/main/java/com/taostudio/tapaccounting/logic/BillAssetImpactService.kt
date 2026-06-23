@@ -30,6 +30,15 @@ object BillAssetImpactService {
     }
 
     suspend fun applyBillBalanceImpact(db: AppDatabase, bill: Bill): Int {
+        return try {
+            applyBillBalanceImpactInternal(db, bill)
+        } catch (e: MissingCurrencyRateException) {
+            Logger.d("BillAssetImpact", "汇率缺失，跳过余额更新: ${e.missingCurrencies}, billId=${bill.id}")
+            0
+        }
+    }
+
+    private suspend fun applyBillBalanceImpactInternal(db: AppDatabase, bill: Bill): Int {
         var impactedAssets = 0
         when {
             // 兼容旧平账记录：旧 subtype 不再生成，但历史数据删除/恢复时需防止重复影响余额
@@ -41,7 +50,7 @@ object BillAssetImpactService {
                     return 0
                 }
                 ensureRatesForImpact(bill, sourceAsset = asset, targetAsset = null)
-                val sourceDelta = convertAmountBetweenCurrencies(bill.amount, bill.currency, asset.currency)
+                val sourceDelta = convertAmountBetweenCurrencies(baseOriginalAmount(bill), bill.currency, asset.currency)
                 logAssetDelta(asset, -sourceDelta, "apply_expense", bill.id)
                 db.assetDao().addBalanceDelta(asset.id, -sourceDelta)
                 syncInvestmentPrincipalAfterExternalImpact(db, asset, bill)
@@ -90,6 +99,15 @@ object BillAssetImpactService {
     }
 
     suspend fun revertBillBalanceImpact(db: AppDatabase, bill: Bill): Int {
+        return try {
+            revertBillBalanceImpactInternal(db, bill)
+        } catch (e: MissingCurrencyRateException) {
+            Logger.d("BillAssetImpact", "汇率缺失，跳过余额回滚: ${e.missingCurrencies}, billId=${bill.id}")
+            0
+        }
+    }
+
+    private suspend fun revertBillBalanceImpactInternal(db: AppDatabase, bill: Bill): Int {
         var impactedAssets = 0
         when {
             // 兼容旧平账记录：旧 subtype 的 revert 逻辑保持原样，防止错误回滚余额
@@ -191,6 +209,10 @@ object BillAssetImpactService {
 
     fun roundMoney(amount: Double): Double {
         return MoneyConversionService.roundMoney(amount)
+    }
+
+    fun roundMoneyForCurrency(amount: Double, currencyCode: String): Double {
+        return MoneyConversionService.roundMoneyForCurrency(amount, currencyCode)
     }
 
     fun roundRate(rate: Double): Double {

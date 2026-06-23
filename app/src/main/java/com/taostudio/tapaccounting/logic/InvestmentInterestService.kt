@@ -1,5 +1,6 @@
 package com.taostudio.tapaccounting.logic
 
+import androidx.room.withTransaction
 import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.TapApplication
 import com.taostudio.tapaccounting.data.local.AppDatabase
@@ -37,7 +38,7 @@ object InvestmentInterestService {
         if (bill.type != Bill.TYPE_TRANSFER || bill.id <= 0L) return
         val principal = BillAssetImpactService.roundMoney(bill.amount * bill.exchangeRate)
         val normalizedStart = startOfDay(schedule.startEarningAt)
-        val normalizedPayout = startOfDay(schedule.firstPayoutAt).coerceAtLeast(normalizedStart + MILLIS_PER_DAY)
+        val normalizedPayout = tPlusOnePayoutDay(normalizedStart)
         val existing = db.investmentLotDao().getLotBySourceBillId(bill.id)
         val lot = InvestmentLot(
             id = existing?.id ?: 0L,
@@ -62,7 +63,7 @@ object InvestmentInterestService {
         val principal = BillAssetImpactService.roundMoney(asset.balance)
         if (principal <= 0.0) return
         val normalizedStart = startOfDay(schedule.startEarningAt)
-        val normalizedPayout = startOfDay(schedule.firstPayoutAt).coerceAtLeast(normalizedStart + MILLIS_PER_DAY)
+        val normalizedPayout = tPlusOnePayoutDay(normalizedStart)
         val lot = InvestmentLot(
             assetId = asset.id,
             sourceBillId = null,
@@ -77,21 +78,23 @@ object InvestmentInterestService {
     }
 
     suspend fun settleDueInterest(db: AppDatabase, now: Long = System.currentTimeMillis()) {
-        db.assetDao().getAllAssetsList()
-            .filter { it.assetCategory == Asset.CATEGORY_INVESTMENT && it.annualInterestRate != 0.0 }
-            .forEach { asset ->
-                reconcileAssetLotsToBalance(db, asset, now)
+        db.withTransaction {
+            db.assetDao().getAllAssetsList()
+                .filter { it.assetCategory == Asset.CATEGORY_INVESTMENT && it.annualInterestRate != 0.0 }
+                .forEach { asset ->
+                    reconcileAssetLotsToBalance(db, asset, now)
+                }
+
+            val lots = db.investmentLotDao().getOpenLots()
+            if (lots.isEmpty()) return@withTransaction
+
+            ensureInvestmentCategories(db)
+            val todayStart = startOfDay(now)
+            lots.forEach { lot ->
+                val asset = db.assetDao().getAssetById(lot.assetId) ?: return@forEach
+                if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.annualInterestRate == 0.0) return@forEach
+                settleLotInterest(db, asset, lot, todayStart)
             }
-
-        val lots = db.investmentLotDao().getOpenLots()
-        if (lots.isEmpty()) return
-
-        ensureInvestmentCategories(db)
-        val todayStart = startOfDay(now)
-        lots.forEach { lot ->
-            val asset = db.assetDao().getAssetById(lot.assetId) ?: return@forEach
-            if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.annualInterestRate == 0.0) return@forEach
-            settleLotInterest(db, asset, lot, todayStart)
         }
     }
 
@@ -117,17 +120,46 @@ object InvestmentInterestService {
             return
         }
 
-        var reductionLeft = abs(delta)
-        openLots.forEach { lot ->
+        applyFifoPrincipalReduction(openLots, abs(delta)).forEach { updatedLot ->
+            db.investmentLotDao().updateLot(updatedLot)
+        }
+    }
+
+    internal fun applyFifoPrincipalReduction(
+        orderedLots: List<InvestmentLot>,
+        reductionAmount: Double
+    ): List<InvestmentLot> {
+        var reductionLeft = BillAssetImpactService.roundMoney(reductionAmount)
+        if (reductionLeft <= BALANCE_EPSILON) return emptyList()
+
+        val updatedLots = mutableListOf<InvestmentLot>()
+        orderedLots.forEach { lot ->
             if (reductionLeft <= BALANCE_EPSILON) return@forEach
             val reduced = minOf(lot.remainingPrincipal, reductionLeft)
             reductionLeft = BillAssetImpactService.roundMoney(reductionLeft - reduced)
-            db.investmentLotDao().updateLot(
-                lot.copy(
-                    remainingPrincipal = BillAssetImpactService.roundMoney(lot.remainingPrincipal - reduced)
-                )
+            updatedLots += lot.copy(
+                remainingPrincipal = BillAssetImpactService.roundMoney(lot.remainingPrincipal - reduced)
             )
         }
+        return updatedLots
+    }
+
+    internal fun compoundDailyInterestTotal(
+        initialPrincipal: Double,
+        annualInterestRatePercent: Double,
+        days: Int
+    ): Double {
+        if (days <= 0 || initialPrincipal <= 0.0) return 0.0
+        val dailyRate = annualInterestRatePercent / 100.0 / DAYS_IN_YEAR
+        var principal = initialPrincipal
+        var totalInterest = 0.0
+        repeat(days) {
+            if (principal <= 0.0) return BillAssetImpactService.roundMoney(totalInterest)
+            val interest = BillAssetImpactService.roundMoney(principal * dailyRate)
+            totalInterest += interest
+            principal += interest
+        }
+        return BillAssetImpactService.roundMoney(totalInterest)
     }
 
     private fun defaultScheduleForBalanceChange(changedAt: Long): InvestmentSchedule {
@@ -138,14 +170,15 @@ object InvestmentInterestService {
         )
     }
 
+    private fun tPlusOnePayoutDay(startEarningDay: Long): Long = plusDays(startOfDay(startEarningDay), 1)
+
     private suspend fun settleLotInterest(
         db: AppDatabase,
         asset: Asset,
         lot: InvestmentLot,
         todayStart: Long
     ) {
-        val payoutDelay = (startOfDay(lot.firstPayoutAt) - startOfDay(lot.startEarningAt))
-            .coerceAtLeast(MILLIS_PER_DAY)
+        val payoutDelayDays = daysBetween(lot.startEarningAt, lot.firstPayoutAt).coerceAtLeast(1)
         val dailyRate = asset.annualInterestRate / 100.0 / DAYS_IN_YEAR
         val incomeCategory = ensureCategory(db, Bill.TYPE_INCOME)
         val expenseCategory = ensureCategory(db, Bill.TYPE_EXPENSE)
@@ -154,11 +187,13 @@ object InvestmentInterestService {
         var workingLot = lot
         var earningDay = startOfDay(workingLot.lastSettledAt).coerceAtLeast(startOfDay(workingLot.startEarningAt))
         while (true) {
-            val payoutDay = earningDay + payoutDelay
+            if (workingLot.remainingPrincipal <= 0.0) break
+
+            val payoutDay = plusDays(earningDay, payoutDelayDays)
             if (payoutDay > todayStart) break
 
             val interest = BillAssetImpactService.roundMoney(workingLot.remainingPrincipal * dailyRate)
-            val nextSettledAt = earningDay + MILLIS_PER_DAY
+            val nextSettledAt = plusDays(earningDay, 1)
             if (abs(interest) >= MIN_INTEREST_AMOUNT) {
                 val bill = Bill(
                     type = if (interest >= 0.0) Bill.TYPE_INCOME else Bill.TYPE_EXPENSE,
@@ -177,7 +212,7 @@ object InvestmentInterestService {
                 )
                 BillMutationService.insertBillAndApplyImpact(db, bill, applyAssetImpact = true)
                 workingLot = workingLot.copy(
-                    remainingPrincipal = BillAssetImpactService.roundMoney(workingLot.remainingPrincipal + interest),
+                    remainingPrincipal = workingLot.remainingPrincipal + interest,
                     lastSettledAt = nextSettledAt
                 )
             } else {
@@ -211,7 +246,25 @@ object InvestmentInterestService {
         }.timeInMillis
     }
 
-    fun plusDays(dayStartMillis: Long, days: Int): Long = startOfDay(dayStartMillis) + days * MILLIS_PER_DAY
+    fun plusDays(dayStartMillis: Long, days: Int): Long {
+        return Calendar.getInstance().apply {
+            timeInMillis = startOfDay(dayStartMillis)
+            add(Calendar.DATE, days)
+        }.timeInMillis
+    }
+
+    fun daysBetween(startDayMillis: Long, endDayMillis: Long): Int {
+        val start = startOfDay(startDayMillis)
+        val end = startOfDay(endDayMillis)
+        if (end <= start) return 0
+        var count = 0
+        var cursor = start
+        while (cursor < end) {
+            cursor = plusDays(cursor, 1)
+            count++
+        }
+        return count
+    }
 
     private fun formatCompactDecimal(value: Double): String {
         return String.format(Locale.getDefault(), "%.4f", value)
@@ -222,7 +275,4 @@ object InvestmentInterestService {
     private fun formatDate(timeMillis: Long): String {
         return java.text.SimpleDateFormat("MM-dd", Locale.getDefault()).format(java.util.Date(timeMillis))
     }
-
-    private const val MILLIS_PER_DAY = 24L * 60L * 60L * 1000L
 }
-

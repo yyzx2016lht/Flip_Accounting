@@ -29,12 +29,13 @@ object BillBalanceSnapshotService {
             currentBalance = asset.balance
         )
 
-        for (bill in bills) {
-            val balanceAfter = balanceAfterByBillId[bill.id] ?: continue
+        val toUpdate = bills.mapNotNull { bill ->
+            val balanceAfter = balanceAfterByBillId[bill.id] ?: return@mapNotNull null
             val patched = applySnapshotForAsset(bill, asset.id, asset.name, balanceAfter)
-            if (patched != bill) {
-                db.billDao().updateBill(patched)
-            }
+            if (patched != bill) patched else null
+        }
+        if (toUpdate.isNotEmpty()) {
+            db.billDao().updateBills(toUpdate)
         }
     }
 

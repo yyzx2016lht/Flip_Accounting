@@ -45,7 +45,8 @@ object MoneyConversionService {
             amount
         } else {
             val fromRate = rateProvider(from) ?: error("Rate unexpectedly missing for $from")
-            if (fromRate == 0.0) amount else amount / fromRate
+            if (fromRate == 0.0) throw MissingCurrencyRateException(setOf(from))
+            amount / fromRate
         }
 
         val target = if (to == "CNY") {
@@ -54,7 +55,7 @@ object MoneyConversionService {
             val toRate = rateProvider(to) ?: error("Rate unexpectedly missing for $to")
             amountCny * toRate
         }
-        return roundMoney(target)
+        return roundMoneyForCurrency(target, to)
     }
 
     fun estimateExchangeRateToTarget(
@@ -76,11 +77,17 @@ object MoneyConversionService {
         if (normalized == "CNY") return 1.0
         requireCurrenciesAvailable(listOf(normalized), rateProvider)
         val rateToCurrency = rateProvider(normalized) ?: return 1.0
-        return if (rateToCurrency != 0.0) roundRate(1.0 / rateToCurrency) else 1.0
+        if (rateToCurrency == 0.0) throw MissingCurrencyRateException(setOf(normalized))
+        return roundRate(1.0 / rateToCurrency)
     }
 
     fun roundMoney(amount: Double): Double {
         return BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP).toDouble()
+    }
+
+    fun roundMoneyForCurrency(amount: Double, currencyCode: String): Double {
+        val decimals = CurrencyUtils.decimalPlaces(currencyCode)
+        return BigDecimal.valueOf(amount).setScale(decimals, RoundingMode.HALF_UP).toDouble()
     }
 
     fun roundRate(rate: Double): Double {

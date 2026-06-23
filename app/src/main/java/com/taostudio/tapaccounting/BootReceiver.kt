@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.taostudio.tapaccounting.logic.InvestmentInterestWorker
 
 class BootReceiver : BroadcastReceiver() {
     companion object {
@@ -12,6 +13,10 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent == null) return
+
+        if (Intent.ACTION_MY_PACKAGE_REPLACED == intent.action) {
+            InvestmentInterestWorker.schedule(context.applicationContext)
+        }
 
         val flipEnabled = Prefs.isFlipEnabled(context)
         val tapEnabled = Prefs.isDoubleTapEnabled(context)

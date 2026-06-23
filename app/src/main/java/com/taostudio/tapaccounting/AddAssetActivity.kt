@@ -778,12 +778,15 @@ class AddAssetActivity : AppCompatActivity() {
 
         val todayStart = InvestmentInterestService.startOfDay(System.currentTimeMillis())
         var startEarningAt = InvestmentInterestService.plusDays(todayStart, 1)
-        var firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
 
         lateinit var startRow: TextView
         lateinit var payoutRow: TextView
         fun bindRow(row: TextView, label: String, value: Long) {
             row.text = "$label    ${formatDateForSchedule(value)}"
+        }
+        fun refreshPayoutRow() {
+            val firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
+            bindRow(payoutRow, getString(R.string.earning_payout_t_plus_one), firstPayoutAt)
         }
 
         startRow = TextView(themeContext).apply {
@@ -798,30 +801,19 @@ class AddAssetActivity : AppCompatActivity() {
                     minTimeMillis = todayStart
                 ) { selected ->
                     startEarningAt = InvestmentInterestService.startOfDay(selected)
-                    firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
                     bindRow(startRow, getString(R.string.start_earning), startEarningAt)
-                    bindRow(payoutRow, getString(R.string.earning_payout), firstPayoutAt)
+                    refreshPayoutRow()
                 }
             }
         }
         payoutRow = TextView(themeContext).apply {
             textSize = 16f
-            setTextColor(Color.parseColor("#1F2A38"))
+            setTextColor(Color.parseColor("#667085"))
             setPadding(0, dp(16), 0, dp(8))
-            bindRow(this, getString(R.string.earning_payout), firstPayoutAt)
-            setOnClickListener {
-                ElegantDatePickerSheet.show(
-                    context = this@AddAssetActivity,
-                    initialTimeMillis = firstPayoutAt,
-                    minTimeMillis = InvestmentInterestService.plusDays(startEarningAt, 1)
-                ) { selected ->
-                    firstPayoutAt = InvestmentInterestService.startOfDay(selected)
-                    bindRow(payoutRow, getString(R.string.earning_payout), firstPayoutAt)
-                }
-            }
         }
         content.addView(startRow)
         content.addView(payoutRow)
+        refreshPayoutRow()
         content.addView(TextView(themeContext).apply {
             text = getString(R.string.earning_default_hint)
             setTextColor(Color.parseColor("#8A9099"))
@@ -837,7 +829,7 @@ class AddAssetActivity : AppCompatActivity() {
                 onConfirm(
                     InvestmentInterestService.InvestmentSchedule(
                         startEarningAt = startEarningAt,
-                        firstPayoutAt = firstPayoutAt
+                        firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
                     )
                 )
             }

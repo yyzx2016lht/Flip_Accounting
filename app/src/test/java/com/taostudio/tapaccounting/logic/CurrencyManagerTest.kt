@@ -23,7 +23,7 @@ class CurrencyManagerTest {
     fun convertToCny_marksMissingCurrency_whenRateNotFound() {
         val amount = CurrencyManager.convertToCny(123.45, "XYZ")
 
-        assertEquals(123.45, amount, 0.000001)
+        assertTrue(amount.isNaN())
         assertTrue(CurrencyManager.getMissingRateCurrencies().contains("XYZ"))
     }
 

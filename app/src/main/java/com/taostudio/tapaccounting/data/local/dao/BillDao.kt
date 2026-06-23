@@ -21,6 +21,9 @@ interface BillDao {
     @Update
     suspend fun updateBill(bill: Bill)
 
+    @Update
+    suspend fun updateBills(bills: List<Bill>)
+
     @Query("SELECT * FROM bills")
     suspend fun getAllBillsList(): List<Bill>
 

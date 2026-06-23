@@ -18,7 +18,8 @@ import androidx.room.PrimaryKey
         Index(value = ["toAccountId"]),
         Index(value = ["time"]),
         Index(value = ["bookName"]),
-        Index(value = ["relatedBillId"])
+        Index(value = ["relatedBillId"]),
+        Index(value = ["bookName", "time"])
     ]
 )
 data class Bill(

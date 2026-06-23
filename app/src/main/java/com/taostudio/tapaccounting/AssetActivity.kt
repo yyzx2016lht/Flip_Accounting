@@ -84,19 +84,30 @@ class AssetActivity : AppCompatActivity() {
         var netAsset = 0.0
         var totalAsset = 0.0
         var totalDebt = 0.0
+        var hasNaN = false
 
         assets.forEach {
             if (it.includeInNetAsset) {
                 val balanceCny = com.taostudio.tapaccounting.logic.CurrencyManager.convertToCny(it.balance, it.currency)
-                netAsset += balanceCny
-                if (balanceCny >= 0) totalAsset += balanceCny
-                else totalDebt += kotlin.math.abs(balanceCny)
+                if (balanceCny.isNaN()) {
+                    hasNaN = true
+                } else {
+                    netAsset += balanceCny
+                    if (balanceCny >= 0) totalAsset += balanceCny
+                    else totalDebt += kotlin.math.abs(balanceCny)
+                }
             }
         }
 
-        tvNetAsset.text = String.format(Locale.getDefault(), "¥%.2f", netAsset)
-        tvTotalAsset.text = String.format(Locale.getDefault(), "¥%.2f", totalAsset)
-        tvTotalDebt.text = if (totalDebt == 0.0) "¥0.00" else String.format(Locale.getDefault(), "¥%.2f", totalDebt)
+        if (hasNaN) {
+            tvNetAsset.text = "需要网络更新"
+            tvTotalAsset.text = "需要网络更新"
+            tvTotalDebt.text = "需要网络更新"
+        } else {
+            tvNetAsset.text = String.format(Locale.getDefault(), "¥%.2f", netAsset)
+            tvTotalAsset.text = String.format(Locale.getDefault(), "¥%.2f", totalAsset)
+            tvTotalDebt.text = if (totalDebt == 0.0) "¥0.00" else String.format(Locale.getDefault(), "¥%.2f", totalDebt)
+        }
     }
 
     private fun showAssetActionMenu(asset: Asset) {

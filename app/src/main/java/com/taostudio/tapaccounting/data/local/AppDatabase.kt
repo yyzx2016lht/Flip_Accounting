@@ -20,10 +20,11 @@ import com.taostudio.tapaccounting.data.local.entity.Category
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.DeletedBill
 import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
+import com.taostudio.tapaccounting.logic.InvestmentInterestService
 
 @Database(
     entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class, DeletedBill::class],
-    version = 24,
+    version = 26,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -299,6 +300,66 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_bills_bookName_time` ON `bills` (`bookName`, `time`)")
+            }
+        }
+
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                val cursor = database.query(
+                    """
+                    SELECT a.id, a.balance, a.currency, a.createTime
+                    FROM assets a
+                    WHERE a.assetCategory = 'INVESTMENT'
+                      AND a.annualInterestRate != 0.0
+                      AND a.balance > 0.0
+                      AND NOT EXISTS (
+                        SELECT 1 FROM investment_lots l WHERE l.assetId = a.id
+                      )
+                    """.trimIndent()
+                )
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val assetId = it.getLong(0)
+                        val balance = it.getDouble(1)
+                        val currency = it.getString(2) ?: "CNY"
+                        val createTime = it.getLong(3)
+                        val startEarningAt = InvestmentInterestService.startOfDay(createTime)
+                        val firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
+                        database.execSQL(
+                            """
+                            INSERT INTO investment_lots (
+                                assetId, sourceBillId, principalAmount, remainingPrincipal, currency,
+                                startEarningAt, firstPayoutAt, lastSettledAt, createTime
+                            ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?)
+                            """.trimIndent(),
+                            arrayOf(
+                                assetId,
+                                balance,
+                                balance,
+                                currency,
+                                startEarningAt,
+                                firstPayoutAt,
+                                startEarningAt,
+                                createTime
+                            )
+                        )
+                    }
+                }
+                database.execSQL(
+                    """
+                    UPDATE assets
+                    SET interestLastSettledAt = createTime
+                    WHERE assetCategory = 'INVESTMENT'
+                      AND annualInterestRate != 0.0
+                      AND interestLastSettledAt > createTime + 86400000
+                    """.trimIndent()
+                )
+            }
+        }
+
         private val MIGRATION_22_23 = object : Migration(22, 23) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // Fix balances start date that was copied from a too-new asset.createTime.
@@ -354,7 +415,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_20_21,
                         MIGRATION_21_22,
                         MIGRATION_22_23,
-                        MIGRATION_23_24
+                        MIGRATION_23_24,
+                        MIGRATION_24_25,
+                        MIGRATION_25_26
                     )
                     .build()
                 INSTANCE = instance

@@ -58,6 +58,10 @@ class TapDetector(
     private var lastTapActionUptimeMs = 0L
 
     private var forceFullMlMode = false
+
+    @Volatile
+    private var tripleEnabled = false
+
     private var powerProfile = PowerProfile.Full
     private var fullPowerUntilUptimeMs = 0L
     private var lastSignificantMotionUptimeMs = 0L
@@ -90,7 +94,7 @@ class TapDetector(
             val sensitivityLevel = Prefs.getTapSensitivityLevel(context)
             val sensitivity = TAP_SENSITIVITY_VALUES.getOrElse(sensitivityLevel) { 0.05f }
             val nnapiLowPower = Prefs.isTapNnapiLowPower(context)
-            val tripleEnabled = Prefs.isTapTripleEnabled(context)
+            tripleEnabled = Prefs.isTapTripleEnabled(context)
 
             tap = createTapRuntime(
                 useHeuristic = false,
@@ -167,7 +171,7 @@ class TapDetector(
 
         try {
             trackMotionForDynamicPower(event)
-            val isTripleEnabled = Prefs.isTapTripleEnabled(context)
+            val isTripleEnabled = tripleEnabled
             currentTap.updateData(
                 event.sensor.type,
                 event.values[0],
@@ -238,9 +242,10 @@ class TapDetector(
             powerProfile = profile
             val sensitivityLevel = Prefs.getTapSensitivityLevel(context)
             val sensitivity = TAP_SENSITIVITY_VALUES.getOrElse(sensitivityLevel) { 0.05f }
+            tripleEnabled = Prefs.isTapTripleEnabled(context)
             tap = createTapRuntime(
                 useHeuristic = profile == PowerProfile.HeuristicStandby,
-                tripleEnabled = Prefs.isTapTripleEnabled(context),
+                tripleEnabled = tripleEnabled,
                 sensitivity = sensitivity,
                 nnapiLowPower = Prefs.isTapNnapiLowPower(context)
             )

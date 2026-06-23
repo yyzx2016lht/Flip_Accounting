@@ -462,10 +462,13 @@ class ChatMediaController(
         }
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
         val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return
-        FileOutputStream(file, false).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)
+        try {
+            FileOutputStream(file, false).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)
+            }
+        } finally {
+            bitmap.recycle()
         }
-        bitmap.recycle()
     }
 
     private fun copyPickedImageToStorage(sourceUri: Uri, sourceMime: String): Uri {

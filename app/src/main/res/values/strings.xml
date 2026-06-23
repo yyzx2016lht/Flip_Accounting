@@ -1068,7 +1068,7 @@
     <string name="investment_transfer_hint">转入 %1$s 后，这笔本金会按下面日期单独计算收益。</string>
     <string name="start_calculate_earning">开始计算收益</string>
     <string name="earning_arrival">收益到账</string>
-    <string name="investment_default_hint">默认收益到账为开始计算收益的后一天，也可以手动调整。自动收益为估算值，以实际盈利为准。</string>
+    <string name="investment_default_hint">收益在起息次日（T+1）到账；打开 App 或后台任务执行时结算，自动收益为估算值，以实际盈利为准。</string>
 
     <!-- 硬编码中文抽取 - 弹窗 -->
     <string name="category_sort_tip">长按分类直接拖动排序。子分类可点「移出一级」单独拿出来，拖动时会保持和资产选择器一样的动画手感。</string>
@@ -1438,7 +1438,8 @@
     <string name="investment_principal_hint">这笔当前余额会作为一笔理财本金单独计算收益。</string>
     <string name="start_earning">开始计算收益</string>
     <string name="earning_payout">收益到账</string>
-    <string name="earning_default_hint">默认收益到账为开始计算收益的后一天，也可以手动调整。</string>
+    <string name="earning_payout_t_plus_one">收益到账（T+1）</string>
+    <string name="earning_default_hint">收益在起息次日（T+1）到账；打开 App 或后台任务执行时结算，自动收益为估算值。</string>
 
     <!-- BalanceAdjustmentActivity 硬编码抽取 -->
     <string name="balance_after_change">变更后余额</string>

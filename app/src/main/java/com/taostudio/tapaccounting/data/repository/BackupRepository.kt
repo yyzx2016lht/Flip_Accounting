@@ -161,6 +161,7 @@ class BackupRepository(private val db: AppDatabase) {
     suspend fun mergeRestoreFullData(
         assets: List<Asset>?,
         bills: List<Bill>?,
+        investmentLots: List<InvestmentLot>?,
         categories: List<Category>?,
         rules: List<AiRule>?,
         chatMessages: List<ChatMessage>?
@@ -171,12 +172,15 @@ class BackupRepository(private val db: AppDatabase) {
         var skippedCategories = 0
         var insertedBills = 0
         var skippedBills = 0
+        var insertedInvestmentLots = 0
+        var skippedInvestmentLots = 0
         var insertedRules = 0
         var insertedChatMessages = 0
 
         db.withTransaction {
             val categoryIdMap = mutableMapOf<Long, Long>()
             val assetIdMap = mutableMapOf<Long, Long>()
+            val billIdMap = mutableMapOf<Long, Long>()
 
             // ── 分类：按名称去重 ──
             if (categories != null) {
@@ -259,6 +263,7 @@ class BackupRepository(private val db: AppDatabase) {
                         )
                     )
                     insertedBills++
+                    billIdMap[bill.id] = insertedId
                     bill.relatedBillId?.let { pendingRelated.add(insertedId to it) }
                 }
 
@@ -286,6 +291,27 @@ class BackupRepository(private val db: AppDatabase) {
                 }
             }
 
+            if (investmentLots != null) {
+                investmentLots.forEach { lot ->
+                    val newAssetId = assetIdMap[lot.assetId] ?: return@forEach
+                    val mappedSourceBillId = lot.sourceBillId?.let { billIdMap[it] }
+                    if (mappedSourceBillId != null &&
+                        db.investmentLotDao().getLotBySourceBillId(mappedSourceBillId) != null
+                    ) {
+                        skippedInvestmentLots++
+                        return@forEach
+                    }
+                    db.investmentLotDao().insertLot(
+                        lot.copy(
+                            id = 0L,
+                            assetId = newAssetId,
+                            sourceBillId = mappedSourceBillId
+                        )
+                    )
+                    insertedInvestmentLots++
+                }
+            }
+
             // ── 规则：追加 ──
             if (rules != null) {
                 rules.forEach {
@@ -297,7 +323,7 @@ class BackupRepository(private val db: AppDatabase) {
             // ── 聊天记录：追加 ──
             if (chatMessages != null) {
                 chatMessages.forEach { msg ->
-                    db.chatMessageDao().insert(msg.copy(id = 0))
+                    db.chatMessageDao().insert(remapChatBillReferences(msg, billIdMap).copy(id = 0))
                     insertedChatMessages++
                 }
             }
@@ -307,6 +333,8 @@ class BackupRepository(private val db: AppDatabase) {
             insertedAssets = insertedAssets, skippedAssets = skippedAssets,
             insertedCategories = insertedCategories, skippedCategories = skippedCategories,
             insertedBills = insertedBills, skippedBills = skippedBills,
+            insertedInvestmentLots = insertedInvestmentLots,
+            skippedInvestmentLots = skippedInvestmentLots,
             insertedRules = insertedRules, insertedChatMessages = insertedChatMessages
         )
     }
@@ -399,6 +427,8 @@ data class MergeRestoreResult(
     val skippedCategories: Int = 0,
     val insertedBills: Int = 0,
     val skippedBills: Int = 0,
+    val insertedInvestmentLots: Int = 0,
+    val skippedInvestmentLots: Int = 0,
     val insertedRules: Int = 0,
     val insertedChatMessages: Int = 0
 )

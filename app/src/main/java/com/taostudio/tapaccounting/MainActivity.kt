@@ -588,7 +588,7 @@ class MainActivity : AppCompatActivity() {
                     val tx = supportFragmentManager.beginTransaction()
                     if (cur != null) tx.hide(cur)
                     tx.show(target)
-                    tx.commitNow()
+                    tx.commitNowAllowingStateLoss()
                     resetTabViewState(cur?.view)
                     resetTabViewState(target.view)
                     currentTabIndex = newIndex
@@ -645,7 +645,7 @@ class MainActivity : AppCompatActivity() {
                     if (peekFrag != null) {
                         supportFragmentManager.beginTransaction()
                             .hide(peekFrag)
-                            .commitNow()
+                            .commitNowAllowingStateLoss()
                     }
                     resetTabViewState(peekView)
                     peekFragment = null

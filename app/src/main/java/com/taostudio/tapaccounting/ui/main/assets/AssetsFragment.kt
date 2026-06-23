@@ -1037,17 +1037,30 @@ class AssetsFragment : Fragment() {
         var netAsset = 0.0
         var totalAsset = 0.0
         var creditCardDebt = 0.0
+        var hasNaN = false
 
         displayAssets.forEach { asset ->
             if (asset.includeInNetAsset && !asset.isArchived) {
                 val balance = displayAmount(asset)
-                netAsset += balance
-                if (balance >= 0) totalAsset += balance
+                if (balance.isNaN()) {
+                    hasNaN = true
+                } else {
+                    netAsset += balance
+                    if (balance >= 0) totalAsset += balance
+                }
             }
             if (asset.assetCategory == Asset.CATEGORY_CREDIT_CARD && asset.includeInNetAsset && !asset.isArchived) {
                 val balance = displayAmount(asset)
-                if (balance < 0) creditCardDebt += balance
+                if (!balance.isNaN() && balance < 0) creditCardDebt += balance
             }
+        }
+
+        if (hasNaN) {
+            tvNetAsset.text = "需要网络更新"
+            tvTotalAsset.text = "需要网络更新"
+            tvTotalDebt.text = "需要网络更新"
+            updateRateStatus(needsRates, hasMissingRates = true, hasSyncedRates)
+            return
         }
 
         val currency = displayCurrency()
@@ -1152,10 +1165,14 @@ class AssetsFragment : Fragment() {
 
         val total = if (hasMissingRate) 0.0 else group
             .filter { it.includeInNetAsset && !it.isArchived }
-            .sumOf { displayAmount(it) }
+            .map { displayAmount(it) }
+            .filter { !it.isNaN() }
+            .sum()
         val excludedTotal = if (hasMissingRate) 0.0 else group
             .filterNot { it.includeInNetAsset && !it.isArchived }
-            .sumOf { displayAmount(it) }
+            .map { displayAmount(it) }
+            .filter { !it.isNaN() }
+            .sum()
 
         val card = CardView(ctx).apply {
             radius = resources.getDimension(R.dimen.asset_category_card_radius)

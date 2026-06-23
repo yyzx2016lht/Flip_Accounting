@@ -60,26 +60,26 @@ object CurrencyManager {
         }
     }
 
-    // 将指定货币转换为 CNY
+    // 将指定货币转换为 CNY；汇率缺失或为 0 时返回 NaN
     fun convertToCny(amount: Double, currency: String): Double {
         val normalized = normalizeCurrency(currency)
         if (normalized == "CNY") return amount
         val rate = rates[normalized]
-        if (rate == null) {
+        if (rate == null || rate == 0.0) {
             markMissingRate(normalized)
-            return amount
+            return Double.NaN
         }
-        return if (rate != 0.0) amount / rate else amount
+        return amount / rate
     }
 
-    // 将 CNY 转换为指定货币
+    // 将 CNY 转换为指定货币；汇率缺失或为 0 时返回 NaN
     fun convertFromCny(amountCny: Double, targetCurrency: String): Double {
         val normalized = normalizeCurrency(targetCurrency)
         if (normalized == "CNY") return amountCny
         val rate = rates[normalized]
-        if (rate == null) {
+        if (rate == null || rate == 0.0) {
             markMissingRate(normalized)
-            return amountCny
+            return Double.NaN
         }
         return amountCny * rate
     }
@@ -161,9 +161,10 @@ object CurrencyManager {
 
         updateExecutor.execute {
             var success = false
+            var conn: HttpURLConnection? = null
             try {
                 val url = URL(API_URL)
-                val conn = url.openConnection() as HttpURLConnection
+                conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
                 conn.connectTimeout = 5000
                 conn.readTimeout = 5000
@@ -202,6 +203,7 @@ object CurrencyManager {
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
+                conn?.disconnect()
                 isUpdatingRates.set(false)
                 dispatchPendingCallbacks(success)
             }
@@ -237,8 +239,11 @@ object CurrencyManager {
     }
 
     private fun dispatchPendingCallbacks(success: Boolean) {
-        val callbacks = pendingUpdateCallbacks.toList()
-        pendingUpdateCallbacks.clear()
+        val callbacks: List<(Boolean) -> Unit>
+        synchronized(pendingUpdateCallbacks) {
+            callbacks = pendingUpdateCallbacks.toList()
+            pendingUpdateCallbacks.clear()
+        }
         Handler(Looper.getMainLooper()).post {
             callbacks.forEach { cb ->
                 try {
