@@ -486,13 +486,12 @@ class ChatMessagePipeline(
                                     val bills = withContext(Dispatchers.IO) {
                                         queryDraftMgr.executeSearch(draft, queryContext)
                                     }
+                                    // executeSearch 已按 draft.billType 过滤，直接对结果求和
+                                    val statBills = bills.filterNot { it.excludeFromStats }
                                     val result = com.taostudio.tapaccounting.chat.query.QueryResult(
                                         draft = draft,
-                                        billCount = bills.size,
-                                        totalAmount = bills.filterNot { it.excludeFromStats }
-                                            .filter { it.type == com.taostudio.tapaccounting.data.local.entity.Bill.TYPE_EXPENSE &&
-                                                it.subType != com.taostudio.tapaccounting.data.local.entity.Bill.SUBTYPE_REFUND }
-                                            .sumOf { it.amount },
+                                        billCount = statBills.size,
+                                        totalAmount = statBills.sumOf { it.amount },
                                         billsPreview = bills.take(3).map {
                                             com.taostudio.tapaccounting.chat.query.BillPreview(
                                                 id = it.id, time = it.time, type = it.type,

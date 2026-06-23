@@ -1737,12 +1737,12 @@ class ChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val queryContext = withContext(Dispatchers.IO) { buildQueryContext() }
             val bills = withContext(Dispatchers.IO) { queryDraftManager.executeSearch(draft, queryContext) }
+            // executeSearch 已按 draft.billType 过滤，直接对结果求和即可
+            val statBills = bills.filterNot { it.excludeFromStats }
             val result = com.taostudio.tapaccounting.chat.query.QueryResult(
                 draft = draft,
-                billCount = bills.size,
-                totalAmount = bills.filterNot { it.excludeFromStats }
-                    .filter { it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND }
-                    .sumOf { it.amount },
+                billCount = statBills.size,
+                totalAmount = statBills.sumOf { it.amount },
                 billsPreview = bills.take(3).map {
                     com.taostudio.tapaccounting.chat.query.BillPreview(
                         id = it.id, time = it.time, type = it.type,
