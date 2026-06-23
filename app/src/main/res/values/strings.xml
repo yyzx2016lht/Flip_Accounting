@@ -1684,4 +1684,42 @@
     <string name="invalid_refund_amount">请输入有效的退款金额</string>
     <string name="asset_stats_title_fmt">资产统计-%1$s</string>
     <string name="income_expense_summary_fmt">收:%1$s%2$s 支:%1$s%3$s</string>
+
+    <!-- AI 查询助手 -->
+    <string name="query_draft_title">查询账单</string>
+    <string name="query_keyword">关键词</string>
+    <string name="query_category">分类</string>
+    <string name="query_asset">资产</string>
+    <string name="query_time_range">时间</string>
+    <string name="query_bill_type">类型</string>
+    <string name="query_book_scope">账本</string>
+    <string name="query_not_specified">未指定</string>
+    <string name="query_current_book">当前账本</string>
+    <string name="query_all_books">全部账本</string>
+    <string name="query_type_expense">支出</string>
+    <string name="query_type_income">收入</string>
+    <string name="query_type_transfer">转账</string>
+    <string name="query_type_repayment">还款</string>
+    <string name="query_type_refund">退款</string>
+    <string name="query_type_any">全部</string>
+    <string name="query_btn_stats">统计金额</string>
+    <string name="query_btn_search">搜索账单</string>
+    <string name="query_btn_cancel">取消</string>
+    <string name="query_btn_edit_keyword">改关键词</string>
+    <string name="query_btn_edit_date">改日期</string>
+    <string name="query_result_title">统计结果</string>
+    <string name="query_result_count_fmt">共 %1$d 笔，合计 %2$s</string>
+    <string name="query_result_no_match">没有查到匹配账单</string>
+    <string name="query_btn_view_details">查看明细</string>
+    <string name="query_btn_edit_conditions">改条件</string>
+    <string name="query_write_rejected">这个请求涉及新增、修改或删除账单。我现在只能帮你查询和打开相关页面。</string>
+    <string name="query_clarify_time">你想查哪个时间范围？例如"本月""上周"或"昨天"。</string>
+    <string name="query_clarify_keyword">你想查哪个关键词、分类或时间范围？</string>
+    <string name="query_hint_correction">可以继续对话修改条件，或点击按钮执行</string>
+    <string name="query_amount_fmt">%1$.2f</string>
+    <string name="query_bill_preview_fmt">%1$s %2$s %3$s %4$.2f</string>
+    <string name="query_edit_keyword_title">修改关键词</string>
+    <string name="query_edit_keyword_hint">输入关键词</string>
+    <string name="query_search_result_fmt">找到 %1$d 笔匹配账单</string>
+    <string name="query_stats_result_fmt">%1$s 共 %2$d 笔，合计 %3$s</string>
 </resources>

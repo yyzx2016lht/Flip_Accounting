@@ -92,6 +92,8 @@ class ChatActivity : AppCompatActivity() {
         const val MSG_TYPE_USER_VOICE = 2
         const val MSG_TYPE_AI_TEXT = 3
         const val MSG_TYPE_AI_BILL = 4
+        const val MSG_TYPE_QUERY_DRAFT = 5
+        const val MSG_TYPE_QUERY_RESULT = 6
         const val BILL_INTERACTION_NONE = 0
         const val BILL_INTERACTIVE_ACTION_PRIMARY = 1
         const val BILL_INTERACTIVE_ACTION_SECONDARY = 2
@@ -153,6 +155,14 @@ class ChatActivity : AppCompatActivity() {
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val aiScopeJob = SupervisorJob()
     private val aiWorkScope = CoroutineScope(aiScopeJob + Dispatchers.Main.immediate)
+    internal val queryDraftManager by lazy {
+        com.taostudio.tapaccounting.chat.query.QueryDraftManager(db) { currentBookName }
+    }
+
+    /** 构建查询上下文（供 QueryDraftManager 和 QueryPlanner 使用） */
+    internal suspend fun buildQueryContext(): com.taostudio.tapaccounting.chat.query.QueryContext {
+        return com.taostudio.tapaccounting.chat.query.QueryContextBuilder(db).build(currentBookName)
+    }
     private val messagePipeline by lazy {
         ChatMessagePipeline(
             context = this,
@@ -177,7 +187,9 @@ class ChatActivity : AppCompatActivity() {
             persistAiTextMessage = ::persistAiTextMessage,
             db = db,
             getCurrentBookName = { currentBookName },
-            getCurrentConversationId = { currentConversationId }
+            getCurrentConversationId = { currentConversationId },
+            appendQueryDraftMessage = { draft -> appendQueryDraftMessage(draft) },
+            appendQueryResultMessage = { result -> appendQueryResultMessage(result) }
         )
     }
     private val billCorrectionService by lazy {
@@ -255,7 +267,12 @@ class ChatActivity : AppCompatActivity() {
             },
             onInteractiveBillAction = ::onInteractiveBillAction,
             onOpenImagePreview = ::openImagePreview,
-            onInterruptAiLoading = ::interruptAiResponse
+            onInterruptAiLoading = ::interruptAiResponse,
+            onQueryDraftStats = { item -> onQueryDraftStats(item) },
+            onQueryDraftSearch = { item -> onQueryDraftSearch(item) },
+            onQueryDraftCancel = { item -> onQueryDraftCancel(item) },
+            onQueryResultViewDetails = { item -> onQueryResultViewDetails(item) },
+            onQueryResultEditConditions = { item -> onQueryResultEditConditions(item) }
         )
     }
     private val sessionAdapter by lazy {
@@ -1670,6 +1687,116 @@ class ChatActivity : AppCompatActivity() {
         messagePersistenceController.finalizeLoadingMessage(uiKey, text, bookName, conversationId)
     }
 
+    /** 追加查询草稿卡片消息 */
+    private fun appendQueryDraftMessage(draft: com.taostudio.tapaccounting.chat.query.QueryDraft): String {
+        val uiKey = UUID.randomUUID().toString()
+        val item = ChatDisplayItem(
+            msgType = MSG_TYPE_QUERY_DRAFT,
+            content = queryDraftManager.formatConditionsText(draft),
+            timestamp = System.currentTimeMillis(),
+            queryDraft = draft
+        )
+        displayMessages.add(item)
+        adapter.notifyItemInserted(displayMessages.lastIndex)
+        scrollToBottom()
+        return uiKey
+    }
+
+    /** 追加查询结果卡片消息 */
+    private fun appendQueryResultMessage(result: com.taostudio.tapaccounting.chat.query.QueryResult): String {
+        val uiKey = UUID.randomUUID().toString()
+        val item = ChatDisplayItem(
+            msgType = MSG_TYPE_QUERY_RESULT,
+            content = queryDraftManager.formatResultText(result),
+            timestamp = System.currentTimeMillis(),
+            queryResult = result
+        )
+        displayMessages.add(item)
+        adapter.notifyItemInserted(displayMessages.lastIndex)
+        scrollToBottom()
+        return uiKey
+    }
+
+    /** 用户点击"统计金额" */
+    private fun onQueryDraftStats(item: ChatDisplayItem) {
+        if (item.queryDraft == null) return
+        lifecycleScope.launch {
+            val context = withContext(Dispatchers.IO) { buildQueryContext() }
+            val result = withContext(Dispatchers.IO) { queryDraftManager.executeStats(context) }
+            if (result != null) {
+                appendQueryResultMessage(result)
+            }
+        }
+    }
+
+    /** 用户点击"搜索账单" */
+    private fun onQueryDraftSearch(item: ChatDisplayItem) {
+        if (item.queryDraft == null) return
+        lifecycleScope.launch {
+            val context = withContext(Dispatchers.IO) { buildQueryContext() }
+            val bills = withContext(Dispatchers.IO) { queryDraftManager.executeSearch(context) }
+            if (bills != null) {
+                val result = com.taostudio.tapaccounting.chat.query.QueryResult(
+                    draft = queryDraftManager.currentDraft!!,
+                    billCount = bills.size,
+                    totalAmount = bills.filter {
+                        it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND
+                    }.sumOf { it.amount },
+                    billsPreview = bills.take(3).map {
+                        com.taostudio.tapaccounting.chat.query.BillPreview(
+                            id = it.id,
+                            time = it.time,
+                            type = it.type,
+                            amount = it.amount,
+                            remark = it.remark,
+                            categoryName = it.categoryName,
+                            accountName = it.accountName,
+                            currency = it.currency
+                        )
+                    }
+                )
+                appendQueryResultMessage(result)
+            }
+        }
+    }
+
+    /** 用户点击"取消" */
+    private fun onQueryDraftCancel(item: ChatDisplayItem) {
+        queryDraftManager.clearDraft()
+        // 移除草稿卡片
+        val index = displayMessages.indexOfFirst { it.uiKey == item.uiKey }
+        if (index >= 0) {
+            displayMessages.removeAt(index)
+            adapter.notifyItemRemoved(index)
+        }
+    }
+
+    /** 用户点击"查看明细" */
+    private fun onQueryResultViewDetails(item: ChatDisplayItem) {
+        val result = item.queryResult ?: return
+        val draft = result.draft
+        val slots = com.taostudio.tapaccounting.chat.query.QuerySlots(
+            timeRange = draft.timeRange,
+            accountName = draft.assetName,
+            assetId = draft.assetId,
+            categoryName = draft.categoryName,
+            categoryId = draft.categoryId,
+            keyword = draft.keyword,
+            billType = draft.billType,
+            aggregation = draft.aggregation,
+            bookName = draft.bookName,
+            shouldNavigate = true
+        )
+        com.taostudio.tapaccounting.chat.query.QueryNavigator(this).openStatsPage(slots)
+    }
+
+    /** 用户点击"改条件" —— 重新展示草稿卡片 */
+    private fun onQueryResultEditConditions(item: ChatDisplayItem) {
+        val result = item.queryResult ?: return
+        // 重新展示草稿卡片
+        queryDraftManager.currentDraft?.let { appendQueryDraftMessage(it) }
+    }
+
     private fun scrollToBottom(force: Boolean = false) {
         if (!force && isInlineAmountEditing()) return
         if (displayMessages.isNotEmpty()) rvMessages.scrollToPosition(displayMessages.lastIndex)
@@ -1722,7 +1849,9 @@ data class ChatDisplayItem(
     val editedBillIds: MutableSet<Long> = mutableSetOf(),
     val billHint: String = "",
     val billInteractionMode: Int = ChatActivity.BILL_INTERACTION_NONE,
-    val billInteractionToken: String = ""
+    val billInteractionToken: String = "",
+    val queryDraft: com.taostudio.tapaccounting.chat.query.QueryDraft? = null,
+    val queryResult: com.taostudio.tapaccounting.chat.query.QueryResult? = null
 )
 
 data class VoicePayload(
