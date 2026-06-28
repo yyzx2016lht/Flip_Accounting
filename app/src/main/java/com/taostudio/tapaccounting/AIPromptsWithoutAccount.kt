@@ -19,7 +19,8 @@ object AIPromptsWithoutAccount {
 3. 严禁输出转账、还款语义；相关输入一律按更接近的支出或收入理解。
 4. 若未提及币种，默认 CNY。
 5. time 必须输出 yyyy-MM-dd HH:mm:ss，可按 1 秒递增。
-6. 不要输出 Markdown、解释、代码块。
+6. remarks 必须中文；外语用「中文译名(原文)」，禁止整段外语。
+7. 不要输出 Markdown、解释、代码块。
 
 【输出格式】
 {"bills":[{"amount":12.34,"type":0,"category_name":"餐饮 - 午餐","time":"2026-06-15 12:30:00","remarks":"黄焖鸡米饭","currency":"CNY"}]}

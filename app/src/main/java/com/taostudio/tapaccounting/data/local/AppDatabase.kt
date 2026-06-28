@@ -9,22 +9,56 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.taostudio.tapaccounting.data.local.dao.AiRuleDao
 import com.taostudio.tapaccounting.data.local.dao.AssetDao
 import com.taostudio.tapaccounting.data.local.dao.BillDao
+import com.taostudio.tapaccounting.data.local.dao.BudgetDao
 import com.taostudio.tapaccounting.data.local.dao.CategoryDao
 import com.taostudio.tapaccounting.data.local.dao.ChatMessageDao
 import com.taostudio.tapaccounting.data.local.dao.DeletedBillDao
 import com.taostudio.tapaccounting.data.local.dao.InvestmentLotDao
+import com.taostudio.tapaccounting.data.local.dao.RecurringPatternDao
 import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.data.local.entity.Budget
 import com.taostudio.tapaccounting.data.local.entity.Category
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.DeletedBill
 import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
+import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 
+/** 与 backupIfDowngrade 第三个参数保持同步。 */
+private const val DB_VERSION = 31
+
+/**
+ * Room 主库。改 schema 前请先读本节，避免误用破坏性迁移或漏改版本号。
+ *
+ * ## 升级（旧 APK → 新 APK，必须保留数据）
+ * - 每次改 [version]：新增 `MIGRATION_{旧}_{新}`，并加入 [getDatabase] 的 `.addMigrations(...)`。
+ * - 优先 `ALTER TABLE … ADD COLUMN … DEFAULT`；大改表用「建新表 → 拷数据 → 换名」。
+ * - **禁止** `.fallbackToDestructiveMigration()`：缺迁移应崩溃，不要静默清库。
+ * - **禁止** squash 历史迁移（不要 `fallbackToDestructiveMigrationFrom(5..30)`），除非接受全员丢数据。
+ * - 发版前：旧 APK 造数据 → 覆盖装新 APK → 验证账单/资产仍在。
+ *
+ * ## 降级（新 APK → 旧 APK，无法向前兼容 schema）
+ * - Room 不支持向下 Migration。策略：先备份整库 → 再清库重建，保证不闪退。
+ * - [DatabaseDowngradeHelper.backupIfDowngrade] 必须在 `Room.databaseBuilder().build()` **之前**调用。
+ * - `.fallbackToDestructiveMigrationOnDowngrade()` 会清空当前库；数据靠降级备份或用户导出的 `.bak` 恢复。
+ * - 降级备份**自动**、在内部存储；**仅当所装旧版 APK 也含本套逻辑时生效**。更老的 APK 仍会闪退且无自动备份。
+ *
+ * ## 版本号同步
+ * - 只改文件顶部的 [DB_VERSION] 一处即可（`@Database` 与 `backupIfDowngrade` 共用）。
+ *
+ * ## 与用户备份的关系
+ * - 用户手动 `.bak`（[com.taostudio.tapaccounting.data.backup.BackupManager]）可导出到文件/云盘，卸载后仍在。
+ * - 降级自动备份是另一套机制，二者互补；新增 entity 时需同时考虑 Migration 与 `.bak` 导出（见 [BackupRepository]）。
+ */
 @Database(
-    entities = [Bill::class, Asset::class, Category::class, AiRule::class, ChatMessage::class, InvestmentLot::class, DeletedBill::class],
-    version = 26,
+    entities = [
+        Bill::class, Asset::class, Category::class, AiRule::class,
+        ChatMessage::class, InvestmentLot::class, DeletedBill::class,
+        Budget::class, RecurringPattern::class
+    ],
+    version = DB_VERSION,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,10 +69,17 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun investmentLotDao(): InvestmentLotDao
     abstract fun deletedBillDao(): DeletedBillDao
+    abstract fun budgetDao(): BudgetDao
+    abstract fun recurringPatternDao(): RecurringPatternDao
 
     companion object {
+        /** 对外暴露的数据库版本号（与 [DB_VERSION] 相同）。 */
+        const val CODE_VERSION = DB_VERSION
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        // 迁移链从 v5 起保留；v1–v4 已无用户，可按需 .fallbackToDestructiveMigrationFrom(1,2,3,4)。
 
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -388,9 +429,93 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `budgets` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bookName` TEXT NOT NULL,
+                        `categoryId` INTEGER,
+                        `categoryName` TEXT,
+                        `yearMonth` TEXT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `currency` TEXT NOT NULL DEFAULT 'CNY',
+                        `alertThreshold` REAL NOT NULL DEFAULT 0.8,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
+        private val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `recurring_patterns` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `merchantKey` TEXT NOT NULL,
+                        `categoryId` INTEGER,
+                        `categoryName` TEXT,
+                        `accountName` TEXT,
+                        `bookName` TEXT NOT NULL,
+                        `amountApprox` REAL NOT NULL,
+                        `amountTolerance` REAL NOT NULL,
+                        `frequency` TEXT NOT NULL,
+                        `dayOfMonthHint` INTEGER,
+                        `lastSeenAt` INTEGER NOT NULL,
+                        `nextExpectedAt` INTEGER,
+                        `status` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
+        private val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE assets ADD COLUMN statementDay INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE assets ADD COLUMN dueDay INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `accounting_drafts` (
+                        `id` TEXT NOT NULL,
+                        `source` TEXT NOT NULL,
+                        `sourceMessageId` TEXT,
+                        `bookName` TEXT NOT NULL,
+                        `payloadJson` TEXT NOT NULL,
+                        `naturalSummary` TEXT,
+                        `riskFlagsJson` TEXT,
+                        `status` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `confirmedAt` INTEGER,
+                        PRIMARY KEY(`id`)
+                    )"""
+                )
+            }
+        }
+
+        private val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("DROP TABLE IF EXISTS `accounting_drafts`")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
+
+                // 降级防护（须在 build 之前）：db 文件版本 > 代码版本 → 自动拷整库，再交给下面的 OnDowngrade 清库。
+                // 不是用户手动 .bak，也不是闪退后备份。详见 DatabaseDowngradeHelper。
+                DatabaseDowngradeHelper.backupIfDowngrade(
+                    appCtx, "TapAccount_database", CODE_VERSION
+                )
+
                 val instance = Room.databaseBuilder(
                     appCtx,
                     AppDatabase::class.java,
@@ -417,8 +542,15 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_22_23,
                         MIGRATION_23_24,
                         MIGRATION_24_25,
-                        MIGRATION_25_26
+                        MIGRATION_25_26,
+                        MIGRATION_26_27,
+                        MIGRATION_27_28,
+                        MIGRATION_28_29,
+                        MIGRATION_29_30,
+                        MIGRATION_30_31
                     )
+                    // 仅处理降级：清库并按当前代码 schema 重建。升级缺迁移时仍应抛异常，不要改成 fallbackToDestructiveMigration()。
+                    .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
                 INSTANCE = instance
                 instance

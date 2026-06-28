@@ -376,6 +376,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             groupManageCurrencies.visibility = if (multiCurrencyEnabled) View.VISIBLE else View.GONE
         }
         switchShowMultiCur.isChecked = Prefs.isShowMultiCurrency(requireContext())
+        // 初始化多币种入口的可见状态
+        updateDataEntriesUi(Prefs.isShowMultiCurrency(requireContext()))
         switchShowMultiCur.setOnCheckedChangeListener { _, isChecked ->
             Prefs.setShowMultiCurrency(requireContext(), isChecked)
             updateDataEntriesUi(isChecked)
@@ -422,12 +424,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
 
         // --- 高级留存设置 ---
-        switchShowMultiCur.apply {
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setShowMultiCurrency(requireContext(), isChecked)
-                updateDataEntriesUi(isChecked)
-            }
-        }
 
         val btnShareLogs = view.findViewById<View>(R.id.btn_share_logs)
         view.findViewById<CompoundButton>(R.id.switch_logging).apply {

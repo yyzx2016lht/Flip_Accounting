@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
@@ -21,6 +22,8 @@ import kotlinx.coroutines.FlowPreview
 import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.data.local.dao.BillDao
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.logic.insight.InsightCardModel
+import com.taostudio.tapaccounting.logic.insight.InsightEngine
 import com.taostudio.tapaccounting.ui.main.stats.StatsExternalQueryFilter
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -86,6 +89,10 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatsUiState())
     val uiState = _uiState.asStateFlow()
+
+    /** 统计页洞察卡片（最多 4 张） */
+    private val _insightCards = MutableStateFlow<List<InsightCardModel>>(emptyList())
+    val insightCards: StateFlow<List<InsightCardModel>> = _insightCards.asStateFlow()
 
     private var loadJob: Job? = null
     private val dfMonthLabel = SimpleDateFormat("yyyy-MM", Locale.getDefault())
@@ -482,6 +489,14 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
                     }
                     _uiState.value = newState
                     putStatsCache(cacheKey, newState)
+
+                    // 计算洞察卡片（仅月模式）
+                    if (newState.isMonthMode) {
+                        _insightCards.value = InsightEngine.generateForStats(currentBills, prevBills)
+                    } else {
+                        _insightCards.value = emptyList()
+                    }
+
                     val cost = SystemClock.elapsedRealtime() - calcStart
                     Log.d(
                         TAG,

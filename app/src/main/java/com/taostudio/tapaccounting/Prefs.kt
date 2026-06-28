@@ -211,6 +211,10 @@ object Prefs {
         PrefsAiSupport.isImageAccountingNaturalLanguage(ctx)
     fun setImageAccountingNaturalLanguage(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setImageAccountingNaturalLanguage(ctx, enabled)
+    fun isScreenAccountingUseImageFlow(ctx: Context): Boolean =
+        PrefsAiSupport.isScreenAccountingUseImageFlow(ctx)
+    fun setScreenAccountingUseImageFlow(ctx: Context, enabled: Boolean) =
+        PrefsAiSupport.setScreenAccountingUseImageFlow(ctx, enabled)
     // --- Bill cache management ---
     fun addBill(ctx: Context, bill: Bill) = PrefsDataSupport.addBill(ctx, bill)
 
@@ -264,6 +268,26 @@ object Prefs {
 
     fun isShowHomeTrendCard(ctx: Context): Boolean =
         PrefsDisplaySupport.isShowHomeTrendCard(ctx)
+
+    fun isInsightCardsEnabled(ctx: Context): Boolean =
+        PrefsDisplaySupport.isInsightCardsEnabled(ctx)
+    fun setInsightCardsEnabled(ctx: Context, enabled: Boolean) =
+        PrefsDisplaySupport.setInsightCardsEnabled(ctx, enabled)
+
+    fun isHomeDashboardEnabled(ctx: Context): Boolean =
+        PrefsDisplaySupport.isHomeDashboardEnabled(ctx)
+    fun setHomeDashboardEnabled(ctx: Context, enabled: Boolean) =
+        PrefsDisplaySupport.setHomeDashboardEnabled(ctx, enabled)
+
+    fun isImportOnboardingSeen(ctx: Context): Boolean =
+        PrefsDisplaySupport.isImportOnboardingSeen(ctx)
+    fun setImportOnboardingSeen(ctx: Context, seen: Boolean) =
+        PrefsDisplaySupport.setImportOnboardingSeen(ctx, seen)
+
+    fun isImportReviewCompleted(ctx: Context): Boolean =
+        PrefsDisplaySupport.isImportReviewCompleted(ctx)
+    fun setImportReviewCompleted(ctx: Context, completed: Boolean) =
+        PrefsDisplaySupport.setImportReviewCompleted(ctx, completed)
     fun setShowHomeTrendCard(ctx: Context, show: Boolean) =
         PrefsDisplaySupport.setShowHomeTrendCard(ctx, show)
 

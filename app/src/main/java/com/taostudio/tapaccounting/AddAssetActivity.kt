@@ -61,6 +61,13 @@ class AddAssetActivity : AppCompatActivity() {
     private lateinit var etSearchType: EditText
     private lateinit var tvAssetCategory: TextView
     private lateinit var layoutAnnualInterestRate: View
+    private lateinit var layoutCreditLimit: View
+    private lateinit var etCreditLimit: EditText
+    private lateinit var layoutCreditCycle: View
+    private lateinit var tvStatementDay: TextView
+    private lateinit var tvDueDay: TextView
+    private var selectedStatementDay: Int = 0
+    private var selectedDueDay: Int = 0
 
     private var selectedType: String = ""
     private var selectedIcon: String = ""
@@ -155,6 +162,46 @@ class AddAssetActivity : AppCompatActivity() {
         etSearchType = findViewById(R.id.et_search_type)
         tvAssetCategory = findViewById(R.id.tv_asset_category)
         layoutAnnualInterestRate = findViewById(R.id.layout_annual_interest_rate)
+
+        // P1-5: 信用卡字段
+        layoutCreditLimit = findViewById(R.id.layout_credit_limit)
+        etCreditLimit = findViewById(R.id.et_credit_limit)
+        layoutCreditCycle = findViewById(R.id.layout_credit_cycle)
+        tvStatementDay = findViewById(R.id.tv_statement_day)
+        tvDueDay = findViewById(R.id.tv_due_day)
+
+        fun refreshDayLabels() {
+            tvStatementDay.text = getString(
+                R.string.credit_statement_day_value,
+                com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedStatementDay)
+            )
+            tvDueDay.text = getString(
+                R.string.credit_due_day_value,
+                com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedDueDay)
+            )
+        }
+        refreshDayLabels()
+        tvStatementDay.setOnClickListener {
+            com.taostudio.tapaccounting.ui.common.DayPickerDialog.show(
+                this,
+                getString(R.string.credit_statement_day),
+                selectedStatementDay
+            ) { day ->
+                selectedStatementDay = day
+                refreshDayLabels()
+            }
+        }
+        tvDueDay.setOnClickListener {
+            com.taostudio.tapaccounting.ui.common.DayPickerDialog.show(
+                this,
+                getString(R.string.credit_due_day),
+                selectedDueDay
+            ) { day ->
+                selectedDueDay = day
+                refreshDayLabels()
+            }
+        }
+
         refreshCurrencyDisplay()
 
         findViewById<View>(R.id.btn_back).setOnClickListener {
@@ -306,6 +353,23 @@ class AddAssetActivity : AppCompatActivity() {
                 originalPickerSortOrder = it.pickerSortOrder
                 updateAssetCategoryUI()
 
+                // P1-5: 加载信用卡字段
+                if (it.creditLimit > 0) etCreditLimit.setText(formatCompactDecimal(it.creditLimit))
+                selectedStatementDay = if (it.statementDay > 0) it.statementDay else 0
+                selectedDueDay = when {
+                    it.dueDay > 0 -> it.dueDay
+                    it.billingDay > 0 -> it.billingDay
+                    else -> 0
+                }
+                tvStatementDay.text = getString(
+                    R.string.credit_statement_day_value,
+                    com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedStatementDay)
+                )
+                tvDueDay.text = getString(
+                    R.string.credit_due_day_value,
+                    com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedDueDay)
+                )
+
                 Glide.with(this@AddAssetActivity)
                     .load(AssetIconDefaults.withDefault(it.icon))
                     .transform(CircleCrop())
@@ -433,7 +497,11 @@ class AddAssetActivity : AppCompatActivity() {
                 sortOrder = if (assetId == -1L) 0 else originalSortOrder,
                 pickerSortOrder = if (assetId == -1L) 0 else originalPickerSortOrder,
                 isArchived = existingAsset?.isArchived ?: false,
-                includeInNetBeforeArchive = existingAsset?.includeInNetBeforeArchive ?: true
+                includeInNetBeforeArchive = existingAsset?.includeInNetBeforeArchive ?: true,
+                // P1-5: 信用卡字段
+                creditLimit = etCreditLimit.text.toString().toDoubleOrNull() ?: (existingAsset?.creditLimit ?: 0.0),
+                statementDay = if (selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD) selectedStatementDay else (existingAsset?.statementDay ?: 0),
+                dueDay = if (selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD) selectedDueDay else (existingAsset?.dueDay ?: 0)
             )
 
             if (assetId == -1L) {
@@ -683,6 +751,11 @@ class AddAssetActivity : AppCompatActivity() {
         tvAssetCategory.text = Asset.categoryLabel(selectedAssetCategory)
         layoutAnnualInterestRate.visibility =
             if (selectedAssetCategory == Asset.CATEGORY_INVESTMENT) View.VISIBLE else View.GONE
+
+        // P1-5: 信用卡字段可见性
+        val isCreditCard = selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD
+        layoutCreditLimit.visibility = if (isCreditCard) View.VISIBLE else View.GONE
+        layoutCreditCycle.visibility = if (isCreditCard) View.VISIBLE else View.GONE
         tvAssetCategory.setTextColor(
             when (selectedAssetCategory) {
                 Asset.CATEGORY_CREDIT_CARD -> Color.parseColor("#F44336")

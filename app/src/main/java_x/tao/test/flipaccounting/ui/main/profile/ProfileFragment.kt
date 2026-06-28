@@ -409,6 +409,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 if (multiCurrencyEnabled || flipEnabled || Prefs.isDoubleTapEnabled(requireContext())) View.VISIBLE else View.GONE
         }
         switchShowMultiCur.isChecked = Prefs.isShowMultiCurrency(requireContext())
+        // 初始化多币种入口的可见状态
+        updateDataEntriesUi(switchFlip.isChecked, Prefs.isShowMultiCurrency(requireContext()))
         switchScreenAccounting.apply {
             isChecked = Prefs.isShowScreenAccounting(requireContext())
             setOnCheckedChangeListener { _, isChecked ->

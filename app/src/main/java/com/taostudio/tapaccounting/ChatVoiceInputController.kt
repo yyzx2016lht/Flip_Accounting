@@ -40,7 +40,8 @@ class ChatVoiceInputController(
     private val onVoiceRecorded: (java.io.File, Int) -> Unit,
     private val isInlineAmountEditing: () -> Boolean,
     private val ensureLastMessageVisible: () -> Unit,
-    private val refreshVoiceSupportHint: () -> Unit
+    private val refreshVoiceSupportHint: () -> Unit,
+    private val hasPendingImages: () -> Boolean = { false }
 ) {
     private val overlayUiHandler = Handler(Looper.getMainLooper())
     private var overlayTicker: Runnable? = null
@@ -71,15 +72,19 @@ class ChatVoiceInputController(
 
     fun updateInputActionUi() {
         val hasText = etInputProvider().text?.toString()?.trim()?.isNotEmpty() == true
+        val hasImages = hasPendingImages()
+        val canSend = hasText || hasImages
         if (isVoiceMode()) {
             btnSendProvider().visibility = android.view.View.GONE
             btnMoreInputProvider().visibility = android.view.View.VISIBLE
             btnSendProvider().alpha = 0.4f
             return
         }
-        btnSendProvider().visibility = if (hasText) android.view.View.VISIBLE else android.view.View.GONE
-        btnMoreInputProvider().visibility = if (hasText) android.view.View.GONE else android.view.View.VISIBLE
-        btnSendProvider().alpha = if (hasText) 1f else 0.4f
+        btnSendProvider().visibility = if (canSend) android.view.View.VISIBLE else android.view.View.GONE
+        // 纯文字时隐藏「+」；有图片时保留「+」以便继续添加
+        btnMoreInputProvider().visibility =
+            if (hasText && !hasImages) android.view.View.GONE else android.view.View.VISIBLE
+        btnSendProvider().alpha = if (canSend) 1f else 0.4f
     }
 
     fun startRecordingButtonPulse() {

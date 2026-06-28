@@ -1183,8 +1183,8 @@ class ChatActivity : AppCompatActivity() {
      */
     private fun dispatchToAccounting(text: String, images: List<PendingImage>) {
         if (images.isNotEmpty()) {
-            val useDraft = Prefs.isReceiptImageDraftConfirmEnabled(this)
-            val payload = ChatImageComposer.encodeMultiImagePayload(images, text, useDraft)
+            val useNaturalLanguage = Prefs.isImageAccountingNaturalLanguage(this)
+            val payload = ChatImageComposer.encodeMultiImagePayload(images, text, useNaturalLanguage)
             images.forEach { img ->
                 appendUserMessage("", MSG_TYPE_USER_IMAGE, img.uri?.toString().orEmpty())
             }
@@ -1426,6 +1426,7 @@ class ChatActivity : AppCompatActivity() {
                 }
 
                 btnCancel.setOnClickListener { finish(null) }
+
                 btnConfirm.setOnClickListener {
                     val edited = etDraft.text?.toString().orEmpty().trim()
                     if (edited.isBlank()) {
@@ -1465,6 +1466,23 @@ class ChatActivity : AppCompatActivity() {
         val category = bill.categoryName.ifBlank { getString(R.string.uncategorized) }
         val main = bill.remark.ifBlank { category }
         return "$typeLabel $amountText ${bill.currency} · $main"
+    }
+
+    /**
+     * 从单笔账单 JSON 构建摘要文本，用于草稿 naturalSummary 显示。
+     */
+    fun buildSingleBillSummary(billJson: org.json.JSONObject): String {
+        val category = billJson.optString("category_name", billJson.optString("categoryName", ""))
+        val remark = billJson.optString("remarks", billJson.optString("remark", ""))
+        val amount = billJson.optDouble("amount", 0.0)
+        val currency = billJson.optString("currency", "CNY")
+        val account = billJson.optString("asset_name", billJson.optString("accountName", ""))
+        val parts = mutableListOf<String>()
+        if (remark.isNotBlank()) parts.add(remark)
+        if (category.isNotBlank()) parts.add(category)
+        if (amount > 0) parts.add("${String.format("%.2f", amount)} $currency")
+        if (account.isNotBlank()) parts.add(account)
+        return parts.joinToString(" · ").take(120)
     }
 
     private fun onInteractiveBillAction(item: ChatDisplayItem, bill: Bill, action: Int) {

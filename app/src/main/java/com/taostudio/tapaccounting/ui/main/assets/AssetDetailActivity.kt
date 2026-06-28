@@ -88,6 +88,7 @@ class AssetDetailActivity : AppCompatActivity() {
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var layoutBalancePanelTap: View
     private lateinit var tvAssetBalance: TextView
+    private lateinit var tvCreditCycleSummary: TextView
     private lateinit var tvAssetRemark: TextView
     private lateinit var tvArchiveAction: TextView
     private lateinit var toolbarDoubleTapDetector: GestureDetector
@@ -182,8 +183,17 @@ class AssetDetailActivity : AppCompatActivity() {
             showDeleteConfirmDialog()
         }
 
+        // P0-2: 对账入口（余额区域，避免工具栏按钮过多）
+        findViewById<View>(R.id.tv_reconcile_entry)?.setOnClickListener {
+            startActivity(
+                Intent(this, com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity::class.java)
+                    .putExtra(com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity.EXTRA_ASSET_ID, assetId)
+            )
+        }
+
         layoutBalancePanelTap = findViewById(R.id.layout_balance_panel_tap)
         tvAssetBalance = findViewById(R.id.tv_asset_balance)
+        tvCreditCycleSummary = findViewById(R.id.tv_credit_cycle_summary)
         tvAssetRemark = findViewById(R.id.tv_asset_remark)
         tvArchiveAction = findViewById(R.id.tv_archive_action)
         layoutBalancePanelTap.setOnClickListener { showBillBalanceDisplaySheet() }
@@ -515,6 +525,55 @@ class AssetDetailActivity : AppCompatActivity() {
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
         if (!asset.includeInNetAsset) noteParts += "不计入总资产"
         if (asset.isArchived) noteParts += "已收纳"
+
+        // P1-6: 信用卡周期快照
+        if (asset.assetCategory == Asset.CATEGORY_CREDIT_CARD) {
+            val cycleService = com.taostudio.tapaccounting.logic.CreditCardCycleService()
+            lifecycleScope.launch {
+                val bills = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    db.billDao().getBillsByAssetIdOrNameList(asset.id, asset.name)
+                }
+                val snapshot = cycleService.calculateSnapshot(asset, bills)
+                val stmt = asset.statementDay.takeIf { it > 0 } ?: cycleService.getStatementDay(asset).takeIf { it > 0 }
+                val due = asset.dueDay.takeIf { it > 0 } ?: cycleService.getDueDay(asset).takeIf { it > 0 }
+                if (stmt != null || due != null || snapshot != null) {
+                    val summaryParts = mutableListOf<String>()
+                    if (stmt != null) summaryParts += getString(R.string.credit_statement_day_value, "${stmt}号")
+                    if (due != null) summaryParts += getString(R.string.credit_due_day_value, "${due}号")
+                    if (snapshot != null) {
+                        summaryParts += getString(R.string.credit_due_amount_fmt, snapshot.amountDue)
+                        snapshot.daysToDue?.let { summaryParts += getString(R.string.credit_days_to_due_fmt, it) }
+                    }
+                    tvCreditCycleSummary.visibility = View.VISIBLE
+                    tvCreditCycleSummary.text = summaryParts.joinToString(" · ")
+                } else {
+                    tvCreditCycleSummary.visibility = View.VISIBLE
+                    tvCreditCycleSummary.text = getString(R.string.credit_cycle_not_configured)
+                }
+                if (snapshot != null) {
+                    if (snapshot.unbilledSpend > 0) {
+                        noteParts += "未出账 ¥${String.format("%.0f", snapshot.unbilledSpend)}"
+                    }
+                    if (snapshot.availableLimit != null) {
+                        noteParts += "剩余额度 ¥${String.format("%.0f", snapshot.availableLimit)}"
+                    }
+                }
+                val remarkText = noteParts.joinToString(" · ")
+                tvAssetBalance.text = balanceText
+                if (remarkText.isBlank()) {
+                    tvAssetRemark.visibility = View.GONE
+                } else {
+                    tvAssetRemark.visibility = View.VISIBLE
+                    tvAssetRemark.text = remarkText
+                }
+                tvArchiveAction.text = if (asset.isArchived) "移出收纳资产" else "收纳这个资产"
+                return@launch
+            }
+            return // 异步处理，提前返回
+        }
+
+        tvCreditCycleSummary.visibility = View.GONE
+
         val remarkText = noteParts.joinToString(" · ")
         tvAssetBalance.text = balanceText
         if (remarkText.isBlank()) {

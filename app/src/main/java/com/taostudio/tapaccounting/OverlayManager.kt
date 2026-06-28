@@ -405,12 +405,15 @@ class OverlayManager(private val ctx: Context) {
     }
 
     private fun launchSystemScreenCaptureActivity() {
-        ScreenCaptureActivity.onRecognitionResult = { result -> handleAiResult(result) }
+        ScreenCaptureActivity.onScreenshotCaptured = { uri ->
+            hideScreenCaptureLoadingOverlay()
+            finishScreenCaptureFlow(restoreOverlay = false)
+            aiAssistant.analyzeScreenshot(uri, handleAiResult)
+        }
         ScreenCaptureActivity.onRecognitionError = { message -> handleScreenCaptureError(message) }
         ScreenCaptureActivity.onRecognitionCancelled = { handleScreenCaptureCancelled() }
         val intent = android.content.Intent(ctx, ScreenCaptureActivity::class.java).apply {
             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(ScreenCaptureActivity.EXTRA_IS_MULTI_MODE, true)
         }
         Logger.d(ctx, "OverlayManager", "Launching ScreenCaptureActivity")
         updateScreenCaptureLoadingStatus(ctx.getString(R.string.requesting_capture_permission))
@@ -456,7 +459,7 @@ class OverlayManager(private val ctx: Context) {
                     hideScreenCaptureLoadingOverlay()
                     finishScreenCaptureFlow(restoreOverlay = false)
                     if (uri != null) {
-                        aiAssistant.analyzeImage(uri, handleAiResult)
+                        aiAssistant.analyzeScreenshot(uri, handleAiResult)
                     } else {
                         Utils.toast(ctx, ctx.getString(R.string.toast_capture_failed))
                     }
@@ -497,7 +500,7 @@ class OverlayManager(private val ctx: Context) {
                         hideScreenCaptureLoadingOverlay()
                         finishScreenCaptureFlow(restoreOverlay = false)
                         if (uri != null) {
-                            aiAssistant.analyzeImage(uri, handleAiResult)
+                            aiAssistant.analyzeScreenshot(uri, handleAiResult)
                         } else {
                             Utils.toast(ctx, ctx.getString(R.string.toast_capture_failed))
                         }
@@ -682,7 +685,7 @@ class OverlayManager(private val ctx: Context) {
         screenCaptureTriggerBtn?.isEnabled = true
         screenCaptureTriggerBtn?.animate()?.alpha(1f)?.setDuration(120L)?.start()
         screenCaptureTriggerBtn = null
-        ScreenCaptureActivity.onRecognitionResult = null
+        ScreenCaptureActivity.onScreenshotCaptured = null
         ScreenCaptureActivity.onRecognitionError = null
         ScreenCaptureActivity.onRecognitionCancelled = null
     }

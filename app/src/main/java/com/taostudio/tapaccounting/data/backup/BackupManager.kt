@@ -10,6 +10,26 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+/**
+ * 用户可见的 **`.bak` 备份文件**（ZIP 包 JSON + 媒体），与 [DatabaseDowngradeHelper] 的降级自动整库备份无关。
+ *
+ * ## 职责边界
+ * | 机制 | 本类 / BackupActivity | DatabaseDowngradeHelper |
+ * |------|----------------------|-------------------------|
+ * | 触发 | 用户手动或自动备份任务 | 装旧版 APK 后首次打开 |
+ * | 格式 | `.bak`（JSON 模块） | 原始 `.db` 文件 |
+ * | 卸载后 | 文件仍在用户目录/云盘 | 随 App 内部存储删除 |
+ *
+ * ## 新增 Room 表/字段时
+ * 除在 [AppDatabase] 写 Migration 外，还需同步：
+ * - [BackupRepository.getFullData] / [BackupRepository.restoreFullData]
+ * - [DataExportManager] 序列化
+ * - [BackupActivity] 恢复模块勾选 UI（如有独立模块）
+ *
+ * ## 不要
+ * - 不要用本类替代 Room Migration（`.bak` 是灾备，不是升级路径）。
+ * - 不要在恢复逻辑里 `fallbackToDestructiveMigration()` 清库。
+ */
 object BackupManager {
     private val gson = Gson()
     private const val BANNER_ZIP_PREFIX = "banners/"

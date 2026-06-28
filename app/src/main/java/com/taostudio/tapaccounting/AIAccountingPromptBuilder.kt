@@ -37,11 +37,15 @@ internal fun buildAccountingSystemPrompt(
 internal fun buildScreenAccountingSystemPrompt(
     ctx: Context,
     promptContext: AIAccountingPromptContext,
-    isFromChat: Boolean = false
+    isFromChat: Boolean = false,
+    quickScreenMode: Boolean = false
 ): String {
     // 统一使用同一个图片记账 prompt，输出格式差异由 taskInstruction / user message 控制
     // System prompt 完全静态（不含任何动态数据），数据通过 user message 注入
     var prompt = AIPrompts.IMAGE_ACCOUNTING_PROMPT
+    if (quickScreenMode) {
+        prompt += AIPrompts.SCREEN_CAPTURE_DIRECT_PROMPT_ADDON
+    }
 
     // 动态规则对两个场景通用，且不与基础 prompt 冲突
     prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)

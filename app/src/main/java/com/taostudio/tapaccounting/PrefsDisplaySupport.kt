@@ -21,6 +21,10 @@ object PrefsDisplaySupport {
     private const val KEY_BILL_SHOW_FULL_CATEGORY = "bill_show_full_category_v1"
     private const val KEY_BILL_REMARK_PRIORITY = "bill_remark_priority_v1"
     private const val KEY_INDEPENDENT_DETAIL = "independent_detail_enabled_v1"
+    private const val KEY_INSIGHT_CARDS_ENABLED = "insight_cards_enabled"
+    private const val KEY_HOME_DASHBOARD_ENABLED = "home_dashboard_enabled"
+    private const val KEY_IMPORT_ONBOARDING_SEEN = "import_onboarding_seen_v1"
+    private const val KEY_IMPORT_REVIEW_COMPLETED = "import_review_completed_v1"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -103,5 +107,25 @@ object PrefsDisplaySupport {
         prefs(ctx).getBoolean(KEY_INDEPENDENT_DETAIL, false)
     fun setIndependentDetailEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_INDEPENDENT_DETAIL, enabled).apply()
+
+    fun isInsightCardsEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_INSIGHT_CARDS_ENABLED, true)
+    fun setInsightCardsEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_INSIGHT_CARDS_ENABLED, enabled).apply()
+
+    fun isHomeDashboardEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_HOME_DASHBOARD_ENABLED, true)
+    fun setHomeDashboardEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_HOME_DASHBOARD_ENABLED, enabled).apply()
+
+    fun isImportOnboardingSeen(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_IMPORT_ONBOARDING_SEEN, false)
+    fun setImportOnboardingSeen(ctx: Context, seen: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_IMPORT_ONBOARDING_SEEN, seen).apply()
+
+    fun isImportReviewCompleted(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_IMPORT_REVIEW_COMPLETED, false)
+    fun setImportReviewCompleted(ctx: Context, completed: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_IMPORT_REVIEW_COMPLETED, completed).apply()
 }
 

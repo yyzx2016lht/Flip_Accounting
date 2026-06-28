@@ -528,6 +528,20 @@ class HomeFragment : Fragment() {
         val collectStartMs = System.currentTimeMillis()
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // 收集洞察卡片
+                launch {
+                    homeViewModel.insightCards.collect { cards ->
+                        homeAdapter.insightCards = cards
+                        homeAdapter.submitList(homeViewModel.uiState.value.monthlyBills)
+                    }
+                }
+                // 收集驾驶舱卡片
+                launch {
+                    homeViewModel.dashboardCards.collect { cards ->
+                        homeAdapter.dashboardCards = cards
+                        homeAdapter.submitList(homeViewModel.uiState.value.monthlyBills)
+                    }
+                }
                 homeViewModel.uiState.collect { state ->
                     val lag = System.currentTimeMillis() - collectStartMs
                     Log.d("HomePerf", "collect emission: bills=${state.monthlyBills.size}  isLoading=${state.isLoading}  [+${lag}ms since collect registered]")

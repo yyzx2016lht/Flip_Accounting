@@ -50,6 +50,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+/**
+ * 备份与恢复 UI 入口。导出/导入的是 [BackupManager] 的 `.bak` 文件。
+ *
+ * 降级场景：若需提示用户恢复 [com.taostudio.tapaccounting.data.local.DatabaseDowngradeHelper]
+ * 的自动 `.db` 备份，可在此或 [BackupHomeActivity] 检测 `listBackups()` / `getLastBackupInfo()`，
+ * 与 `.bak` 流程分开处理。
+ */
 class BackupActivity : AppCompatActivity() {
     private enum class BackupPreset { LITE, FULL, CUSTOM }
     private enum class BackupPinMode { AUTO, FORCE, PLAIN }
@@ -1468,6 +1475,12 @@ class BackupActivity : AppCompatActivity() {
                                             ""
                                         }
                                         Utils.toast(this@BackupActivity, getString(R.string.import_success_fmt, importResult.billCount, assetHint))
+
+                                        // P0-3: CSV 导入后若有临时资产，跳转审查页
+                                        if (importResult.createdAssetNames.isNotEmpty()) {
+                                            startActivity(Intent(this@BackupActivity, com.taostudio.tapaccounting.ui.import.ImportReviewActivity::class.java))
+                                        }
+
                                         if (intent?.getStringExtra(EXTRA_OPEN_SECTION) == SECTION_CSV && isQuickOneShot()) finish()
                                     }
                                 } catch (e: Exception) {

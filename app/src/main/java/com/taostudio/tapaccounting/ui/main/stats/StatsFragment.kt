@@ -47,9 +47,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.AmountFormatHelper
 import com.taostudio.tapaccounting.BookAccountManager
+import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.ui.main.home.InsightCardAdapter
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.ui.common.UiMotion
 import com.taostudio.tapaccounting.ui.common.UiMotion.crossfadeText
@@ -87,6 +89,9 @@ class StatsFragment : Fragment() {
     }
 
     private lateinit var pieChart: PieChart
+    private lateinit var rvInsightCards: RecyclerView
+    private lateinit var tvInsightEmpty: TextView
+    private lateinit var insightCardAdapter: InsightCardAdapter
     private lateinit var rvCategoryList: RecyclerView
     private lateinit var categoryAdapter: CategoryStatsAdapter
     private var isCategoryExpense = true
@@ -278,6 +283,15 @@ class StatsFragment : Fragment() {
 
         pieChart = root.findViewById(R.id.pie_chart)
 
+        rvInsightCards = root.findViewById(R.id.rvInsightCards)
+        tvInsightEmpty = root.findViewById(R.id.tv_insight_empty)
+        rvInsightCards.layoutManager = LinearLayoutManager(context)
+        rvInsightCards.isNestedScrollingEnabled = false
+        rvInsightCards.overScrollMode = View.OVER_SCROLL_NEVER
+        rvInsightCards.itemAnimator = null
+        insightCardAdapter = InsightCardAdapter()
+        rvInsightCards.adapter = insightCardAdapter
+
         tvTotalExpense = root.findViewById(R.id.tv_total_expense)
         tvTotalIncome = root.findViewById(R.id.tv_total_income)
         tvBalance = root.findViewById(R.id.tv_balance)
@@ -412,6 +426,16 @@ class StatsFragment : Fragment() {
                 emptyMessage = "暂无退款账单"
             )
         }
+
+        // P0-1: 预算管理入口
+        root.findViewById<View>(R.id.row_budget_entry)?.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), com.taostudio.tapaccounting.ui.budget.BudgetManageActivity::class.java))
+        }
+
+        // P0-4: 周期账单入口
+        root.findViewById<View>(R.id.row_recurring_entry)?.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), com.taostudio.tapaccounting.ui.recurring.RecurringBillsActivity::class.java))
+        }
     }
 
     private fun updateModeTabStyles(isMonthMode: Boolean) {
@@ -476,6 +500,25 @@ class StatsFragment : Fragment() {
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // 收集洞察卡片
+                launch {
+                    viewModel.insightCards.collect { cards: List<com.taostudio.tapaccounting.logic.insight.InsightCardModel> ->
+                        val enabled = Prefs.isInsightCardsEnabled(requireContext())
+                        if (enabled && cards.isNotEmpty()) {
+                            insightCardAdapter.submitList(cards)
+                            rvInsightCards.visibility = View.VISIBLE
+                            tvInsightEmpty.visibility = View.GONE
+                        } else if (enabled) {
+                            insightCardAdapter.submitList(emptyList())
+                            rvInsightCards.visibility = View.GONE
+                            tvInsightEmpty.visibility = View.VISIBLE
+                        } else {
+                            insightCardAdapter.submitList(emptyList())
+                            rvInsightCards.visibility = View.GONE
+                            tvInsightEmpty.visibility = View.GONE
+                        }
+                    }
+                }
                 viewModel.uiState.collect { state ->
                     if (state.isLoading && state.bills.isEmpty() && lastScreenRenderKey == null) {
                         return@collect

@@ -58,6 +58,11 @@ class BackupHomeActivity : AppCompatActivity() {
                     .putExtra(BackupActivity.EXTRA_QUICK_ONESHOT, true)
             )
         }
+
+        // P0-3: 从其他 App 迁移入口
+        findViewById<MaterialButton>(R.id.btn_import_migration)?.setOnClickListener {
+            startActivity(Intent(this, com.taostudio.tapaccounting.ui.import.ImportOnboardingActivity::class.java))
+        }
     }
 
     override fun onResume() {

@@ -35,16 +35,18 @@ object ChatImageComposer {
      *
      * For single-image payloads the legacy [ReceiptImageInputHelper.MULTIMODAL_DIRECT_PREFIX]
      * format is still produced so existing pipeline paths keep working.
+     *
+     * @param useNaturalLanguagePrefix true → natural-language vision path; false → direct JSON path
      */
     fun encodeMultiImagePayload(
         images: List<PendingImage>,
         supplement: String,
-        useDraftPrefix: Boolean
+        useNaturalLanguagePrefix: Boolean
     ): String {
         require(images.isNotEmpty()) { "images must not be empty" }
         if (images.size == 1) {
             val img = images.first()
-            val prefix = if (useDraftPrefix) {
+            val prefix = if (useNaturalLanguagePrefix) {
                 ReceiptImageInputHelper.MULTIMODAL_PREFIX
             } else {
                 ReceiptImageInputHelper.MULTIMODAL_DIRECT_PREFIX

@@ -171,14 +171,39 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/tv_credit_cycle_summary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_search_box"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:textColor="@color/brand_primary"
+                android:textSize="@dimen/text_size_13"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/tv_asset_remark"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textColor="@color/asset_summary_label"
                 android:textSize="@dimen/text_size_12"
-                android:visibility="gone"
-                tools:text="报销专用 · 不计入总资产" />
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_reconcile_entry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:text="@string/reconcile_entry"
+                android:textColor="@color/brand_primary"
+                android:textSize="@dimen/text_size_13" />
 
             <TextView
                 android:id="@+id/tv_archive_action"

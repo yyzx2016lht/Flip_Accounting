@@ -591,6 +591,24 @@ class AiAssistant(private val ctx: Context) {
         analyzeImages(listOf(imageUri), onResult)
     }
 
+    /** 截屏记账入口：默认直出 JSON；开启「截屏沿用图片记账」时走图片记账流程 */
+    fun analyzeScreenshot(imageUri: Uri, onResult: (JSONObject) -> Unit) {
+        if (!ensureOverlayPermission()) return
+        lastReceiptImageUri = imageUri
+        if (Prefs.isScreenAccountingUseImageFlow(ctx)) {
+            analyzeImage(imageUri, onResult)
+        } else {
+            dispatchImageAccounting(
+                imageUris = listOf(imageUri),
+                supplementText = "",
+                naturalLanguage = false,
+                onResult = onResult,
+                sourceKind = "screen_capture",
+                quickScreenMode = true
+            )
+        }
+    }
+
     fun analyzeImages(imageUris: List<Uri>, onResult: (JSONObject) -> Unit) {
         if (!ensureOverlayPermission()) return
         if (imageUris.isEmpty()) return
@@ -651,7 +669,9 @@ class AiAssistant(private val ctx: Context) {
         imageUris: List<Uri>,
         supplementText: String,
         naturalLanguage: Boolean,
-        onResult: (JSONObject) -> Unit
+        onResult: (JSONObject) -> Unit,
+        sourceKind: String = "receipt_image",
+        quickScreenMode: Boolean = false
     ) {
         // 安全关闭 showSupplementInput 的旧弹窗：
         // 先移除 dismiss 监听，避免它将 currentDialog 置空，
@@ -662,11 +682,17 @@ class AiAssistant(private val ctx: Context) {
         if (naturalLanguage) {
             analyzeImageNaturalLanguage(imageUris, supplementText, onResult)
         } else {
-            analyzeImageDirect(imageUris, supplementText, onResult)
+            analyzeImageDirect(imageUris, supplementText, onResult, sourceKind, quickScreenMode)
         }
     }
 
-    private fun analyzeImageDirect(imageUris: List<Uri>, supplementText: String, onResult: (JSONObject) -> Unit) {
+    private fun analyzeImageDirect(
+        imageUris: List<Uri>,
+        supplementText: String,
+        onResult: (JSONObject) -> Unit,
+        sourceKind: String = "receipt_image",
+        quickScreenMode: Boolean = false
+    ) {
         if (!ensureOverlayPermission()) return
         lastReceiptImageUri = imageUris.first()
 
@@ -712,8 +738,9 @@ class AiAssistant(private val ctx: Context) {
                         ctx = ctx,
                         imageBase64 = payloads[0].base64,
                         mimeType = payloads[0].mime,
-                        sourceKind = "receipt_image",
+                        sourceKind = sourceKind,
                         supplementText = supplementText,
+                        quickScreenMode = quickScreenMode,
                         onProgress = { status ->
                             Handler(Looper.getMainLooper()).post {
                                 Logger.d(ctx, "StreamPreview", "onProgress: status=${status.take(60)}, dialogShowing=${currentDialog?.isShowing}")
@@ -730,8 +757,9 @@ class AiAssistant(private val ctx: Context) {
                     AIService.analyzeScreenAccountingByImages(
                         ctx = ctx,
                         images = payloads.map { it.base64 to it.mime },
-                        sourceKind = "receipt_image",
+                        sourceKind = sourceKind,
                         supplementText = supplementText,
+                        quickScreenMode = quickScreenMode,
                         onProgress = { status ->
                             Handler(Looper.getMainLooper()).post {
                                 if (currentDialog?.isShowing != true) return@post

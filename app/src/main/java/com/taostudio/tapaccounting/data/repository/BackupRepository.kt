@@ -15,6 +15,12 @@ import com.taostudio.tapaccounting.data.local.entity.DeletedBill
 import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
 
+/**
+ * 从 Room 读出业务数据供 `.bak` 导出，或把 `.bak` 写回数据库。
+ *
+ * 恢复时会重建 ID 映射（分类/资产/账单外键），与 [AppDatabase] Migration 无关。
+ * 新增 [com.taostudio.tapaccounting.data.local.entity] 后请同步 [getFullData] 与 [restoreFullData]。
+ */
 class BackupRepository(private val db: AppDatabase) {
 
     suspend fun getFullData(): Map<String, Any> {

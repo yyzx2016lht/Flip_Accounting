@@ -59,7 +59,7 @@ class QueryDraftManager(
         val timeRange = if (rangeObj != null) {
             val startMillis = rangeObj.optLong("startMillis", 0L).takeIf { it > 0L }
             val endMillis = rangeObj.optLong("endMillis", 0L).takeIf { it > 0L }
-            val label = rangeObj.optString("label", "").ifBlank { null }
+            val label = cleanSlotString(rangeObj.optString("label", ""))
             if (startMillis != null && endMillis != null) {
                 QueryTimeRange(startMillis = startMillis, endMillis = endMillis, label = label)
             } else {
@@ -81,10 +81,10 @@ class QueryDraftManager(
         val aggregation = runCatching { QueryAggregation.valueOf(aggregationStr) }.getOrDefault(QueryAggregation.TOTAL)
 
         // 解析关键词、分类、资产
-        val keyword = slotsObj.optString("keyword", "").ifBlank { null }
-        val categoryName = slotsObj.optString("categoryName", "").ifBlank { null }
-        val assetName = slotsObj.optString("assetName", "").ifBlank { null }
-        val bookName = slotsObj.optString("bookName", "").ifBlank { null }
+        val keyword = cleanSlotString(slotsObj.optString("keyword", ""))
+        val categoryName = cleanSlotString(slotsObj.optString("categoryName", ""))
+        val assetName = cleanSlotString(slotsObj.optString("assetName", ""))
+        val bookName = cleanSlotString(slotsObj.optString("bookName", ""))
 
         // 解析资产和分类 ID
         val resolvedAsset = assetName?.let { name ->
@@ -99,8 +99,8 @@ class QueryDraftManager(
         val draft = QueryDraft(
             queryType = queryType,
             keyword = keyword,
-            categoryId = resolvedCategory?.id,
-            categoryName = resolvedCategory?.name ?: categoryName,
+            categoryId = resolvedCategory?.id.takeIf { supportsCategory(billType) },
+            categoryName = (resolvedCategory?.name ?: categoryName).takeIf { supportsCategory(billType) },
             assetId = resolvedAsset?.id,
             assetName = resolvedAsset?.name ?: assetName,
             bookScope = bookScope,
@@ -130,6 +130,19 @@ class QueryDraftManager(
         )
     }
 
+    private fun cleanSlotString(raw: String?): String? {
+        val value = raw?.trim().orEmpty()
+        return value
+            .takeIf { it.isNotBlank() }
+            ?.takeUnless { it.equals("null", ignoreCase = true) || it.equals("undefined", ignoreCase = true) }
+    }
+
+    private fun supportsCategory(billType: QueryBillType): Boolean =
+        billType == QueryBillType.EXPENSE ||
+            billType == QueryBillType.INCOME ||
+            billType == QueryBillType.REFUND ||
+            billType == QueryBillType.ANY
+
     /**
      * 从 AI Query Extractor 的 UPDATE_DRAFT 输出合并更新当前草稿。
      * AI 只输出需要更新的字段，未出现的字段保持原值。
@@ -138,12 +151,12 @@ class QueryDraftManager(
         val existing = currentDraft ?: return null
         val slotsObj = aiJson.optJSONObject("slots") ?: return null
 
-        val newKeyword = slotsObj.optString("keyword", "").ifBlank { null } ?: existing.keyword
-        val newCategoryName = slotsObj.optString("categoryName", "").ifBlank { null } ?: existing.categoryName
-        val newAssetName = slotsObj.optString("assetName", "").ifBlank { null } ?: existing.assetName
-        val newBillTypeStr = slotsObj.optString("billType", "").ifBlank { null }
+        val newKeyword = cleanSlotString(slotsObj.optString("keyword", "")) ?: existing.keyword
+        val newCategoryName = cleanSlotString(slotsObj.optString("categoryName", "")) ?: existing.categoryName
+        val newAssetName = cleanSlotString(slotsObj.optString("assetName", "")) ?: existing.assetName
+        val newBillTypeStr = cleanSlotString(slotsObj.optString("billType", ""))
         val newBillType = newBillTypeStr?.let { runCatching { QueryBillType.valueOf(it) }.getOrNull() } ?: existing.billType
-        val newBookScopeStr = slotsObj.optString("bookScope", "").ifBlank { null }
+        val newBookScopeStr = cleanSlotString(slotsObj.optString("bookScope", ""))
         val newBookScope = newBookScopeStr?.let { runCatching { BookScope.valueOf(it) }.getOrNull() } ?: existing.bookScope
 
         // 时间范围
@@ -151,7 +164,7 @@ class QueryDraftManager(
         val newTimeRange = if (rangeObj != null) {
             val startMillis = rangeObj.optLong("startMillis", 0L).takeIf { it > 0L }
             val endMillis = rangeObj.optLong("endMillis", 0L).takeIf { it > 0L }
-            val label = rangeObj.optString("label", "").ifBlank { null }
+            val label = cleanSlotString(rangeObj.optString("label", ""))
             if (startMillis != null && endMillis != null) {
                 QueryTimeRange(startMillis = startMillis, endMillis = endMillis, label = label)
             } else {
@@ -169,8 +182,8 @@ class QueryDraftManager(
 
         val updated = existing.copy(
             keyword = newKeyword,
-            categoryId = resolvedCategory?.id ?: existing.categoryId,
-            categoryName = resolvedCategory?.name ?: newCategoryName,
+            categoryId = if (supportsCategory(newBillType)) resolvedCategory?.id ?: existing.categoryId else null,
+            categoryName = if (supportsCategory(newBillType)) resolvedCategory?.name ?: newCategoryName else null,
             assetId = resolvedAsset?.id ?: existing.assetId,
             assetName = resolvedAsset?.name ?: newAssetName,
             bookScope = newBookScope,

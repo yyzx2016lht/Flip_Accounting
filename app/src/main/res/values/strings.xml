@@ -54,11 +54,16 @@
     <string name="receipt_image_supplement_placeholder">例如：微信支付 / 招商银行储蓄卡</string>
     <string name="receipt_image_supplement_confirm">开始识别</string>
     <string name="ai_screen_accounting_desc">开启后可通过敲击背板截屏识别账单。</string>
+    <string name="ai_screen_accounting_use_image_flow">截屏沿用图片记账</string>
+    <string name="ai_screen_accounting_use_image_flow_desc">开启后与上方图片记账流程一致；关闭则截屏后直接返回账单</string>
     <string name="ai_screen_accounting_perm_hint">需开启无障碍服务或 Shizuku 授权才能使用截屏记账。</string>
     <string name="ai_feature_entry_title">启用 AI 功能</string>
     <string name="ai_feature_entry_desc">入口显示由设置中心控制，此处仅展示能力项。</string>
     <string name="ai_chat_entry">使用 AI 对话</string>
     <string name="ai_chat_entry_desc">"+"进入 AI 对话，关闭则使用传统记账</string>
+    <string name="ai_query_assistant">AI 查询助手</string>
+    <string name="ai_query_assistant_desc">在对话中把查询请求生成可编辑草稿；关闭后只保留记账和闲聊</string>
+    <string name="ai_query_assistant_disabled_hint">AI 查询助手已关闭，请先在 AI 功能设置中开启</string>
     <string name="ai_accounting_entry">记账页增加 AI 入口</string>
     <string name="ai_accounting_entry_desc">在传统记账弹窗底部显示切换入口。</string>
 
@@ -1722,4 +1727,124 @@
     <string name="query_edit_keyword_hint">输入关键词</string>
     <string name="query_search_result_fmt">找到 %1$d 笔匹配账单</string>
     <string name="query_stats_result_fmt">%1$s 共 %2$d 笔，合计 %3$s</string>
+
+    <!-- 消费洞察 -->
+    <string name="insight_category_delta_title">%1$s支出增长</string>
+    <string name="insight_category_delta_body">本月%1$s比上月高 %2$s（¥%3$s vs ¥%4$s）</string>
+    <string name="insight_large_expense_title">大额消费提醒</string>
+    <string name="insight_large_expense_body">%1$s有一笔 ¥%2$s 的%3$s支出</string>
+    <string name="insight_weekend_spend_title">周末消费较高</string>
+    <string name="insight_weekend_spend_body">周末支出占本月 %1$s（¥%2$s）</string>
+    <string name="insight_recurring_hint_title">疑似周期扣费</string>
+    <string name="insight_recurring_hint_body">检测到 %1$s 笔相近金额的%2$s扣费（%3$s）</string>
+    <string name="insight_no_insights">暂无洞察</string>
+    <string name="insight_today">今天</string>
+    <string name="insight_yesterday">昨天</string>
+    <string name="insight_section_title">本月洞察</string>
+
+    <!-- 首页驾驶舱 -->
+    <string name="dashboard_section_title">提醒</string>
+    <string name="dashboard_budget_title">预算进度</string>
+    <string name="dashboard_budget_body">%1$s 已用 %2$s</string>
+    <string name="dashboard_reminder_title">重要提醒</string>
+    <string name="dashboard_reminder_body">%1$s</string>
+
+    <!-- 预算管理 -->
+    <string name="budget_manage_title">预算管理</string>
+    <string name="budget_set">设置预算</string>
+    <string name="budget_edit">编辑预算</string>
+    <string name="budget_delete">删除预算</string>
+    <string name="budget_amount_hint">输入预算金额</string>
+    <string name="budget_progress_fmt">已用 %1$s%%</string>
+    <string name="budget_remaining_fmt">剩余 ¥%1$s</string>
+    <string name="budget_exceeded">已超支</string>
+    <string name="budget_suggest">根据过去 3 个月推荐</string>
+    <string name="budget_monthly_total">本月总预算</string>
+    <string name="budget_category_label">%1$s 预算</string>
+    <string name="budget_not_set">未设置</string>
+    <string name="budget_empty_hint">还没有预算，点击下方「设置预算」开始</string>
+    <string name="budget_category_pick">选择分类</string>
+    <string name="budget_amount_invalid">请输入有效预算金额</string>
+    <string name="budget_delete_confirm">确定删除「%1$s」的预算？</string>
+    <string name="budget_suggest_result_fmt">参考过去 3 个月，建议总预算 ¥%1$.0f</string>
+    <string name="budget_suggest_empty">历史支出不足，暂时无法推荐</string>
+    <string name="budget_status_normal">正常</string>
+    <string name="budget_status_warning">即将超支</string>
+    <string name="budget_status_exceeded">已超支</string>
+
+    <!-- 周期账单 -->
+    <string name="recurring_bills_title">周期账单</string>
+    <string name="recurring_tab_pending">待确认</string>
+    <string name="recurring_tab_confirmed">已确认</string>
+    <string name="recurring_tab_dismissed">已忽略</string>
+    <string name="recurring_frequency_weekly">每周</string>
+    <string name="recurring_frequency_monthly">每月</string>
+    <string name="recurring_frequency_yearly">每年</string>
+    <string name="recurring_confirm">确认</string>
+    <string name="recurring_dismiss">忽略</string>
+    <string name="recurring_view_bills">查看账单</string>
+    <string name="recurring_next_expected">下次预计：%1$s</string>
+    <string name="recurring_amount_approx">约 ¥%1$s</string>
+    <string name="recurring_found_count">发现 %1$d 个疑似周期账单</string>
+
+    <!-- 信用卡账单周期 -->
+    <string name="credit_cycle_title">账单周期</string>
+    <string name="credit_statement_day">账单日</string>
+    <string name="credit_due_day">还款日</string>
+    <string name="credit_amount_due">本期待还</string>
+    <string name="credit_unbilled">未出账</string>
+    <string name="credit_days_to_due">距离还款日还有 %1$d 天</string>
+    <string name="credit_available_limit">剩余额度</string>
+    <string name="credit_cycle_not_set">未设置账单日</string>
+    <string name="credit_cycle_label">账单周期</string>
+    <string name="credit_statement_day_short">账单日</string>
+    <string name="credit_due_day_short">还款日</string>
+    <string name="credit_statement_day_value">账单日 %1$s</string>
+    <string name="credit_due_day_value">还款日 %1$s</string>
+    <string name="credit_due_amount_fmt">待还 ¥%1$.0f</string>
+    <string name="credit_days_to_due_fmt">%1$d 天后还款</string>
+    <string name="credit_cycle_not_configured">请在编辑资产中设置账单日和还款日</string>
+    <string name="credit_day_of_month">%1$d 号</string>
+
+    <!-- 资产对账 -->
+    <string name="reconcile_title">资产对账</string>
+    <string name="reconcile_entry">余额对账 ›</string>
+    <string name="reconcile_ledger_balance">账本余额</string>
+    <string name="reconcile_actual_balance">实际余额</string>
+    <string name="reconcile_diff">差额</string>
+    <string name="reconcile_aligned">已对齐</string>
+    <string name="reconcile_possible_causes">可能原因</string>
+    <string name="reconcile_recent_bills">最近相关账单</string>
+    <string name="reconcile_action_adjust">余额调整</string>
+    <string name="reconcile_action_add_bill">补记账单</string>
+    <string name="reconcile_action_later">稍后处理</string>
+    <string name="reconcile_cause_transfer">最近有大额转账</string>
+    <string name="reconcile_cause_refund">最近有退款</string>
+    <string name="reconcile_cause_interest">投资资产利息结算</string>
+    <string name="reconcile_cause_adjustment">最近余额调整记录</string>
+
+    <!-- 导入迁移 -->
+    <string name="import_onboarding_title">从其他记账 App 迁移</string>
+    <string name="import_onboarding_desc">支持 CSV 导入、备份文件恢复，轻松迁移历史数据</string>
+    <string name="import_source_suishouji">随手记</string>
+    <string name="import_source_qianji">钱迹</string>
+    <string name="import_source_csv">其他 CSV</string>
+    <string name="import_source_backup">本应用备份</string>
+    <string name="import_review_title">导入审查</string>
+    <string name="import_review_temp_assets">临时资产</string>
+    <string name="import_review_merge">合并到真实资产</string>
+    <string name="import_review_done">完成审查</string>
+    <string name="import_stats_fmt">新建了 %1$d 个资产、%2$d 个分类、%3$d 笔账单</string>
+
+    <string name="insight_empty_hint">消费洞察已开启。当前月份暂无异常消费提示，有环比变化或大额支出时会显示在这里。</string>
+
+    <!-- 规则学习 -->
+    <string name="rule_learn_title">记住这个规则？</string>
+    <string name="rule_learn_body">以后把「%1$s」都归到 %2$s 吗？</string>
+    <string name="rule_learn_confirm">记住</string>
+    <string name="rule_learn_cancel">不用</string>
+    <string name="rule_learn_no_remind">不再提醒本条</string>
+    <string name="rule_learn_update_existing">已存在同关键词规则，是否更新？</string>
+    <string name="rule_learn_success">规则已保存</string>
+    <string name="rule_learn_updated">规则已更新</string>
 </resources>

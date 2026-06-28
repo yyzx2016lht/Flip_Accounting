@@ -222,6 +222,79 @@
                         </LinearLayout>
                     </LinearLayout>
 
+                    <!-- Credit Card: 信用额度 -->
+                    <LinearLayout
+                        android:id="@+id/layout_credit_limit"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:visibility="gone">
+                        <TextView
+                            android:layout_width="100dp"
+                            android:layout_height="wrap_content"
+                            android:text="信用额度"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/text_size_16"/>
+                        <EditText
+                            android:id="@+id/et_credit_limit"
+                            android:layout_width="0dp"
+                            android:layout_height="32dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="20dp"
+                            android:background="@null"
+                            android:hint="0"
+                            android:inputType="numberDecimal"
+                            android:textColor="@color/brand_primary"
+                            android:textColorHint="@color/text_secondary"
+                            android:gravity="end|center_vertical"
+                            android:textSize="@dimen/text_size_16"/>
+                    </LinearLayout>
+
+                    <!-- Credit Card: 账单日 / 还款日（同一行） -->
+                    <LinearLayout
+                        android:id="@+id/layout_credit_cycle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="56dp"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="8dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="72dp"
+                            android:layout_height="wrap_content"
+                            android:text="@string/credit_cycle_label"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/text_size_16" />
+
+                        <TextView
+                            android:id="@+id/tv_statement_day"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_search_box"
+                            android:gravity="center"
+                            android:text="@string/credit_statement_day_short"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tv_due_day"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_search_box"
+                            android:gravity="center"
+                            android:text="@string/credit_due_day_short"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
                     <!-- Asset Category -->
                     <LinearLayout
                         android:id="@+id/layout_select_asset_category"

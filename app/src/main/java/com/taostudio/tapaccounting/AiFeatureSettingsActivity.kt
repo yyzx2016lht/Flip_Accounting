@@ -49,9 +49,11 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val layoutAiMain = findViewById<View>(R.id.layout_ai_main_entry)
         val switchShowAi = findViewById<CompoundButton>(R.id.switch_show_ai)
         val switchAiChatMode = findViewById<CompoundButton>(R.id.switch_ai_chat_mode)
+        val switchAiQueryAssistant = findViewById<CompoundButton>(R.id.switch_ai_query_assistant)
         val switchShowAiChatEntry = findViewById<CompoundButton>(R.id.switch_show_ai_chat_entry)
         val showAiChatEntryRow = switchShowAiChatEntry.parent as? View
         val layoutOpenAiChatPage = findViewById<View>(R.id.layout_open_ai_chat_page)
+        val layoutAiQueryAssistant = findViewById<View>(R.id.layout_ai_query_assistant)
         // AI 总开关由设置中心控制，这里只展示具体能力配置。
         (switchShowAi.parent as? View)?.visibility = View.GONE
         layoutAiMain.visibility = View.VISIBLE
@@ -71,6 +73,14 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             switchAiChatMode.performClick()
         }
 
+        switchAiQueryAssistant.isChecked = Prefs.isAiQueryEnabled(this)
+        switchAiQueryAssistant.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setAiQueryEnabled(this, isChecked)
+        }
+        layoutAiQueryAssistant.setOnClickListener {
+            switchAiQueryAssistant.performClick()
+        }
+
         Prefs.setShowAiChatEntry(this, false)
         showAiChatEntryRow?.visibility = View.GONE
         findViewById<CompoundButton>(R.id.switch_local_rule_override)?.apply {
@@ -84,6 +94,28 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                 Prefs.setAiPromptCorrectionEnabled(this@AiFeatureSettingsActivity, isChecked)
                 Prefs.setLocalRuleOverrideEnabled(this@AiFeatureSettingsActivity, isChecked)
             }
+        }
+
+        // 消费洞察开关
+        findViewById<CompoundButton>(R.id.switch_insight_cards)?.apply {
+            isChecked = Prefs.isInsightCardsEnabled(this@AiFeatureSettingsActivity)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setInsightCardsEnabled(this@AiFeatureSettingsActivity, isChecked)
+            }
+        }
+        findViewById<View>(R.id.layout_insight_cards)?.setOnClickListener {
+            findViewById<CompoundButton>(R.id.switch_insight_cards)?.performClick()
+        }
+
+        // 首页驾驶舱开关
+        findViewById<CompoundButton>(R.id.switch_dashboard)?.apply {
+            isChecked = Prefs.isHomeDashboardEnabled(this@AiFeatureSettingsActivity)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setHomeDashboardEnabled(this@AiFeatureSettingsActivity, isChecked)
+            }
+        }
+        findViewById<View>(R.id.layout_dashboard)?.setOnClickListener {
+            findViewById<CompoundButton>(R.id.switch_dashboard)?.performClick()
         }
 
         findViewById<CompoundButton>(R.id.switch_show_voice).apply {
@@ -224,13 +256,26 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val switchScreenAccounting = findViewById<CompoundButton>(R.id.switch_screen_accounting)
         val tvScreenAccountingHint = findViewById<TextView>(R.id.tv_screen_accounting_hint)
         val layoutScreenAccounting = findViewById<View>(R.id.layout_screen_accounting)
+        val layoutScreenAccountingImageFlow = findViewById<View>(R.id.layout_screen_accounting_image_flow)
+        val switchScreenAccountingImageFlow = findViewById<CompoundButton>(R.id.switch_screen_accounting_image_flow).apply {
+            isChecked = Prefs.isScreenAccountingUseImageFlow(this@AiFeatureSettingsActivity)
+            setOnCheckedChangeListener { _, isChecked ->
+                Prefs.setScreenAccountingUseImageFlow(this@AiFeatureSettingsActivity, isChecked)
+            }
+        }
         var ignoreScreenAccountingToggle = false
+
+        fun updateScreenAccountingImageFlowVisibility() {
+            val show = layoutScreenAccounting.visibility == View.VISIBLE && switchScreenAccounting.isChecked
+            layoutScreenAccountingImageFlow.visibility = if (show) View.VISIBLE else View.GONE
+        }
 
         fun updateScreenAccountingVisibility() {
             val hasAccessibility = KeepAliveAccessibilityService.isServiceEnabled() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
             val hasShizuku = Prefs.isShizukuModeEnabled(this) && ShizukuSafe.isReady(this)
             layoutScreenAccounting.visibility = if (hasAccessibility || hasShizuku) View.VISIBLE else View.GONE
             tvScreenAccountingHint.visibility = if (hasAccessibility || hasShizuku) View.GONE else View.VISIBLE
+            updateScreenAccountingImageFlowVisibility()
         }
 
         switchScreenAccounting.apply {
@@ -249,6 +294,7 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
                     return@setOnCheckedChangeListener
                 }
                 Prefs.setShowScreenAccounting(this@AiFeatureSettingsActivity, isChecked)
+                updateScreenAccountingImageFlowVisibility()
                 Utils.toast(this@AiFeatureSettingsActivity, if (isChecked) getString(R.string.screen_accounting_enabled) else getString(R.string.screen_accounting_disabled))
             }
         }
@@ -275,10 +321,13 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             switchImageAccountingNaturalLanguage.isEnabled = preset.supportsVision
             switchScreenAccounting.isEnabled = preset.supportsVision
             layoutScreenAccounting.alpha = if (preset.supportsVision) 1f else 0.45f
+            switchScreenAccountingImageFlow.isEnabled = preset.supportsVision
+            layoutScreenAccountingImageFlow.alpha = if (preset.supportsVision) 1f else 0.45f
             if (!preset.supportsVision) {
                 switchShowAiImage.isChecked = false
                 switchScreenAccounting.isChecked = false
             }
+            updateScreenAccountingImageFlowVisibility()
             updateAsrUi()
         }
         refreshProviderCapabilities?.invoke()
@@ -299,13 +348,15 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         try {
             val toggleIds = intArrayOf(
                 R.id.switch_ai_chat_mode,
+                R.id.switch_ai_query_assistant,
                 R.id.switch_show_ai_chat_entry,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,
                 R.id.switch_show_ai_image,
                 R.id.switch_receipt_image_draft_confirm,
                 R.id.switch_image_accounting_natural_language,
-                R.id.switch_screen_accounting
+                R.id.switch_screen_accounting,
+                R.id.switch_screen_accounting_image_flow
             )
 
             for (tid in toggleIds) {

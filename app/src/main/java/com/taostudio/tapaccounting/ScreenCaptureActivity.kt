@@ -13,10 +13,10 @@ import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
@@ -28,15 +28,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.io.ByteArrayOutputStream
+import java.io.File
 
+/**
+ * 仅负责截屏，识别与弹窗交给 [AiAssistant.analyzeScreenshot]（与 Shizuku/无障碍截图路径一致）。
+ */
 class ScreenCaptureActivity : AppCompatActivity() {
 
     companion object {
-        const val EXTRA_IS_MULTI_MODE = "extra_is_multi_mode"
-
-        var onRecognitionResult: ((JSONObject) -> Unit)? = null
+        var onScreenshotCaptured: ((Uri) -> Unit)? = null
         var onRecognitionError: ((String) -> Unit)? = null
         var onRecognitionCancelled: (() -> Unit)? = null
 
@@ -52,11 +52,10 @@ class ScreenCaptureActivity : AppCompatActivity() {
     private var mediaProjection: MediaProjection? = null
     private var imageReader: ImageReader? = null
     private var virtualDisplay: VirtualDisplay? = null
-    private var analyzeJob: Job? = null
+    private var captureJob: Job? = null
     private var scanAnimator: ValueAnimator? = null
     private var cardEnterAnimator: AnimatorSet? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var isMultiMode: Boolean = true
     private var finished = false
 
     private val capturePermissionLauncher =
@@ -80,7 +79,6 @@ class ScreenCaptureActivity : AppCompatActivity() {
         captureCard = findViewById(R.id.layout_capture_card)
         scanLine = findViewById(R.id.view_scan_line)
         mediaProjectionManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        isMultiMode = intent.getBooleanExtra(EXTRA_IS_MULTI_MODE, true)
         startWaitingAnimation()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -99,7 +97,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
         Logger.d(
             this,
             "ScreenCaptureActivity",
-            "onCreate. isMultiMode=$isMultiMode, shizukuEnabled=${Prefs.isShizukuModeEnabled(this)}, shizukuReady=${ShizukuSafe.isReady(this)}, hasCachedPermission=${cachedProjectionResultCode != null && cachedProjectionData != null}"
+            "onCreate. shizukuEnabled=${Prefs.isShizukuModeEnabled(this)}, shizukuReady=${ShizukuSafe.isReady(this)}, hasCachedPermission=${cachedProjectionResultCode != null && cachedProjectionData != null}"
         )
 
         when {
@@ -122,8 +120,8 @@ class ScreenCaptureActivity : AppCompatActivity() {
     }
 
     private fun startShizukuCapture() {
-        analyzeJob?.cancel()
-        analyzeJob = lifecycleScope.launch(Dispatchers.IO) {
+        captureJob?.cancel()
+        captureJob = lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val bytes = ShizukuShell.execBytes("screencap -p")
                 if (bytes == null || bytes.isEmpty()) {
@@ -138,7 +136,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
                     return@launch
                 }
                 Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap succeeded. bytes=${bytes.size}, size=${bitmap.width}x${bitmap.height}")
-                submitBitmapForRecognition(bitmap)
+                deliverCapturedBitmap(bitmap)
             } catch (e: Exception) {
                 Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Shizuku screencap failed: ${e.message}")
                 withContext(Dispatchers.Main) { fail(getString(R.string.screenshot_failed)) }
@@ -214,45 +212,35 @@ class ScreenCaptureActivity : AppCompatActivity() {
         }
         Logger.d(this, "ScreenCaptureActivity", "Screenshot image acquired. retry=$retryCount")
 
-        analyzeJob?.cancel()
-        analyzeJob = lifecycleScope.launch(Dispatchers.IO) {
+        captureJob?.cancel()
+        captureJob = lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val bitmap = imageToBitmap(image)
                 image.close()
                 releaseCaptureResources()
-                submitBitmapForRecognition(bitmap)
+                deliverCapturedBitmap(bitmap)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "AI screen recognition failed: ${e.message}")
+                    Logger.d(this@ScreenCaptureActivity, "ScreenCaptureActivity", "Screenshot capture failed: ${e.message}")
                     fail(e.message ?: getString(R.string.screenshot_failed))
                 }
             }
         }
     }
 
-    private suspend fun submitBitmapForRecognition(bitmap: Bitmap) {
-        val base64 = bitmapToBase64(bitmap)
-        Logger.d(
-            this@ScreenCaptureActivity,
-            "ScreenCaptureActivity",
-            "Screenshot prepared for AI. size=${bitmap.width}x${bitmap.height}, base64Len=${base64.length}"
-        )
-        val result = AIService.analyzeScreenAccountingByImage(
-            ctx = this@ScreenCaptureActivity,
-            imageBase64 = base64,
-            mimeType = "image/jpeg",
-            isMultiModeOverride = isMultiMode
-        ) ?: JSONObject().apply {
-            put("no_bill", true)
-            put("reply", getString(R.string.toast_no_bill_found))
-        }
+    private suspend fun deliverCapturedBitmap(bitmap: Bitmap) {
+        val uri = bitmapToCacheUri(bitmap)
         withContext(Dispatchers.Main) {
+            if (uri == null) {
+                fail(getString(R.string.screenshot_failed))
+                return@withContext
+            }
             Logger.d(
                 this@ScreenCaptureActivity,
                 "ScreenCaptureActivity",
-                "AI screen recognition completed. no_bill=${result.optBoolean("no_bill", false)}, hasBills=${result.has("bills")}, hasAmount=${result.has("amount")}"
+                "Screenshot saved for recognition. size=${bitmap.width}x${bitmap.height}, uri=$uri"
             )
-            onRecognitionResult?.invoke(result)
+            onScreenshotCaptured?.invoke(uri)
             finishSafely()
         }
     }
@@ -271,9 +259,9 @@ class ScreenCaptureActivity : AppCompatActivity() {
         Logger.d(this, "ScreenCaptureActivity", "finishSafely")
         stopWaitingAnimation()
         mainHandler.removeCallbacksAndMessages(null)
-        analyzeJob?.cancel()
+        captureJob?.cancel()
         releaseCaptureResources()
-        onRecognitionResult = null
+        onScreenshotCaptured = null
         onRecognitionError = null
         onRecognitionCancelled = null
         finish()
@@ -306,7 +294,7 @@ class ScreenCaptureActivity : AppCompatActivity() {
         return Bitmap.createBitmap(bitmap, 0, 0, image.width, image.height)
     }
 
-    private fun bitmapToBase64(bitmap: Bitmap): String {
+    private fun bitmapToCacheUri(bitmap: Bitmap): Uri? {
         val maxDim = 1440
         val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
             val ratio = minOf(
@@ -322,9 +310,15 @@ class ScreenCaptureActivity : AppCompatActivity() {
         } else {
             bitmap
         }
-        val output = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 88, output)
-        return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+        val dir = File(cacheDir, "screen_captures").apply { mkdirs() }
+        val file = File(dir, "screenshot_${System.currentTimeMillis()}.jpg")
+        return try {
+            file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, 88, it) }
+            Uri.fromFile(file)
+        } catch (e: Exception) {
+            Logger.d(this, "ScreenCaptureActivity", "bitmapToCacheUri failed: ${e.message}")
+            null
+        }
     }
 
     override fun onDestroy() {
@@ -337,11 +331,10 @@ class ScreenCaptureActivity : AppCompatActivity() {
     }
 
     private fun startWaitingAnimation() {
-        // 卡片入场：scale 0.85→1.0 + alpha 0→1，220ms，DecelerateInterpolator
         if (cardEnterAnimator == null) {
             val scaleX = ObjectAnimator.ofFloat(captureCard, "scaleX", 0.85f, 1f)
             val scaleY = ObjectAnimator.ofFloat(captureCard, "scaleY", 0.85f, 1f)
-            val alpha  = ObjectAnimator.ofFloat(captureCard, "alpha", 0f, 1f)
+            val alpha = ObjectAnimator.ofFloat(captureCard, "alpha", 0f, 1f)
             cardEnterAnimator = AnimatorSet().apply {
                 playTogether(scaleX, scaleY, alpha)
                 duration = 220L
@@ -350,7 +343,6 @@ class ScreenCaptureActivity : AppCompatActivity() {
             }
         }
 
-        // 扫描线：translationY 从 -屏幕高 到 +屏幕高 循环，营造扫描感
         if (scanAnimator == null) {
             val screenH = resources.displayMetrics.heightPixels.toFloat()
             scanAnimator = ValueAnimator.ofFloat(-screenH, screenH).apply {
@@ -369,6 +361,4 @@ class ScreenCaptureActivity : AppCompatActivity() {
         scanAnimator?.cancel()
         scanAnimator = null
     }
-
 }
-

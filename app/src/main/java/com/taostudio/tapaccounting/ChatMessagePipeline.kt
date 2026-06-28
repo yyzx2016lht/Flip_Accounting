@@ -629,7 +629,7 @@ class ChatMessagePipeline(
                                 ?: throw IllegalArgumentException("多图数据无效")
                             accountingSourceText = multiPayload.supplement.ifBlank { "图片记账" }
                             val imagePairs = multiPayload.images.map { it.base64 to it.mime }
-                            val isDirectImageAccounting = !Prefs.isReceiptImageDraftConfirmEnabled(context)
+                            val isDirectImageAccounting = !Prefs.isImageAccountingNaturalLanguage(context)
 
                             if (isDirectImageAccounting) {
                                 // Direct path: multimodal returns JSON directly
@@ -708,7 +708,7 @@ class ChatMessagePipeline(
                             val imagePayload = ReceiptImageInputHelper.decodePayload(userText)
                                 ?: throw IllegalArgumentException("图片数据无效")
                             val isDirectImageAccounting = ReceiptImageInputHelper.isDirectPayload(userText) ||
-                                !Prefs.isReceiptImageDraftConfirmEnabled(context)
+                                !Prefs.isImageAccountingNaturalLanguage(context)
                             accountingSourceText = imagePayload.supplement.ifBlank { "图片记账" }
 
                             if (isDirectImageAccounting) {

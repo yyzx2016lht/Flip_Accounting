@@ -349,7 +349,7 @@ object AIService {
             )
         val dataUrl = "data:$mimeType;base64,$imageBase64"
         val userText = buildString {
-            append("请分析这张用于记账的图片，提取时间、对象/商品、支付方式（仅在资产功能开启时）、金额，转为自然语言清单。每行一条交易，不要输出其他内容。")
+            append(AIPrompts.receiptVisionUserInstruction(1))
             val supplement = supplementText.trim()
             if (supplement.isNotBlank()) {
                 append("\n\n用户补充说明（优先参考）：\n")
@@ -428,9 +428,10 @@ object AIService {
         supplementText: String = "",
         onProgress: ((String) -> Unit)? = null,
         isFromChat: Boolean = false,
-        chatTurns: List<ChatTurn> = emptyList()
+        chatTurns: List<ChatTurn> = emptyList(),
+        quickScreenMode: Boolean = false
     ): JSONObject? {
-        Logger.d(ctx, "AIService", "analyzeScreenAccountingByImage: multimodal accounting mode source=$sourceKind fromChat=$isFromChat")
+        Logger.d(ctx, "AIService", "analyzeScreenAccountingByImage: multimodal accounting mode source=$sourceKind fromChat=$isFromChat quick=$quickScreenMode")
         Logger.d(ctx, AI_IO_LOG_TAG, "[截图记账] USER: [屏幕截图]")
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) throw IllegalArgumentException("请先在设置中配置 API Key")
@@ -442,26 +443,17 @@ object AIService {
         val systemPrompt = buildScreenAccountingSystemPrompt(
             ctx = ctx,
             promptContext = promptContext,
-            isFromChat = isFromChat
+            isFromChat = isFromChat,
+            quickScreenMode = quickScreenMode
         )
 
         val dataUrl = "data:$mimeType;base64,$imageBase64"
-        val taskInstruction = buildString {
-            if (isFromChat) {
-                append("这是一张用于记账识别的图片。请先判断画面类型，只提取真实交易信息，返回记账账单 JSON。")
-                append("\n成功提取交易：{\"bills\":[...], \"assistant_reply\":\"一句自然的中文回复\"}；无交易/纯闲聊：{\"no_bill\":true, \"reply\":\"...\"}。")
-                append("\n不要输出 requires_review、natural_summary、risk_flags、source_kind 等字段。不要输出 Markdown、代码块或额外文字。")
-            } else {
-                append("这是一张用于记账识别的图片。请先判断画面类型，只提取真实交易信息，返回待核对的账单草稿 JSON。")
-                append("\n统一使用多账单格式，即使只有一条账单，也返回：{\"source_kind\":\"image\",\"requires_review\":true,\"confidence\":0.0,\"natural_summary\":\"...\",\"risk_flags\":[],\"bills\":[...]}。")
-                append("\nnatural_summary 用中文概括用户需要核对的内容；risk_flags 标记风险项（如 missing_asset、unclear_item）。没有风险时返回空数组。")
-            }
-            val supplement = supplementText.trim()
-            if (supplement.isNotBlank()) {
-                append("\n\n用户补充说明（优先参考）：\n")
-                append(supplement)
-            }
-        }
+        val taskInstruction = AIPrompts.buildScreenAccountingTaskInstruction(
+            imageCount = 1,
+            isFromChat = isFromChat,
+            supplementText = supplementText,
+            quickScreenMode = quickScreenMode
+        )
         // 加载本地纠错规则（用 supplementText 匹配，无补充说明时跳过）
         val matchedPromptRules = if (supplementText.isNotBlank() && Prefs.isAiPromptCorrectionEnabled(ctx)) {
             val promptRules = loadActivePromptRules(ctx)
@@ -526,7 +518,7 @@ object AIService {
                     referenceText = supplementText,
                     assetCurrencyMap = promptContext.assetCurrencyMap
                 )
-                if (!isFromChat) {
+                if (!isFromChat && !quickScreenMode) {
                     markVisualAccountingReviewDraft(
                         root = root,
                         sourceKind = sourceKind,
@@ -559,9 +551,10 @@ object AIService {
         supplementText: String = "",
         onProgress: ((String) -> Unit)? = null,
         isFromChat: Boolean = false,
-        chatTurns: List<ChatTurn> = emptyList()
+        chatTurns: List<ChatTurn> = emptyList(),
+        quickScreenMode: Boolean = false
     ): JSONObject? {
-        Logger.d(ctx, "AIService", "analyzeScreenAccountingByImages: multi-image multimodal accounting, count=${images.size} fromChat=$isFromChat")
+        Logger.d(ctx, "AIService", "analyzeScreenAccountingByImages: multi-image multimodal accounting, count=${images.size} fromChat=$isFromChat quick=$quickScreenMode")
         if (images.isEmpty()) throw IllegalArgumentException("图片列表不能为空")
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) throw IllegalArgumentException("请先在设置中配置 API Key")
@@ -573,26 +566,17 @@ object AIService {
         val systemPrompt = buildScreenAccountingSystemPrompt(
             ctx = ctx,
             promptContext = promptContext,
-            isFromChat = isFromChat
+            isFromChat = isFromChat,
+            quickScreenMode = quickScreenMode
         )
 
         val dataUrls = images.map { (base64, mime) -> "data:$mime;base64,$base64" }
-        val taskInstruction = buildString {
-            if (isFromChat) {
-                append("这是${images.size}张用于记账识别的图片，请逐一分析每张图片，只提取真实交易信息，返回记账账单 JSON。")
-                append("\n成功提取交易：{\"bills\":[...], \"assistant_reply\":\"一句自然的中文回复\"}；无交易/纯闲聊：{\"no_bill\":true, \"reply\":\"...\"}。")
-                append("\n不要输出 requires_review、natural_summary、risk_flags、source_kind 等字段。不要输出 Markdown、代码块或额外文字。")
-            } else {
-                append("这是${images.size}张用于记账识别的图片，请逐一分析每张图片，只提取真实交易信息，返回待核对的账单草稿 JSON。")
-                append("\n统一使用多账单格式，返回：{\"source_kind\":\"image\",\"requires_review\":true,\"confidence\":0.0,\"natural_summary\":\"...\",\"risk_flags\":[],\"bills\":[...]}。")
-                append("\nnatural_summary 用中文概括用户需要核对的内容；risk_flags 标记风险项。没有风险时返回空数组。")
-            }
-            val supplement = supplementText.trim()
-            if (supplement.isNotBlank()) {
-                append("\n\n用户补充说明（优先参考）：\n")
-                append(supplement)
-            }
-        }
+        val taskInstruction = AIPrompts.buildScreenAccountingTaskInstruction(
+            imageCount = images.size,
+            isFromChat = isFromChat,
+            supplementText = supplementText,
+            quickScreenMode = quickScreenMode
+        )
         val matchedPromptRules = if (supplementText.isNotBlank() && Prefs.isAiPromptCorrectionEnabled(ctx)) {
             val promptRules = loadActivePromptRules(ctx)
             findMatchedPromptRules(supplementText, promptRules)
@@ -655,7 +639,7 @@ object AIService {
                     referenceText = supplementText,
                     assetCurrencyMap = promptContext.assetCurrencyMap
                 )
-                if (!isFromChat) {
+                if (!isFromChat && !quickScreenMode) {
                     markVisualAccountingReviewDraft(
                         root = root,
                         sourceKind = sourceKind,
@@ -699,7 +683,7 @@ object AIService {
             )
         val dataUrls = images.map { (base64, mime) -> "data:$mime;base64,$base64" }
         val userText = buildString {
-            append("请分析这${images.size}张用于记账的图片，提取时间、对象/商品、支付方式（仅在资产功能开启时）、金额，转为自然语言清单。每行一条交易，不要输出其他内容。")
+            append(AIPrompts.receiptVisionUserInstruction(images.size))
             val supplement = supplementText.trim()
             if (supplement.isNotBlank()) {
                 append("\n\n用户补充说明（优先参考）：\n")

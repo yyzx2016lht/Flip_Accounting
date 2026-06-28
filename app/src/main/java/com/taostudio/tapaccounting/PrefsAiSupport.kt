@@ -28,6 +28,7 @@ object PrefsAiSupport {
     private const val KEY_RECEIPT_OCR_REFINE_ENABLED = "receipt_ocr_refine_enabled"
     private const val KEY_RECEIPT_IMAGE_DRAFT_CONFIRM = "receipt_image_draft_confirm_enabled"
     private const val KEY_IMAGE_ACCOUNTING_NATURAL_LANGUAGE = "image_accounting_natural_language"
+    private const val KEY_SCREEN_ACCOUNTING_USE_IMAGE_FLOW = "screen_accounting_use_image_flow"
     private const val KEY_AI_RECEIPT_OCR_REFINE_MODEL = "ai_receipt_ocr_refine_model_id"
     private const val KEY_AI_SPEECH_MODEL = "ai_speech_model_id"
     private const val KEY_AI_MANUAL_MODEL_SELECTION = "ai_manual_model_selection_v1"
@@ -378,6 +379,11 @@ object PrefsAiSupport {
         prefs(ctx).getBoolean(KEY_IMAGE_ACCOUNTING_NATURAL_LANGUAGE, false)
     fun setImageAccountingNaturalLanguage(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_IMAGE_ACCOUNTING_NATURAL_LANGUAGE, enabled).apply()
+
+    fun isScreenAccountingUseImageFlow(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_SCREEN_ACCOUNTING_USE_IMAGE_FLOW, false)
+    fun setScreenAccountingUseImageFlow(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_SCREEN_ACCOUNTING_USE_IMAGE_FLOW, enabled).apply()
 
     fun addOcrDebugRecord(ctx: Context, text: String, source: String = "local_ocr_before_ai") {
         if (text.isBlank()) return

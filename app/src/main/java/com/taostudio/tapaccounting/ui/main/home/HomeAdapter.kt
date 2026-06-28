@@ -11,6 +11,7 @@ import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,8 @@ import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
 import com.taostudio.tapaccounting.logic.CurrencyManager
+import com.taostudio.tapaccounting.logic.insight.InsightCardModel
+import com.taostudio.tapaccounting.ui.main.home.dashboard.HomeDashboardCard
 import com.taostudio.tapaccounting.ui.common.UiMotion.applyItemPressFeedback
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,6 +55,8 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         const val TYPE_CHART = 2
         const val TYPE_HEADER = 0
         const val TYPE_ITEM = 1
+        const val TYPE_DASHBOARD_CARDS = 4
+        const val TYPE_INSIGHT_CARDS = 3
         const val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
         const val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
         const val PAYLOAD_HEADER_SELECTION_CHANGE = "PAYLOAD_HEADER_SELECTION_CHANGE"
@@ -80,6 +85,12 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         // 用于承载首页图表占位项。
         object Chart : ListItem()
 
+        // 用于承载驾驶舱卡片区域。
+        data class DashboardCards(val cards: List<HomeDashboardCard>) : ListItem()
+
+        // 用于承载洞察卡片区域。
+        data class InsightCards(val cards: List<InsightCardModel>) : ListItem()
+
         data class Header(
             val dateStr: String,
             val weekdayStr: String,
@@ -100,12 +111,21 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     var showChart: Boolean = false
     private var lastSubmittedShowChart: Boolean = false
 
+    // 驾驶舱卡片数据，作为图表之后、洞察卡片之前的区域展示。
+    var dashboardCards: List<HomeDashboardCard> = emptyList()
+    private var lastSubmittedDashboardCards: List<HomeDashboardCard> = emptyList()
+
+    // 洞察卡片数据，作为图表之后、账单项之前的区域展示。
+    var insightCards: List<InsightCardModel> = emptyList()
+    private var lastSubmittedInsightCards: List<InsightCardModel> = emptyList()
+
     var isMultiSelectMode: Boolean = false
     val selectedBills = mutableSetOf<Bill>()
 
     var onBillItemClick: ((Bill) -> Unit)? = null
     var onSelectionChanged: ((Int) -> Unit)? = null
     var detailSuffixProvider: ((Bill) -> String?)? = null
+    var onDashboardCardClick: ((HomeDashboardCard) -> Unit)? = null
 
     private fun isRefundBill(bill: Bill): Boolean = bill.subType == Bill.SUBTYPE_REFUND
 
@@ -141,7 +161,8 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             )
         }.sortedByDescending { it.bill.time }
         // 数据和展示状态都没变时，直接跳过，避免无效刷新。
-        if (rawBills == combinedBills && lastSubmittedShowChart == showChart) {
+        if (rawBills == combinedBills && lastSubmittedShowChart == showChart
+            && lastSubmittedInsightCards == insightCards && lastSubmittedDashboardCards == dashboardCards) {
             Log.d("HomePerf", "submitList: skip (list unchanged)")
             return
         }
@@ -159,8 +180,16 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             val dfWeekday = SimpleDateFormat("E", Locale.CHINESE)
 
             val newItems = mutableListOf<ListItem>()
-            // 可选地在首位插入图表项，然后按天分组生成 Header + Item。
+            // 可选地在首位插入图表项，然后插入驾驶舱卡片，再插入洞察卡片区域，最后按天分组生成 Header + Item。
             if (includeChart) newItems.add(ListItem.Chart)
+            val currentDashboardCards = dashboardCards
+            if (currentDashboardCards.isNotEmpty()) {
+                newItems.add(ListItem.DashboardCards(currentDashboardCards))
+            }
+            val currentInsightCards = insightCards
+            if (currentInsightCards.isNotEmpty()) {
+                newItems.add(ListItem.InsightCards(currentInsightCards))
+            }
             if (combinedBills.isNotEmpty()) {
                 val grouped = combinedBills.groupBy { dfKey.format(Date(it.bill.time)) }
                 for ((dateKey, billsInDay) in grouped) {
@@ -192,6 +221,8 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     val old = oldItems[oldItemPosition]
                     val new = newItems[newItemPosition]
                     if (old is ListItem.Chart && new is ListItem.Chart) return true
+                    if (old is ListItem.DashboardCards && new is ListItem.DashboardCards) return true
+                    if (old is ListItem.InsightCards && new is ListItem.InsightCards) return true
                     if (old is ListItem.Header && new is ListItem.Header) return old.rawDateKey == new.rawDateKey
                     if (old is ListItem.Item && new is ListItem.Item) return old.displayBill.bill.id == new.displayBill.bill.id
                     return false
@@ -212,6 +243,8 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 rawBills.clear()
                 rawBills.addAll(combinedBills)
                 lastSubmittedShowChart = includeChart
+                lastSubmittedDashboardCards = currentDashboardCards
+                lastSubmittedInsightCards = currentInsightCards
                 items.clear()
                 items.addAll(newItems)
 
@@ -301,6 +334,8 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     override fun getItemViewType(position: Int): Int {
         return when (items[position]) {
             is ListItem.Chart -> TYPE_CHART
+            is ListItem.DashboardCards -> TYPE_DASHBOARD_CARDS
+            is ListItem.InsightCards -> TYPE_INSIGHT_CARDS
             is ListItem.Header -> TYPE_HEADER
             is ListItem.Item -> TYPE_ITEM
         }
@@ -318,6 +353,22 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     )
                 }
                 ChartViewHolder(container)
+            }
+            TYPE_DASHBOARD_CARDS -> {
+                val panel = inflater.inflate(R.layout.item_home_dashboard_panel, parent, false)
+                DashboardCardsViewHolder(panel)
+            }
+            TYPE_INSIGHT_CARDS -> {
+                val rv = RecyclerView(parent.context).apply {
+                    layoutParams = RecyclerView.LayoutParams(
+                        RecyclerView.LayoutParams.MATCH_PARENT,
+                        RecyclerView.LayoutParams.WRAP_CONTENT
+                    )
+                    layoutManager = LinearLayoutManager(parent.context)
+                    isNestedScrollingEnabled = false
+                    overScrollMode = android.view.View.OVER_SCROLL_NEVER
+                }
+                InsightCardsViewHolder(rv)
             }
             TYPE_HEADER -> HeaderViewHolder(inflater.inflate(R.layout.item_bill_header, parent, false))
             else -> ItemViewHolder(inflater.inflate(R.layout.item_home_transaction, parent, false))
@@ -347,6 +398,8 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
             is ListItem.Chart -> (holder as ChartViewHolder).bind(chartView)
+            is ListItem.DashboardCards -> (holder as DashboardCardsViewHolder).bind(item.cards)
+            is ListItem.InsightCards -> (holder as InsightCardsViewHolder).bind(item.cards)
             is ListItem.Header -> (holder as HeaderViewHolder).bind(item, position)
             is ListItem.Item -> (holder as ItemViewHolder).bind(item.displayBill, position)
         }
@@ -376,13 +429,57 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         fun bind(view: android.view.View?) {
             container.removeAllViews()
             if (view != null) {
-                // 先从旧 parent 脱离，避免 addView 抛异常。
                 (view.parent as? android.view.ViewGroup)?.removeView(view)
-                container.addView(view, android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-                ))
+                container.addView(view)
             }
+        }
+    }
+
+    // 驾驶舱卡片区域 ViewHolder。
+    inner class DashboardCardsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val rows = itemView.findViewById<android.widget.LinearLayout>(R.id.layout_dashboard_rows)
+
+        fun bind(cards: List<HomeDashboardCard>) {
+            rows.removeAllViews()
+            val inflater = LayoutInflater.from(itemView.context)
+            cards.forEach { card ->
+                val row = inflater.inflate(R.layout.item_home_dashboard_row, rows, false)
+                val dot = row.findViewById<View>(R.id.viewDashboardDot)
+                val tvTitle = row.findViewById<TextView>(R.id.tvDashboardTitle)
+                val tvBody = row.findViewById<TextView>(R.id.tvDashboardBody)
+                when (card) {
+                    is HomeDashboardCard.BudgetProgress -> {
+                        tvTitle.text = card.title
+                        tvBody.text = card.body
+                        val color = when {
+                            card.percent >= 1.0 -> "#FF5252"
+                            card.percent >= 0.8 -> "#FF9800"
+                            else -> "#4CAF50"
+                        }
+                        dot.setBackgroundColor(android.graphics.Color.parseColor(color))
+                    }
+                    is HomeDashboardCard.Reminder -> {
+                        tvTitle.text = card.title
+                        tvBody.text = card.body
+                        dot.setBackgroundColor(android.graphics.Color.parseColor("#2196F3"))
+                    }
+                }
+                row.setOnClickListener { onDashboardCardClick?.invoke(card) }
+                rows.addView(row)
+            }
+        }
+    }
+
+    // 洞察卡片区域 ViewHolder。
+    inner class InsightCardsViewHolder(val rv: RecyclerView) : RecyclerView.ViewHolder(rv) {
+        private var adapter: InsightCardAdapter? = null
+
+        fun bind(cards: List<InsightCardModel>) {
+            if (adapter == null) {
+                adapter = InsightCardAdapter()
+                rv.adapter = adapter
+            }
+            adapter?.submitList(cards)
         }
     }
 

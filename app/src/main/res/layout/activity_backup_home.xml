@@ -130,6 +130,20 @@
                             app:icon="@android:drawable/ic_menu_sort_by_size"
                             app:iconTint="#5C80EA" />
                     </LinearLayout>
+
+                    <!-- 从其他 App 迁移入口 -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_import_migration"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/import_onboarding_title"
+                        android:textColor="#44556E"
+                        app:backgroundTint="#EAF0FB"
+                        app:cornerRadius="10dp"
+                        app:icon="@android:drawable/ic_menu_upload"
+                        app:iconTint="#5C80EA" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

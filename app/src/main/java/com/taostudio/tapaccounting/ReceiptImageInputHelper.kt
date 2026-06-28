@@ -116,14 +116,151 @@ object ReceiptImageInputHelper {
             .distinct()
             .toList()
 
-        return if (lines.isNotEmpty()) lines.joinToString("\n") else trimmed
+        val merged = mergeOrphanMetadataLines(lines)
+        return if (merged.isNotEmpty()) merged.joinToString("\n") else trimmed
+    }
+
+    /**
+     * 把误拆成独立行的日期/时间/支付方式，合并回相邻交易行。
+     */
+    internal fun mergeOrphanMetadataLines(lines: List<String>): List<String> {
+        if (lines.size <= 1) return lines
+
+        val result = mutableListOf<String>()
+        for (line in lines) {
+            when {
+                isStandaloneTimeLine(line) && result.isNotEmpty() -> {
+                    // 整单共用一个时间时，归到首行即可
+                    result[0] = attachMetadata(result[0], "时间", normalizeTimeFragment(line))
+                }
+                isStandalonePaymentLine(line) && result.isNotEmpty() -> {
+                    result[0] = attachMetadata(result[0], "payment", line)
+                }
+                isStandaloneTimeLine(line) -> result.add(line)
+                isStandalonePaymentLine(line) -> result.add(line)
+                else -> result.add(line)
+            }
+        }
+        return result
+    }
+
+    /**
+     * 兜底合并同名商品行（如 可乐 → 西瓜 → 可乐）。
+     * 仅当所有行都符合「购买…花了…」时才合并，避免误伤截图类句子。
+     */
+    internal fun mergeDuplicatePurchaseLines(lines: List<String>): List<String> {
+        if (lines.size <= 1) return lines
+        val parsed = lines.map { parsePurchaseLine(it) }
+        if (parsed.any { it == null }) return lines
+
+        val grouped = LinkedHashMap<String, MutableList<ParsedPurchase>>()
+        for (item in parsed.filterNotNull()) {
+            grouped.getOrPut(item.productKey) { mutableListOf() }.add(item)
+        }
+        return grouped.values.map { items ->
+            if (items.size == 1) {
+                items.first().rawLine
+            } else {
+                val displayName = items.first().displayName
+                val totalQty = items.sumOf { it.quantity }
+                val totalAmount = items.sumOf { it.amount }
+                val currency = items.first().currency
+                if (totalQty > 1) {
+                    "购买$displayName x$totalQty 花了 ${String.format("%.2f", totalAmount)} $currency"
+                } else {
+                    "购买$displayName 花了 ${String.format("%.2f", totalAmount)} $currency"
+                }
+            }
+        }
+    }
+
+    private data class ParsedPurchase(
+        val productKey: String,
+        val displayName: String,
+        val quantity: Int,
+        val amount: Double,
+        val currency: String,
+        val rawLine: String
+    )
+
+    private fun parsePurchaseLine(line: String): ParsedPurchase? {
+        val trimmed = line.trim()
+        val match = Regex("""^购买\s*(.+?)\s*花了\s+([\d.]+)\s*([A-Za-z]{2,4})?$""").find(trimmed) ?: return null
+        var name = match.groupValues[1].trim()
+        val amount = match.groupValues[2].toDoubleOrNull() ?: return null
+        val currency = match.groupValues[3].ifBlank { "CNY" }
+        var quantity = 1
+        val qtyMatch = Regex("""\s+[xX×](\d+)$""").find(name)
+        if (qtyMatch != null) {
+            quantity = qtyMatch.groupValues[1].toIntOrNull() ?: 1
+            name = name.removeSuffix(qtyMatch.value).trim()
+        }
+        val displayName = name.trim()
+        val productKey = displayName
+            .replace(Regex("""\([^)]*\)"""), "")
+            .replace(Regex("""\s+"""), "")
+            .lowercase()
+        if (productKey.isBlank()) return null
+        return ParsedPurchase(
+            productKey = productKey,
+            displayName = displayName,
+            quantity = quantity,
+            amount = amount,
+            currency = currency,
+            rawLine = trimmed
+        )
+    }
+
+    private fun attachMetadata(transactionLine: String, kind: String, fragment: String): String {
+        if (transactionLine.contains(fragment, ignoreCase = true)) return transactionLine
+        return when (kind) {
+            "payment" -> {
+                val phrase = if (fragment.contains("用了")) fragment else "用了${fragment.trim()}支付"
+                if (transactionLine.contains("支付")) "$transactionLine，$phrase" else "$transactionLine，$phrase"
+            }
+            else -> {
+                val timeText = fragment.removePrefix("时间").trim()
+                if (transactionLine.contains(timeText)) transactionLine else "$transactionLine，时间$timeText"
+            }
+        }
+    }
+
+    private fun normalizeTimeFragment(line: String): String {
+        return line.removePrefix("时间").trim()
+    }
+
+    internal fun isStandaloneTimeLine(line: String): Boolean {
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) return false
+        if (trimmed.contains("花了") || trimmed.contains("消费") || trimmed.contains("购买") ||
+            trimmed.contains("支付") && trimmed.any { it.isDigit() }
+        ) {
+            return false
+        }
+        if (trimmed.startsWith("时间")) return true
+        return Regex("""^\d{4}[-/年]\d{1,2}[-/月]\d{1,2}""").containsMatchIn(trimmed) ||
+            Regex("""^\d{1,2}[-/月]\d{1,2}""").containsMatchIn(trimmed)
+    }
+
+    internal fun isStandalonePaymentLine(line: String): Boolean {
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) return false
+        if (trimmed.any { it.isDigit() } && Regex("""\d+\.\d{2}""").containsMatchIn(trimmed)) return false
+        val paymentOnly = trimmed.startsWith("用了") && trimmed.contains("支付") && trimmed.length <= 24
+        val methodOnly = trimmed in setOf("微信支付", "支付宝支付", "现金支付") ||
+            Regex("""^(微信|支付宝|花呗|Visa|Mastercard|银联|现金).{0,8}支付$""", RegexOption.IGNORE_CASE)
+                .containsMatchIn(trimmed)
+        return paymentOnly || methodOnly
     }
 
     private fun splitDenseReceiptLine(line: String): List<String> {
-        if (!line.contains("花了") && !line.contains("支付") && !line.contains("消费")) {
+        if (!line.contains("花了") && !line.contains("消费") && !line.contains("购买") &&
+            !line.contains("收到") && !line.contains("到账") && !line.contains("转账")
+        ) {
             return listOf(line)
         }
-        val segments = Regex("(?=(?:购买|支付|消费|收到|到账|退款|转账))")
+        // 不在「用了xxx支付」的「支付」处切开；只按新交易的开头动词拆分
+        val segments = Regex("(?=(?:购买|消费|收到|到账|退款|转账))")
             .split(line)
             .map { it.trim() }
             .filter { it.isNotBlank() }
