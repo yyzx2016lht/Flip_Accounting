@@ -645,7 +645,9 @@ class ChatAdapter(
                 return
             }
             tvLoading.visibility = View.VISIBLE
-            ChatMarkdownFormatter.applyTo(tvLoading, display)
+            tvLoading.text = display
+            tvLoading.linksClickable = false
+            tvLoading.movementMethod = null
         }
 
         private fun shouldShowTypingDots(text: String): Boolean {

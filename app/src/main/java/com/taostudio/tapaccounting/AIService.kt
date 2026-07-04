@@ -308,6 +308,69 @@ object AIService {
         }
     }
 
+    suspend fun analyzeAccountingFromAudio(
+        ctx: Context,
+        audioFile: File,
+        audioFormat: String = "wav",
+        onProgress: ((String) -> Unit)? = null,
+        chatTurns: List<ChatTurn> = emptyList()
+    ): JSONObject? {
+        if (!audioFile.exists() || audioFile.length() <= 44L) {
+            throw IllegalArgumentException("音频文件无效")
+        }
+        if (audioFile.length() > MAX_AUDIO_INLINE_BYTES) {
+            throw IllegalArgumentException("音频文件过大（>${MAX_AUDIO_INLINE_BYTES / 1024 / 1024}MB）")
+        }
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        val model = AiModelSlots.resolveChatModel(ctx).ifBlank { AiModelSlots.resolveTextModel(ctx) }
+        val promptContext = buildAccountingPromptContext(ctx)
+        val systemPrompt = buildAccountingSystemPrompt(
+            ctx = ctx,
+            promptContext = promptContext,
+            isFromChat = true
+        )
+        val userPrompt = buildAccountingUserPrompt(
+            userInput = "请直接听取随附语音，提取其中的记账信息；如果不是记账内容，按 no_bill + reply 输出。",
+            promptContext = promptContext,
+            matchedPromptRules = emptyList(),
+            assetFeatureEnabled = promptContext.assetFeatureEnabled,
+            isFromChat = true,
+            aiName = Prefs.getAiChatName(ctx).trim().ifBlank { "小记" }
+        )
+        val audioBase64 = Base64.encodeToString(audioFile.readBytes(), Base64.NO_WRAP)
+        val dataUrl = "data:audio/$audioFormat;base64,$audioBase64"
+        val requestJson = buildMultiTurnAudioChatRequest(
+            model = model,
+            temperature = 0.2,
+            systemPrompt = systemPrompt,
+            historyTurns = chatTurns,
+            audioBase64 = dataUrl,
+            audioFormat = audioFormat,
+            userText = userPrompt,
+            stream = true,
+            enableThinking = enableThinkingForAccounting(ctx)
+        )
+        onProgress?.invoke("正在听语音...")
+        val content = requestAccountingContentStreamed(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = requestJson,
+            onProgress = onProgress,
+            emitTextDelta = true,
+            logReasoning = enableThinkingForAccounting(ctx),
+            reasoningLogTag = ACCOUNTING_AUDIO_MULTI_LOG_TAG
+        )
+        Logger.d(ctx, AI_IO_LOG_TAG, "[语音记账] AI: ${content.take(3000)}")
+        val result = parseAnalyzeResult(content, isMultiMode = true)
+        result?.let { root ->
+            if (!root.optBoolean("no_bill", false)) {
+                normalizeAccountingWithLocalRules(ctx, root, promptContext, "语音输入")
+            }
+        }
+        return result
+    }
+
     suspend fun analyzeReceiptByImage(
         ctx: Context,
         imageBase64: String,
@@ -1112,7 +1175,7 @@ object AIService {
         if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
         Logger.d(ctx, AI_IO_LOG_TAG, "[聊天附件] USER: ${userInput.take(2000)} attachments=${images.size}")
 
-        val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveChatModel(ctx) }
+        val model = AiModelCapabilities.chatMultimodalModel(ctx)
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
         val systemPrompt = when {
             openConversationMode -> buildOpenConversationSystemPrompt(ctx)
@@ -1125,8 +1188,12 @@ object AIService {
                 defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
             )
         }
-        // PDF 等文档：多数视觉模型不支持 file 类型，转成页面图片再发送
-        val apiAttachments = expandPdfAttachmentsForVisionApi(ctx, images)
+        val apiAttachments = if (AiModelCapabilities.supportsNativeDocumentFiles(ctx)) {
+            images
+        } else {
+            // PDF 等文档：多数视觉模型不支持 file 类型，转成页面图片再发送
+            expandPdfAttachmentsForVisionApi(ctx, images)
+        }
         val mimes = apiAttachments.map { it.second }
         val userPrompt = safeUserInput.trim().ifBlank {
             when {

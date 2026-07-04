@@ -127,6 +127,38 @@ class ChatMessagePipeline(
     private var repeatInputExactMatches: Int = 0
     private var repeatInputHighSimilarityMatches: Int = 0
 
+    private class StreamingTextUiBuffer(
+        private val minIntervalMs: Long = 120L
+    ) {
+        private val text = StringBuilder()
+        private var lastFlushMs = 0L
+
+        fun append(delta: String): String? {
+            if (delta.isBlank()) return null
+            text.append(delta)
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastFlushMs < minIntervalMs) return null
+            lastFlushMs = now
+            return text.toString()
+        }
+
+        fun value(): String = text.toString()
+    }
+
+    private fun pushStreamText(
+        loadingKey: String,
+        requestContext: ChatRequestContext,
+        buffer: StreamingTextUiBuffer,
+        delta: String
+    ) {
+        val next = buffer.append(delta) ?: return
+        runOnUiIfAlive {
+            if (canWriteForRequest(requestContext)) {
+                updateLoadingMessage(loadingKey, next)
+            }
+        }
+    }
+
     private fun newRequestContext(loadingUiKey: String? = null): ChatRequestContext {
         return ChatRequestContext(
             requestId = UUID.randomUUID().toString(),
@@ -917,93 +949,118 @@ class ChatMessagePipeline(
     }
 
     fun callAiAccountingWithVoice(audioFile: File) {
-        val loadingKey = appendAi("正在听写语音...", true, getCurrentBookName(), getCurrentConversationId())
+        val loadingKey = appendAi("正在听语音...", true, getCurrentBookName(), getCurrentConversationId())
         val requestContext = newRequestContext(loadingKey)
-        var loadingStage = 1
-        val streamedRaw = StringBuilder()
-        var lastDisplayedPreview = ""
-        var streamStarted = false
-        var lastPreviewUpdateMs = 0L
-        fun pushLoadingStatus(raw: String) {
-            if (!canWriteForRequest(requestContext)) return
-            if (raw.startsWith("AI_STREAM_TEXT::")) {
-                val delta = raw.removePrefix("AI_STREAM_TEXT::")
-                if (delta.isBlank()) return
-                streamStarted = true
-                streamedRaw.append(delta)
-                val candidate = StreamingBillPreview.formatChatPreview(streamedRaw.toString(), lastDisplayedPreview)
-                if (!StreamingBillPreview.shouldUpdateUi(lastDisplayedPreview, candidate, lastPreviewUpdateMs)) return
-                lastDisplayedPreview = candidate
-                lastPreviewUpdateMs = android.os.SystemClock.elapsedRealtime()
-                updateLoadingMessage(loadingKey, candidate)
-                return
-            }
-            if (!StreamingBillPreview.shouldApplyNonStreamProgress(streamStarted)) return
-            val (stage, text) = mapProgressToNaturalStatus(raw)
-            loadingStage = maxOf(loadingStage, stage)
-            val stableText = when (loadingStage) {
-                1 -> "正在听写语音..."
-                2 -> "正在整理账单..."
-                else -> text
-            }
-            if (stableText == lastDisplayedPreview) return
-            lastDisplayedPreview = stableText
-            lastPreviewUpdateMs = android.os.SystemClock.elapsedRealtime()
-            updateLoadingMessage(loadingKey, stableText)
-        }
         val job = aiWorkScope.launch(start = CoroutineStart.LAZY) {
             try {
                 if (!canWriteForRequest(requestContext)) return@launch
+                val audioFormat = audioFile.extension.lowercase().ifBlank { "wav" }
+                val directAudio = AiModelCapabilities.supportsDirectAudioInput(context)
+
+                if (directAudio) {
+                    val chatHistoryTurns = buildChatHistoryTurns("[语音消息]", requestContext)
+                    if (isConversationMode()) {
+                        val streamedText = StreamingTextUiBuffer()
+                        val chatReply = withContext(Dispatchers.IO) {
+                            AIService.generateGeneralChatReplyWithAudio(
+                                ctx = context,
+                                audioFile = audioFile,
+                                audioFormat = audioFormat,
+                                chatTurns = chatHistoryTurns,
+                                openConversationMode = true,
+                                onDelta = { delta ->
+                                    pushStreamText(loadingKey, requestContext, streamedText, delta)
+                                }
+                            )
+                        }
+                        if (!canWriteForRequest(requestContext)) return@launch
+                        if (chatReply.completed && chatReply.content.isNotBlank()) {
+                            finalizeAi(
+                                loadingKey,
+                                chatReply.content,
+                                requestContext.bookName,
+                                requestContext.conversationId
+                            )
+                        } else {
+                            removeLoadingMessage(loadingKey)
+                            appendAi("语音回复生成失败，请重试。", false, requestContext.bookName, requestContext.conversationId)
+                        }
+                        return@launch
+                    }
+
+                    var loadingStage = 1
+                    val streamedRaw = StringBuilder()
+                    var lastDisplayedPreview = ""
+                    var streamStarted = false
+                    var lastPreviewUpdateMs = 0L
+                    fun pushAudioAccountingStatus(raw: String) {
+                        if (!canWriteForRequest(requestContext)) return
+                        if (raw.startsWith("AI_STREAM_TEXT::")) {
+                            val delta = raw.removePrefix("AI_STREAM_TEXT::")
+                            if (delta.isBlank()) return
+                            streamStarted = true
+                            streamedRaw.append(delta)
+                            val candidate = StreamingBillPreview.formatChatPreview(streamedRaw.toString(), lastDisplayedPreview)
+                            if (!StreamingBillPreview.shouldUpdateUi(lastDisplayedPreview, candidate, lastPreviewUpdateMs)) return
+                            lastDisplayedPreview = candidate
+                            lastPreviewUpdateMs = android.os.SystemClock.elapsedRealtime()
+                            updateLoadingMessage(loadingKey, candidate)
+                            return
+                        }
+                        if (!StreamingBillPreview.shouldApplyNonStreamProgress(streamStarted)) return
+                        val (stage, text) = mapProgressToNaturalStatus(raw)
+                        loadingStage = maxOf(loadingStage, stage)
+                        val stableText = when (loadingStage) {
+                            1 -> "正在听语音..."
+                            2 -> "正在整理账单..."
+                            else -> text
+                        }
+                        if (stableText == lastDisplayedPreview) return
+                        lastDisplayedPreview = stableText
+                        lastPreviewUpdateMs = android.os.SystemClock.elapsedRealtime()
+                        updateLoadingMessage(loadingKey, stableText)
+                    }
+
+                    val result = withContext(Dispatchers.IO) {
+                        AIService.analyzeAccountingFromAudio(
+                            ctx = context,
+                            audioFile = audioFile,
+                            audioFormat = audioFormat,
+                            onProgress = { status ->
+                                runOnUiIfAlive {
+                                    if (canWriteForRequest(requestContext)) pushAudioAccountingStatus(status)
+                                }
+                            },
+                            chatTurns = chatHistoryTurns
+                        )
+                    }
+                    if (!canWriteForRequest(requestContext)) return@launch
+                    removeLoadingMessage(loadingKey)
+                    finalizeChatAccountingResult(
+                        result = result,
+                        sourceText = "[语音输入]",
+                        requestContext = requestContext,
+                        parseFailureHint = "我收到这段语音了，但这次没能正确解析。你可以再说得更具体一点。"
+                    )
+                    return@launch
+                }
+
                 val transcript = withContext(Dispatchers.IO) { transcribeVoiceToTextWithFallback(audioFile) }
                 if (!canWriteForRequest(requestContext)) return@launch
 
                 if (transcript.isBlank()) {
                     removeLoadingMessage(loadingKey)
-                    appendAi(
-                        "我没听清语音内容，你可以再说一次或直接打字。",
-                        false, requestContext.bookName, requestContext.conversationId
-                    )
+                    appendAi("我没听清语音内容，你可以再说一次或直接打字。", false, requestContext.bookName, requestContext.conversationId)
                     return@launch
                 }
 
-                // 对话模式：语音直发给大模型；记账模式：先路由，闲聊则提示切换模式
                 if (isConversationMode()) {
-                    updateLoadingMessage(loadingKey, "正在听语音...")
-                    val audioFormat = audioFile.extension.lowercase().ifBlank { "wav" }
-                    val chatHistoryTurns = buildChatHistoryTurns(transcript, requestContext)
-                    val streamedText = StringBuffer()
-                    val chatReply = withContext(Dispatchers.IO) {
-                        AIService.generateGeneralChatReplyWithAudio(
-                            ctx = context,
-                            audioFile = audioFile,
-                            audioFormat = audioFormat,
-                            chatTurns = chatHistoryTurns,
-                            openConversationMode = true,
-                            onDelta = { delta ->
-                                streamedText.append(delta)
-                                runOnUiIfAlive {
-                                    if (canWriteForRequest(requestContext)) {
-                                        updateLoadingMessage(loadingKey, streamedText.toString())
-                                    }
-                                }
-                            }
-                        )
-                    }
-                    if (!canWriteForRequest(requestContext)) return@launch
-                    if (chatReply.completed && chatReply.content.isNotBlank()) {
-                        finalizeAi(
-                            loadingKey,
-                            chatReply.content,
-                            requestContext.bookName,
-                            requestContext.conversationId
-                        )
-                    } else {
-                        removeLoadingMessage(loadingKey)
-                        appendAi(
-                            "语音回复生成失败，请重试。",
-                            false, requestContext.bookName, requestContext.conversationId
-                        )
-                    }
+                    streamConversationWithText(
+                        loadingKey = loadingKey,
+                        userText = transcript,
+                        chatHistoryTurns = buildChatHistoryTurns(transcript, requestContext),
+                        requestContext = requestContext
+                    )
                     return@launch
                 }
 
@@ -1022,22 +1079,21 @@ class ChatMessagePipeline(
                     return@launch
                 }
 
-                // 记账场景：走现有流程（ASR 转文字 → 记账）
                 updateLoadingMessage(loadingKey, "正在整理账单...")
-                val chatHistoryTurns = buildChatHistoryTurns(transcript, requestContext)
-                val autoMultiMode = decideSingleOrMultiForChat(transcript)
                 val result = withContext(Dispatchers.IO) {
                     AIService.analyzeAccounting(
                         ctx = context,
                         userInput = transcript,
-                        isMultiModeOverride = autoMultiMode,
+                        isMultiModeOverride = decideSingleOrMultiForChat(transcript),
                         onProgress = { status ->
                             runOnUiIfAlive {
-                                if (canWriteForRequest(requestContext)) pushLoadingStatus(status)
+                                if (canWriteForRequest(requestContext)) {
+                                    updateLoadingMessage(loadingKey, mapProgressToNaturalStatus(status).second)
+                                }
                             }
                         },
                         isFromChat = true,
-                        chatTurns = chatHistoryTurns
+                        chatTurns = buildChatHistoryTurns(transcript, requestContext)
                     )
                 }
 
@@ -1133,7 +1189,7 @@ class ChatMessagePipeline(
         requestContext: ChatRequestContext
     ) {
         updateLoadingMessage(loadingKey, "正在思考...")
-        val streamedText = StringBuffer()
+        val streamedText = StreamingTextUiBuffer()
         val chatReply = withContext(Dispatchers.IO) {
             AIService.generateGeneralChatReply(
                 ctx = context,
@@ -1141,12 +1197,7 @@ class ChatMessagePipeline(
                 chatTurns = chatHistoryTurns,
                 accountingCasualMode = true,
                 onDelta = { delta ->
-                    streamedText.append(delta)
-                    runOnUiIfAlive {
-                        if (canWriteForRequest(requestContext)) {
-                            updateLoadingMessage(loadingKey, streamedText.toString())
-                        }
-                    }
+                    pushStreamText(loadingKey, requestContext, streamedText, delta)
                 }
             )
         }
@@ -1178,7 +1229,7 @@ class ChatMessagePipeline(
         requestContext: ChatRequestContext
     ) {
         updateLoadingMessage(loadingKey, "正在思考...")
-        val streamedText = StringBuffer()
+        val streamedText = StreamingTextUiBuffer()
         val chatReply = withContext(Dispatchers.IO) {
             AIService.generateGeneralChatReplyWithImages(
                 ctx = context,
@@ -1187,12 +1238,7 @@ class ChatMessagePipeline(
                 chatTurns = chatHistoryTurns,
                 accountingCasualMode = true,
                 onDelta = { delta ->
-                    streamedText.append(delta)
-                    runOnUiIfAlive {
-                        if (canWriteForRequest(requestContext)) {
-                            updateLoadingMessage(loadingKey, streamedText.toString())
-                        }
-                    }
+                    pushStreamText(loadingKey, requestContext, streamedText, delta)
                 }
             )
         }
@@ -1223,7 +1269,7 @@ class ChatMessagePipeline(
         requestContext: ChatRequestContext
     ) {
         updateLoadingMessage(loadingKey, "正在思考...")
-        val streamedText = StringBuffer()
+        val streamedText = StreamingTextUiBuffer()
         val chatReply = withContext(Dispatchers.IO) {
             AIService.generateGeneralChatReply(
                 ctx = context,
@@ -1231,12 +1277,7 @@ class ChatMessagePipeline(
                 chatTurns = chatHistoryTurns,
                 openConversationMode = true,
                 onDelta = { delta ->
-                    streamedText.append(delta)
-                    runOnUiIfAlive {
-                        if (canWriteForRequest(requestContext)) {
-                            updateLoadingMessage(loadingKey, streamedText.toString())
-                        }
-                    }
+                    pushStreamText(loadingKey, requestContext, streamedText, delta)
                 }
             )
         }
@@ -1267,7 +1308,7 @@ class ChatMessagePipeline(
         requestContext: ChatRequestContext
     ) {
         updateLoadingMessage(loadingKey, "正在思考...")
-        val streamedText = StringBuffer()
+        val streamedText = StreamingTextUiBuffer()
         val chatReply = withContext(Dispatchers.IO) {
             AIService.generateGeneralChatReplyWithImages(
                 ctx = context,
@@ -1276,12 +1317,7 @@ class ChatMessagePipeline(
                 chatTurns = chatHistoryTurns,
                 openConversationMode = true,
                 onDelta = { delta ->
-                    streamedText.append(delta)
-                    runOnUiIfAlive {
-                        if (canWriteForRequest(requestContext)) {
-                            updateLoadingMessage(loadingKey, streamedText.toString())
-                        }
-                    }
+                    pushStreamText(loadingKey, requestContext, streamedText, delta)
                 }
             )
         }
