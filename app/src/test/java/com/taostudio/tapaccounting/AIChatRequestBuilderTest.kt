@@ -40,7 +40,7 @@ class AIChatRequestBuilderTest {
 
         assertFalse(adapted.has("enable_thinking"))
         assertEquals("disabled", adapted.getAsJsonObject("thinking").get("type").asString)
-        assertEquals(0.6, adapted.get("temperature").asDouble, 0.0)
+        assertEquals(0.3, adapted.get("temperature").asDouble, 0.0)
     }
 
     @Test

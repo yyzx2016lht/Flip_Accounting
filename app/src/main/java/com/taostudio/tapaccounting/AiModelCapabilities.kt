@@ -13,23 +13,25 @@ object AiModelCapabilities {
 
     fun supportsDirectAudioInput(ctx: Context, model: String = AiModelSlots.resolveChatModel(ctx)): Boolean {
         val providerId = Prefs.getAiProvider(ctx)
-        if (providerId == AiProviderRegistry.PROVIDER_MIMO || model.contains("mimo", ignoreCase = true)) {
-            return model.isNotBlank()
-        }
-        Prefs.getAiChatModelAudioSupport(ctx, model)?.let { return it }
-        return when (Prefs.getAiProvider(ctx)) {
-            AiProviderRegistry.PROVIDER_QWEN -> model.isNotBlank()
-            else -> false
-        }
+        return resolveDirectAudioInput(
+            providerId = providerId,
+            model = model,
+            cachedSupport = Prefs.getAiChatModelAudioSupport(ctx, model)
+        )
     }
 
-    fun supportsNativeDocumentFiles(ctx: Context): Boolean =
-        when (Prefs.getAiProvider(ctx)) {
-            AiProviderRegistry.PROVIDER_MIMO,
-            AiProviderRegistry.PROVIDER_QWEN,
-            AiProviderRegistry.PROVIDER_KIMI -> true
-            else -> false
+    internal fun resolveDirectAudioInput(
+        providerId: String,
+        model: String,
+        cachedSupport: Boolean?
+    ): Boolean {
+        if (model.isBlank()) return false
+        if (providerId == AiProviderRegistry.PROVIDER_MIMO || model.contains("mimo", ignoreCase = true)) {
+            return true
         }
+        cachedSupport?.let { return it }
+        return providerId == AiProviderRegistry.PROVIDER_QWEN
+    }
 
     fun chatMultimodalModel(ctx: Context): String =
         AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveChatModel(ctx) }

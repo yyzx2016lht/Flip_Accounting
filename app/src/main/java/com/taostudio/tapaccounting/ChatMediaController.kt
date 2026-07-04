@@ -641,26 +641,9 @@ class ChatMediaController(
         }
 
         if (ChatAttachmentHelper.shouldExtractAsInlineText(mime, fileName)) {
-            // DOCX: 尝试整文件 base64 直发（≤4MB），否则 fallback 到提取文字
             if (ChatAttachmentHelper.isDocxMime(mime, fileName)) {
-                // DOCX 整文件 base64 直发（≤20MB，与 PDF 一致）
-                val docDirectMaxBytes = 20L * 1024L * 1024L
+                // DOCX 走文本提取，避免 OpenAI-compatible 接口拒绝原生 file part。
                 val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
-                val stableFile = File(storedUri.path ?: "")
-                if (stableFile.length() <= docDirectMaxBytes) {
-                    val bytes = stableFile.readBytes()
-                    if (bytes.isNotEmpty()) {
-                        return listOf(
-                            PendingImage(
-                                uri = storedUri,
-                                base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
-                                mime = mime,
-                                fileName = fileName
-                            )
-                        )
-                    }
-                }
-                // fallback: 提取文字
                 val rawText = context.contentResolver.openInputStream(storedUri)?.use { input ->
                     ChatDocumentTextExtractor.extractDocxText(input)
                 }.orEmpty()
@@ -706,7 +689,7 @@ class ChatMediaController(
         val stableFile = File(storedUri.path ?: "")
 
         if (mime.equals("application/pdf", ignoreCase = true)) {
-            // 尝试 PDF 整文件 base64 直发（≤20MB，与 OpenAI/Gemini 一致）
+            // 保存 PDF 原文件 base64；真正发给视觉接口前会统一渲染为图片页。
             val pdfDirectMaxBytes = 20L * 1024L * 1024L
             if (stableFile.length() <= pdfDirectMaxBytes) {
                 val bytes = stableFile.readBytes()

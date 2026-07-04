@@ -1423,7 +1423,7 @@ object AIService {
                 temperature = 0.1,
                 systemPrompt = null,
                 leadText = "Reply with OK only.",
-                audioBase64 = buildProbeAudioBase64(),
+                audioBase64 = "data:audio/wav;base64,${buildProbeAudioBase64()}",
                 audioFormat = "wav",
                 enableThinking = false
             )

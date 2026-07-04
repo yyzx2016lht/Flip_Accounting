@@ -1296,7 +1296,10 @@ class ChatActivity : AppCompatActivity() {
 
     private fun ensureModelAudioSupportProbed() {
         val model = AiModelSlots.resolveChatModel(this)
-        if (Prefs.getAiChatModelAudioSupport(this, model) != null || audioSupportProbeJob?.isActive == true) {
+        if (AiModelCapabilities.supportsDirectAudioInput(this, model) ||
+            Prefs.getAiChatModelAudioSupport(this, model) != null ||
+            audioSupportProbeJob?.isActive == true
+        ) {
             refreshVoiceSupportHint()
             return
         }
