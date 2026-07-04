@@ -60,13 +60,9 @@
 
 - **文件**: `AssetActivity.kt` — 已删除，该页面未被任何入口引用，资产列表由 `AssetsFragment` 承载。
 
-### 2. BuiltInPickerActivity selection never returned to caller
+### 2. ~~BuiltInPickerActivity selection never returned to caller~~ (已删除废弃页面)
 
-- **文件**: `app/src/main/java/com/taostudio/tapaccounting/BuiltInPickerActivity.kt`
-- **行号**: 24-30
-- **描述**: The selection handler only shows a Toast with the selected name but never calls setResult(RESULT_OK, intent) or finish(). The code to do this is commented out (lines 27-29). Any activity launching BuiltInPickerActivity for a result will never receive a selection.
-- **影响**: The built-in category picker is non-functional for result-based flows. Users select a category but nothing happens.
-- **建议修复**: Uncomment and activate the setResult/finish logic, or remove the activity if it is unused.
+- **文件**: `BuiltInPickerActivity.kt` — 已删除，未注册 Manifest 且无任何代码跳转到此页面。
 
 ### 3. Hardcoded Chinese strings bypass resource system
 
