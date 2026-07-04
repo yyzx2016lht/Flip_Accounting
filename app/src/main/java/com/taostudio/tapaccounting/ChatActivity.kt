@@ -1098,24 +1098,14 @@ class ChatActivity : AppCompatActivity() {
 
             appendUserVoiceMessage(copiedFile, durationSec, "")
             val audioPath = copiedFile.absolutePath
-            if (currentChatModelSupportsDirectAudioInput()) {
+            val directAudioInput = currentChatModelSupportsDirectAudioInput()
+            Logger.d(
+                this@ChatActivity,
+                "ChatVoiceRoute",
+                "directAudio=$directAudioInput, provider=${Prefs.getAiProvider(this@ChatActivity)}, model=${AiModelSlots.resolveChatModel(this@ChatActivity)}"
+            )
+            if (directAudioInput) {
                 callAiAccountingWithVoice(copiedFile)
-                transcribingPaths.add(audioPath)
-                refreshVoiceMessageUi(audioPath)
-                lifecycleScope.launch {
-                    val transcript = withContext(Dispatchers.IO) {
-                        transcribeVoiceToTextWithFallback(copiedFile)
-                    }.trim()
-                    transcribingPaths.remove(audioPath)
-                    refreshVoiceMessageUi(audioPath)
-                    if (transcript.isNotBlank() &&
-                        transcript != "API_KEY_NOT_SETUP" &&
-                        transcript != "MODEL_DOWNLOADING" &&
-                        transcript != "WHISPER_NOT_SETUP"
-                    ) {
-                        updateVoiceTranscriptByPath(audioPath, transcript, revealTranscript = false)
-                    }
-                }
                 return@launch
             }
 

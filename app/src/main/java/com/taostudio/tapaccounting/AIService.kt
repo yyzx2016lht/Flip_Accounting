@@ -1188,12 +1188,9 @@ object AIService {
                 defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
             )
         }
-        val apiAttachments = if (AiModelCapabilities.supportsNativeDocumentFiles(ctx)) {
-            images
-        } else {
-            // PDF 等文档：多数视觉模型不支持 file 类型，转成页面图片再发送
-            expandPdfAttachmentsForVisionApi(ctx, images)
-        }
+        // Keep the proven compatibility path: PDF pages are rasterized before
+        // sending, because several OpenAI-compatible providers reject file parts.
+        val apiAttachments = expandPdfAttachmentsForVisionApi(ctx, images)
         val mimes = apiAttachments.map { it.second }
         val userPrompt = safeUserInput.trim().ifBlank {
             when {

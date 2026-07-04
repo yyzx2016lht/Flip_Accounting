@@ -12,9 +12,12 @@ import android.content.Context
 object AiModelCapabilities {
 
     fun supportsDirectAudioInput(ctx: Context, model: String = AiModelSlots.resolveChatModel(ctx)): Boolean {
+        val providerId = Prefs.getAiProvider(ctx)
+        if (providerId == AiProviderRegistry.PROVIDER_MIMO || model.contains("mimo", ignoreCase = true)) {
+            return model.isNotBlank()
+        }
         Prefs.getAiChatModelAudioSupport(ctx, model)?.let { return it }
         return when (Prefs.getAiProvider(ctx)) {
-            AiProviderRegistry.PROVIDER_MIMO,
             AiProviderRegistry.PROVIDER_QWEN -> model.isNotBlank()
             else -> false
         }
