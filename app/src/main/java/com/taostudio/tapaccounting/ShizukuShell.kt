@@ -60,7 +60,9 @@ object ShizukuShell {
                 exec("dumpsys deviceidle whitelist +$pkg")
                 exec("am set-standby-bucket $pkg active")
                 exec("cmd appops set $pkg RUN_IN_BACKGROUND allow")
-                exec("cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow")  
+                exec("cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow")
+                exec("cmd appops set $pkg HIGH_SAMPLING_RATE_SENSORS allow")
+                exec("cmd appops set $pkg android:access_background_sensor allow")
                 exec("cmd appops set $pkg WAKE_LOCK allow")
                 exec("cmd appops set $pkg SYSTEM_ALERT_WINDOW allow")
                 // 关闭 Android 12+ 幽灵进程杀手（如果系统支持）

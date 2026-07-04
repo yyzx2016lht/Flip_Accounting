@@ -82,6 +82,75 @@ internal fun buildAudioChatRequest(
     )
 }
 
+internal fun buildMultiTurnAudioChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    historyTurns: List<ChatTurn> = emptyList(),
+    audioBase64: String,
+    audioFormat: String,
+    userText: String = "",
+    stream: Boolean = false,
+    enableThinking: Boolean = false
+): JsonObject {
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        historyTurns.forEach { turn ->
+            add(buildTextMessage(turn.role, turn.content))
+        }
+        add(
+            buildContentMessage(
+                role = "user",
+                parts = buildList {
+                    add(buildAudioPart(audioBase64, audioFormat))
+                    if (userText.isNotBlank()) add(buildTextPart(userText))
+                }
+            )
+        )
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        stream = stream,
+        enableThinking = enableThinking
+    )
+}
+
+internal fun buildMultiTurnVideoChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    historyTurns: List<ChatTurn> = emptyList(),
+    videoDataUrl: String,
+    userText: String,
+    stream: Boolean = false,
+    enableThinking: Boolean = false
+): JsonObject {
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        historyTurns.forEach { turn ->
+            add(buildTextMessage(turn.role, turn.content))
+        }
+        add(
+            buildContentMessage(
+                role = "user",
+                parts = listOf(
+                    buildVideoPart(videoDataUrl),
+                    buildTextPart(userText)
+                )
+            )
+        )
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        stream = stream,
+        enableThinking = enableThinking
+    )
+}
+
 internal fun buildMultiTurnVisionChatRequest(
     model: String,
     temperature: Double,
@@ -89,6 +158,7 @@ internal fun buildMultiTurnVisionChatRequest(
     historyTurns: List<ChatTurn> = emptyList(),
     dataUrl: String,
     userText: String,
+    stream: Boolean = false,
     enableThinking: Boolean = false
 ): JsonObject {
     val messages = JsonArray().apply {
@@ -110,6 +180,7 @@ internal fun buildMultiTurnVisionChatRequest(
         model = model,
         temperature = temperature,
         messages = messages,
+        stream = stream,
         enableThinking = enableThinking
     )
 }
@@ -120,6 +191,7 @@ internal fun buildVisionChatRequest(
     systemPrompt: String? = null,
     dataUrl: String,
     userText: String,
+    jsonObjectResponse: Boolean = false,
     enableThinking: Boolean = false
 ): JsonObject {
     val messages = JsonArray().apply {
@@ -138,6 +210,7 @@ internal fun buildVisionChatRequest(
         model = model,
         temperature = temperature,
         messages = messages,
+        jsonObjectResponse = jsonObjectResponse,
         enableThinking = enableThinking
     )
 }
@@ -148,6 +221,7 @@ internal fun buildMultiImageVisionChatRequest(
     systemPrompt: String? = null,
     dataUrls: List<String>,
     userText: String,
+    jsonObjectResponse: Boolean = false,
     enableThinking: Boolean = false
 ): JsonObject {
     val messages = JsonArray().apply {
@@ -163,6 +237,7 @@ internal fun buildMultiImageVisionChatRequest(
         model = model,
         temperature = temperature,
         messages = messages,
+        jsonObjectResponse = jsonObjectResponse,
         enableThinking = enableThinking
     )
 }
@@ -174,6 +249,7 @@ internal fun buildMultiTurnMultiImageVisionChatRequest(
     historyTurns: List<ChatTurn> = emptyList(),
     dataUrls: List<String>,
     userText: String,
+    stream: Boolean = false,
     enableThinking: Boolean = false
 ): JsonObject {
     val messages = JsonArray().apply {
@@ -192,6 +268,7 @@ internal fun buildMultiTurnMultiImageVisionChatRequest(
         model = model,
         temperature = temperature,
         messages = messages,
+        stream = stream,
         enableThinking = enableThinking
     )
 }
@@ -255,3 +332,126 @@ private fun buildAudioPart(audioBase64: String, audioFormat: String): JsonObject
             addProperty("format", audioFormat)
         })
     }
+
+private fun buildVideoPart(dataUrl: String): JsonObject =
+    JsonObject().apply {
+        addProperty("type", "video_url")
+        add("video_url", JsonObject().apply {
+            addProperty("url", dataUrl)
+        })
+    }
+
+private fun buildFilePart(fileName: String, mime: String, base64: String): JsonObject =
+    JsonObject().apply {
+        addProperty("type", "file")
+        add("file", JsonObject().apply {
+            addProperty("filename", fileName.ifBlank { "file" })
+            addProperty("file_data", "data:$mime;base64,$base64")
+        })
+    }
+
+internal data class MultimodalAttachmentPart(
+    val base64: String,
+    val mime: String,
+    val fileName: String = ""
+)
+
+internal fun buildContentPartsForAttachments(
+    attachments: List<MultimodalAttachmentPart>
+): List<JsonObject> = attachments.map { buildContentPartForAttachment(it) }
+
+internal fun buildContentPartForAttachment(attachment: MultimodalAttachmentPart): JsonObject {
+    val mime = attachment.mime
+    val base64 = attachment.base64
+    val dataUrl = "data:$mime;base64,$base64"
+    return when {
+        ChatAttachmentHelper.isImageMime(mime) -> buildImagePart(dataUrl)
+        ChatAttachmentHelper.isVideoMime(mime) -> buildVideoPart(dataUrl)
+        ChatAttachmentHelper.isAudioMime(mime) -> buildAudioPart(
+            audioBase64 = dataUrl,
+            audioFormat = ChatAttachmentHelper.audioFormatForMime(mime)
+        )
+        mime.equals("application/pdf", ignoreCase = true) ||
+            ChatAttachmentHelper.isDocxMime(mime, attachment.fileName) -> buildFilePart(
+            fileName = attachment.fileName.ifBlank { defaultFileNameForMime(mime) },
+            mime = mime,
+            base64 = base64
+        )
+        else -> buildFilePart(
+            fileName = attachment.fileName.ifBlank { defaultFileNameForMime(mime) },
+            mime = mime,
+            base64 = base64
+        )
+    }
+}
+
+private fun defaultFileNameForMime(mime: String): String = when {
+    mime.equals("application/pdf", ignoreCase = true) -> "document.pdf"
+    mime.contains("wordprocessingml", ignoreCase = true) -> "document.docx"
+    mime.startsWith("text/", ignoreCase = true) -> "document.txt"
+    else -> "file"
+}
+
+internal fun buildMultimodalChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    attachments: List<MultimodalAttachmentPart>,
+    userText: String,
+    jsonObjectResponse: Boolean = false,
+    stream: Boolean = false,
+    enableThinking: Boolean = false
+): JsonObject {
+    val attachmentParts = buildContentPartsForAttachments(attachments)
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        add(
+            buildContentMessage(
+                role = "user",
+                parts = attachmentParts + listOf(buildTextPart(userText))
+            )
+        )
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        jsonObjectResponse = jsonObjectResponse,
+        stream = stream,
+        enableThinking = enableThinking
+    )
+}
+
+internal fun buildMultiTurnMultimodalChatRequest(
+    model: String,
+    temperature: Double,
+    systemPrompt: String? = null,
+    historyTurns: List<ChatTurn> = emptyList(),
+    attachments: List<MultimodalAttachmentPart>,
+    userText: String,
+    jsonObjectResponse: Boolean = false,
+    stream: Boolean = false,
+    enableThinking: Boolean = false
+): JsonObject {
+    val attachmentParts = buildContentPartsForAttachments(attachments)
+    val messages = JsonArray().apply {
+        systemPrompt?.let { add(buildTextMessage("system", it)) }
+        historyTurns.forEach { turn ->
+            add(buildTextMessage(turn.role, turn.content))
+        }
+        add(
+            buildContentMessage(
+                role = "user",
+                parts = attachmentParts + listOf(buildTextPart(userText))
+            )
+        )
+    }
+    return buildChatRequest(
+        model = model,
+        temperature = temperature,
+        messages = messages,
+        jsonObjectResponse = jsonObjectResponse,
+        stream = stream,
+        enableThinking = enableThinking
+    )
+}

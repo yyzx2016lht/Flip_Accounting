@@ -44,9 +44,9 @@
     <string name="image_accounting_natural_language_desc">先返回清单供核对，再生成账单</string>
     <string name="receipt_image_supplement_title">补充图片信息</string>
     <string name="receipt_image_supplement_hint">补充支付方式、时间等信息（可选）</string>
-    <string name="reply_style_custom_hint">如：可爱搭子，1-2句话，可带颜文字</string>
+    <string name="reply_style_custom_hint">如：温柔一点，1-2 句话，少用 emoji</string>
     <string name="reply_style_custom_tip">支持自然描述，如"温柔一点""一句话回复"</string>
-    <string name="reply_style_scope_hint">只影响账单后的自然回复，不影响账单提取</string>
+    <string name="reply_style_scope_hint">影响聊天与记账后的回复语气，不影响账单字段提取</string>
     <string name="edit_rule_hint">把常见口语绑定记账偏好，命中时更准确</string>
     <string name="edit_rule_keyword_hint">多个关键词用逗号或空格分隔</string>
     <string name="edit_rule_disable_hint">关闭后保留规则，但暂不参与匹配</string>
@@ -135,7 +135,18 @@
 
     <!-- 聊天模式 -->
     <string name="chat_mode_accounting">记账</string>
+    <string name="chat_mode_conversation">对话</string>
     <string name="chat_mode_once_accounting">本条记账</string>
+    <string name="chat_mode_switched_accounting">已切换到记账模式</string>
+    <string name="chat_mode_switched_conversation">已切换到对话模式</string>
+    <string name="chat_conversation_mode_nudge">切换对话模式，聊得更轻松哦</string>
+    <string name="chat_switch_conversation_mode">去对话</string>
+    <string name="chat_switch_mode_dialog_title">切换到对话模式</string>
+    <string name="chat_switch_mode_continue">在当前窗口继续</string>
+    <string name="chat_switch_mode_continue_desc">保留聊天记录，之后按对话模式回复</string>
+    <string name="chat_switch_mode_new_session">新开窗口</string>
+    <string name="chat_switch_mode_new_session_desc">清空当前聊天，开始新的对话</string>
+    <string name="conversation_chat_input_hint">聊点什么…</string>
     <string name="chat_model_button">模型</string>
     <string name="accounting_chat_input_hint">记一笔…</string>
     <string name="unified_ai_input_hint">记账、问问题或发图片</string>
@@ -568,6 +579,7 @@
     <string name="delete_session">删除会话</string>
     <string name="collapse_text">收起文本</string>
     <string name="copy">复制</string>
+    <string name="code_copied">已复制代码</string>
     <string name="edit_send">编辑发送</string>
     <string name="to_text">转文字</string>
     <string name="re_recognize">重识别</string>
@@ -1264,7 +1276,7 @@
     <string name="toast_ai_avatar_failed">AI 头像更新失败，请重试</string>
     <string name="toast_user_avatar_updated">用户头像已更新</string>
     <string name="toast_avatar_failed">头像更新失败，请重试</string>
-    <string name="toast_natural_reply_off">已关闭自然回复</string>
+    <string name="toast_natural_reply_off">已关闭记账后补回复</string>
     <string name="toast_custom_style">已切换为自定义风格</string>
     <string name="toast_reply_style_changed">已切换为%1$s</string>
     <string name="toast_new_session">已新建对话</string>
@@ -1280,6 +1292,23 @@
     <string name="toast_max_images">最多选择 %1$d 张图片</string>
     <string name="toast_finish_amount_edit">请先完成当前金额编辑</string>
     <string name="toast_invalid_amount">请输入有效金额</string>
+    <string name="chat_bill_delete_all">全部删除</string>
+    <string name="chat_bill_delete_all_fmt">全部删除（%1$d 笔）</string>
+    <string name="chat_bill_delete_all_confirm">确定删除这 %1$d 笔账单？删除后可在回收站恢复。</string>
+    <string name="chat_bill_delete_confirm">账单会移入回收站，是否继续？</string>
+    <string name="chat_bill_expand_more">展开其余账单</string>
+    <string name="chat_bill_expand_more_fmt">展开其余 %1$d 笔</string>
+    <string name="chat_bill_collapse">收起账单</string>
+    <string name="chat_bill_confirm_all">确认入账</string>
+    <string name="chat_bill_confirm_all_fmt">确认入账（%1$d 笔）</string>
+    <string name="chat_bill_deleted_undo_fmt">已删除 %1$d 笔账单</string>
+    <string name="undo">撤销</string>
+    <string name="chat_bill_copy_summary">复制摘要</string>
+    <string name="chat_bill_open_calendar">查看日历</string>
+    <string name="chat_bill_menu_delete_all">全部删除</string>
+    <string name="toast_bill_confirmed_fmt">已确认入账 %1$d 笔</string>
+    <string name="selected_image_count_fmt">已选 %1$d/%2$d 张</string>
+    <string name="chat_analyzing_images_fmt">正在识别 %1$d 张图片…</string>
 
     <!-- BackupActivity 硬编码抽取 -->
     <string name="auto_backup_disabled">自动备份已关闭</string>
@@ -1308,6 +1337,10 @@
     <string name="backup_custom_hint">自定义模式已开启：请按需勾选更细的模块。</string>
     <string name="backup_dir_set_hint">默认目录已设置：点击"覆盖"会覆盖同名文件。</string>
     <string name="backup_dir_not_set_hint">默认目录未设置：请先点击"更换默认目录"。</string>
+    <string name="backup_dir_default_hint">备份目录：%1$s\n点击"覆盖"会覆盖同名文件。</string>
+    <string name="backup_dir_default_not_exists">备份目录不存在：%1$s\n点击"覆盖"将自动创建。</string>
+    <string name="backup_dir_no_permission">未授权存储权限：点击"覆盖"将请求权限。</string>
+    <string name="backup_permission_denied">存储权限被拒绝，无法备份到默认目录</string>
     <string name="cloud_saved">云端设置已保存</string>
     <string name="connection_success">连接成功</string>
     <string name="connection_failed">连接失败，请检查网络或 WebDAV 配置</string>
@@ -1668,6 +1701,35 @@
     <string name="chat_hint">说点什么，我来帮你记账</string>
     <string name="hold_to_talk">按住说话</string>
     <string name="select_image_cd">选择图片</string>
+    <string name="chat_attach_cd">添加附件</string>
+    <string name="chat_attach_camera">拍照</string>
+    <string name="chat_attach_photos">图片</string>
+    <string name="chat_attach_file">文件</string>
+    <string name="chat_attach_file_unsupported">暂不支持此文件类型，可选图片、PDF、Word（.docx）或文本文件</string>
+    <string name="chat_attach_legacy_doc_unsupported">旧版 .doc 暂不支持，请在 Word 中另存为 .docx 或 PDF 后再发送</string>
+    <string name="chat_attach_no_file_app">无法打开文件选择器</string>
+    <string name="chat_attach_empty_file">文件为空或无法读取</string>
+    <string name="chat_attach_read_failed">无法读取文件</string>
+    <string name="chat_attach_process_failed">附件处理失败，请换一个小一点的文件再试</string>
+    <string name="chat_attach_image_too_large">图片过大，请裁剪或压缩后再试</string>
+    <string name="chat_attach_document_too_large">文件过大，请换一个小于 10MB 的文件</string>
+    <string name="chat_attach_text_too_large">文本文件过大，请换一个小文件</string>
+    <string name="chat_attach_pdf_render_failed">PDF 无法读取，请换一份文件或导出为图片后再试</string>
+    <string name="toast_max_attachments">最多选择 %1$d 个附件</string>
+    <string name="selected_attachment_count_fmt">已选 %1$d/%2$d 个</string>
+    <string name="chat_analyzing_attachments_fmt">正在识别 %1$d 个附件…</string>
+    <string name="chat_analyzing_pdf">正在读取 PDF…</string>
+    <string name="chat_file_type_pdf">PDF 文档</string>
+    <string name="chat_file_type_docx">Word 文档</string>
+    <string name="chat_file_type_video">视频</string>
+    <string name="chat_file_type_audio">音频</string>
+    <string name="chat_file_type_text">文本文件</string>
+    <string name="chat_file_type_generic">文件</string>
+    <string name="chat_open_file">打开文件</string>
+    <string name="chat_open_file_failed">无法打开此文件</string>
+    <string name="remove_attachment_cd">移除第 %1$d 个附件</string>
+    <string name="toast_no_camera_app">未找到可用的相机应用</string>
+    <string name="toast_camera_permission">需要相机权限才能拍照</string>
     <string name="voice_selected_count">已选择 %1$d 条语音</string>
     <string name="clear">清空</string>
     <string name="voice_model_warning">当前模型不支持直接语音识别，已改为先转文本再发送，可能存在一点误差。</string>
@@ -1839,6 +1901,14 @@
     <string name="insight_empty_hint">消费洞察已开启。当前月份暂无异常消费提示，有环比变化或大额支出时会显示在这里。</string>
 
     <!-- 规则学习 -->
+    <string name="rule_learn_prompt_title">记住这条记账习惯？</string>
+    <string name="rule_learn_prompt_subtitle">你刚修正了 AI 的识别结果，可以把偏好保存下来，下次自动匹配。</string>
+    <string name="rule_learn_prompt_remark_label">原始备注</string>
+    <string name="rule_learn_prompt_arrow">→</string>
+    <string name="rule_learn_prompt_scope_hint">规则只会记住类型和分类，不会固定支付方式。</string>
+    <string name="rule_learn_prompt_dismiss">暂不需要</string>
+    <string name="rule_learn_prompt_continue">设置规则</string>
+    <string name="add_rule_subtitle_learn">确认关键词后，命中时会自动补上类型和分类。</string>
     <string name="rule_learn_title">记住这个规则？</string>
     <string name="rule_learn_body">以后把「%1$s」都归到 %2$s 吗？</string>
     <string name="rule_learn_confirm">记住</string>

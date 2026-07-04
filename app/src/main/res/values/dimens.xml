@@ -66,6 +66,8 @@
     <!-- ==================== Chat Page ==================== -->
     <dimen name="chat_msg_spacing_vertical">4dp</dimen>
     <dimen name="chat_msg_spacing_horizontal">12dp</dimen>
+    <dimen name="chat_message_side_inset">52dp</dimen>
+    <dimen name="chat_message_max_width">320dp</dimen>
     <dimen name="chat_bubble_padding_h">14dp</dimen>
     <dimen name="chat_bubble_padding_v">10dp</dimen>
     <dimen name="chat_avatar_size">34dp</dimen>

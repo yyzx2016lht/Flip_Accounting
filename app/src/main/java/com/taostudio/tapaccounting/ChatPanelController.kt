@@ -25,12 +25,13 @@ class ChatPanelController(
         val btnCancel = view.findViewById<TextView>(R.id.btn_style_cancel)
         val current = Prefs.getAiChatReplyStyle(context)
         val options = listOf(
-            Triple("cute", "可爱俏皮", "更活一点，允许少量颜文字和小俏皮话"),
+            Triple("natural", "自然中性", "像正常朋友聊天，清楚不刻意卖萌"),
             Triple("gentle", "温柔陪伴", "更轻一点，像在旁边慢慢接住你"),
-            Triple("concise", "简洁克制", "只说重点，语气干净，不拖泥带水"),
+            Triple("concise", "简洁克制", "1-2 句说重点，语气干净"),
+            Triple("cute", "可爱俏皮", "更活一点，允许少量颜文字和小俏皮话"),
             Triple("playful", "活泼碎碎念", "更有聊天感，适合想要热闹一点的反馈"),
             Triple("custom", "自定义", "按你自己的提示词来定义语气、人设和长度"),
-            Triple("off", "关闭", "只保留账单卡片，不再补自然回复")
+            Triple("off", "关闭补刀", "闲聊照常；记账后只出卡片，不再补自然回复")
         )
 
         lateinit var dialog: AlertDialog

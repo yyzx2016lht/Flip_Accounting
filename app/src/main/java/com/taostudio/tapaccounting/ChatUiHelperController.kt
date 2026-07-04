@@ -137,20 +137,13 @@ class ChatUiHelperController(
         SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
 
     fun formatChatMessageTime(ms: Long): String {
-        val nowMs = System.currentTimeMillis()
-        if (ms > nowMs) return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
-
-        val diffMs = nowMs - ms
-        if (diffMs < 60_000L) return "刚刚"
-        if (diffMs < 60L * 60L * 1000L) return "${diffMs / 60_000L} 分钟前"
-
         val now = java.util.Calendar.getInstance()
         val target = java.util.Calendar.getInstance().apply { timeInMillis = ms }
+        val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))
         val dayDiff = dayDiffFromToday(target)
         return when {
-            dayDiff == 0L -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))
-            dayDiff == 1L -> "昨天 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))}"
-            dayDiff in 2L..6L -> "${weekdayLabel(target)} ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))}"
+            dayDiff == 0L -> "今天 $time"
+            dayDiff == 1L -> "昨天 $time"
             now.get(java.util.Calendar.YEAR) == target.get(java.util.Calendar.YEAR) ->
                 SimpleDateFormat("M月d日 HH:mm", Locale.getDefault()).format(Date(ms))
             else -> SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.getDefault()).format(Date(ms))

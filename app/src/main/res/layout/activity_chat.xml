@@ -31,7 +31,7 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="10dp"
-            android:elevation="2dp"
+            android:elevation="0dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -50,7 +50,6 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:layout_marginStart="4dp"
-                android:background="@drawable/bg_circle_soft"
                 android:scaleType="centerCrop"
                 android:src="@drawable/ic_ai_default_avatar"
                 android:clickable="true"
@@ -75,29 +74,31 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/tv_ai_model"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/chat_bill_detail_text"
-                    android:textSize="11sp"
-                    android:ellipsize="end"
-                    android:maxLines="1" />
+            <TextView
+                android:id="@+id/tv_ai_model"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/chat_bill_detail_text"
+                android:textSize="12sp"
+                android:visibility="gone" />
             </LinearLayout>
 
             <TextView
-                android:id="@+id/btn_switch_model"
+                android:id="@+id/btn_chat_mode"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/chat_model_button"
-                android:textColor="#3390EC"
-                android:textSize="13sp"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="5dp"
-                android:background="@drawable/bg_search_box"
+                android:layout_height="32dp"
                 android:layout_marginEnd="4dp"
+                android:background="@drawable/bg_chat_mode_chip"
                 android:clickable="true"
-                android:focusable="true" />
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:text="@string/chat_mode_accounting"
+                android:textColor="#3B5CCC"
+                android:textSize="13sp"
+                android:textStyle="bold" />
 
             <ImageView
                 android:id="@+id/btn_chat_more"
@@ -116,7 +117,7 @@
             android:clipToPadding="false"
             android:overScrollMode="always"
             android:paddingTop="8dp"
-            android:paddingBottom="8dp"
+            android:paddingBottom="12dp"
             android:scrollbarStyle="outsideOverlay"
             android:scrollbars="vertical"
             app:layout_constraintTop_toBottomOf="@id/toolbar_chat"
@@ -126,10 +127,15 @@
 
         <LinearLayout
             android:id="@+id/layout_voice_record_overlay"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="6dp"
             android:background="@drawable/bg_chat_voice_record_overlay"
+            android:elevation="6dp"
             android:gravity="center_vertical"
+            android:minHeight="44dp"
             android:orientation="horizontal"
             android:paddingStart="14dp"
             android:paddingTop="10dp"
@@ -137,39 +143,51 @@
             android:paddingBottom="10dp"
             android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/layout_chat_bottom"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginBottom="12dp">
+            app:layout_constraintStart_toStartOf="parent">
+
+            <View
+                android:id="@+id/view_voice_record_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/bg_voice_record_dot" />
 
             <ImageView
                 android:id="@+id/iv_voice_record_state"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginStart="10dp"
                 android:src="@drawable/ic_chat_mic"
+                android:visibility="gone"
                 app:tint="#FFFFFF" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
+                android:layout_weight="1"
                 android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/tv_voice_record_title"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:text="@string/recording_voice"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tv_voice_record_subtitle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="1dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:text="@string/release_send_slide_cancel"
-                    android:textColor="#E6FFFFFF"
+                    android:textColor="#A3FFFFFF"
                     android:textSize="11sp" />
             </LinearLayout>
 
@@ -177,13 +195,11 @@
                 android:id="@+id/tv_voice_record_timer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:background="@drawable/bg_chat_voice_play_chip"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="3dp"
+                android:layout_marginStart="8dp"
+                android:fontFamily="monospace"
                 android:text="00:00"
                 android:textColor="#FFFFFF"
-                android:textSize="11sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -193,7 +209,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:background="@color/chat_input_bar_bg"
-            android:elevation="2dp"
+            android:elevation="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -333,84 +349,110 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_chat_input_shell"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingVertical="4dp">
 
                     <ImageView
-                        android:id="@+id/btn_voice_toggle"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:padding="9dp"
-                        android:src="@drawable/ic_chat_mic"
+                        android:id="@+id/btn_chat_attach"
+                        android:layout_width="@dimen/chat_icon_btn_size"
+                        android:layout_height="@dimen/chat_icon_btn_size"
                         android:background="@drawable/bg_input_icon_btn"
-                        app:tint="#456387"
                         android:clickable="true"
+                        android:contentDescription="@string/chat_attach_cd"
                         android:focusable="true"
-                        android:layout_gravity="center_vertical" />
+                        android:padding="9dp"
+                        android:src="@drawable/ic_chat_add"
+                        app:tint="@color/chat_icon_btn_tint" />
 
                     <EditText
                         android:id="@+id/et_chat_input"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginHorizontal="4dp"
                         android:layout_weight="1"
-                        android:layout_marginHorizontal="8dp"
-                        android:background="@drawable/bg_chat_input"
+                        android:background="@android:color/transparent"
+                        android:gravity="top|start"
                         android:hint="@string/chat_hint"
-                        android:textSize="15sp"
-                        android:textColor="@color/chat_bill_category_text"
-                        android:textColorHint="@color/chat_input_hint"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="10dp"
-                        android:minLines="1"
-                        android:maxLines="5"
                         android:inputType="textMultiLine|textCapSentences"
-                        android:gravity="top"
-                        android:layout_gravity="center_vertical" />
+                        android:maxLines="5"
+                        android:minLines="1"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="8dp"
+                        android:textColor="@color/chat_ai_bubble_text"
+                        android:textColorHint="@color/chat_input_hint"
+                        android:textSize="15sp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_voice_hold"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
                         android:layout_width="0dp"
                         android:layout_height="42dp"
-                        android:layout_weight="1"
-                        android:layout_marginHorizontal="8dp"
-                        android:text="@string/hold_to_talk"
-                        android:textSize="14sp"
-                        android:textAllCaps="false"
-                        app:cornerRadius="18dp"
-                        android:backgroundTint="#FFFFFF"
-                        android:strokeColor="#CBD5E1"
-                        app:strokeWidth="1dp"
-                        android:textColor="#2A4768"
-                        android:visibility="gone"
                         android:layout_gravity="center_vertical"
-                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton" />
+                        android:layout_marginHorizontal="4dp"
+                        android:layout_weight="1"
+                android:background="@drawable/bg_chat_voice_hold_btn"
+                android:backgroundTint="@null"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:letterSpacing="0.01"
+                android:minHeight="42dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:stateListAnimator="@null"
+                        android:text="@string/hold_to_talk"
+                        android:textAllCaps="false"
+                        android:textColor="@color/chat_ai_bubble_text"
+                        android:textSize="15sp"
+                        android:visibility="gone"
+                        app:cornerRadius="18dp"
+                        app:icon="@drawable/ic_chat_mic"
+                        app:iconGravity="textStart"
+                        app:iconPadding="8dp"
+                        app:iconSize="18dp"
+                        app:iconTint="@color/chat_icon_btn_tint"
+                        app:rippleColor="@color/chat_icon_btn_pressed_bg"
+                        app:strokeWidth="0dp" />
 
                     <ImageView
-                        android:id="@+id/btn_chat_more_input"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:layout_marginStart="2dp"
-                        android:padding="9dp"
-                        android:src="@drawable/ic_chat_image"
+                        android:id="@+id/btn_voice_toggle"
+                        android:layout_width="@dimen/chat_icon_btn_size"
+                        android:layout_height="@dimen/chat_icon_btn_size"
                         android:background="@drawable/bg_input_icon_btn"
-                        app:tint="#456387"
-                        android:contentDescription="@string/select_image_cd"
                         android:clickable="true"
+                        android:contentDescription="@string/hold_to_talk"
                         android:focusable="true"
-                        android:layout_gravity="center_vertical" />
+                        android:padding="9dp"
+                        android:src="@drawable/ic_chat_mic"
+                        app:tint="@color/chat_icon_btn_tint" />
+
+                    <ImageView
+                        android:id="@+id/btn_chat_stop"
+                        android:layout_width="@dimen/chat_send_btn_size"
+                        android:layout_height="@dimen/chat_send_btn_size"
+                        android:background="@drawable/bg_chat_send_circle"
+                        android:clickable="true"
+                        android:contentDescription="@string/stop"
+                        android:focusable="true"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_stop_square"
+                        android:visibility="gone"
+                        app:tint="#FFFFFF" />
 
                     <ImageView
                         android:id="@+id/btn_chat_send"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:layout_marginStart="2dp"
-                        android:padding="9dp"
-                        android:src="@drawable/ic_chat_send"
-                        android:background="@drawable/bg_send_btn"
-                        app:tint="#FFFFFF"
+                        android:layout_width="@dimen/chat_send_btn_size"
+                        android:layout_height="@dimen/chat_send_btn_size"
+                        android:background="@drawable/bg_chat_send_circle"
                         android:clickable="true"
                         android:focusable="true"
-                        android:layout_gravity="center_vertical" />
+                        android:padding="10dp"
+                        android:src="@drawable/ic_chat_send"
+                        app:tint="#FFFFFF" />
                 </LinearLayout>
 
             </LinearLayout>

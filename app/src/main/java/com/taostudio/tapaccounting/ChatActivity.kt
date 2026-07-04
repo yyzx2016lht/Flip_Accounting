@@ -43,6 +43,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -62,10 +63,13 @@ import com.taostudio.tapaccounting.ui.common.StatusBarStyle
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
-import com.taostudio.tapaccounting.logic.BillAssetImpactService
+import com.google.android.material.snackbar.Snackbar
+import com.taostudio.tapaccounting.logic.BillRestoreHelper
+import com.taostudio.tapaccounting.ui.main.home.CalendarActivity
 import com.taostudio.tapaccounting.logic.BillMutationService
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.logic.RuleDialogHelper
+import com.taostudio.tapaccounting.logic.RuleLearnPromptHelper
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.io.FileOutputStream
@@ -90,6 +94,7 @@ class ChatActivity : AppCompatActivity() {
         const val MSG_TYPE_USER_TEXT = 0
         const val MSG_TYPE_USER_IMAGE = 1
         const val MSG_TYPE_USER_VOICE = 2
+        const val MSG_TYPE_USER_FILE = 7
         const val MSG_TYPE_AI_TEXT = 3
         const val MSG_TYPE_AI_BILL = 4
         const val MSG_TYPE_QUERY_DRAFT = 5
@@ -101,7 +106,8 @@ class ChatActivity : AppCompatActivity() {
         const val EXTRA_SOURCE_BOOK = "extra_source_book"
         const val EXTRA_CONVERSATION_ID = "extra_conversation_id"
         const val EXTRA_MODE = "extra_chat_mode"
-        const val MODE_ACCOUNTING = 0
+        const val MODE_ACCOUNTING = Prefs.CHAT_PAGE_MODE_ACCOUNTING
+        const val MODE_CONVERSATION = Prefs.CHAT_PAGE_MODE_CONVERSATION
         private const val EXTRA_SCROLL_TO_MSG_ID = "scroll_to_msg_id"
 
         private const val REQ_PICK_IMAGE = 101
@@ -111,21 +117,26 @@ class ChatActivity : AppCompatActivity() {
         private const val REQ_CROP_AI_AVATAR = 105
         private const val REQ_CROP_USER_AVATAR = 106
         private const val REQ_CROP_BG = 107
+        private const val REQ_TAKE_PHOTO = 109
+        private const val REQ_PICK_FILE = 110
         private const val REQ_IMAGE_PERMISSION = 1002
+        private const val REQ_CAMERA_PERMISSION = 1003
     }
 
     private lateinit var rvMessages: RecyclerView
+    private var chatLayoutManager: LinearLayoutManager? = null
     private lateinit var etInput: android.widget.EditText
     private lateinit var btnSend: ImageView
+    private lateinit var btnStop: ImageView
     private lateinit var btnMore: ImageView
-    private lateinit var btnMoreInput: ImageView
+    private lateinit var btnChatMode: TextView
+    private lateinit var btnAttach: ImageView
     private lateinit var btnVoiceToggle: ImageView
     private lateinit var btnVoiceHold: com.google.android.material.button.MaterialButton
     private lateinit var tvAiName: TextView
     private lateinit var tvAiModel: TextView
     private lateinit var ivAiAvatar: ImageView
     private lateinit var ivChatBg: ImageView
-    private lateinit var btnSwitchModel: TextView
     private lateinit var chatRoot: View
     private lateinit var bottomBar: View
     private lateinit var drawerSessions: DrawerLayout
@@ -138,6 +149,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var rvSessionList: RecyclerView
     private lateinit var tvVoiceModelHint: TextView
     private lateinit var layoutVoiceRecordOverlay: View
+    private lateinit var viewVoiceRecordDot: View
     private lateinit var ivVoiceRecordState: ImageView
     private lateinit var tvVoiceRecordTitle: TextView
     private lateinit var tvVoiceRecordSubtitle: TextView
@@ -172,12 +184,14 @@ class ChatActivity : AppCompatActivity() {
             updateInputActionUi = ::updateInputActionUi,
             appendUserMessage = { text, type -> appendUserMessage(text, type) },
             consumePendingHabitSuggestionReply = ::consumePendingHabitSuggestionReply,
-            appendAiTextMessage = { text, loading, bookName, conversationId ->
-                appendAiTextMessage(text, loading, bookName, conversationId)
+            appendAiTextMessage = { text, loading, bookName, conversationId, showNudge ->
+                appendAiTextMessage(text, loading, bookName, conversationId, showNudge)
             },
             removeLoadingMessage = ::removeLoadingMessage,
             updateLoadingMessage = ::updateLoadingMessage,
-            finalizeLoadingMessage = ::finalizeLoadingMessage,
+            finalizeLoadingMessage = { uiKey, text, bookName, conversationId, showNudge ->
+                finalizeLoadingMessage(uiKey, text, bookName, conversationId, showNudge)
+            },
             buildAnalysisInput = ::buildAnalysisInput,
             decideSingleOrMultiForChat = ::decideSingleOrMultiForChat,
             processBillResult = ::processBillResult,
@@ -189,7 +203,8 @@ class ChatActivity : AppCompatActivity() {
             getCurrentBookName = { currentBookName },
             getCurrentConversationId = { currentConversationId },
             appendQueryDraftMessage = { draft -> appendQueryDraftMessage(draft) },
-            appendQueryResultMessage = { result -> appendQueryResultMessage(result) }
+            appendQueryResultMessage = { result -> appendQueryResultMessage(result) },
+            isConversationMode = { chatMode == MODE_CONVERSATION }
         )
     }
     private val billCorrectionService by lazy {
@@ -207,7 +222,8 @@ class ChatActivity : AppCompatActivity() {
             setCurrentBookName = { currentBookName = it },
             getCurrentConversationId = { currentConversationId },
             parseTimeToMillis = ::parseTimeToMillis,
-            buildBillMessageContent = ::buildBillMessageContent
+            buildBillMessageContent = ::buildBillMessageContent,
+            onBillMessagesUpdated = ::syncBillReplyGrouping
         )
     }
     private val voiceController: ChatVoiceController by lazy {
@@ -276,7 +292,13 @@ class ChatActivity : AppCompatActivity() {
             onQueryDraftEditKeyword = { item -> onQueryDraftEditKeyword(item) },
             onQueryDraftEditDate = { item -> onQueryDraftEditDate(item) },
             onQueryDraftEditBillType = { item -> onQueryDraftEditBillType(item) },
-            onQueryDraftEditBookScope = { item -> onQueryDraftEditBookScope(item) }
+            onQueryDraftEditBookScope = { item -> onQueryDraftEditBookScope(item) },
+            isBillMessageExpanded = ::isBillMessageExpanded,
+            onToggleBillExpand = ::toggleBillMessageExpand,
+            onShowBillMessageMenu = ::showBillMessageMenu,
+            onBillsDeleted = ::showBillDeleteUndo,
+            onConfirmAllBills = ::confirmAllBillsInMessage,
+            onSwitchConversationModeClick = ::showSwitchConversationModeDialog
         )
     }
     private val sessionAdapter by lazy {
@@ -358,9 +380,15 @@ class ChatActivity : AppCompatActivity() {
             showPageCenterDialog = { dialog, widthRatio -> uiHelperController.showPageCenterDialog(dialog, widthRatio) },
             updateConversationSubtitle = ::updateConversationSubtitle,
             appendUserMessage = ::appendUserMessage,
-            onImageReady = { uri, base64, mime -> onImageReady(uri, base64, mime) },
+            onAttachmentReady = ::onAttachmentReady,
+            pendingAttachmentCount = { pendingImages.size },
             appendAiTextMessage = { text, loading -> appendAiTextMessage(text, loading) },
+            showPageBottomDialog = { dialog -> uiHelperController.showPageBottomDialog(dialog) },
+            requestGalleryPermission = ::requestGalleryPermission,
+            requestCameraPermission = ::requestCameraPermission,
             reqPickImage = REQ_PICK_IMAGE,
+            reqTakePhoto = REQ_TAKE_PHOTO,
+            reqPickFile = REQ_PICK_FILE,
             reqPickBg = REQ_PICK_BG,
             reqCropBg = REQ_CROP_BG,
             reqPickAiAvatar = REQ_PICK_AI_AVATAR,
@@ -393,7 +421,9 @@ class ChatActivity : AppCompatActivity() {
             updateVoiceModeUi = ::updateVoiceModeUi,
             etInputProvider = { etInput },
             showSoftKeyboard = { view -> uiHelperController.showSoftKeyboard(view) },
-            updateInputActionUi = ::updateInputActionUi
+            updateInputActionUi = ::updateInputActionUi,
+            deleteBillsFromMenu = ::deleteBillsFromMenu,
+            openBillCalendar = ::openBillCalendarForItem
         )
     }
     private val uiHelperController: ChatUiHelperController by lazy {
@@ -410,6 +440,7 @@ class ChatActivity : AppCompatActivity() {
             audioFormat = audioFormat,
             audioBufferSizeProvider = { audioBufferSize },
             btnVoiceHoldProvider = { btnVoiceHold },
+            onVoiceHoldRecording = voiceInputController::setVoiceHoldRecordingAppearance,
             getAudioRecord = { audioRecord },
             setAudioRecord = { audioRecord = it },
             getAudioFile = { audioFile },
@@ -456,7 +487,8 @@ class ChatActivity : AppCompatActivity() {
             markBillIdsAsDeprecated = ::markBillIdsAsDeprecated,
             updateConversationSubtitle = ::updateConversationSubtitle,
             scrollToBottom = ::scrollToBottom,
-            refreshSessionRows = ::refreshSessionRows
+            refreshSessionRows = ::refreshSessionRows,
+            onHistoryLoaded = ::syncBillReplyGrouping
         )
     }
     private val messagePersistenceController: ChatMessagePersistenceController by lazy {
@@ -486,10 +518,13 @@ class ChatActivity : AppCompatActivity() {
             context = this,
             etInputProvider = { etInput },
             btnSendProvider = { btnSend },
-            btnMoreInputProvider = { btnMoreInput },
+            btnStopProvider = { btnStop },
+            btnAttachProvider = { btnAttach },
+            isAiGenerating = ::isAiGenerating,
             btnVoiceToggleProvider = { btnVoiceToggle },
             btnVoiceHoldProvider = { btnVoiceHold },
             layoutVoiceRecordOverlayProvider = { layoutVoiceRecordOverlay },
+            viewVoiceRecordDotProvider = { viewVoiceRecordDot },
             ivVoiceRecordStateProvider = { ivVoiceRecordState },
             tvVoiceRecordTitleProvider = { tvVoiceRecordTitle },
             tvVoiceRecordSubtitleProvider = { tvVoiceRecordSubtitle },
@@ -515,6 +550,7 @@ class ChatActivity : AppCompatActivity() {
         )
     }
     private val displayMessages = mutableListOf<ChatDisplayItem>()
+    private val expandedBillMessageKeys = mutableSetOf<String>()
     private val allSessionRows = mutableListOf<ChatSessionRow>()
     private val pendingImages = mutableListOf<PendingImage>()
 
@@ -553,10 +589,10 @@ class ChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
-        StatusBarStyle.applyByColor(window, Color.parseColor("#F7F7F7"))
+        StatusBarStyle.applyByColor(window, getColor(R.color.chat_toolbar_bg))
 
         currentBookName = resolveEntryBookName(intent)
-        chatMode = intent?.getIntExtra(EXTRA_MODE, MODE_ACCOUNTING) ?: MODE_ACCOUNTING
+        chatMode = Prefs.getChatPageMode(this)
         pendingScrollToMessageId = intent?.getLongExtra(EXTRA_SCROLL_TO_MSG_ID, -1L) ?: -1L
 
         bindViews()
@@ -611,15 +647,16 @@ class ChatActivity : AppCompatActivity() {
         rvMessages = findViewById(R.id.rv_chat_messages)
         etInput = findViewById(R.id.et_chat_input)
         btnSend = findViewById(R.id.btn_chat_send)
+        btnStop = findViewById(R.id.btn_chat_stop)
         btnMore = findViewById(R.id.btn_chat_more)
-        btnMoreInput = findViewById(R.id.btn_chat_more_input)
+        btnChatMode = findViewById(R.id.btn_chat_mode)
+        btnAttach = findViewById(R.id.btn_chat_attach)
         btnVoiceToggle = findViewById(R.id.btn_voice_toggle)
         btnVoiceHold = findViewById(R.id.btn_voice_hold)
         tvAiName = findViewById(R.id.tv_ai_name)
         tvAiModel = findViewById(R.id.tv_ai_model)
         ivAiAvatar = findViewById(R.id.iv_ai_avatar)
         ivChatBg = findViewById(R.id.iv_chat_bg)
-        btnSwitchModel = findViewById(R.id.btn_switch_model)
         chatRoot = findViewById(R.id.chat_root)
         bottomBar = findViewById(R.id.layout_chat_bottom)
         drawerSessions = findViewById(R.id.drawer_chat_sessions)
@@ -638,6 +675,7 @@ class ChatActivity : AppCompatActivity() {
         tvPendingImageCount = findViewById(R.id.tv_pending_image_count)
         btnClearPendingImages = findViewById(R.id.btn_clear_pending_images)
         layoutVoiceRecordOverlay = findViewById(R.id.layout_voice_record_overlay)
+        viewVoiceRecordDot = findViewById(R.id.view_voice_record_dot)
         ivVoiceRecordState = findViewById(R.id.iv_voice_record_state)
         tvVoiceRecordTitle = findViewById(R.id.tv_voice_record_title)
         tvVoiceRecordSubtitle = findViewById(R.id.tv_voice_record_subtitle)
@@ -662,21 +700,91 @@ class ChatActivity : AppCompatActivity() {
     private fun setupToolbar() {
         findViewById<ImageView>(R.id.btn_chat_back).setOnClickListener { finish() }
         btnMore.setOnClickListener { showSessionPanel() }
-        btnSwitchModel.setOnClickListener { panelController.showModelSwitchDialog() }
+        btnChatMode.setOnClickListener { toggleChatPageMode() }
         ivAiAvatar.setOnClickListener { mediaController.showEditAiProfileDialog() }
         findViewById<View>(R.id.layout_ai_name_click).setOnClickListener { mediaController.showEditAiProfileDialog() }
     }
 
-    private fun applyChatMode() {
-        btnMoreInput.visibility = View.VISIBLE
-        updateModeControls()
+    private fun toggleChatPageMode() {
+        chatMode = if (chatMode == MODE_CONVERSATION) MODE_ACCOUNTING else MODE_CONVERSATION
+        Prefs.setChatPageMode(this, chatMode)
+        applyChatMode()
+        Utils.toast(
+            this,
+            getString(
+                if (chatMode == MODE_CONVERSATION) {
+                    R.string.chat_mode_switched_conversation
+                } else {
+                    R.string.chat_mode_switched_accounting
+                }
+            )
+        )
     }
 
-    private fun updateModeControls() {
-        btnSwitchModel.text = getString(R.string.chat_model_button)
-        btnSwitchModel.setTextColor(Color.parseColor("#3390EC"))
-        btnSwitchModel.setBackgroundResource(R.drawable.bg_search_box)
-        etInput.hint = getString(R.string.accounting_chat_input_hint)
+    private fun showSwitchConversationModeDialog() {
+        if (chatMode == MODE_CONVERSATION) return
+        val panel = layoutInflater.inflate(R.layout.dialog_book_delete_options, null)
+        panel.findViewById<TextView>(R.id.tv_delete_book_title).text =
+            getString(R.string.chat_switch_mode_dialog_title)
+        panel.findViewById<TextView>(R.id.tv_delete_book_desc).visibility = View.GONE
+        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+        optionsContainer.removeAllViews()
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(
+            android.view.ContextThemeWrapper(this, R.style.Theme_TapAccounting)
+        )
+            .setView(panel)
+            .create()
+
+        fun addOption(title: String, desc: String, onClick: () -> Unit) {
+            val item = layoutInflater.inflate(R.layout.item_book_delete_option, optionsContainer, false)
+            item.findViewById<TextView>(R.id.tv_delete_option_title).text = title
+            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = desc
+            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
+            item.setOnClickListener {
+                dialog.dismiss()
+                onClick()
+            }
+            optionsContainer.addView(item)
+        }
+
+        panel.findViewById<View>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
+
+        addOption(
+            getString(R.string.chat_switch_mode_continue),
+            getString(R.string.chat_switch_mode_continue_desc)
+        ) {
+            if (chatMode != MODE_CONVERSATION) toggleChatPageMode()
+        }
+        addOption(
+            getString(R.string.chat_switch_mode_new_session),
+            getString(R.string.chat_switch_mode_new_session_desc)
+        ) {
+            if (chatMode != MODE_CONVERSATION) toggleChatPageMode()
+            startNewConversation()
+        }
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.9f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = false
+        )
+    }
+
+    private fun applyChatMode() {
+        btnAttach.visibility = View.VISIBLE
+        btnChatMode.text = getString(
+            if (chatMode == MODE_CONVERSATION) R.string.chat_mode_conversation else R.string.chat_mode_accounting
+        )
+        etInput.hint = getString(
+            if (chatMode == MODE_CONVERSATION) {
+                R.string.conversation_chat_input_hint
+            } else {
+                R.string.accounting_chat_input_hint
+            }
+        )
     }
 
     private fun setupSessionDrawer() {
@@ -684,27 +792,35 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        rvMessages.layoutManager = LinearLayoutManager(this)
+        chatLayoutManager = LinearLayoutManager(this).apply {
+            stackFromEnd = true
+        }
+        rvMessages.layoutManager = chatLayoutManager
         rvMessages.adapter = adapter
-        rvMessages.itemAnimator = null
+        rvMessages.itemAnimator = DefaultItemAnimator().apply {
+            supportsChangeAnimations = false
+            addDuration = 180L
+            removeDuration = 160L
+        }
         rvMessages.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
             if (bottom < oldBottom && !isInlineAmountEditing() && !voiceController.isVoiceSelectionMode()) {
-                ensureLastMessageVisible()
+                scrollToBottom(force = true)
             }
         }
     }
 
     private fun setupInput() {
         btnSend.setOnClickListener { sendText() }
-        btnMoreInput.setOnClickListener { requestImageAccessAndPick() }
+        btnStop.setOnClickListener { interruptAiResponse() }
+        btnAttach.setOnClickListener { mediaController.showAttachmentMenu(pendingImages.size) }
         btnClearPendingImages.setOnClickListener {
             pendingImages.clear()
             updatePendingImagePreview()
         }
         etInput.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) ensureLastMessageVisible()
+            if (hasFocus) scrollToBottom(force = true)
         }
-        etInput.setOnClickListener { ensureLastMessageVisible() }
+        etInput.setOnClickListener { scrollToBottom(force = true) }
         etInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
@@ -717,10 +833,9 @@ class ChatActivity : AppCompatActivity() {
         btnVoiceSelectionDelete.setOnClickListener { deleteSelectedVoiceMessages() }
     }
 
-    private fun requestImageAccessAndPick() {
-        if (!ensureAiImageFeatureEnabled()) return
+    private fun requestGalleryPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            mediaController.pickImages()
+            mediaController.pickImagesFromSystem(pendingImages.size)
             return
         }
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -729,9 +844,21 @@ class ChatActivity : AppCompatActivity() {
             android.Manifest.permission.READ_EXTERNAL_STORAGE
         }
         if (checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            mediaController.pickImages()
+            mediaController.pickImagesFromSystem(pendingImages.size)
         } else {
             requestPermissions(arrayOf(permission), REQ_IMAGE_PERMISSION)
+        }
+    }
+
+    private fun requestCameraPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            mediaController.onCameraPermissionGranted()
+            return
+        }
+        if (checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            mediaController.onCameraPermissionGranted()
+        } else {
+            requestPermissions(arrayOf(android.Manifest.permission.CAMERA), REQ_CAMERA_PERMISSION)
         }
     }
 
@@ -745,7 +872,13 @@ class ChatActivity : AppCompatActivity() {
             if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 Utils.toast(this, getString(R.string.toast_album_permission))
             }
-            mediaController.pickImages()
+            mediaController.pickImagesFromSystem(pendingImages.size)
+        } else if (requestCode == REQ_CAMERA_PERMISSION) {
+            if (grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                mediaController.onCameraPermissionGranted()
+            } else {
+                mediaController.onCameraPermissionDenied()
+            }
         }
     }
 
@@ -904,12 +1037,12 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun updateConversationSubtitle() {
-        val preset = AiProviderRegistry.resolvePreset(this)
-        val effectiveModel = AiModelSlots.resolveChatModel(this)
-        tvAiModel.text = if (AiModelSlots.isChatFollowingMainText(this)) {
-            getString(R.string.ai_chat_model_subtitle_follow_main_fmt, preset.displayName, effectiveModel)
+        val identity = Prefs.getAiChatIdentity(this).trim()
+        if (identity.isNotBlank()) {
+            tvAiModel.text = identity
+            tvAiModel.visibility = View.VISIBLE
         } else {
-            getString(R.string.ai_chat_model_subtitle_custom_fmt, preset.displayName, effectiveModel)
+            tvAiModel.visibility = View.GONE
         }
     }
 
@@ -962,39 +1095,52 @@ class ChatActivity : AppCompatActivity() {
                 appendAiTextMessage(getString(R.string.voice_too_long), isLoading = false)
                 return@launch
             }
-            val loadingIdx = appendAiTextMessage(getString(R.string.transcribing_voice), isLoading = true)
+
+            appendUserVoiceMessage(copiedFile, durationSec, "")
+            val audioPath = copiedFile.absolutePath
+            transcribingPaths.add(audioPath)
+            refreshVoiceMessageUi(audioPath)
+
             val transcript = withContext(Dispatchers.IO) {
                 transcribeVoiceToTextWithFallback(copiedFile)
             }.trim()
-            if (transcript == "API_KEY_NOT_SETUP") {
-                removeLoadingMessage(loadingIdx)
-                appendAiTextMessage(getString(R.string.api_key_required_cloud_asr), isLoading = false)
-                return@launch
+
+            transcribingPaths.remove(audioPath)
+            refreshVoiceMessageUi(audioPath)
+
+            when {
+                transcript == "API_KEY_NOT_SETUP" -> {
+                    appendAiTextMessage(getString(R.string.api_key_required_cloud_asr), isLoading = false)
+                    return@launch
+                }
+                transcript == "MODEL_DOWNLOADING" -> {
+                    appendAiTextMessage(getString(R.string.asr_model_downloading), isLoading = false)
+                    return@launch
+                }
+                transcript == "WHISPER_NOT_SETUP" -> {
+                    appendAiTextMessage(getString(R.string.asr_model_needed_for_local), isLoading = false)
+                    return@launch
+                }
+                transcript.isBlank() -> {
+                    appendAiTextMessage(getString(R.string.voice_not_clear), isLoading = false)
+                    return@launch
+                }
             }
-            if (transcript == "MODEL_DOWNLOADING") {
-                removeLoadingMessage(loadingIdx)
-                appendAiTextMessage(getString(R.string.asr_model_downloading), isLoading = false)
-                return@launch
-            }
-            if (transcript == "WHISPER_NOT_SETUP") {
-                removeLoadingMessage(loadingIdx)
-                appendAiTextMessage(getString(R.string.asr_model_needed_for_local), isLoading = false)
-                return@launch
-            }
-            if (transcript.isBlank()) {
-                removeLoadingMessage(loadingIdx)
-                appendAiTextMessage(getString(R.string.voice_not_clear), isLoading = false)
-                return@launch
-            }
-            // Save voice message, then process through accounting pipeline
-            appendUserVoiceMessage(copiedFile, durationSec, "")
+
+            updateVoiceTranscriptByPath(audioPath, transcript, revealTranscript = false)
             callAiAccounting(
                 userText = transcript,
                 appendUserBubble = false,
-                forceTextReply = true,
-                loadingIdxOverride = loadingIdx,
-                loadingBootstrapText = "正在理解你的消息..."
+                forceTextReply = true
             )
+        }
+    }
+
+    private fun refreshVoiceMessageUi(audioPath: String) {
+        val idx = displayMessages.indexOfFirst { it.voice?.audioPath == audioPath }
+        if (idx >= 0) {
+            adapter.notifyItemChanged(idx)
+            scrollToBottom()
         }
     }
 
@@ -1062,6 +1208,10 @@ class ChatActivity : AppCompatActivity() {
 
     private fun showTextMessageMenu(anchor: View, item: ChatDisplayItem) {
         messageMenuController.showTextMessageMenu(anchor, item)
+    }
+
+    private fun showBillMessageMenu(anchor: View, item: ChatDisplayItem) {
+        messageMenuController.showBillMessageMenu(anchor, item)
     }
 
     private fun transcribeVoiceMessage(item: ChatDisplayItem, showResult: Boolean, force: Boolean = false) {
@@ -1181,29 +1331,77 @@ class ChatActivity : AppCompatActivity() {
     /**
      * Route [text] + [images] to the accounting pipeline.
      */
-    private fun dispatchToAccounting(text: String, images: List<PendingImage>) {
-        if (images.isNotEmpty()) {
-            val useNaturalLanguage = Prefs.isImageAccountingNaturalLanguage(this)
-            val payload = ChatImageComposer.encodeMultiImagePayload(images, text, useNaturalLanguage)
-            images.forEach { img ->
-                appendUserMessage("", MSG_TYPE_USER_IMAGE, img.uri?.toString().orEmpty())
+    private fun dispatchToAccounting(text: String, attachments: List<PendingImage>) {
+        val inlineTextBlocks = attachments.mapNotNull { attachment ->
+            attachment.inlineText?.let { body ->
+                buildString {
+                    append("[文件 ")
+                    append(attachment.fileName.ifBlank { "文本" })
+                    append("]\n")
+                    append(body)
+                }
             }
-            if (text.isNotBlank()) {
-                appendUserMessage(text, MSG_TYPE_USER_TEXT)
-            }
-            messagePipeline.callAiAccounting(payload, appendUserBubble = false)
-        } else {
-            messagePipeline.callAiAccounting(text)
         }
-    }
+        val mergedText = buildString {
+            inlineTextBlocks.forEach { block ->
+                append(block)
+                append("\n\n")
+            }
+            append(text)
+        }.trim()
+        val binaryAttachments = attachments.filter { !it.isInlineText && it.base64.isNotBlank() }
+        val (imageAttachments, fileAttachments) = ChatAttachmentHelper.groupAttachmentsForDisplay(binaryAttachments)
 
-    private fun onImageReady(uri: Uri, base64: String, mime: String) {
-        if (ChatImageComposer.isAtLimit(pendingImages.size)) {
-            Utils.toast(this, getString(R.string.toast_max_images, ChatImageComposer.MAX_PENDING_IMAGES))
+        if (binaryAttachments.isEmpty()) {
+            if (mergedText.isNotBlank()) {
+                messagePipeline.callAiAccounting(mergedText)
+            }
             return
         }
-        pendingImages.add(PendingImage(uri, base64, mime))
+
+        val useNaturalLanguage = Prefs.isImageAccountingNaturalLanguage(this)
+        val payload = ChatImageComposer.encodeMultiImagePayload(binaryAttachments, mergedText, useNaturalLanguage)
+        imageAttachments.forEach { attachment ->
+            appendUserMessage(
+                "",
+                MSG_TYPE_USER_IMAGE,
+                attachment.uri?.toString().orEmpty()
+            )
+        }
+        fileAttachments.forEach { attachment ->
+            appendUserMessage(
+                ChatAttachmentHelper.encodeFileMessageContent(
+                    attachment.mime,
+                    attachment.fileName.ifBlank { getString(R.string.chat_attach_file) }
+                ),
+                MSG_TYPE_USER_FILE,
+                (attachment.sourceUri ?: attachment.uri)?.toString().orEmpty()
+            )
+        }
+        if (mergedText.isNotBlank()) {
+            appendUserMessage(mergedText, MSG_TYPE_USER_TEXT)
+        }
+        val loadingText = when {
+            binaryAttachments.size > 1 -> getString(R.string.chat_analyzing_attachments_fmt, binaryAttachments.size)
+            binaryAttachments.firstOrNull()?.mime.equals("application/pdf", ignoreCase = true) ->
+                getString(R.string.chat_analyzing_pdf)
+            else -> ""
+        }
+        messagePipeline.callAiAccounting(
+            userText = payload,
+            appendUserBubble = false,
+            loadingInitialText = loadingText
+        )
+    }
+
+    private fun onAttachmentReady(attachment: PendingImage) {
+        if (ChatImageComposer.isAtLimit(pendingImages.size)) {
+            Utils.toast(this, getString(R.string.toast_max_attachments, ChatImageComposer.MAX_PENDING_IMAGES))
+            return
+        }
+        pendingImages.add(attachment)
         updatePendingImagePreview()
+        updateInputActionUi()
     }
 
     private fun updatePendingImagePreview() {
@@ -1217,54 +1415,135 @@ class ChatActivity : AppCompatActivity() {
         }
 
         layoutPendingImages.visibility = View.VISIBLE
-        tvPendingImageCount.text = getString(R.string.selected_image_count, pendingImages.size)
+        tvPendingImageCount.text = getString(
+            R.string.selected_attachment_count_fmt,
+            pendingImages.size,
+            ChatImageComposer.MAX_PENDING_IMAGES
+        )
 
         val density = resources.displayMetrics.density
         val size = (68 * density).toInt()
         val margin = (4 * density).toInt()
         val removeBtnSize = (22 * density).toInt()
 
-        pendingImages.forEachIndexed { index, img ->
-            val frameLayout = FrameLayout(this).apply {
-                background = androidx.core.content.ContextCompat.getDrawable(
-                    this@ChatActivity,
-                    R.drawable.bg_chat_image_thumb
-                )
-                clipToOutline = true
-                setPadding(margin, margin, margin, margin)
-                layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                    setMargins(margin, 0, margin, 0)
-                }
+        pendingImages.forEachIndexed { index, attachment ->
+            when {
+                attachment.showsAsImageThumbnail ->
+                    addImagePreviewChip(index, attachment, size, margin, removeBtnSize)
+                attachment.showsAsFileCard || attachment.isInlineText ->
+                    addFilePreviewChip(index, attachment, density, margin, removeBtnSize)
             }
-            val imageView = ImageView(this).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
-                scaleType = ImageView.ScaleType.CENTER_CROP
-            }
-            Glide.with(this)
-                .load(img.uri)
-                .diskCacheStrategy(DiskCacheStrategy.NONE)
-                .skipMemoryCache(true)
-                .centerCrop()
-                .into(imageView)
-            frameLayout.addView(imageView)
+        }
+    }
 
-            val removeBtn = TextView(this).apply {
-                layoutParams = FrameLayout.LayoutParams(removeBtnSize, removeBtnSize).apply {
-                    gravity = android.view.Gravity.TOP or android.view.Gravity.END
-                }
-                text = "×"
-                textSize = 12f
-                setTextColor(Color.WHITE)
-                gravity = android.view.Gravity.CENTER
-                setBackgroundResource(R.drawable.bg_chat_attachment_remove)
-                contentDescription = "移除第 ${index + 1} 张图片"
-                setOnClickListener { removePendingImage(index) }
+    private fun addImagePreviewChip(
+        index: Int,
+        attachment: PendingImage,
+        size: Int,
+        margin: Int,
+        removeBtnSize: Int
+    ) {
+        val frameLayout = FrameLayout(this).apply {
+            background = androidx.core.content.ContextCompat.getDrawable(
+                this@ChatActivity,
+                R.drawable.bg_chat_image_thumb
+            )
+            clipToOutline = true
+            layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                setMargins(margin, 0, margin, 0)
             }
-            frameLayout.addView(removeBtn)
-            containerPendingImages.addView(frameLayout)
+        }
+        val imageView = ImageView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            scaleType = ImageView.ScaleType.CENTER_CROP
+        }
+        Glide.with(this)
+            .load(attachment.uri)
+            .diskCacheStrategy(DiskCacheStrategy.NONE)
+            .skipMemoryCache(true)
+            .centerCrop()
+            .into(imageView)
+        frameLayout.addView(imageView)
+        frameLayout.addView(buildAttachmentRemoveButton(index, removeBtnSize))
+        containerPendingImages.addView(frameLayout)
+    }
+
+    private fun addFilePreviewChip(
+        index: Int,
+        attachment: PendingImage,
+        density: Float,
+        margin: Int,
+        removeBtnSize: Int
+    ) {
+        val chipWidth = (176 * density).toInt()
+        val chipHeight = (56 * density).toInt()
+        val frameLayout = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(chipWidth, chipHeight).apply {
+                setMargins(margin, 0, margin, 0)
+            }
+        }
+        val chip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            background = androidx.core.content.ContextCompat.getDrawable(
+                this@ChatActivity,
+                R.drawable.bg_chat_file_chip
+            )
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
+        }
+        val iconView = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams((28 * density).toInt(), (28 * density).toInt())
+            setImageResource(R.drawable.ic_chat_file)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+        }
+        val textColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = (8 * density).toInt()
+            }
+        }
+        val displayName = attachment.fileName.ifBlank { getString(R.string.chat_attach_file) }
+        val displayMime = if (attachment.sourceUri != null) "application/pdf" else attachment.mime
+        textColumn.addView(TextView(this).apply {
+            text = displayName
+            textSize = 12f
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+            setTextColor(Color.parseColor("#1F2937"))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        textColumn.addView(TextView(this).apply {
+            text = ChatAttachmentHelper.fileTypeLabel(this@ChatActivity, displayMime, displayName)
+            textSize = 10f
+            maxLines = 1
+            setTextColor(Color.parseColor("#7B8798"))
+        })
+        chip.addView(iconView)
+        chip.addView(textColumn)
+        frameLayout.addView(chip)
+        frameLayout.addView(buildAttachmentRemoveButton(index, removeBtnSize))
+        containerPendingImages.addView(frameLayout)
+    }
+
+    private fun buildAttachmentRemoveButton(index: Int, removeBtnSize: Int): TextView {
+        return TextView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(removeBtnSize, removeBtnSize).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.END
+            }
+            text = "×"
+            textSize = 12f
+            setTextColor(Color.WHITE)
+            gravity = android.view.Gravity.CENTER
+            setBackgroundResource(R.drawable.bg_chat_attachment_remove)
+            contentDescription = getString(R.string.remove_attachment_cd, index + 1)
+            setOnClickListener { removePendingImage(index) }
         }
     }
 
@@ -1272,6 +1551,7 @@ class ChatActivity : AppCompatActivity() {
         if (index in pendingImages.indices) {
             pendingImages.removeAt(index)
             updatePendingImagePreview()
+            updateInputActionUi()
         }
     }
 
@@ -1280,14 +1560,16 @@ class ChatActivity : AppCompatActivity() {
         appendUserBubble: Boolean = true,
         forceTextReply: Boolean = false,
         loadingIdxOverride: String? = null,
-        loadingBootstrapText: String = ""
+        loadingBootstrapText: String = "",
+        loadingInitialText: String = ""
     ) {
         messagePipeline.callAiAccounting(
             userText = userText,
             appendUserBubble = appendUserBubble,
             forceTextReply = forceTextReply,
             loadingIdxOverride = loadingIdxOverride,
-            loadingBootstrapText = loadingBootstrapText
+            loadingBootstrapText = loadingBootstrapText,
+            loadingInitialText = loadingInitialText
         )
     }
 
@@ -1297,14 +1579,19 @@ class ChatActivity : AppCompatActivity() {
 
     private fun interruptAiResponse() {
         messagePipeline.cancelCurrentRequest()
+        updateComposerGenerationState()
+    }
+
+    private fun isAiGenerating(): Boolean =
+        displayMessages.any { it.isLoading && it.msgType == MSG_TYPE_AI_TEXT }
+
+    private fun updateComposerGenerationState() {
+        if (!::btnStop.isInitialized) return
+        updateInputActionUi()
     }
 
     private fun ensureLastMessageVisible(force: Boolean = false) {
-        if (!force && isInlineAmountEditing()) return
-        if (displayMessages.isEmpty()) return
-        rvMessages.post {
-            rvMessages.scrollToPosition(displayMessages.lastIndex)
-        }
+        scrollToBottom(force)
     }
 
     private fun consumePendingHabitSuggestionReply(text: String): Boolean {
@@ -1518,17 +1805,32 @@ class ChatActivity : AppCompatActivity() {
         val referenceText = updatedBill.remark.ifBlank { originalBill.remark }.trim()
         if (referenceText.isBlank()) return
 
-        Utils.toast(this, getString(R.string.ai_mismatch_detected))
+        RuleLearnPromptHelper.show(
+            ctx = this,
+            model = RuleLearnPromptHelper.PromptModel(
+                referenceText = referenceText,
+                beforeType = originalBill.type,
+                afterType = updatedBill.type,
+                beforeCategory = originalBill.categoryName,
+                afterCategory = updatedBill.categoryName
+            ),
+            isOverlay = false,
+            onContinue = { openChatRuleEditor(referenceText, updatedBill) },
+            onDismiss = {}
+        )
+    }
 
+    private fun openChatRuleEditor(referenceText: String, updatedBill: Bill) {
         RuleDialogHelper.showDialog(
             ctx = this,
             rule = null,
             referenceText = referenceText,
             defaultType = updatedBill.type,
             defaultCat = updatedBill.categoryName,
-            defaultAcc1 = updatedBill.accountName.ifBlank { null },
-            defaultAcc2 = updatedBill.toAccountName.ifBlank { null },
+            defaultAcc1 = null,
+            defaultAcc2 = null,
             isOverlay = false,
+            categoryOnlyLearnMode = true,
             onSave = { newRule ->
                 lifecycleScope.launch {
                     when (saveRuleWithKeywordConflictPrompt(newRule)) {
@@ -1688,9 +1990,21 @@ class ChatActivity : AppCompatActivity() {
         text: String,
         isLoading: Boolean,
         bookName: String? = null,
-        conversationId: String? = null
+        conversationId: String? = null,
+        showConversationModeNudge: Boolean = false
     ): String {
-        return messagePersistenceController.appendAiTextMessage(text, isLoading, bookName, conversationId)
+        val uiKey = messagePersistenceController.appendAiTextMessage(
+            text,
+            isLoading,
+            bookName,
+            conversationId,
+            showConversationModeNudge
+        )
+        if (!isLoading) {
+            syncBillReplyGrouping()
+        }
+        updateComposerGenerationState()
+        return uiKey
     }
 
     private suspend fun persistAiTextMessage(text: String, bookName: String, conversationId: String) {
@@ -1699,14 +2013,154 @@ class ChatActivity : AppCompatActivity() {
 
     private fun removeLoadingMessage(uiKey: String) {
         messagePersistenceController.removeLoadingMessage(uiKey)
+        updateComposerGenerationState()
     }
 
     private fun updateLoadingMessage(uiKey: String, text: String) {
         messagePersistenceController.updateLoadingMessage(uiKey, text)
     }
 
-    private fun finalizeLoadingMessage(uiKey: String, text: String, bookName: String, conversationId: String) {
-        messagePersistenceController.finalizeLoadingMessage(uiKey, text, bookName, conversationId)
+    private fun finalizeLoadingMessage(
+        uiKey: String,
+        text: String,
+        bookName: String,
+        conversationId: String,
+        showConversationModeNudge: Boolean = false
+    ) {
+        messagePersistenceController.finalizeLoadingMessage(
+            uiKey,
+            text,
+            bookName,
+            conversationId,
+            showConversationModeNudge
+        )
+        syncBillReplyGrouping()
+        updateComposerGenerationState()
+    }
+
+    private fun billExpandKey(item: ChatDisplayItem): String =
+        if (item.dbId > 0L) "db:${item.dbId}" else item.uiKey
+
+    private fun isBillMessageExpanded(item: ChatDisplayItem): Boolean =
+        expandedBillMessageKeys.contains(billExpandKey(item))
+
+    private fun toggleBillMessageExpand(item: ChatDisplayItem) {
+        val key = billExpandKey(item)
+        if (key in expandedBillMessageKeys) {
+            expandedBillMessageKeys.remove(key)
+        } else {
+            expandedBillMessageKeys.add(key)
+        }
+        val idx = displayMessages.indexOfFirst { billExpandKey(it) == key }
+        if (idx >= 0) adapter.notifyItemChanged(idx)
+    }
+
+    private fun syncBillReplyGrouping() {
+        val previous = displayMessages.associate { item ->
+            item.uiKey to (item.groupedWithBillReply to item.compactGroupedLayout)
+        }
+        ChatDisplayLinkHelper.applyBillReplyGrouping(displayMessages)
+        displayMessages.forEachIndexed { index, item ->
+            val now = item.groupedWithBillReply to item.compactGroupedLayout
+            if (previous[item.uiKey] != now) {
+                adapter.notifyItemChanged(index)
+            }
+        }
+    }
+
+    private fun showBillDeleteUndo(deletedBillIds: List<Long>, messageDbId: Long) {
+        if (deletedBillIds.isEmpty()) return
+        Snackbar.make(chatRoot, getString(R.string.chat_bill_deleted_undo_fmt, deletedBillIds.size), Snackbar.LENGTH_LONG)
+            .setAction(R.string.undo) {
+                lifecycleScope.launch {
+                    val records = withContext(Dispatchers.IO) {
+                        db.deletedBillDao().getByOriginalBillIds(deletedBillIds)
+                    }
+                    if (records.isEmpty()) return@launch
+                    withContext(Dispatchers.IO) {
+                        BillRestoreHelper.restoreBills(db, records)
+                    }
+                    refreshBillMessageItem(messageDbId)
+                    syncBillReplyGrouping()
+                }
+            }
+            .show()
+    }
+
+    private suspend fun refreshBillMessageItem(messageDbId: Long) {
+        val idx = displayMessages.indexOfFirst { it.dbId == messageDbId }
+        if (idx < 0) return
+        val msg = withContext(Dispatchers.IO) { db.chatMessageDao().getById(messageDbId) } ?: return
+        val billIds = parseBillIds(msg.billIds)
+        val bills = withContext(Dispatchers.IO) { billIds.mapNotNull { db.billDao().getBillById(it) } }
+        val billSnapshots = parseBillsFromMessageContent(msg.content)
+        val deprecatedBillIds = parseDeprecatedBillIdsFromContent(msg.content)
+        val editedBillIds = parseEditedBillIdsFromContent(msg.content)
+        val snapshotOnly = parseSnapshotOnlyFromContent(msg.content)
+        val displayBills = if (bills.isNotEmpty()) {
+            mergeChatBillSnapshots(bills, billSnapshots)
+        } else {
+            billSnapshots
+        }
+        displayMessages[idx] = displayMessages[idx].copy(
+            content = msg.content,
+            bills = displayBills.toMutableList(),
+            isDeprecated = isDeprecatedBillMessage(msg.billIds) || (bills.isEmpty() && !snapshotOnly),
+            deprecatedBillIds = deprecatedBillIds.toMutableSet(),
+            editedBillIds = editedBillIds.toMutableSet()
+        )
+        adapter.notifyItemChanged(idx)
+    }
+
+    private fun confirmAllBillsInMessage(item: ChatDisplayItem) {
+        lifecycleScope.launch {
+            val count = withContext(Dispatchers.IO) {
+                ChatBillMessageActions.confirmBillsInMessage(
+                    db = db,
+                    displayMessages = displayMessages,
+                    messageDbId = item.dbId,
+                    formatTime = { ms -> uiHelperController.formatTime(ms) }
+                )
+            }
+            if (count > 0) {
+                val idx = displayMessages.indexOfFirst { it.dbId == item.dbId }
+                if (idx >= 0) adapter.notifyItemChanged(idx)
+                Utils.toast(this@ChatActivity, getString(R.string.toast_bill_confirmed_fmt, count))
+            }
+        }
+    }
+
+    private fun deleteBillsFromMenu(item: ChatDisplayItem) {
+        val deletableBills = ChatBillUiHelper.deletableBills(item)
+        if (deletableBills.isEmpty()) return
+        val message = if (deletableBills.size >= 2) {
+            getString(R.string.chat_bill_delete_all_confirm, deletableBills.size)
+        } else {
+            getString(R.string.chat_bill_delete_confirm)
+        }
+        uiHelperController.showCustomConfirmDialog(
+            getString(R.string.confirm_delete),
+            message,
+            getString(R.string.confirm_delete),
+            true
+        ) {
+            lifecycleScope.launch {
+                val result = ChatBillMessageActions.deleteBillsFromMessage(
+                    db = db,
+                    displayMessages = displayMessages,
+                    messageDbId = item.dbId,
+                    billsToDelete = deletableBills,
+                    formatTime = { ms -> uiHelperController.formatTime(ms) }
+                )
+                val idx = displayMessages.indexOfFirst { it.dbId == item.dbId }
+                if (idx >= 0) adapter.notifyItemChanged(idx)
+                result?.deletedBillIds?.let { showBillDeleteUndo(it, item.dbId) }
+            }
+        }
+    }
+
+    private fun openBillCalendarForItem(item: ChatDisplayItem) {
+        startActivity(Intent(this, CalendarActivity::class.java))
     }
 
     /** 追加查询草稿卡片消息 */
@@ -1938,7 +2392,19 @@ class ChatActivity : AppCompatActivity() {
 
     private fun scrollToBottom(force: Boolean = false) {
         if (!force && isInlineAmountEditing()) return
-        if (displayMessages.isNotEmpty()) rvMessages.scrollToPosition(displayMessages.lastIndex)
+        if (displayMessages.isEmpty()) return
+        val last = displayMessages.lastIndex
+        rvMessages.post {
+            val lm = chatLayoutManager ?: return@post
+            lm.scrollToPosition(last)
+            rvMessages.post {
+                val lastView = lm.findViewByPosition(last) ?: return@post
+                val offset = rvMessages.height - rvMessages.paddingBottom - rvMessages.paddingTop - lastView.height
+                if (offset < 0) {
+                    lm.scrollToPositionWithOffset(last, offset)
+                }
+            }
+        }
     }
 
     private fun isInlineAmountEditing(): Boolean = inlineAmountEditingBillId != null
@@ -1987,10 +2453,13 @@ data class ChatDisplayItem(
     val deprecatedBillIds: MutableSet<Long> = mutableSetOf(),
     val editedBillIds: MutableSet<Long> = mutableSetOf(),
     val billHint: String = "",
+    val groupedWithBillReply: Boolean = false,
+    val compactGroupedLayout: Boolean = false,
     val billInteractionMode: Int = ChatActivity.BILL_INTERACTION_NONE,
     val billInteractionToken: String = "",
     val queryDraft: com.taostudio.tapaccounting.chat.query.QueryDraft? = null,
-    val queryResult: com.taostudio.tapaccounting.chat.query.QueryResult? = null
+    val queryResult: com.taostudio.tapaccounting.chat.query.QueryResult? = null,
+    val showConversationModeNudge: Boolean = false
 )
 
 data class VoicePayload(

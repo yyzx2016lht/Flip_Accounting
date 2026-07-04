@@ -64,7 +64,7 @@ object AIService {
     private const val SPEECH_READ_TIMEOUT_SECONDS = 180L
     private const val SPEECH_WRITE_TIMEOUT_SECONDS = 180L
     private const val DEFAULT_CUSTOM_REPLY_STYLE_GUIDE =
-        "回复风格：按用户自定义要求回复。请直接对用户说自然的人话，不要输出场景标签、英文状态词、JSON 或内部指令。"
+        "回复风格：按用户自定义要求回复。"
     private fun enableThinkingForAccounting(ctx: Context): Boolean = Prefs.isAiThinkingMultiBillEnabled(ctx)
     private fun enableThinkingForVision(ctx: Context): Boolean = Prefs.isAiThinkingVisionEnabled(ctx)
 
@@ -292,28 +292,7 @@ object AIService {
 
             result?.let { root ->
                 enforceExpenseForReceiptSummaries(root, safeUserInput)
-
-                normalizeAccountingResult(
-                    root = root,
-                    expenseCats = promptContext.expenseCats,
-                    incomeCats = promptContext.incomeCats,
-                    assetNames = promptContext.assetNames,
-                    assetFeatureEnabled = promptContext.assetFeatureEnabled,
-                    referenceText = safeUserInput,
-                    assetCurrencyMap = promptContext.assetCurrencyMap
-                )
-                if (Prefs.isLocalRuleOverrideEnabled(ctx)) {
-                    applyLocalRuleOverrideOnResult(root, safeUserInput, promptRules)
-                    normalizeAccountingResult(
-                        root = root,
-                        expenseCats = promptContext.expenseCats,
-                        incomeCats = promptContext.incomeCats,
-                        assetNames = promptContext.assetNames,
-                        assetFeatureEnabled = promptContext.assetFeatureEnabled,
-                        referenceText = safeUserInput,
-                        assetCurrencyMap = promptContext.assetCurrencyMap
-                    )
-                }
+                normalizeAccountingWithLocalRules(ctx, root, promptContext, safeUserInput)
                 Logger.d(ctx, AI_IO_LOG_TAG, "[记账] FINAL: ${root.toString().take(3000)}")
             }
             result
@@ -447,7 +426,6 @@ object AIService {
             quickScreenMode = quickScreenMode
         )
 
-        val dataUrl = "data:$mimeType;base64,$imageBase64"
         val taskInstruction = AIPrompts.buildScreenAccountingTaskInstruction(
             imageCount = 1,
             isFromChat = isFromChat,
@@ -466,22 +444,23 @@ object AIService {
             taskInstruction = taskInstruction,
             matchedPromptRules = matchedPromptRules
         )
+        val attachment = MultimodalAttachmentPart(base64 = imageBase64, mime = mimeType)
         val requestJson = if (isFromChat && chatTurns.isNotEmpty()) {
-            buildMultiTurnVisionChatRequest(
+            buildMultiTurnMultimodalChatRequest(
                 model = model,
                 temperature = 0.1,
                 systemPrompt = systemPrompt,
                 historyTurns = chatTurns,
-                dataUrl = dataUrl,
+                attachments = listOf(attachment),
                 userText = userText,
                 enableThinking = enableThinkingForVision(ctx)
             )
         } else {
-            buildVisionChatRequest(
+            buildMultimodalChatRequest(
                 model = model,
                 temperature = 0.1,
                 systemPrompt = systemPrompt,
-                dataUrl = dataUrl,
+                attachments = listOf(attachment),
                 userText = userText,
                 enableThinking = enableThinkingForVision(ctx)
             )
@@ -509,15 +488,7 @@ object AIService {
             val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
-                normalizeAccountingResult(
-                    root = root,
-                    expenseCats = promptContext.expenseCats,
-                    incomeCats = promptContext.incomeCats,
-                    assetNames = promptContext.assetNames,
-                    assetFeatureEnabled = promptContext.assetFeatureEnabled,
-                    referenceText = supplementText,
-                    assetCurrencyMap = promptContext.assetCurrencyMap
-                )
+                normalizeAccountingWithLocalRules(ctx, root, promptContext, supplementText)
                 if (!isFromChat && !quickScreenMode) {
                     markVisualAccountingReviewDraft(
                         root = root,
@@ -570,7 +541,9 @@ object AIService {
             quickScreenMode = quickScreenMode
         )
 
-        val dataUrls = images.map { (base64, mime) -> "data:$mime;base64,$base64" }
+        val attachments = images.map { (base64, mime) ->
+            MultimodalAttachmentPart(base64 = base64, mime = mime)
+        }
         val taskInstruction = AIPrompts.buildScreenAccountingTaskInstruction(
             imageCount = images.size,
             isFromChat = isFromChat,
@@ -589,21 +562,21 @@ object AIService {
             matchedPromptRules = matchedPromptRules
         )
         val requestJson = if (isFromChat && chatTurns.isNotEmpty()) {
-            buildMultiTurnMultiImageVisionChatRequest(
+            buildMultiTurnMultimodalChatRequest(
                 model = model,
                 temperature = 0.1,
                 systemPrompt = systemPrompt,
                 historyTurns = chatTurns,
-                dataUrls = dataUrls,
+                attachments = attachments,
                 userText = userText,
                 enableThinking = enableThinkingForVision(ctx)
             )
         } else {
-            buildMultiImageVisionChatRequest(
+            buildMultimodalChatRequest(
                 model = model,
                 temperature = 0.1,
                 systemPrompt = systemPrompt,
-                dataUrls = dataUrls,
+                attachments = attachments,
                 userText = userText,
                 enableThinking = enableThinkingForVision(ctx)
             )
@@ -630,15 +603,7 @@ object AIService {
             val result = parseAnalyzeResult(content, isMultiMode = true)
 
             result?.let { root ->
-                normalizeAccountingResult(
-                    root = root,
-                    expenseCats = promptContext.expenseCats,
-                    incomeCats = promptContext.incomeCats,
-                    assetNames = promptContext.assetNames,
-                    assetFeatureEnabled = promptContext.assetFeatureEnabled,
-                    referenceText = supplementText,
-                    assetCurrencyMap = promptContext.assetCurrencyMap
-                )
+                normalizeAccountingWithLocalRules(ctx, root, promptContext, supplementText)
                 if (!isFromChat && !quickScreenMode) {
                     markVisualAccountingReviewDraft(
                         root = root,
@@ -681,7 +646,9 @@ object AIService {
                 promptContext.assetFeatureEnabled,
                 promptContext.assetNames
             )
-        val dataUrls = images.map { (base64, mime) -> "data:$mime;base64,$base64" }
+        val attachments = images.map { (base64, mime) ->
+            MultimodalAttachmentPart(base64 = base64, mime = mime)
+        }
         val userText = buildString {
             append(AIPrompts.receiptVisionUserInstruction(images.size))
             val supplement = supplementText.trim()
@@ -691,11 +658,11 @@ object AIService {
             }
         }
 
-        val requestJson = buildMultiImageVisionChatRequest(
+        val requestJson = buildMultimodalChatRequest(
             model = model,
             temperature = 0.1,
             systemPrompt = systemPrompt,
-            dataUrls = dataUrls,
+            attachments = attachments,
             userText = userText,
             enableThinking = enableThinkingForVision(ctx)
         )
@@ -865,22 +832,44 @@ object AIService {
 
     /**
      * 四分类 Router：区分 ACCOUNTING_CREATE / ACCOUNTING_QUERY / GENERAL_CHAT / UNSUPPORTED_WRITE。
-     * 仅用于聊天入口，替代旧的二分类 classifyIntent。
+     * 有图片时走视觉模型，结合图片与文字一起判断。
      */
-    suspend fun classifyRouterIntent(ctx: Context, userText: String): RouterResult {
+    suspend fun classifyRouterIntent(
+        ctx: Context,
+        userText: String,
+        images: List<Pair<String, String>> = emptyList()
+    ): RouterResult {
         val apiKey = Prefs.getAiKey(ctx)
         if (apiKey.isBlank()) return RouterResult("ACCOUNTING_CREATE", 1.0, "no_api_key")
         val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveTextModel(ctx) }
         if (model.isBlank()) return RouterResult("ACCOUNTING_CREATE", 1.0, "no_model")
 
-        val requestJson = buildTextChatRequest(
-            model = model,
-            temperature = 0.1,
-            systemPrompt = AIPrompts.INTENT_ROUTER_V2_PROMPT,
-            userText = userText,
-            jsonObjectResponse = true,
-            enableThinking = false
-        )
+        val routerUserText = userText.trim().ifBlank {
+            if (images.isNotEmpty()) "（用户未附带文字，请根据图片内容判断意图）" else ""
+        }
+        val requestJson = if (images.isEmpty()) {
+            buildTextChatRequest(
+                model = model,
+                temperature = 0.1,
+                systemPrompt = AIPrompts.INTENT_ROUTER_V2_PROMPT,
+                userText = routerUserText,
+                jsonObjectResponse = true,
+                enableThinking = false
+            )
+        } else {
+            val attachments = images.map { (base64, mime) ->
+                MultimodalAttachmentPart(base64 = base64, mime = mime)
+            }
+            buildMultimodalChatRequest(
+                model = model,
+                temperature = 0.1,
+                systemPrompt = AIPrompts.INTENT_ROUTER_V2_PROMPT,
+                attachments = attachments,
+                userText = routerUserText,
+                jsonObjectResponse = true,
+                enableThinking = false
+            )
+        }
 
         return try {
             val content = requestAccountingContentStreamed(
@@ -890,7 +879,7 @@ object AIService {
                 onProgress = null,
                 emitTextDelta = false,
                 logReasoning = false,
-                reasoningLogTag = "IntentRouterV2"
+                reasoningLogTag = if (images.isEmpty()) "IntentRouterV2" else "IntentRouterV2Vision"
             )
             val cleaned = cleanJsonString(content)
             val jsonText = extractFirstJsonObjectText(cleaned)
@@ -898,7 +887,11 @@ object AIService {
             val intent = json?.optString("intent", "GENERAL_CHAT") ?: "GENERAL_CHAT"
             val confidence = json?.optDouble("confidence", 0.0) ?: 0.0
             val reason = json?.optString("reason", "") ?: ""
-            Logger.d(ctx, "AIService", "classifyRouterIntent: input=${userText.take(50)}, result=$intent")
+            Logger.d(
+                ctx,
+                "AIService",
+                "classifyRouterIntent: input=${routerUserText.take(50)} images=${images.size}, result=$intent"
+            )
             val validIntents = setOf("ACCOUNTING_CREATE", "ACCOUNTING_QUERY", "GENERAL_CHAT", "UNSUPPORTED_WRITE")
             val normalizedIntent = if (intent in validIntents) intent else "GENERAL_CHAT"
             RouterResult(normalizedIntent, confidence.coerceIn(0.0, 1.0), reason)
@@ -1052,6 +1045,8 @@ object AIService {
         userInput: String,
         chatTurns: List<ChatTurn> = emptyList(),
         replyGuideHint: String = "",
+        accountingCasualMode: Boolean = false,
+        openConversationMode: Boolean = false,
         onDelta: ((String) -> Unit)? = null
     ): StreamResult {
         val apiKey = Prefs.getAiKey(ctx)
@@ -1060,10 +1055,17 @@ object AIService {
 
         val model = AiModelSlots.resolveChatModel(ctx)
         val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
-        val systemPrompt = buildAssistantSystemPrompt(
-            ctx = ctx,
-            defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
-        )
+        val systemPrompt = when {
+            openConversationMode -> buildOpenConversationSystemPrompt(ctx)
+            accountingCasualMode -> buildAccountingCasualChatSystemPrompt(
+                ctx = ctx,
+                defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
+            )
+            else -> buildAssistantSystemPrompt(
+                ctx = ctx,
+                defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
+            )
+        }
         val safeReplyGuideHint = shortenForModel(replyGuideHint, 400, preserveTail = false)
         val userPrompt = buildString {
             append(safeUserInput)
@@ -1074,7 +1076,7 @@ object AIService {
         }
         val requestJson = buildMultiTurnChatRequest(
             model = model,
-            temperature = 0.7,
+            temperature = if (openConversationMode) 0.8 else 0.7,
             systemPrompt = systemPrompt,
             historyTurns = chatTurns,
             userText = userPrompt,
@@ -1092,6 +1094,204 @@ object AIService {
         val result = streamed.copy(content = streamed.content.trim())
         if (result.completed && result.content.isNotBlank()) {
             Logger.d(ctx, AI_IO_LOG_TAG, "[聊天] AI: ${result.content.take(3000)}")
+        }
+        return result
+    }
+
+    suspend fun generateGeneralChatReplyWithImages(
+        ctx: Context,
+        userInput: String,
+        images: List<Pair<String, String>>,
+        chatTurns: List<ChatTurn> = emptyList(),
+        accountingCasualMode: Boolean = false,
+        openConversationMode: Boolean = false,
+        onDelta: ((String) -> Unit)? = null
+    ): StreamResult {
+        require(images.isNotEmpty()) { "images must not be empty" }
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[聊天附件] USER: ${userInput.take(2000)} attachments=${images.size}")
+
+        val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveChatModel(ctx) }
+        val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
+        val systemPrompt = when {
+            openConversationMode -> buildOpenConversationSystemPrompt(ctx)
+            accountingCasualMode -> buildAccountingCasualChatSystemPrompt(
+                ctx = ctx,
+                defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
+            )
+            else -> buildAssistantSystemPrompt(
+                ctx = ctx,
+                defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
+            )
+        }
+        // PDF 等文档：多数视觉模型不支持 file 类型，转成页面图片再发送
+        val apiAttachments = expandPdfAttachmentsForVisionApi(ctx, images)
+        val mimes = apiAttachments.map { it.second }
+        val userPrompt = safeUserInput.trim().ifBlank {
+            when {
+                mimes.size == 1 && mimes.first().equals("application/pdf", ignoreCase = true) ->
+                    "用户发来一个 PDF 文件，请结合文件内容自然回复。"
+                mimes.size == 1 && ChatAttachmentHelper.isDocxMime(mimes.first(), "") ->
+                    "用户发来一个 Word 文档，请结合文档内容自然回复。"
+                mimes.size == 1 && ChatAttachmentHelper.isVideoMime(mimes.first()) ->
+                    "用户发来一个视频，请结合视频内容自然回复。"
+                mimes.size == 1 && ChatAttachmentHelper.isAudioMime(mimes.first()) ->
+                    "用户发来一段音频，请结合音频内容自然回复。"
+                mimes.all { it.startsWith("image/") } && mimes.size == 1 ->
+                    "用户发来一张图片，请结合图片内容自然回复。"
+                mimes.all { it.startsWith("image/") } ->
+                    "用户发来${mimes.size}张图片，请结合图片内容自然回复。"
+                else ->
+                    "用户发来${ChatAttachmentHelper.attachmentSummaryLabel(mimes)}，请结合附件内容自然回复。"
+            }
+        }
+
+        // 按 MIME 选择 image_url / video_url / input_audio / file
+        val attachments = apiAttachments.map { (base64, mime) ->
+            MultimodalAttachmentPart(base64 = base64, mime = mime)
+        }
+        val requestJson = buildMultiTurnMultimodalChatRequest(
+            model = model,
+            temperature = if (openConversationMode) 0.8 else 0.7,
+            systemPrompt = systemPrompt,
+            historyTurns = chatTurns,
+            attachments = attachments,
+            userText = userPrompt,
+            stream = true,
+            enableThinking = enableThinkingForVision(ctx)
+        )
+        val adaptedRequest = adaptChatRequestForProvider(Prefs.getAiProvider(ctx), requestJson)
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = adaptedRequest,
+            logReasoning = enableThinkingForVision(ctx),
+            reasoningLogTag = GENERAL_CHAT_LOG_TAG,
+            onContentDelta = onDelta
+        )
+        val result = streamed.copy(content = streamed.content.trim())
+        if (result.completed && result.content.isNotBlank()) {
+            Logger.d(ctx, AI_IO_LOG_TAG, "[聊天图片] AI: ${result.content.take(3000)}")
+        }
+        return result
+    }
+
+    /**
+     * 聊天场景语音直发：把音频直接发给多模态模型，不再先 ASR 转文字。
+     */
+    suspend fun generateGeneralChatReplyWithAudio(
+        ctx: Context,
+        audioFile: File,
+        audioFormat: String = "wav",
+        chatTurns: List<ChatTurn> = emptyList(),
+        openConversationMode: Boolean = false,
+        onDelta: ((String) -> Unit)? = null
+    ): StreamResult {
+        if (!audioFile.exists() || audioFile.length() <= 44L) {
+            throw IllegalArgumentException("音频文件无效")
+        }
+        if (audioFile.length() > MAX_AUDIO_INLINE_BYTES) {
+            throw IllegalArgumentException("音频文件过大（>${MAX_AUDIO_INLINE_BYTES / 1024 / 1024}MB）")
+        }
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[聊天语音] USER: [音频输入] file=${audioFile.name}, size=${audioFile.length()}")
+
+        val model = AiModelSlots.resolveChatModel(ctx)
+        val audioBase64 = Base64.encodeToString(audioFile.readBytes(), Base64.NO_WRAP)
+        val dataUrl = "data:audio/$audioFormat;base64,$audioBase64"
+        val systemPrompt = if (openConversationMode) {
+            buildOpenConversationSystemPrompt(ctx)
+        } else {
+            buildAssistantSystemPrompt(
+                ctx = ctx,
+                defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
+            )
+        }
+
+        val requestJson = buildMultiTurnAudioChatRequest(
+            model = model,
+            temperature = if (openConversationMode) 0.8 else 0.7,
+            systemPrompt = systemPrompt,
+            historyTurns = chatTurns,
+            audioBase64 = dataUrl,
+            audioFormat = audioFormat,
+            stream = true,
+            enableThinking = false
+        )
+        val adaptedRequest = adaptChatRequestForProvider(Prefs.getAiProvider(ctx), requestJson)
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = adaptedRequest,
+            logReasoning = false,
+            reasoningLogTag = GENERAL_CHAT_LOG_TAG,
+            onContentDelta = onDelta
+        )
+        val result = streamed.copy(content = streamed.content.trim())
+        if (result.completed && result.content.isNotBlank()) {
+            Logger.d(ctx, AI_IO_LOG_TAG, "[聊天语音] AI: ${result.content.take(3000)}")
+        }
+        return result
+    }
+
+    /**
+     * 聊天场景视频直发：把视频直接发给多模态模型。
+     */
+    suspend fun generateGeneralChatReplyWithVideo(
+        ctx: Context,
+        videoFile: File,
+        videoMime: String = "video/mp4",
+        chatTurns: List<ChatTurn> = emptyList(),
+        openConversationMode: Boolean = false,
+        onDelta: ((String) -> Unit)? = null
+    ): StreamResult {
+        if (!videoFile.exists() || videoFile.length() == 0L) {
+            throw IllegalArgumentException("视频文件无效")
+        }
+        val maxVideoBytes = 50L * 1024L * 1024L
+        if (videoFile.length() > maxVideoBytes) {
+            throw IllegalArgumentException("视频文件过大（>${maxVideoBytes / 1024 / 1024}MB）")
+        }
+        val apiKey = Prefs.getAiKey(ctx)
+        if (apiKey.isEmpty()) throw IllegalArgumentException("请先在设置中配置 API Key")
+        Logger.d(ctx, AI_IO_LOG_TAG, "[聊天视频] USER: [视频输入] file=${videoFile.name}, size=${videoFile.length()}")
+
+        val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveChatModel(ctx) }
+        val videoBase64 = Base64.encodeToString(videoFile.readBytes(), Base64.NO_WRAP)
+        val dataUrl = "data:$videoMime;base64,$videoBase64"
+        val systemPrompt = if (openConversationMode) {
+            buildOpenConversationSystemPrompt(ctx)
+        } else {
+            buildAssistantSystemPrompt(
+                ctx = ctx,
+                defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
+            )
+        }
+
+        val requestJson = buildMultiTurnVideoChatRequest(
+            model = model,
+            temperature = if (openConversationMode) 0.8 else 0.7,
+            systemPrompt = systemPrompt,
+            historyTurns = chatTurns,
+            videoDataUrl = dataUrl,
+            userText = "用户发来一个视频，请结合视频内容自然回复。",
+            stream = true,
+            enableThinking = enableThinkingForVision(ctx)
+        )
+        val adaptedRequest = adaptChatRequestForProvider(Prefs.getAiProvider(ctx), requestJson)
+        val streamed = requestChatContentStreamedWithReasoning(
+            ctx = ctx,
+            apiKey = apiKey,
+            requestJson = adaptedRequest,
+            logReasoning = enableThinkingForVision(ctx),
+            reasoningLogTag = GENERAL_CHAT_LOG_TAG,
+            onContentDelta = onDelta
+        )
+        val result = streamed.copy(content = streamed.content.trim())
+        if (result.completed && result.content.isNotBlank()) {
+            Logger.d(ctx, AI_IO_LOG_TAG, "[聊天视频] AI: ${result.content.take(3000)}")
         }
         return result
     }
@@ -1264,6 +1464,40 @@ object AIService {
             if (array.optString(i) == value) return true
         }
         return false
+    }
+
+    /**
+     * 规范化 AI 记账结果，并在开启本地规则覆盖时按关键词强制纠正。
+     * 文字记账与图片直出共用，保证规则行为一致。
+     */
+    private suspend fun normalizeAccountingWithLocalRules(
+        ctx: Context,
+        root: JSONObject,
+        promptContext: AIAccountingPromptContext,
+        referenceText: String
+    ) {
+        normalizeAccountingResult(
+            root = root,
+            expenseCats = promptContext.expenseCats,
+            incomeCats = promptContext.incomeCats,
+            assetNames = promptContext.assetNames,
+            assetFeatureEnabled = promptContext.assetFeatureEnabled,
+            referenceText = referenceText,
+            assetCurrencyMap = promptContext.assetCurrencyMap
+        )
+        if (!Prefs.isLocalRuleOverrideEnabled(ctx)) return
+
+        val promptRules = loadActivePromptRules(ctx)
+        applyLocalRuleOverrideOnResult(root, referenceText.trim(), promptRules)
+        normalizeAccountingResult(
+            root = root,
+            expenseCats = promptContext.expenseCats,
+            incomeCats = promptContext.incomeCats,
+            assetNames = promptContext.assetNames,
+            assetFeatureEnabled = promptContext.assetFeatureEnabled,
+            referenceText = referenceText,
+            assetCurrencyMap = promptContext.assetCurrencyMap
+        )
     }
 
     /**
@@ -1565,5 +1799,36 @@ object AIService {
             .registerTypeAdapter(MessageUnion::class.java, MessageUnionSerializer())
             .create()
         return gson.fromJson(gson.toJson(request), com.google.gson.JsonObject::class.java)
+    }
+
+    private fun expandPdfAttachmentsForVisionApi(
+        ctx: Context,
+        attachments: List<Pair<String, String>>,
+        maxPdfPages: Int = 6
+    ): List<Pair<String, String>> {
+        val expanded = mutableListOf<Pair<String, String>>()
+        for ((base64, mime) in attachments) {
+            if (!mime.equals("application/pdf", ignoreCase = true)) {
+                expanded.add(base64 to mime)
+                continue
+            }
+            val temp = File.createTempFile("chat_pdf_", ".pdf", ctx.cacheDir)
+            try {
+                temp.writeBytes(Base64.decode(base64, Base64.NO_WRAP))
+                val pages = ChatPdfRenderer.renderPagesToJpeg(temp, maxPdfPages)
+                if (pages.isEmpty()) {
+                    expanded.add(base64 to mime)
+                } else {
+                    pages.forEach { page ->
+                        expanded.add(Base64.encodeToString(page, Base64.NO_WRAP) to "image/jpeg")
+                    }
+                }
+            } catch (_: Exception) {
+                expanded.add(base64 to mime)
+            } finally {
+                temp.delete()
+            }
+        }
+        return expanded
     }
 }

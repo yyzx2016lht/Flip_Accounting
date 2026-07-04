@@ -12,12 +12,21 @@ enum class InputAction {
 }
 
 /**
- * Holds a user-selected image that has been copied to app storage but not yet sent.
- * [uri] is the local file URI (for display; nullable for testability),
- * [base64] and [mime] are for the AI payload.
+ * Holds a user-selected attachment copied to app storage but not yet sent.
+ * Images/PDF use [base64]; plain-text files may use [inlineText] instead.
  */
 data class PendingImage(
     val uri: Uri?,
     val base64: String,
-    val mime: String
-)
+    val mime: String,
+    val fileName: String = "",
+    val inlineText: String? = null,
+    /** When a PDF is rasterized to JPEG pages, points at the original PDF for UI display. */
+    val sourceUri: Uri? = null
+) {
+    val isImage: Boolean get() = ChatAttachmentHelper.isImageMime(mime)
+    val isInlineText: Boolean get() = inlineText != null
+    /** True for real photos/screenshots; false for PDF pages rendered as JPEG. */
+    val showsAsImageThumbnail: Boolean get() = isImage && sourceUri == null
+    val showsAsFileCard: Boolean get() = !isInlineText && base64.isNotBlank() && !showsAsImageThumbnail
+}

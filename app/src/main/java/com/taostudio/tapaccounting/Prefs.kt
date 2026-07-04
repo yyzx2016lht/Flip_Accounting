@@ -14,6 +14,9 @@ object Prefs {
     const val AI_ENTRY_MODE_TRADITIONAL = 0
     const val AI_ENTRY_MODE_CHAT = 1
 
+    const val CHAT_PAGE_MODE_ACCOUNTING = 0
+    const val CHAT_PAGE_MODE_CONVERSATION = 1
+
     const val ASR_MODE_API = 0
     const val ASR_MODE_WHISPER = 1
     const val OCR_MODE_LOCAL = 0
@@ -433,6 +436,9 @@ object Prefs {
     fun setTapSensitivityLevel(ctx: Context, level: Int) = PrefsGeneralSupport.setTapSensitivityLevel(ctx, level)
     fun isTapNnapiLowPower(ctx: Context): Boolean = PrefsGeneralSupport.isTapNnapiLowPower(ctx)
     fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapNnapiLowPower(ctx, enabled)
+    fun isTapPowerSavingEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isTapPowerSavingEnabled(ctx)
+    fun setTapPowerSavingEnabled(ctx: Context, enabled: Boolean) =
+        PrefsGeneralSupport.setTapPowerSavingEnabled(ctx, enabled)
     fun isTapForceFullMl(ctx: Context): Boolean = PrefsGeneralSupport.isTapForceFullMl(ctx)
     fun setTapForceFullMl(ctx: Context, enabled: Boolean) = PrefsGeneralSupport.setTapForceFullMl(ctx, enabled)
     fun isTapTripleEnabled(ctx: Context): Boolean = PrefsGeneralSupport.isTapTripleEnabled(ctx)
@@ -471,6 +477,9 @@ object Prefs {
     /** Accounting entry mode: traditional input or AI chat. */
     fun getAiEntryMode(ctx: Context): Int = PrefsChatSupport.getAiEntryMode(ctx)
     fun setAiEntryMode(ctx: Context, mode: Int) = PrefsChatSupport.setAiEntryMode(ctx, mode)
+
+    fun getChatPageMode(ctx: Context): Int = PrefsChatSupport.getChatPageMode(ctx)
+    fun setChatPageMode(ctx: Context, mode: Int) = PrefsChatSupport.setChatPageMode(ctx, mode)
 
     fun getAiChatName(ctx: Context): String = PrefsChatSupport.getAiChatName(ctx)
     fun setAiChatName(ctx: Context, name: String) = PrefsChatSupport.setAiChatName(ctx, name)
@@ -522,5 +531,11 @@ object Prefs {
 
     fun serializeSettingsModules(ctx: Context): Map<String, String> =
         PrefsBackupSupport.serializeSettingsModules(ctx)
+
+    // --- Backup initialization ---
+    fun isBackupInitialized(ctx: Context): Boolean =
+        PrefsGeneralSupport.isBackupInitialized(ctx)
+    fun markBackupInitialized(ctx: Context) =
+        PrefsGeneralSupport.markBackupInitialized(ctx)
 
 }

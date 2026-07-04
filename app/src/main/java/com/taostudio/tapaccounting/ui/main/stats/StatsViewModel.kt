@@ -791,14 +791,15 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             }
             .sortedByDescending { it.dateString }
 
+        val now = Calendar.getInstance()
+        val startCal = Calendar.getInstance().apply { timeInMillis = rangeStart }
+        val endCal = Calendar.getInstance().apply { timeInMillis = rangeEnd }
+
         val activeDays = if (rangeEnd == Long.MAX_VALUE) {
             maxOf(1, dayMap.size)
         } else {
             val dayMs = 24L * 60L * 60L * 1000L
             val defaultDays = ((rangeEnd - rangeStart) / dayMs + 1L).coerceAtLeast(1L).toInt()
-            val now = Calendar.getInstance()
-            val startCal = Calendar.getInstance().apply { timeInMillis = rangeStart }
-            val endCal = Calendar.getInstance().apply { timeInMillis = rangeEnd }
             val isCurrentMonthRange =
                 startCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
                     startCal.get(Calendar.MONTH) == now.get(Calendar.MONTH) &&
@@ -814,6 +815,20 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             }
         }
 
+        // 年视图：月均支出 = 年支出 / 已过去的月数
+        // 月视图：日均支出 = 月支出 / 天数
+        val avgValue = if (state.isMonthMode) {
+            totalExpense / activeDays
+        } else {
+            val isCurrentYear = startCal.get(Calendar.YEAR) == now.get(Calendar.YEAR)
+            val activeMonths = if (isCurrentYear) {
+                (now.get(Calendar.MONTH) + 1).coerceAtLeast(1)
+            } else {
+                12
+            }
+            totalExpense / activeMonths
+        }
+
         return state.copy(
             isLoading = false,
             totalExpense = totalExpense,
@@ -822,7 +837,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             totalRepayment = totalRepayment,
             totalRefund = totalRefund,
             balance = totalIncome - totalExpense,
-            dailyAvg = totalExpense / activeDays,
+            dailyAvg = avgValue,
             categoryStatsExpense = categoryStatsExpense,
             categoryStatsIncome = categoryStatsIncome,
             timeReports = timeReports,

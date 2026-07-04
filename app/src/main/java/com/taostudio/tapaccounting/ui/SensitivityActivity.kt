@@ -407,10 +407,10 @@ class SensitivityActivity : AppCompatActivity() {
             restartTapDetection()
         }
 
-        // 全程 ML 模式
-        switchTapLowPower.isChecked = Prefs.isTapForceFullMl(this)
+        // 省电：开启后长时间无敲击切启发式待机；默认关（全程 ML）
+        switchTapLowPower.isChecked = Prefs.isTapPowerSavingEnabled(this)
         switchTapLowPower.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setTapForceFullMl(this, isChecked)
+            Prefs.setTapPowerSavingEnabled(this, isChecked)
             updateLowPowerDependencies()
             restartTapDetection()
         }

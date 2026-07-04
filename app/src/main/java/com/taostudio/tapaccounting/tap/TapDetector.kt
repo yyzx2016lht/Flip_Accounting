@@ -23,7 +23,8 @@ class TapDetector(
     companion object {
         private const val TAG = "TapDetector"
         private const val SAMPLING_INTERVAL_NS = 2500000L
-        private const val FULL_POWER_SENSOR_SAMPLING_PERIOD_US = 0
+        // Columbus/TapTap 原始实现：0 = 最快可用率，Resample3C 插值到 2.5ms 固定间隔
+        private const val SENSOR_SAMPLING_PERIOD_US = 0
         private const val SENSOR_BATCHING_PERIOD_US = 0
         private const val FULL_POWER_AFTER_START_MS = 3 * 60_000L
         private const val STILLNESS_TO_LOW_POWER_MS = 3 * 60_000L
@@ -36,8 +37,8 @@ class TapDetector(
         )
 
         private enum class PowerProfile(val samplingPeriodUs: Int) {
-            Full(FULL_POWER_SENSOR_SAMPLING_PERIOD_US),
-            HeuristicStandby(FULL_POWER_SENSOR_SAMPLING_PERIOD_US)
+            Full(SENSOR_SAMPLING_PERIOD_US),
+            HeuristicStandby(SENSOR_SAMPLING_PERIOD_US)
         }
     }
 
@@ -57,11 +58,10 @@ class TapDetector(
 
     private var lastTapActionUptimeMs = 0L
 
-    private var forceFullMlMode = false
-
     @Volatile
     private var tripleEnabled = false
 
+    private var forceFullMlMode = true
     private var powerProfile = PowerProfile.Full
     private var fullPowerUntilUptimeMs = 0L
     private var lastSignificantMotionUptimeMs = 0L
@@ -78,8 +78,8 @@ class TapDetector(
     fun start(): Boolean {
         if (isRunning) return true
 
-        val fullMlMode = Prefs.isTapForceFullMl(context)
-        forceFullMlMode = fullMlMode
+        val powerSaving = Prefs.isTapPowerSavingEnabled(context)
+        forceFullMlMode = !powerSaving
 
         if (accelerometer == null) {
             Log.e(TAG, "Missing accelerometer")
@@ -116,20 +116,20 @@ class TapDetector(
 
             isRunning = true
             lastSensorEventTimeMillis = System.currentTimeMillis()
-            if (!fullMlMode) {
+            if (powerSaving) {
                 sensorHandler?.postDelayed(powerProfileCheck, POWER_CHECK_INTERVAL_MS)
             }
 
             val tapModelName = TapModel.resolve(context).displayName
             Log.d(TAG, "TapDetector started: model=$tapModelName, " +
                     "sensitivity=$sensitivity, nnapi=$nnapiLowPower, " +
-                    "forceFullMlMode=$fullMlMode, heuristic=false, " +
+                    "powerSaving=$powerSaving, forceFullMlMode=$forceFullMlMode, " +
                     "gyroRegistered=true, classifierLoaded=true, " +
                     "tripleEnabled=$tripleEnabled, " +
                     "samplingPeriodUs=${powerProfile.samplingPeriodUs}, " +
                     "samplingIntervalNs=$SAMPLING_INTERVAL_NS, " +
                     "batchingUs=$SENSOR_BATCHING_PERIOD_US, " +
-                    "dynamicPower=${!fullMlMode}, standby=heuristic")
+                    "dynamicPower=$powerSaving, standby=heuristic")
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start TapDetector", e)
@@ -353,4 +353,3 @@ class TapDetector(
         getPositivePeakDetector().setWindowSize(64)
     }
 }
-

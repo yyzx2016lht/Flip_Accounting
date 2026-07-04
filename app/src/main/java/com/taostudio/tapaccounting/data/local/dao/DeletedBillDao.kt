@@ -26,6 +26,9 @@ interface DeletedBillDao {
     @Query("DELETE FROM deleted_bills WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<Long>)
 
+    @Query("SELECT * FROM deleted_bills WHERE originalBillId IN (:ids) ORDER BY deletedAt DESC")
+    suspend fun getByOriginalBillIds(ids: List<Long>): List<DeletedBill>
+
     @Query("DELETE FROM deleted_bills")
     suspend fun deleteAll()
 

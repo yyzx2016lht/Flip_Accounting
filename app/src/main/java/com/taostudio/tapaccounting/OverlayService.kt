@@ -40,11 +40,11 @@ class OverlayService : Service() {
             }
         }
 
-        private const val WATCHDOG_INTERVAL_MS = 180_000L
-        private const val TAP_DEAD_EVENT_TIMEOUT_MS = 180_000L
-        private const val TAP_DEAD_CONSECUTIVE_LIMIT = 2
-        private const val MAX_CONSECUTIVE_WATCHDOG_RESTARTS = 3
-        private const val WATCHDOG_COOLDOWN_MS = 5 * 60_000L
+        private const val WATCHDOG_INTERVAL_MS = 60_000L
+        private const val TAP_DEAD_EVENT_TIMEOUT_MS = 45_000L
+        private const val TAP_DEAD_CONSECUTIVE_LIMIT = 1
+        private const val MAX_CONSECUTIVE_WATCHDOG_RESTARTS = 5
+        private const val WATCHDOG_COOLDOWN_MS = 90_000L
         private const val TAP_FEEDBACK_THROTTLE_MS = 650L
         private const val SETTINGS_RESTART_DEBOUNCE_MS = 800L
         private const val DETECTOR_RECHECK_DELAY_MS = 4_000L
@@ -246,7 +246,8 @@ class OverlayService : Service() {
                 return
             }
             val timeSinceLastEvent = now - det.lastSensorEventTimeMillis
-            if (timeSinceLastEvent <= TAP_DEAD_EVENT_TIMEOUT_MS) {
+            val staleThresholdMs = if (isAppInBackground()) 20_000L else TAP_DEAD_EVENT_TIMEOUT_MS
+            if (timeSinceLastEvent <= staleThresholdMs) {
                 consecutiveDeadChecks = 0
                 consecutiveWatchdogRestarts = 0
                 return
@@ -346,9 +347,15 @@ class OverlayService : Service() {
             watchdogCooldownUntilMs = now + WATCHDOG_COOLDOWN_MS
             consecutiveDeadChecks = 0
             consecutiveWatchdogRestarts = 0
-            Logger.d(this@OverlayService, "OverlayService", "Watchdog cooldown entered")
-            stopTapDetection()
-            stopWatchdog()
+            Logger.d(this@OverlayService, "OverlayService", "Watchdog cooldown entered; scheduling detector restart")
+            acquireWakeLockBriefly()
+            restartDetector("watchdog-cooldown")
+        }
+
+        private fun isAppInBackground(): Boolean {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val proc = am.runningAppProcesses?.find { it.pid == Process.myPid() } ?: return true
+            return proc.importance > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE
         }
     }
 

@@ -29,7 +29,8 @@ class ChatBillCorrectionService(
     private val setCurrentBookName: (String) -> Unit,
     private val getCurrentConversationId: () -> String,
     private val parseTimeToMillis: (String) -> Long,
-    private val buildBillMessageContent: (List<Bill>, Set<Long>, Set<Long>, Boolean) -> String
+    private val buildBillMessageContent: (List<Bill>, Set<Long>, Set<Long>, Boolean) -> String,
+    private val onBillMessagesUpdated: () -> Unit = {}
 ) {
     private data class TransferSettlementHint(
         val amount: Double,
@@ -331,6 +332,7 @@ class ChatBillCorrectionService(
                 isLoading = false
             )
         )
+        onBillMessagesUpdated()
         adapterProvider().notifyItemInserted(displayMessages.lastIndex)
         scrollToBottom()
         refreshSessionRows()

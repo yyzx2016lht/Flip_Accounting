@@ -18,6 +18,7 @@ object PrefsChatSupport {
     private const val KEY_AI_CHAT_REPLY_STYLE = "ai_chat_reply_style"
     private const val KEY_AI_CHAT_REPLY_STYLE_CUSTOM = "ai_chat_reply_style_custom"
     private const val KEY_AI_CHAT_MODEL_AUDIO_SUPPORT = "ai_chat_model_audio_support"
+    private const val KEY_CHAT_PAGE_MODE = "chat_page_mode"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -30,6 +31,11 @@ object PrefsChatSupport {
         prefs(ctx).getInt(KEY_AI_ENTRY_MODE, Prefs.AI_ENTRY_MODE_TRADITIONAL)
     fun setAiEntryMode(ctx: Context, mode: Int) =
         prefs(ctx).edit().putInt(KEY_AI_ENTRY_MODE, mode).apply()
+
+    fun getChatPageMode(ctx: Context): Int =
+        prefs(ctx).getInt(KEY_CHAT_PAGE_MODE, Prefs.CHAT_PAGE_MODE_ACCOUNTING)
+    fun setChatPageMode(ctx: Context, mode: Int) =
+        prefs(ctx).edit().putInt(KEY_CHAT_PAGE_MODE, mode).apply()
 
     fun getAiChatName(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_CHAT_NAME, "小记") ?: "小记"
@@ -88,7 +94,7 @@ object PrefsChatSupport {
     }
 
     fun getAiChatReplyStyle(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_CHAT_REPLY_STYLE, "cute") ?: "cute").ifBlank { "cute" }
+        (prefs(ctx).getString(KEY_AI_CHAT_REPLY_STYLE, "natural") ?: "natural").ifBlank { "natural" }
     fun setAiChatReplyStyle(ctx: Context, value: String) =
         prefs(ctx).edit().putString(KEY_AI_CHAT_REPLY_STYLE, value).apply()
 

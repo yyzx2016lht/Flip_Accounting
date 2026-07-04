@@ -9,7 +9,7 @@ object ChatInputRouter {
 
     /**
      * Decide which pipeline the current send action should use.
-     * All inputs go through intent routing in callAiAccounting(), so always return ACCOUNTING.
+     * Conversation vs accounting routing is handled in [ChatMessagePipeline].
      */
     fun resolveInputAction(chatMode: Int, isExplicitAccounting: Boolean): InputAction =
         InputAction.ACCOUNTING

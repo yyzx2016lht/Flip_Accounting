@@ -40,7 +40,8 @@ class ChatHistoryController(
     private val markBillIdsAsDeprecated: (String) -> String,
     private val updateConversationSubtitle: () -> Unit,
     private val scrollToBottom: () -> Unit,
-    private val refreshSessionRows: suspend () -> Unit
+    private val refreshSessionRows: suspend () -> Unit,
+    private val onHistoryLoaded: () -> Unit = {}
 ) {
     fun loadHistoryMessages() {
         lifecycleScope.launch {
@@ -182,9 +183,11 @@ class ChatHistoryController(
                 }
             }
 
+            onHistoryLoaded()
             adapterProvider().notifyDataSetChanged()
             updateConversationSubtitle()
             scrollToBottom()
+            rvMessagesProvider().post { scrollToBottom() }
             scrollToPendingMessageIfNeeded()
             refreshSessionRows()
             if (drawerSessionsProvider().isDrawerOpen(GravityCompat.END) &&

@@ -247,18 +247,30 @@ class AutoBackupWorker(
         bannerDir: File?,
         chatMediaFiles: Map<String, File>
     ): Boolean {
+        // 优先使用用户手动选择的 SAF 目录
         val treeUriRaw = ctx.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE)
             .getString(KEY_BACKUP_TREE_URI, null)
-        if (treeUriRaw.isNullOrBlank()) {
-            log("No default backup directory set, skipping local backup")
-            return false
+        if (!treeUriRaw.isNullOrBlank()) {
+            return backupToSafDir(ctx, treeUriRaw, toBackup, bannerDir, chatMediaFiles)
         }
 
+        // 否则使用默认目录 /storage/emulated/0/TapAccounting/
+        return backupToDefaultDir(ctx, toBackup, bannerDir, chatMediaFiles)
+    }
+
+    /** 通过 SAF tree URI 备份到用户选择的目录 */
+    private suspend fun backupToSafDir(
+        ctx: Context,
+        treeUriRaw: String,
+        toBackup: LinkedHashMap<String, Any>,
+        bannerDir: File?,
+        chatMediaFiles: Map<String, File>
+    ): Boolean {
         val treeUri = runCatching { android.net.Uri.parse(treeUriRaw) }.getOrNull() ?: return false
         val folder = DocumentFile.fromTreeUri(ctx, treeUri) ?: return false
         if (!folder.exists() || !folder.canWrite()) {
-            log("Default backup directory not writable")
-            return false
+            log("SAF backup directory not writable, falling back to default dir")
+            return backupToDefaultDir(ctx, toBackup, bannerDir, chatMediaFiles)
         }
 
         val tempFile = File(ctx.cacheDir, "auto_backup_temp.bak")
@@ -268,20 +280,49 @@ class AutoBackupWorker(
             val existing = folder.findFile(LATEST_BACKUP_FILE_NAME)
             val target = existing ?: folder.createFile("application/octet-stream", LATEST_BACKUP_FILE_NAME)
             if (target == null) {
-                log("Cannot create backup file in default directory")
+                log("Cannot create backup file in SAF directory")
                 return false
             }
 
             ctx.contentResolver.openOutputStream(target.uri)?.use { output ->
                 tempFile.inputStream().use { it.copyTo(output) }
             }
-            log("Local backup saved to ${target.uri}")
+            log("Local backup saved to SAF dir: ${target.uri}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Local backup failed", e)
+            Log.e(TAG, "SAF local backup failed", e)
             false
         } finally {
             runCatching { tempFile.delete() }
+        }
+    }
+
+    /** 备份到默认目录 /storage/emulated/0/TapAccounting/ */
+    private suspend fun backupToDefaultDir(
+        ctx: Context,
+        toBackup: LinkedHashMap<String, Any>,
+        bannerDir: File?,
+        chatMediaFiles: Map<String, File>
+    ): Boolean {
+        if (!BackupDefaultDirHelper.hasStoragePermission()) {
+            log("No storage permission, skipping default dir backup")
+            return false
+        }
+
+        val dir = BackupDefaultDirHelper.getDefaultBackupDir()
+        if (!dir.exists() && !dir.mkdirs()) {
+            log("Cannot create default backup directory: ${dir.absolutePath}")
+            return false
+        }
+
+        val targetFile = File(dir, LATEST_BACKUP_FILE_NAME)
+        return try {
+            BackupManager.backup(targetFile, toBackup, bannerDir, chatMediaFiles)
+            log("Local backup saved to default dir: ${targetFile.absolutePath}")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Default dir local backup failed", e)
+            false
         }
     }
 

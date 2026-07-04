@@ -150,7 +150,8 @@ class ChatMessagePersistenceController(
         text: String,
         isLoading: Boolean,
         bookName: String? = null,
-        conversationId: String? = null
+        conversationId: String? = null,
+        showConversationModeNudge: Boolean = false
     ): String {
         val targetBookName = bookName ?: getCurrentBookName()
         val targetConversationId = conversationId ?: getCurrentConversationId()
@@ -159,7 +160,8 @@ class ChatMessagePersistenceController(
             msgType = ChatActivity.MSG_TYPE_AI_TEXT,
             content = text,
             timestamp = timestampSnapshot,
-            isLoading = isLoading
+            isLoading = isLoading,
+            showConversationModeNudge = showConversationModeNudge
         )
         val uiKey = item.uiKey
         if (isUiAlive()) {
@@ -243,12 +245,22 @@ class ChatMessagePersistenceController(
         adapterProvider().notifyItemChanged(idx, ChatAdapter.PAYLOAD_LOADING_TEXT)
     }
 
-    fun finalizeLoadingMessage(uiKey: String, text: String, bookName: String, conversationId: String) {
+    fun finalizeLoadingMessage(
+        uiKey: String,
+        text: String,
+        bookName: String,
+        conversationId: String,
+        showConversationModeNudge: Boolean = false
+    ) {
         if (!isUiAlive()) return
         val idx = displayMessages.indexOfFirst { it.uiKey == uiKey && it.isLoading }
         if (idx < 0) return
         val current = displayMessages[idx]
-        displayMessages[idx] = current.copy(content = text, isLoading = false)
+        displayMessages[idx] = current.copy(
+            content = text,
+            isLoading = false,
+            showConversationModeNudge = showConversationModeNudge
+        )
         adapterProvider().notifyItemChanged(idx)
         scrollToBottom()
         if (text.isNotBlank()) {

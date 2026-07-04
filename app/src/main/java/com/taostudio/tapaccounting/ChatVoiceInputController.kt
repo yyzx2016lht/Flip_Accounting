@@ -15,10 +15,13 @@ class ChatVoiceInputController(
     private val context: ChatActivity,
     private val etInputProvider: () -> android.widget.EditText,
     private val btnSendProvider: () -> ImageView,
-    private val btnMoreInputProvider: () -> ImageView,
+    private val btnStopProvider: () -> ImageView,
+    private val btnAttachProvider: () -> ImageView,
+    private val isAiGenerating: () -> Boolean,
     private val btnVoiceToggleProvider: () -> ImageView,
     private val btnVoiceHoldProvider: () -> MaterialButton,
     private val layoutVoiceRecordOverlayProvider: () -> View,
+    private val viewVoiceRecordDotProvider: () -> View,
     private val ivVoiceRecordStateProvider: () -> ImageView,
     private val tvVoiceRecordTitleProvider: () -> TextView,
     private val tvVoiceRecordSubtitleProvider: () -> TextView,
@@ -63,72 +66,91 @@ class ChatVoiceInputController(
             if (isVoiceMode()) R.drawable.ic_chat_edit else R.drawable.ic_chat_mic
         )
         btnVoiceToggleProvider().isSelected = isVoiceMode()
-        btnVoiceToggleProvider().setColorFilter(Color.parseColor("#456387"))
-        btnVoiceHoldProvider().backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F2F3F5"))
-        btnVoiceHoldProvider().text = context.getString(R.string.hold_to_speak)
-        btnVoiceHoldProvider().alpha = 1f
+        btnVoiceHoldProvider().text = context.getString(R.string.hold_to_talk)
+        resetVoiceHoldButtonAppearance()
+        refreshVoiceSupportHint()
         updateInputActionUi()
     }
 
+    fun resetVoiceHoldButtonAppearance() {
+        val btn = btnVoiceHoldProvider()
+        btn.backgroundTintList = null
+        btn.setBackgroundResource(
+            if (isRecording()) R.drawable.bg_chat_voice_hold_btn_recording
+            else R.drawable.bg_chat_voice_hold_btn
+        )
+        btn.alpha = 1f
+    }
+
+    fun setVoiceHoldRecordingAppearance(isRecording: Boolean) {
+        val btn = btnVoiceHoldProvider()
+        btn.backgroundTintList = null
+        btn.setBackgroundResource(
+            if (isRecording) R.drawable.bg_chat_voice_hold_btn_recording
+            else R.drawable.bg_chat_voice_hold_btn
+        )
+        btn.alpha = 1f
+    }
+
     fun updateInputActionUi() {
+        if (isAiGenerating()) {
+            btnSendProvider().visibility = android.view.View.GONE
+            btnStopProvider().visibility = android.view.View.VISIBLE
+            btnAttachProvider().visibility = android.view.View.GONE
+            btnVoiceToggleProvider().visibility = android.view.View.GONE
+            return
+        }
+        btnStopProvider().visibility = android.view.View.GONE
         val hasText = etInputProvider().text?.toString()?.trim()?.isNotEmpty() == true
         val hasImages = hasPendingImages()
         val canSend = hasText || hasImages
+        btnAttachProvider().visibility = android.view.View.VISIBLE
         if (isVoiceMode()) {
             btnSendProvider().visibility = android.view.View.GONE
-            btnMoreInputProvider().visibility = android.view.View.VISIBLE
+            btnVoiceToggleProvider().visibility = android.view.View.VISIBLE
             btnSendProvider().alpha = 0.4f
             return
         }
         btnSendProvider().visibility = if (canSend) android.view.View.VISIBLE else android.view.View.GONE
-        // 纯文字时隐藏「+」；有图片时保留「+」以便继续添加
-        btnMoreInputProvider().visibility =
-            if (hasText && !hasImages) android.view.View.GONE else android.view.View.VISIBLE
+        btnVoiceToggleProvider().visibility = if (canSend) android.view.View.GONE else android.view.View.VISIBLE
         btnSendProvider().alpha = if (canSend) 1f else 0.4f
     }
 
     fun startRecordingButtonPulse() {
-        btnVoiceHoldProvider().animate().cancel()
-        btnVoiceHoldProvider().animate().alpha(0.88f).setDuration(180).withEndAction {
-            if (isRecording() && !isWannaCancel()) {
-                btnVoiceHoldProvider().animate().alpha(1f).setDuration(180).withEndAction {
-                    if (isRecording() && !isWannaCancel()) startRecordingButtonPulse()
-                }.start()
-            }
-        }.start()
+        // Keep hold button capsule stable; pulse is handled on the overlay icon.
     }
 
     fun stopRecordingButtonPulse() {
         btnVoiceHoldProvider().animate().cancel()
-        btnVoiceHoldProvider().animate().alpha(1f).setDuration(120).start()
+        btnVoiceHoldProvider().alpha = 1f
     }
 
     fun showVoiceRecordOverlay(isCancelState: Boolean) {
         val overlay = layoutVoiceRecordOverlayProvider()
-        val ivState = ivVoiceRecordStateProvider()
+        val recordDot = viewVoiceRecordDotProvider()
         val tvTitle = tvVoiceRecordTitleProvider()
         val tvSubtitle = tvVoiceRecordSubtitleProvider()
         val tvTimer = tvVoiceRecordTimerProvider()
 
         if (isCancelState) {
             overlay.setBackgroundResource(R.drawable.bg_chat_voice_record_overlay_cancel)
-            ivState.setImageResource(R.drawable.ic_delete)
-            ivState.setColorFilter(Color.parseColor("#FFC4C4"))
+            recordDot.setBackgroundResource(R.drawable.bg_voice_record_dot_cancel)
             tvTitle.text = context.getString(R.string.release_to_cancel)
             tvSubtitle.text = context.getString(R.string.slide_down_continue)
         } else {
             overlay.setBackgroundResource(R.drawable.bg_chat_voice_record_overlay)
-            ivState.setImageResource(R.drawable.ic_chat_mic)
-            ivState.setColorFilter(Color.WHITE)
+            recordDot.setBackgroundResource(R.drawable.bg_voice_record_dot)
             tvTitle.text = context.getString(R.string.recording)
             tvSubtitle.text = context.getString(R.string.release_send_slide_cancel)
         }
         tvTimer.text = formatRecordingDuration()
         ensureOverlayTicker()
+        recordDot.animate().cancel()
+        recordDot.startAnimation(android.view.animation.AnimationUtils.loadAnimation(context, R.anim.voice_record_pulse))
         overlay.animate().cancel()
         if (overlay.visibility != View.VISIBLE) {
             overlay.alpha = 0f
-            overlay.translationY = 12f
+            overlay.translationY = 8f
             overlay.visibility = View.VISIBLE
         }
         overlay.animate()
@@ -141,6 +163,7 @@ class ChatVoiceInputController(
 
     fun hideVoiceRecordOverlay() {
         val overlay = layoutVoiceRecordOverlayProvider()
+        viewVoiceRecordDotProvider().clearAnimation()
         stopOverlayTicker()
         if (overlay.visibility != View.VISIBLE) return
         overlay.animate().cancel()
@@ -200,13 +223,19 @@ class ChatVoiceInputController(
                     stopVoiceRecording { file, _ ->
                         file?.delete()
                         LocalAsrService.resetStreamingBuffer()
-                        context.runOnUiThread { btnVoiceHoldProvider().text = context.getString(R.string.hold_to_speak) }
+                        context.runOnUiThread {
+                            btnVoiceHoldProvider().text = context.getString(R.string.hold_to_talk)
+                            resetVoiceHoldButtonAppearance()
+                        }
                     }
                     Utils.toast(context, context.getString(R.string.toast_canceled))
                 } else {
                     val holdDurationMs = (System.currentTimeMillis() - getRecordingStartAt()).coerceAtLeast(0L)
                     stopVoiceRecording { file, durationSec ->
-                        context.runOnUiThread { btnVoiceHoldProvider().text = context.getString(R.string.hold_to_speak) }
+                        context.runOnUiThread {
+                            btnVoiceHoldProvider().text = context.getString(R.string.hold_to_talk)
+                            resetVoiceHoldButtonAppearance()
+                        }
                         if (holdDurationMs < 450L) {
                             file?.delete()
                             Utils.toast(context, context.getString(R.string.toast_hold_longer))

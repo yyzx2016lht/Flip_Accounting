@@ -2,6 +2,9 @@ package com.taostudio.tapaccounting
 
 import android.content.Context
 
+private const val ASSISTANT_REPLY_RULES =
+    "直接对用户说完整的人话；不要输出场景标签、JSON、英文状态词（如 BILL_SAVED / NO_BILL）或内部指令。"
+
 internal fun buildAssistantStyleInstruction(
     ctx: Context,
     defaultCustomReplyStyleGuide: String
@@ -12,20 +15,24 @@ internal fun buildAssistantStyleInstruction(
         preserveTail = false
     )
     return when (Prefs.getAiChatReplyStyle(ctx)) {
+        "off" ->
+            "回复风格：平实自然，2-4 句，语气中性清楚，少用或不用 emoji。"
         "gentle" ->
-            "回复风格：温柔、轻声、像陪伴一样。请直接对用户说人话，不要输出场景标签、英文状态词或说明文字。"
+            "回复风格：温柔轻声，句子偏短，先接住情绪再回答；2-4 句；emoji 少用。"
         "concise" ->
-            "回复风格：简洁、克制、少废话，但仍然要像正常聊天回复。请直接对用户说完整的人话，不要只输出 BILL_SAVED、NO_BILL、已记录 这类内部标签。"
+            "回复风格：简洁克制，1-2 句说重点，不铺垫，不用 emoji。"
+        "cute" ->
+            "回复风格：可爱俏皮一点，可带少量颜文字；2-4 句，别太长太吵。"
         "playful" ->
-            "回复风格：活泼、俏皮、可以碎碎念一点。请直接对用户说人话，不要输出场景标签、英文状态词或说明文字。"
+            "回复风格：活泼有聊天感，可先碎碎念一句反应，但仍要回答正题；emoji 适量。"
         "custom" ->
             if (customPrompt.isNotBlank()) {
-                "回复风格（用户自定义，高优先）：$customPrompt\n请直接对用户说自然的人话，不要输出场景标签、英文状态词、JSON 或内部指令。"
+                "回复风格（用户自定义，高优先）：$customPrompt"
             } else {
                 defaultCustomReplyStyleGuide
             }
         else ->
-            "回复风格：自然、可爱一点、可以带少量颜文字和俏皮话，但不要太吵。请直接对用户说人话，不要输出场景标签、英文状态词或说明文字。"
+            "回复风格：平实清楚，像正常朋友聊天；2-4 句；emoji 偶尔可用，别刻意卖萌。"
     }
 }
 
@@ -53,6 +60,50 @@ internal fun buildAssistantSystemPrompt(
         appendLine()
         appendLine("【回复风格】")
         appendLine(styleInstruction)
+        appendLine(ASSISTANT_REPLY_RULES)
+    }.trim()
+}
+
+internal fun buildOpenConversationSystemPrompt(ctx: Context): String {
+    val aiName = Prefs.getAiChatName(ctx).trim()
+    val userName = Prefs.getUserChatName(ctx).trim().ifBlank { "我" }
+    val userProfile = shortenForModel(Prefs.getUserProfileDesc(ctx).trim(), 200, preserveTail = false)
+    val customPrompt = shortenForModel(
+        Prefs.getAiChatReplyStyleCustomPrompt(ctx).trim(),
+        800,
+        preserveTail = false
+    )
+    val useCustomStyle = Prefs.getAiChatReplyStyle(ctx) == "custom" && customPrompt.isNotBlank()
+    return buildString {
+        appendLine(AIPrompts.CHAT_OPEN_CONVERSATION_PROMPT_DEFAULT.trim())
+        if (aiName.isNotBlank()) {
+            appendLine()
+            appendLine("【称呼】用户可能叫你「$aiName」，用户自称「$userName」。")
+            appendLine("被问「你是谁」时，用这个名字自我介绍即可，不必强调自己是记账助手。")
+        }
+        if (userProfile.isNotBlank() && userProfile != "点击设置名字和头像") {
+            appendLine("用户档案（参考）：$userProfile")
+        }
+        if (useCustomStyle) {
+            appendLine()
+            appendLine("【回复风格偏好】$customPrompt")
+        }
+        appendLine()
+        appendLine(ASSISTANT_REPLY_RULES)
+    }.trim()
+}
+
+internal fun buildAccountingCasualChatSystemPrompt(
+    ctx: Context,
+    defaultCustomReplyStyleGuide: String
+): String {
+    val base = buildAssistantSystemPrompt(ctx, defaultCustomReplyStyleGuide)
+    return buildString {
+        appendLine(base)
+        appendLine()
+        appendLine("【当前场景】你在记账助手里陪用户闲聊。请正常、完整地回答对方的问题。")
+        appendLine("语气亲切，但更偏记账助手：简洁务实，少废话；可偶尔轻轻提一句「有记账需求随时说」。")
+        appendLine("不要拒绝聊天，不要要求用户必须先切换模式才能说话。")
     }.trim()
 }
 
@@ -70,4 +121,3 @@ internal fun buildAccountingAssistantUserPrompt(
         append("请直接回复用户。")
     }
 }
-

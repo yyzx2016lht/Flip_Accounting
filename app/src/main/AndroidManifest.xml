@@ -24,6 +24,15 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- 自动备份默认目录写入权限 -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -41,7 +50,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -157,7 +167,7 @@
     <activity android:name=".ui.CurrencyManagerActivity" android:label="货币管理" />
     <activity android:name=".ui.ExchangeRateActivity" android:label="汇率管理" />
         <activity android:name=".BillDisplaySettingsActivity" android:label="账单显示效果" />
-        <activity android:name=".ui.SensitivityActivity" android:label="灵敏度调节" />
+        <activity android:name=".ui.SensitivityActivity" android:label="灵敏度调节" android:screenOrientation="portrait" />
         <activity android:name=".GesturePermissionGuideActivity" android:label="快捷记账准备" />
         <activity android:name=".ui.activity.BillDetailActivity" android:label="账单详情" />
         <activity android:name=".ui.activity.RefundActivity" android:label="退款" />
@@ -184,6 +194,7 @@
         <activity
             android:name=".ChatActivity"
             android:label="@string/title_chat"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.TapAccounting" />
         <activity

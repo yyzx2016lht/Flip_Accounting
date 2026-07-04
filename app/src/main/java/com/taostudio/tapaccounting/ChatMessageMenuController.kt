@@ -26,7 +26,9 @@ class ChatMessageMenuController(
     private val updateVoiceModeUi: () -> Unit,
     private val etInputProvider: () -> EditText,
     private val showSoftKeyboard: (View) -> Unit,
-    private val updateInputActionUi: () -> Unit
+    private val updateInputActionUi: () -> Unit,
+    private val deleteBillsFromMenu: (ChatDisplayItem) -> Unit,
+    private val openBillCalendar: (ChatDisplayItem) -> Unit
 ) {
     private fun canShowPopup(anchor: View): Boolean {
         if (!anchor.isAttachedToWindow || anchor.windowToken == null) return false
@@ -112,6 +114,52 @@ class ChatMessageMenuController(
             hideVoiceTranscript(item)
         }
         safeShowAsDropDown(popup, anchor, -20, -anchor.height - 12)
+    }
+
+        fun showBillMessageMenu(anchor: View, item: ChatDisplayItem) {
+        val popupView = LayoutInflater.from(context).inflate(R.layout.popup_msg_menu, null)
+        val popup = createMessagePopup(popupView)
+
+        popupView.findViewById<View>(R.id.menu_item_copy).visibility = View.VISIBLE
+        popupView.findViewById<View>(R.id.menu_item_edit_resend).visibility = View.VISIBLE
+        popupView.findViewById<View>(R.id.menu_item_transcribe).visibility = View.GONE
+        popupView.findViewById<View>(R.id.menu_item_retranscribe).visibility = View.GONE
+        popupView.findViewById<View>(R.id.menu_item_copy_transcript).visibility = View.GONE
+        popupView.findViewById<View>(R.id.menu_item_multiselect).visibility = View.GONE
+
+        val editResend = popupView.findViewById<View>(R.id.menu_item_edit_resend)
+        editResend.findViewById<TextView>(android.R.id.text1) // no id on text
+        (editResend as ViewGroup).getChildAt(1)?.let { child ->
+            if (child is TextView) child.text = context.getString(R.string.chat_bill_open_calendar)
+        }
+
+        val deletableCount = ChatBillUiHelper.deletableBills(item).size
+        val deleteItem = popupView.findViewById<View>(R.id.menu_item_delete)
+        (deleteItem as ViewGroup).getChildAt(1)?.let { child ->
+            if (child is TextView) {
+                child.text = if (deletableCount >= 2) {
+                    context.getString(R.string.chat_bill_menu_delete_all)
+                } else {
+                    context.getString(R.string.delete)
+                }
+            }
+        }
+        deleteItem.visibility = if (deletableCount > 0) View.VISIBLE else View.GONE
+
+        popupView.findViewById<View>(R.id.menu_item_copy).setOnClickListener {
+            popup.dismiss()
+            val summary = ChatBillUiHelper.buildCopySummary(item)
+            copyToClipboard("chat_bill_summary", summary, "已复制")
+        }
+        editResend.setOnClickListener {
+            popup.dismiss()
+            openBillCalendar(item)
+        }
+        deleteItem.setOnClickListener {
+            popup.dismiss()
+            deleteBillsFromMenu(item)
+        }
+        safeShowAsDropDown(popup, anchor, -40, -anchor.height - 16)
     }
 
     fun showTextMessageMenu(anchor: View, item: ChatDisplayItem) {

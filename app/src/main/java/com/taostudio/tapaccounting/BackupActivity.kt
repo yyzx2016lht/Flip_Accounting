@@ -27,6 +27,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONTokener
 import com.taostudio.tapaccounting.data.backup.AutoBackupWorker
+import com.taostudio.tapaccounting.data.backup.BackupDefaultDirHelper
+import com.taostudio.tapaccounting.data.backup.BackupInitHelper
 import com.taostudio.tapaccounting.data.backup.BackupManager
 import com.taostudio.tapaccounting.data.backup.BackupPinCrypto
 import com.taostudio.tapaccounting.data.backup.CloudBackupConfig
@@ -141,7 +143,8 @@ class BackupActivity : AppCompatActivity() {
         setupCloudSettingsUi()
 
         findViewById<MaterialButton>(R.id.btn_do_backup).setOnClickListener {
-            val fileName = "TapAccount_Backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.bak"
+            // 另存为：带时间戳的新文件名，用户选择保存位置
+            val fileName = BackupDefaultDirHelper.generateManualBackupFileName()
             val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
@@ -150,12 +153,8 @@ class BackupActivity : AppCompatActivity() {
             saveBackupAsLauncher.launch(intent)
         }
         findViewById<MaterialButton>(R.id.btn_backup_save_as).setOnClickListener {
-            val treeUri = getBackupTreeUri()
-            if (treeUri == null) {
-                Utils.toast(this, getString(R.string.backup_set_dir_first))
-            } else {
-                performBackupToDefaultTree(treeUri)
-            }
+            // 覆盖备份：直接备份到默认目录的 TapAccount_Backup_Latest.bak
+            performBackupToDefaultDir()
         }
         findViewById<MaterialButton>(R.id.btn_change_backup_dir).setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
@@ -199,6 +198,35 @@ class BackupActivity : AppCompatActivity() {
         setupCleanupButtons()
         updateBackupModeHint()
         handleOpenSectionIntent()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == BackupDefaultDirHelper.REQUEST_CODE_STORAGE_PERMISSION) {
+            updateBackupModeHint()
+            if (BackupDefaultDirHelper.hasStoragePermission()) {
+                // 权限授予后，自动执行覆盖备份
+                performBackupToDefaultDir()
+            } else {
+                Utils.toast(this, getString(R.string.backup_permission_denied))
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == BackupDefaultDirHelper.REQUEST_CODE_STORAGE_PERMISSION) {
+            updateBackupModeHint()
+            if (BackupDefaultDirHelper.hasStoragePermission()) {
+                performBackupToDefaultDir()
+            } else {
+                Utils.toast(this, getString(R.string.backup_permission_denied))
+            }
+        }
     }
 
     private fun setupBackupPresetUi() {
@@ -805,6 +833,59 @@ class BackupActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 覆盖备份到默认目录 /storage/emulated/0/TapAccounting/TapAccount_Backup_Latest.bak
+     * 如果没有存储权限，先请求权限。
+     */
+    private fun performBackupToDefaultDir() {
+        if (!BackupDefaultDirHelper.hasStoragePermission()) {
+            BackupDefaultDirHelper.requestStoragePermissionIfNeeded(this)
+            return
+        }
+
+        val dir = BackupDefaultDirHelper.getDefaultBackupDir()
+        if (!dir.exists() && !dir.mkdirs()) {
+            Utils.toast(this, getString(R.string.create_file_failed))
+            return
+        }
+
+        val options = collectBackupOptions()
+        if (!options.hasAnyModuleSelected()) {
+            Utils.toast(this, getString(R.string.select_module))
+            return
+        }
+
+        val targetFile = BackupDefaultDirHelper.getDefaultBackupFile()
+        val existingFile = targetFile.exists()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val existingEncrypted = if (existingFile) hasEncryptedApiInFile(targetFile) else false
+            withContext(Dispatchers.Main) {
+                resolvePinForBackup(
+                    options = options,
+                    existingBackupEncryptedApi = existingEncrypted,
+                    existingBackupUri = Uri.fromFile(targetFile)
+                ) { pin ->
+                    if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
+                    performBackupInternal(Uri.fromFile(targetFile), options, pin)
+                }
+            }
+        }
+    }
+
+    /** 检查本地文件是否包含加密的 API key */
+    private suspend fun hasEncryptedApiInFile(file: File): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (!file.exists()) return@withContext false
+                val dataMap = BackupManager.restore(file)
+                val raw = dataMap["settings_ai_core"] ?: return@withContext false
+                val root = runCatching { parseSettingsRoot(raw) }.getOrNull() ?: return@withContext false
+                runCatching { BackupPinCrypto.hasEncryptedApi(root) }.getOrDefault(false)
+            } catch (_: Exception) { false }
+        }
+    }
+
     private fun collectBackupOptions(): BackupOptions {
         return BackupOptions(
             backupAssets = findViewById<MaterialCheckBox>(R.id.cb_assets).isChecked,
@@ -910,11 +991,27 @@ class BackupActivity : AppCompatActivity() {
     }
 
     private fun updateBackupModeHint() {
-        val hasDefaultDir = getBackupTreeUri() != null
-        findViewById<TextView>(R.id.tv_backup_mode_hint).text = if (hasDefaultDir) {
-            getString(R.string.backup_dir_set_hint)
-        } else {
-            getString(R.string.backup_dir_not_set_hint)
+        val tv = findViewById<TextView>(R.id.tv_backup_mode_hint)
+        val safUri = getBackupTreeUri()
+        val defaultDir = BackupDefaultDirHelper.getDefaultBackupDir()
+
+        when {
+            // 用户手动设置了 SAF 目录
+            safUri != null -> {
+                tv.text = getString(R.string.backup_dir_set_hint)
+            }
+            // 默认目录存在且有权限
+            BackupDefaultDirHelper.hasStoragePermission() && defaultDir.exists() -> {
+                tv.text = getString(R.string.backup_dir_default_hint, defaultDir.absolutePath)
+            }
+            // 有权限但目录不存在（可能被删除）
+            BackupDefaultDirHelper.hasStoragePermission() -> {
+                tv.text = getString(R.string.backup_dir_default_not_exists, defaultDir.absolutePath)
+            }
+            // 没有权限
+            else -> {
+                tv.text = getString(R.string.backup_dir_no_permission)
+            }
         }
     }
 

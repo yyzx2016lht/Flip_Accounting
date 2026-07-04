@@ -49,6 +49,7 @@ object RuleDialogHelper {
         defaultAcc1: String? = null,
         defaultAcc2: String? = null,
         isOverlay: Boolean = false,
+        categoryOnlyLearnMode: Boolean = false,
         onSave: (AiRule) -> Unit,
         onDelete: ((AiRule) -> Unit)? = null,
         onCancel: (() -> Unit)? = null
@@ -67,7 +68,14 @@ object RuleDialogHelper {
         val spAccount1 = view.findViewById<Spinner>(R.id.sp_account1)
         val spAccount2 = view.findViewById<Spinner>(R.id.sp_account2)
         val layoutAccount2 = view.findViewById<View>(R.id.layout_account2)
+        val tvAccount1Label = view.findViewById<TextView>(R.id.tv_account1_label)
         val switchEnabled = view.findViewById<Switch>(R.id.switch_enabled)
+
+        if (categoryOnlyLearnMode) {
+            tvAccount1Label.visibility = View.GONE
+            spAccount1.visibility = View.GONE
+            layoutAccount2.visibility = View.GONE
+        }
 
         if (!referenceText.isNullOrEmpty()) {
             view.findViewById<View>(R.id.layout_reference_card).visibility = View.VISIBLE
@@ -102,6 +110,10 @@ object RuleDialogHelper {
         
         spType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p0: AdapterView<*>?, p1: View?, position: Int, p3: Long) {
+                if (categoryOnlyLearnMode) {
+                    layoutAccount2.visibility = View.GONE
+                    return
+                }
                 if (position == 2 || position == 3) {
                     layoutAccount2.visibility = View.VISIBLE
                 } else {
@@ -154,9 +166,11 @@ object RuleDialogHelper {
         }
 
         view.findViewById<TextView>(R.id.tv_dialog_title).text = if (rule == null) ctx.getString(R.string.add_rule_title) else ctx.getString(R.string.edit_rule_title)
-        view.findViewById<TextView>(R.id.tv_dialog_subtitle).text =
-            if (rule == null) ctx.getString(R.string.add_rule_subtitle)
-            else ctx.getString(R.string.edit_rule_subtitle)
+        view.findViewById<TextView>(R.id.tv_dialog_subtitle).text = when {
+            rule != null -> ctx.getString(R.string.edit_rule_subtitle)
+            categoryOnlyLearnMode -> ctx.getString(R.string.add_rule_subtitle_learn)
+            else -> ctx.getString(R.string.add_rule_subtitle)
+        }
 
         val dialog = AlertDialog.Builder(themeCtx)
             .setView(view)
@@ -185,9 +199,21 @@ object RuleDialogHelper {
             val finalType = spType.selectedItemPosition
             val finalCat = tvCategory.text.toString().takeIf { it != ctx.getString(R.string.tap_select_category) && it.isNotBlank() }
             val finalAcc1Str = spAccount1.selectedItem?.toString()
-            val finalAcc1 = if (finalAcc1Str == ctx.getString(R.string.none) || finalAcc1Str == null) null else finalAcc1Str
+            val finalAcc1 = if (categoryOnlyLearnMode) {
+                null
+            } else if (finalAcc1Str == ctx.getString(R.string.none) || finalAcc1Str == null) {
+                null
+            } else {
+                finalAcc1Str
+            }
             val finalAcc2Str = spAccount2.selectedItem?.toString()
-            val finalAcc2 = if (finalAcc2Str == ctx.getString(R.string.none) || finalAcc2Str == null || (finalType != 2 && finalType != 3)) null else finalAcc2Str
+            val finalAcc2 = if (categoryOnlyLearnMode) {
+                null
+            } else if (finalAcc2Str == ctx.getString(R.string.none) || finalAcc2Str == null || (finalType != 2 && finalType != 3)) {
+                null
+            } else {
+                finalAcc2Str
+            }
 
             val keywords = keyword.split("，", ",").map { it.trim() }.filter { it.isNotEmpty() }
             for (kw in keywords) {

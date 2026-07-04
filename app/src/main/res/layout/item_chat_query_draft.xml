@@ -13,12 +13,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:background="@drawable/bg_chat_time_chip"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="2dp"
-        android:textColor="#8A97A8"
-        android:textSize="11sp"
-        android:textStyle="bold"
+        android:textColor="@color/chat_time_chip_text"
+        android:textSize="12sp"
         android:visibility="gone" />
 
     <!-- 气泡行：头像 + 卡片 -->

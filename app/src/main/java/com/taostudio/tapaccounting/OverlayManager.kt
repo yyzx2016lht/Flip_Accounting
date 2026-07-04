@@ -52,6 +52,7 @@ class OverlayManager(private val ctx: Context) {
         private const val OVERLAY_HIDDEN_SCALE = 0.985f
         private const val CAPTURE_CARD_ENTER_DURATION_MS = 260L
         private const val CAPTURE_CARD_EXIT_DURATION_MS = 150L
+        private const val OVERLAY_OUTSIDE_TOUCH_GRACE_MS = 600L
     }
 
     private val overlayEnterInterpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
@@ -62,6 +63,7 @@ class OverlayManager(private val ctx: Context) {
     private var overlayView: View? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     private var isRemovingOverlay = false
+    private var overlayShownAtUptimeMs = 0L
     private var currentAnimator: Animator? = null
     private var currentViewAnimator: ViewPropertyAnimator? = null
 
@@ -228,9 +230,14 @@ class OverlayManager(private val ctx: Context) {
         }
 
         startOverlayEnterAnimation(view)
+        overlayShownAtUptimeMs = android.os.SystemClock.uptimeMillis()
 
         overlayView?.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_OUTSIDE) {
+                val elapsed = android.os.SystemClock.uptimeMillis() - overlayShownAtUptimeMs
+                if (elapsed < OVERLAY_OUTSIDE_TOUCH_GRACE_MS) {
+                    return@setOnTouchListener true
+                }
                 removeOverlay(isSaved = false)
                 true
             } else {

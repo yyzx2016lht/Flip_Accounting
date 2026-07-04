@@ -13,99 +13,140 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:background="@drawable/bg_chat_time_chip"
+        android:layout_marginBottom="6dp"
         android:gravity="center"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="3dp"
-        android:textSize="11sp"
-        android:textStyle="bold"
         android:textColor="@color/chat_time_chip_text"
-        android:layout_marginBottom="6dp" />
+        android:textSize="12sp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="start">
+        android:gravity="start"
+        android:orientation="horizontal">
 
-    <!-- AI 头像 -->
         <ImageView
             android:id="@+id/iv_ai_avatar_bill"
             android:layout_width="38dp"
             android:layout_height="38dp"
-        android:src="@drawable/ic_ai_default_avatar"
-        android:scaleType="centerCrop"
-        android:padding="1dp"
-        android:background="@drawable/bg_chat_bill_icon_container"
             android:layout_gravity="top"
-            android:layout_marginEnd="10dp" />
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginEnd="38dp"
-        android:orientation="vertical"
-        >
-
-        <TextView
-            android:id="@+id/tv_ai_name_bill"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:textColor="@color/chat_bill_detail_text"
-            android:layout_marginBottom="6dp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tv_ai_bill_hint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_chat_bill_hint_bubble"
-            android:lineSpacingExtra="3dp"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="8dp"
-            android:textColor="@color/chat_bill_hint_text"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            />
-
-        <!-- 账单卡片容器 -->
-        <LinearLayout
-            android:id="@+id/container_bills"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_chat_bubble_ai"
-            android:padding="12dp">
-
-            <!-- 账单卡片由代码动态填充 -->
-
-        </LinearLayout>
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/bg_chat_bill_icon_container"
+            android:padding="1dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_ai_default_avatar" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_marginEnd="38dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/tv_ai_bill_time_legacy"
-                android:layout_width="0dp"
+                android:id="@+id/tv_ai_name_bill"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textColor="@color/chat_time_chip_text"
-                android:textSize="10sp"
+                android:layout_marginBottom="6dp"
+                android:textColor="@color/chat_bill_detail_text"
+                android:textSize="12sp"
+                android:textStyle="bold"
                 android:visibility="gone" />
 
+            <TextView
+                android:id="@+id/tv_ai_bill_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_chat_bill_hint_bubble"
+                android:hyphenationFrequency="none"
+                android:lineSpacingExtra="3dp"
+                android:linksClickable="true"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp"
+                android:textColor="@color/chat_bill_hint_text"
+                android:textIsSelectable="true"
+                android:textSize="13sp"
+                android:visibility="gone" />
 
+            <TextView
+                android:id="@+id/tv_bill_batch_summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:textColor="@color/chat_bill_detail_text"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/container_bills"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chat_bubble_ai"
+                android:orientation="vertical"
+                android:padding="12dp" />
+
+            <TextView
+                android:id="@+id/btn_expand_bills"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:paddingVertical="6dp"
+                android:text="@string/chat_bill_expand_more"
+                android:textColor="#5B6472"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/layout_bill_batch_actions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:gravity="start|center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/btn_confirm_all_bills"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:paddingVertical="6dp"
+                    android:text="@string/chat_bill_confirm_all"
+                    android:textColor="#2E7D32"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/btn_delete_all_bills"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="6dp"
+                    android:text="@string/chat_bill_delete_all"
+                    android:textColor="#D32F2F"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_ai_bill_time_legacy"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/chat_time_chip_text"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-
-    </LinearLayout>
-
 </LinearLayout>

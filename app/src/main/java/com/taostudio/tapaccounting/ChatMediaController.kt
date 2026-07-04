@@ -1,19 +1,26 @@
 package com.taostudio.tapaccounting
 
+import android.Manifest
 import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.os.Build
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.webkit.MimeTypeMap
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -39,10 +46,16 @@ class ChatMediaController(
     private val showPageCenterDialog: (AlertDialog, Float) -> Unit,
     private val updateConversationSubtitle: () -> Unit,
     private val appendUserMessage: (String, Int, String) -> Unit,
-    /** Called when a picked image is ready: (storedUri, base64, mime). */
-    private val onImageReady: (Uri, String, String) -> Unit,
+    /** Called when a picked attachment is ready. */
+    private val onAttachmentReady: (PendingImage) -> Unit,
+    private val pendingAttachmentCount: () -> Int = { 0 },
     private val appendAiTextMessage: (String, Boolean) -> Unit,
+    private val showPageBottomDialog: (AlertDialog) -> Unit,
+    private val requestGalleryPermission: () -> Unit,
+    private val requestCameraPermission: () -> Unit,
     private val reqPickImage: Int,
+    private val reqTakePhoto: Int,
+    private val reqPickFile: Int,
     private val reqPickBg: Int,
     private val reqCropBg: Int,
     private val reqPickAiAvatar: Int,
@@ -52,7 +65,10 @@ class ChatMediaController(
     private val msgTypeUserImage: Int
 ) {
     private var pendingEditAiAvatarView: ImageView? = null
-    private val maxAiImageBytes = 4L * 1024L * 1024L
+    private var pendingCameraOutputUri: Uri? = null
+    private var pendingOpenCameraAfterPermission = false
+    private var pendingGalleryPickCount = 0
+    private val maxAiImageBytes = ChatAttachmentHelper.MAX_IMAGE_BYTES
     private val maxOcrCharsForRouting = 1200
 
     fun showEditAiProfileDialog() {
@@ -102,13 +118,167 @@ class ChatMediaController(
         showPageCenterDialog(dialog, 0.88f)
     }
 
-    fun pickImages() {
+    fun showAttachmentMenu(alreadySelectedCount: Int) {
         if (!ensureAiImageFeatureEnabled()) return
-        val intent = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
-            type = "image/*"
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_chat_attach_menu, null)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(context, R.style.Theme_TapAccounting))
+            .setView(view)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        view.findViewById<android.view.View>(R.id.item_attach_camera).setOnClickListener {
+            dialog.dismiss()
+            takePhoto()
         }
-        context.startActivityForResult(intent, reqPickImage)
+        view.findViewById<android.view.View>(R.id.item_attach_photos).setOnClickListener {
+            dialog.dismiss()
+            requestPickImages(alreadySelectedCount)
+        }
+        view.findViewById<android.view.View>(R.id.item_attach_file).setOnClickListener {
+            dialog.dismiss()
+            pickFile()
+        }
+        view.findViewById<TextView>(R.id.btn_attach_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        showPageBottomDialog(dialog)
+    }
+
+    fun requestPickImages(alreadySelectedCount: Int) {
+        if (!ensureAiImageFeatureEnabled()) return
+        pendingGalleryPickCount = alreadySelectedCount
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            launchSystemImagePicker(alreadySelectedCount)
+            return
+        }
+        val permission = android.Manifest.permission.READ_EXTERNAL_STORAGE
+        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+            launchSystemImagePicker(alreadySelectedCount)
+        } else {
+            requestGalleryPermission()
+        }
+    }
+
+    fun pickImagesFromSystem(alreadySelectedCount: Int) {
+        launchSystemImagePicker(alreadySelectedCount)
+    }
+
+    fun takePhoto() {
+        if (!ensureAiImageFeatureEnabled()) return
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCameraIntent()
+        } else {
+            pendingOpenCameraAfterPermission = true
+            requestCameraPermission()
+        }
+    }
+
+    fun onCameraPermissionGranted() {
+        if (pendingOpenCameraAfterPermission) {
+            pendingOpenCameraAfterPermission = false
+            launchCameraIntent()
+        }
+    }
+
+    fun onCameraPermissionDenied() {
+        pendingOpenCameraAfterPermission = false
+        Utils.toast(context, context.getString(R.string.toast_camera_permission))
+    }
+
+    private fun pickFile() {
+        if (!ensureAiImageFeatureEnabled()) return
+        val mimeTypes = arrayOf("image/*", "video/*", "audio/*", "application/pdf", "text/*", "application/*")
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "*/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                runCatching {
+                    putExtra(
+                        DocumentsContract.EXTRA_INITIAL_URI,
+                        DocumentsContract.buildRootUri(
+                            "com.android.externalstorage.documents",
+                            "primary"
+                        )
+                    )
+                }
+            }
+        }.takeIf { it.resolveActivity(context.packageManager) != null }
+            ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "*/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+                putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+            }
+        if (intent.resolveActivity(context.packageManager) == null) {
+            Utils.toast(context, context.getString(R.string.chat_attach_no_file_app))
+            return
+        }
+        startForResultNoAnim(intent, reqPickFile)
+    }
+
+    private fun launchSystemImagePicker(alreadySelectedCount: Int) {
+        val remaining = (ChatImageComposer.MAX_PENDING_IMAGES - alreadySelectedCount).coerceAtLeast(1)
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Intent(MediaStore.ACTION_PICK_IMAGES).apply {
+                putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, remaining)
+            }
+        } else {
+            Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "image/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, remaining > 1)
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            startForResultNoAnim(intent, reqPickImage)
+        } else {
+            startForResultNoAnim(
+                Intent.createChooser(intent, context.getString(R.string.chat_attach_photos)),
+                reqPickImage
+            )
+        }
+    }
+
+    private fun launchCameraIntent() {
+        val imageDir = File(context.filesDir, "chat_images").also { it.mkdirs() }
+        val photoFile = File(imageDir, "camera_${System.currentTimeMillis()}.jpg")
+        val outputUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        pendingCameraOutputUri = outputUri
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            putExtra(MediaStore.EXTRA_OUTPUT, outputUri)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val cameraApp = intent.resolveActivity(context.packageManager) ?: run {
+            pendingCameraOutputUri = null
+            photoFile.delete()
+            Utils.toast(context, context.getString(R.string.toast_no_camera_app))
+            return
+        }
+        context.grantUriPermission(
+            cameraApp.packageName,
+            outputUri,
+            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+        startForResultNoAnim(intent, reqTakePhoto)
+    }
+
+    private fun extractPickedUris(data: Intent?, maxCount: Int): List<Uri> {
+        val uris = mutableListOf<Uri>()
+        data?.clipData?.let { clip ->
+            for (i in 0 until clip.itemCount) {
+                uris.add(clip.getItemAt(i).uri)
+                if (uris.size >= maxCount) break
+            }
+        } ?: data?.data?.let { uris.add(it) }
+        return uris.take(maxCount)
+    }
+
+    private fun handlePickedFile(uri: Uri) {
+        handlePickedAttachment(uri)
     }
 
     fun pickBgImage() {
@@ -184,21 +354,33 @@ class ChatMediaController(
                 }
             }
             return requestCode in setOf(
-                reqPickImage, reqPickBg, reqCropBg, reqPickAiAvatar, reqPickUserAvatar, reqCropAiAvatar, reqCropUserAvatar
+                reqPickImage, reqTakePhoto, reqPickFile,
+                reqPickBg, reqCropBg, reqPickAiAvatar, reqPickUserAvatar, reqCropAiAvatar, reqCropUserAvatar
             )
         }
 
         when (requestCode) {
             reqPickImage -> {
-                val uris = buildList {
-                    data?.clipData?.let { clip ->
-                        for (index in 0 until clip.itemCount) {
-                            add(clip.getItemAt(index).uri)
-                        }
-                    }
-                    data?.data?.let { if (!contains(it)) add(it) }
+                val maxCount = (ChatImageComposer.MAX_PENDING_IMAGES - pendingGalleryPickCount).coerceAtLeast(1)
+                extractPickedUris(data, maxCount).forEach(::handlePickedImage)
+                return true
+            }
+            reqTakePhoto -> {
+                val outputUri = pendingCameraOutputUri
+                pendingCameraOutputUri = null
+                if (outputUri?.path?.let { path ->
+                        val file = File(path)
+                        file.exists() && file.length() > 0L
+                    } == true
+                ) {
+                    handlePickedImage(outputUri)
+                } else {
+                    data?.data?.let(::handlePickedImage)
                 }
-                uris.forEach(::handlePickedImage)
+                return true
+            }
+            reqPickFile -> {
+                data?.data?.let(::handlePickedFile)
                 return true
             }
             reqPickBg -> {
@@ -416,41 +598,186 @@ class ChatMediaController(
     }
 
     /**
-     * Pick-image result handler.
-     * Copies the image to app storage, compresses if necessary, then hands the
-     * encoded image to [onImageReady] — the Activity decides whether it becomes
-     * an accounting payload or stays as pending composer state.
+     * Copies the attachment to app storage, encodes for AI when needed, then hands
+     * it to [onAttachmentReady].
      */
     private fun handlePickedImage(uri: Uri) {
+        handlePickedAttachment(uri)
+    }
+
+    private fun handlePickedAttachment(uri: Uri) {
         lifecycleScope.launch {
             try {
-                val (storedUri, base64, mime) = withContext(Dispatchers.IO) {
-                    val sourceMime = context.contentResolver.getType(uri) ?: "image/jpeg"
-                    val stableUri = copyPickedImageToStorage(uri, sourceMime)
-                    val stableFile = File(stableUri.path ?: "")
-                    if (stableFile.length() > maxAiImageBytes) {
-                        compressImageInPlace(stableFile)
-                    }
-                    if (stableFile.length() > maxAiImageBytes) {
-                        throw IOException("图片过大，请裁剪或压缩后再试")
-                    }
-                    val stream = context.contentResolver.openInputStream(stableUri)
-                        ?: return@withContext Triple(Uri.EMPTY, "", sourceMime)
-                    val bytes = stream.readBytes()
-                    stream.close()
-                    Triple(
-                        stableUri,
-                        android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
-                        sourceMime
-                    )
+                val attachments = withContext(Dispatchers.IO) {
+                    buildPendingAttachments(uri)
                 }
-                if (base64.isBlank()) return@launch
-                onImageReady(storedUri, base64, mime)
+                attachments.forEach { attachment ->
+                    onAttachmentReady(attachment)
+                }
+            } catch (e: UnsupportedAttachmentException) {
+                Utils.toast(context, e.message.orEmpty())
             } catch (e: Exception) {
-                appendAiTextMessage("图片处理失败，请稍后重试或换一张更清晰的图片。", false)
+                appendAiTextMessage(
+                    e.message?.takeIf { it.isNotBlank() }
+                        ?: context.getString(R.string.chat_attach_process_failed),
+                    false
+                )
             }
         }
     }
+
+    private fun buildPendingAttachments(uri: Uri): List<PendingImage> {
+        val fileName = ChatAttachmentHelper.resolveDisplayName(context, uri)
+        val mime = ChatAttachmentHelper.resolveMime(context, uri, fileName)
+        if (ChatAttachmentHelper.isLegacyDocMime(mime, fileName)) {
+            throw UnsupportedAttachmentException(
+                context.getString(R.string.chat_attach_legacy_doc_unsupported)
+            )
+        }
+        if (!ChatAttachmentHelper.isSupportedMime(mime, fileName)) {
+            throw UnsupportedAttachmentException(
+                context.getString(R.string.chat_attach_file_unsupported)
+            )
+        }
+
+        if (ChatAttachmentHelper.shouldExtractAsInlineText(mime, fileName)) {
+            // DOCX: 尝试整文件 base64 直发（≤4MB），否则 fallback 到提取文字
+            if (ChatAttachmentHelper.isDocxMime(mime, fileName)) {
+                // DOCX 整文件 base64 直发（≤20MB，与 PDF 一致）
+                val docDirectMaxBytes = 20L * 1024L * 1024L
+                val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
+                val stableFile = File(storedUri.path ?: "")
+                if (stableFile.length() <= docDirectMaxBytes) {
+                    val bytes = stableFile.readBytes()
+                    if (bytes.isNotEmpty()) {
+                        return listOf(
+                            PendingImage(
+                                uri = storedUri,
+                                base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
+                                mime = mime,
+                                fileName = fileName
+                            )
+                        )
+                    }
+                }
+                // fallback: 提取文字
+                val rawText = context.contentResolver.openInputStream(storedUri)?.use { input ->
+                    ChatDocumentTextExtractor.extractDocxText(input)
+                }.orEmpty()
+                if (rawText.isBlank()) {
+                    throw IOException(context.getString(R.string.chat_attach_empty_file))
+                }
+                if (rawText.length > ChatAttachmentHelper.MAX_INLINE_TEXT_CHARS) {
+                    throw IOException(context.getString(R.string.chat_attach_text_too_large))
+                }
+                return listOf(
+                    PendingImage(
+                        uri = storedUri,
+                        base64 = "",
+                        mime = mime,
+                        fileName = fileName,
+                        inlineText = rawText
+                    )
+                )
+            }
+            // 文本/JSON: 提取文字（本身就是纯文本，直发没有意义）
+            val rawText = context.contentResolver.openInputStream(uri)?.use { input ->
+                input.bufferedReader(Charsets.UTF_8).readText()
+            }.orEmpty()
+            if (rawText.isBlank()) {
+                throw IOException(context.getString(R.string.chat_attach_empty_file))
+            }
+            if (rawText.length > ChatAttachmentHelper.MAX_INLINE_TEXT_CHARS) {
+                throw IOException(context.getString(R.string.chat_attach_text_too_large))
+            }
+            val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
+            return listOf(
+                PendingImage(
+                    uri = storedUri,
+                    base64 = "",
+                    mime = mime,
+                    fileName = fileName,
+                    inlineText = rawText
+                )
+            )
+        }
+
+        val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
+        val stableFile = File(storedUri.path ?: "")
+
+        if (mime.equals("application/pdf", ignoreCase = true)) {
+            // 尝试 PDF 整文件 base64 直发（≤20MB，与 OpenAI/Gemini 一致）
+            val pdfDirectMaxBytes = 20L * 1024L * 1024L
+            if (stableFile.length() <= pdfDirectMaxBytes) {
+                val bytes = stableFile.readBytes()
+                if (bytes.isNotEmpty()) {
+                    return listOf(
+                        PendingImage(
+                            uri = storedUri,
+                            base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
+                            mime = "application/pdf",
+                            fileName = fileName
+                        )
+                    )
+                }
+            }
+            // 文件过大或读取失败，fallback 到转图片
+            return buildPdfPageAttachments(stableFile, fileName)
+        }
+
+        if (ChatAttachmentHelper.isImageMime(mime)) {
+            // 像微信一样自动压缩：不需要原图，看得清楚就行
+            compressImageForAi(stableFile)
+        }
+        val maxBytes = ChatAttachmentHelper.maxBytesFor(mime)
+        if (stableFile.length() > maxBytes) {
+            val label = if (ChatAttachmentHelper.isImageMime(mime)) {
+                context.getString(R.string.chat_attach_image_too_large)
+            } else {
+                context.getString(R.string.chat_attach_document_too_large)
+            }
+            throw IOException(label)
+        }
+        val bytes = context.contentResolver.openInputStream(storedUri)?.readBytes()
+            ?: throw IOException(context.getString(R.string.chat_attach_read_failed))
+        if (bytes.isEmpty()) {
+            throw IOException(context.getString(R.string.chat_attach_empty_file))
+        }
+        return listOf(
+            PendingImage(
+                uri = storedUri,
+                base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
+                mime = mime,
+                fileName = fileName
+            )
+        )
+    }
+
+    private fun buildPdfPageAttachments(pdfFile: File, fileName: String): List<PendingImage> {
+        val remaining = (ChatImageComposer.MAX_PENDING_IMAGES - pendingAttachmentCount()).coerceAtLeast(1)
+        val pageBytes = ChatPdfRenderer.renderPagesToJpeg(pdfFile, remaining)
+        if (pageBytes.isEmpty()) {
+            throw IOException(context.getString(R.string.chat_attach_pdf_render_failed))
+        }
+        val imageDir = File(context.filesDir, "chat_attachments").also { it.mkdirs() }
+        val stem = fileName.substringBeforeLast('.').ifBlank { "pdf" }
+        return pageBytes.mapIndexed { index, bytes ->
+            if (bytes.size > maxAiImageBytes) {
+                throw IOException(context.getString(R.string.chat_attach_image_too_large))
+            }
+            val pageFile = File(imageDir, "${stem}_p${index + 1}_${System.currentTimeMillis()}.jpg")
+            pageFile.writeBytes(bytes)
+            PendingImage(
+                uri = Uri.fromFile(pageFile),
+                base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
+                mime = "image/jpeg",
+                fileName = if (pageBytes.size == 1) fileName else "$fileName (${index + 1}/${pageBytes.size})",
+                sourceUri = Uri.fromFile(pdfFile)
+            )
+        }
+    }
+
+    private class UnsupportedAttachmentException(message: String) : IOException(message)
 
     private fun compressImageInPlace(file: File) {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -471,16 +798,57 @@ class ChatMediaController(
         }
     }
 
-    private fun copyPickedImageToStorage(sourceUri: Uri, sourceMime: String): Uri {
-        val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(sourceMime)
-            ?.lowercase(Locale.getDefault())
+    /**
+     * 为 AI 发送压缩图片（类似微信发图策略）：
+     * - 分辨率限制在 1280px 以内（AI 看图不需要太大）
+     * - JPEG 质量 75（清晰度足够，体积小）
+     * - 目标：大多数图片压缩到 100-300KB
+     */
+    private fun compressImageForAi(file: File) {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return
+
+        // 计算采样率：目标 1280px
+        val targetSize = 1280
+        var sample = 1
+        while (bounds.outWidth / sample > targetSize || bounds.outHeight / sample > targetSize) {
+            sample *= 2
+        }
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return
+        try {
+            FileOutputStream(file, false).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 75, out)
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    private fun copyPickedAttachmentToStorage(sourceUri: Uri, sourceMime: String, fileName: String): Uri {
+        val ext = fileName.substringAfterLast('.', "")
+            .lowercase(Locale.getDefault())
+            .ifBlank {
+                MimeTypeMap.getSingleton().getExtensionFromMimeType(sourceMime)?.lowercase(Locale.getDefault())
+            }
             ?.ifBlank { null }
-            ?: "jpg"
-        val imageDir = File(context.filesDir, "chat_images").also { it.mkdirs() }
-        val outFile = File(imageDir, "chat_img_${System.currentTimeMillis()}_${UUID.randomUUID()}.$ext")
+            ?: when {
+                sourceMime.contains("png", ignoreCase = true) -> "png"
+                sourceMime.contains("pdf", ignoreCase = true) -> "pdf"
+                sourceMime.contains("json", ignoreCase = true) -> "json"
+                sourceMime.startsWith("text/", ignoreCase = true) -> "txt"
+                else -> "bin"
+            }
+        val dir = File(context.filesDir, "chat_attachments").also { it.mkdirs() }
+        val safeStem = fileName.substringBeforeLast('.')
+            .replace(Regex("""[^\w\u4e00-\u9fff.-]"""), "_")
+            .take(40)
+            .ifBlank { "file" }
+        val outFile = File(dir, "${safeStem}_${System.currentTimeMillis()}_${UUID.randomUUID()}.$ext")
         context.contentResolver.openInputStream(sourceUri)?.use { ins ->
             FileOutputStream(outFile).use { outs -> ins.copyTo(outs) }
-        } ?: throw IOException("无法读取图片")
+        } ?: throw IOException(context.getString(R.string.chat_attach_read_failed))
         return Uri.fromFile(outFile)
     }
 }

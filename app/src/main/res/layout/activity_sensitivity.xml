@@ -963,7 +963,7 @@
                             android:layout_marginVertical="4dp" />
                     </LinearLayout>
 
-                    <!-- group_tap_low_power: 全程 ML 模式 -->
+                    <!-- group_tap_low_power: 敲击检测省电（启发式待机） -->
                     <LinearLayout
                         android:id="@+id/group_tap_low_power"
                         android:layout_width="match_parent"

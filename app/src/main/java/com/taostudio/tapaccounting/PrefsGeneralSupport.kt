@@ -39,6 +39,8 @@ object PrefsGeneralSupport {
     private const val KEY_TAP_TRIPLE_ENABLED = "tap_triple_enabled"
     private const val KEY_TAP_LOW_POWER = "tap_low_power"
     private const val KEY_TAP_FORCE_FULL_ML_MIGRATED = "tap_force_full_ml_migrated_v1"
+    private const val KEY_TAP_POWER_SAVING = "tap_power_saving"
+    private const val KEY_TAP_POWER_SAVING_MIGRATED = "tap_power_saving_migrated_v1"
     private const val KEY_FLIP_ACTION = "flip_action"
     private const val KEY_TAP_ACTION_DOUBLE = "tap_action_double"
     private const val KEY_TAP_ACTION_TRIPLE = "tap_action_triple"
@@ -46,6 +48,7 @@ object PrefsGeneralSupport {
     private const val KEY_AI_DETAIL_CONFIG_UNLOCKED = "ai_detail_config_unlocked_v1"
     private const val KEY_SHIZUKU_UNLOCKED = "shizuku_unlocked_v1"
     private const val KEY_AGGRESSIVE_KEEP_ALIVE = "aggressive_keep_alive"
+    private const val KEY_BACKUP_INITIALIZED = "backup_initialized_v1"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -257,21 +260,33 @@ object PrefsGeneralSupport {
     fun setTapNnapiLowPower(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_TAP_NNAPI_LOW_POWER, enabled).apply()
 
-    fun isTapForceFullMl(ctx: Context): Boolean {
+    /**
+     * 敲击检测省电：开启后长时间无敲击会切到启发式待机；默认关闭（全程 ML）。
+     */
+    fun isTapPowerSavingEnabled(ctx: Context): Boolean {
         val prefs = prefs(ctx)
-        if (!prefs.getBoolean(KEY_TAP_FORCE_FULL_ML_MIGRATED, false)) {
+        if (!prefs.getBoolean(KEY_TAP_POWER_SAVING_MIGRATED, false)) {
             prefs.edit()
-                .putBoolean(KEY_TAP_LOW_POWER, false)
+                .putBoolean(KEY_TAP_POWER_SAVING, false)
+                .putBoolean(KEY_TAP_POWER_SAVING_MIGRATED, true)
                 .putBoolean(KEY_TAP_FORCE_FULL_ML_MIGRATED, true)
                 .apply()
         }
-        return prefs.getBoolean(KEY_TAP_LOW_POWER, false)
+        return prefs.getBoolean(KEY_TAP_POWER_SAVING, false)
     }
-    fun setTapForceFullMl(ctx: Context, enabled: Boolean) =
+
+    fun setTapPowerSavingEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit()
-            .putBoolean(KEY_TAP_LOW_POWER, enabled)
-            .putBoolean(KEY_TAP_FORCE_FULL_ML_MIGRATED, true)
+            .putBoolean(KEY_TAP_POWER_SAVING, enabled)
+            .putBoolean(KEY_TAP_POWER_SAVING_MIGRATED, true)
             .apply()
+
+    /** @deprecated 语义已反转，请用 [isTapPowerSavingEnabled] */
+    fun isTapForceFullMl(ctx: Context): Boolean = !isTapPowerSavingEnabled(ctx)
+
+    /** @deprecated 语义已反转，请用 [setTapPowerSavingEnabled] */
+    fun setTapForceFullMl(ctx: Context, enabled: Boolean) =
+        setTapPowerSavingEnabled(ctx, !enabled)
 
     fun isTapTripleEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_TAP_TRIPLE_ENABLED, false)
@@ -320,5 +335,11 @@ object PrefsGeneralSupport {
         prefs(ctx).getBoolean(KEY_AGGRESSIVE_KEEP_ALIVE, false)
     fun setAggressiveKeepAliveEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AGGRESSIVE_KEEP_ALIVE, enabled).apply()
+
+    // --- Backup initialization ---
+    fun isBackupInitialized(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_BACKUP_INITIALIZED, false)
+    fun markBackupInitialized(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_BACKUP_INITIALIZED, true).apply()
 }
 

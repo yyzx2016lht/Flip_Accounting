@@ -1,7 +1,5 @@
 package com.taostudio.tapaccounting
 
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -17,6 +15,7 @@ class ChatAudioRecordController(
     private val audioFormat: Int,
     private val audioBufferSizeProvider: () -> Int,
     private val btnVoiceHoldProvider: () -> MaterialButton,
+    private val onVoiceHoldRecording: (Boolean) -> Unit,
     private val getAudioRecord: () -> AudioRecord?,
     private val setAudioRecord: (AudioRecord?) -> Unit,
     private val getAudioFile: () -> File?,
@@ -56,7 +55,7 @@ class ChatAudioRecordController(
             setRecordingStartAt(System.currentTimeMillis())
             val btnVoiceHold = btnVoiceHoldProvider()
             btnVoiceHold.text = context.getString(R.string.release_to_send)
-            btnVoiceHold.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#E6E6E6"))
+            onVoiceHoldRecording(true)
             startRecordingButtonPulse()
             showVoiceRecordOverlay(false)
             setRecordingThread(Thread { writeAudioDataToFile(tempFile) })
@@ -80,7 +79,7 @@ class ChatAudioRecordController(
         }
         setIsRecording(false)
         stopRecordingButtonPulse()
-        btnVoiceHoldProvider().backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F2F3F5"))
+        onVoiceHoldRecording(false)
         hideVoiceRecordOverlay()
         try {
             getAudioRecord()?.stop()

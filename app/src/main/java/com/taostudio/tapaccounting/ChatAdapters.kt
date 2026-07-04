@@ -1,6 +1,7 @@
 package com.taostudio.tapaccounting
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
@@ -27,11 +28,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.data.local.AppDatabase
+import com.taostudio.tapaccounting.ui.chat.ChatTypingDotsView
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import com.taostudio.tapaccounting.logic.BillMutationService
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
+import java.io.File
 import com.taostudio.tapaccounting.ui.common.UiMotion
 import com.taostudio.tapaccounting.ui.common.UiMotion.pressFeedback
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
@@ -84,7 +87,13 @@ class ChatAdapter(
     private val onQueryDraftEditKeyword: (ChatDisplayItem) -> Unit = {},
     private val onQueryDraftEditDate: (ChatDisplayItem) -> Unit = {},
     private val onQueryDraftEditBillType: (ChatDisplayItem) -> Unit = {},
-    private val onQueryDraftEditBookScope: (ChatDisplayItem) -> Unit = {}
+    private val onQueryDraftEditBookScope: (ChatDisplayItem) -> Unit = {},
+    private val isBillMessageExpanded: (ChatDisplayItem) -> Boolean,
+    private val onToggleBillExpand: (ChatDisplayItem) -> Unit,
+    private val onShowBillMessageMenu: (View, ChatDisplayItem) -> Unit,
+    private val onBillsDeleted: (List<Long>, Long) -> Unit,
+    private val onConfirmAllBills: (ChatDisplayItem) -> Unit,
+    private val onSwitchConversationModeClick: () -> Unit = {}
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private val imageThumbSizeCache = mutableMapOf<String, Pair<Int, Int>>()
     private val imageThumbSizeLoading = mutableSetOf<String>()
@@ -100,7 +109,8 @@ class ChatAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
-            ChatActivity.MSG_TYPE_USER_TEXT, ChatActivity.MSG_TYPE_USER_IMAGE, ChatActivity.MSG_TYPE_USER_VOICE ->
+            ChatActivity.MSG_TYPE_USER_TEXT, ChatActivity.MSG_TYPE_USER_IMAGE,
+            ChatActivity.MSG_TYPE_USER_VOICE, ChatActivity.MSG_TYPE_USER_FILE ->
                 UserVH(inflater.inflate(R.layout.item_chat_user, parent, false))
 
             ChatActivity.MSG_TYPE_AI_BILL ->
@@ -141,10 +151,27 @@ class ChatAdapter(
         onBindViewHolder(holder, position)
     }
 
+    private fun resolveUserBubbleMaxWidth(itemView: View, checkboxVisible: Boolean): Int {
+        val res = itemView.resources
+        val density = res.displayMetrics.density
+        var reserved = res.getDimensionPixelSize(R.dimen.chat_message_side_inset) +
+            res.getDimensionPixelSize(R.dimen.chat_msg_spacing_horizontal) +
+            res.getDimensionPixelSize(R.dimen.chat_avatar_size) +
+            res.getDimensionPixelSize(R.dimen.chat_avatar_margin_end)
+        if (checkboxVisible) {
+            reserved += (36f * density).roundToInt()
+        }
+        return (res.displayMetrics.widthPixels - reserved).coerceAtLeast((120f * density).roundToInt())
+    }
+
     inner class UserVH(v: View) : RecyclerView.ViewHolder(v) {
         private val tvText: TextView = v.findViewById(R.id.tv_user_text)
         private val tvTime: TextView = v.findViewById(R.id.tv_user_time)
         private val ivImage: ImageView = v.findViewById(R.id.iv_user_image)
+        private val layoutFile: LinearLayout = v.findViewById(R.id.layout_user_file)
+        private val ivFileIcon: ImageView = v.findViewById(R.id.iv_user_file_icon)
+        private val tvFileName: TextView = v.findViewById(R.id.tv_user_file_name)
+        private val tvFileType: TextView = v.findViewById(R.id.tv_user_file_type)
         private val layoutVoice: LinearLayout = v.findViewById(R.id.layout_user_voice)
         private val tvVoice: TextView = v.findViewById(R.id.tv_voice_text)
         private val ivVoicePlay: ImageView = v.findViewById(R.id.iv_voice_play)
@@ -160,9 +187,11 @@ class ChatAdapter(
             tvTime.text = formatChatMessageTime(item.timestamp)
             tvTime.visibility = if (shouldShowTimestamp(adapterPosition, item.timestamp)) View.VISIBLE else View.GONE
             loadUserAvatar(ivUserAvatar)
-            val supportsSelection = item.msgType == ChatActivity.MSG_TYPE_USER_TEXT || item.msgType == ChatActivity.MSG_TYPE_USER_VOICE
+            val supportsSelection = item.msgType == ChatActivity.MSG_TYPE_USER_TEXT ||
+                item.msgType == ChatActivity.MSG_TYPE_USER_VOICE
             cbSelect.visibility = if (isVoiceSelectionMode() && supportsSelection) View.VISIBLE else View.GONE
             cbSelect.isChecked = isMessageSelected(item)
+            layoutFile.visibility = View.GONE
             when (item.msgType) {
                 ChatActivity.MSG_TYPE_USER_IMAGE -> {
                     tvText.visibility = View.GONE
@@ -198,6 +227,28 @@ class ChatAdapter(
                     }
                 }
 
+                ChatActivity.MSG_TYPE_USER_FILE -> {
+                    tvText.visibility = View.GONE
+                    ivImage.visibility = View.GONE
+                    layoutVoice.visibility = View.GONE
+                    layoutVoiceTranscript.visibility = View.GONE
+                    layoutFile.visibility = View.VISIBLE
+                    val decoded = ChatAttachmentHelper.decodeFileMessageContent(item.content)
+                    val fileName = decoded?.second?.ifBlank { context.getString(R.string.chat_attach_file) }
+                        ?: item.content.ifBlank { context.getString(R.string.chat_attach_file) }
+                    val mime = decoded?.first.orEmpty()
+                    tvFileName.text = fileName
+                    tvFileType.text = ChatAttachmentHelper.fileTypeLabel(context, mime, fileName)
+                    ivFileIcon.setImageResource(R.drawable.ic_chat_file)
+                    layoutFile.setOnClickListener {
+                        openUserFile(item)
+                    }
+                    layoutFile.setOnLongClickListener {
+                        onShowTextMessageMenu(tvFileName, item.copy(content = fileName))
+                        true
+                    }
+                }
+
                 ChatActivity.MSG_TYPE_USER_VOICE -> {
                     tvText.visibility = View.GONE
                     ivImage.visibility = View.GONE
@@ -214,7 +265,11 @@ class ChatAdapter(
                     ivVoicePlay.setImageResource(
                         if (isPlaying) R.drawable.ic_voice_pause_telegram else R.drawable.ic_voice_play_telegram
                     )
-                    ivVoicePlay.setColorFilter(Color.WHITE)
+                    val playTint = androidx.core.content.ContextCompat.getColor(
+                        itemView.context,
+                        R.color.chat_voice_bubble_text
+                    )
+                    ivVoicePlay.setColorFilter(playTint)
                     bindWaveBars(voice.audioPath, isPlaying)
                     bindVoiceTranscript(item, voice)
                     maybeAnimateFreshVoiceBubble(voice.audioPath)
@@ -234,7 +289,11 @@ class ChatAdapter(
                     ivImage.visibility = View.GONE
                     layoutVoice.visibility = View.GONE
                     layoutVoiceTranscript.visibility = View.GONE
-                    tvText.text = ChatMarkdownFormatter.render(item.content)
+                    tvText.maxWidth = resolveUserBubbleMaxWidth(
+                        itemView,
+                        checkboxVisible = cbSelect.visibility == View.VISIBLE
+                    )
+                    ChatMarkdownFormatter.applyTo(tvText, item.content)
                     tvText.alpha = if (isVoiceSelectionMode() && isMessageSelected(item)) 0.8f else 1f
                     itemView.setOnClickListener {
                         if (isVoiceSelectionMode()) onToggleVoiceSelection(item)
@@ -256,9 +315,41 @@ class ChatAdapter(
                 ivImage.setOnClickListener(null)
                 ivImage.isClickable = false
             }
+            if (item.msgType != ChatActivity.MSG_TYPE_USER_FILE) {
+                layoutFile.setOnClickListener(null)
+                layoutFile.setOnLongClickListener(null)
+            }
             ivUserAvatar.setOnClickListener(null)
             itemView.setOnClickListener {
                 if (isVoiceSelectionMode() && supportsSelection) onToggleVoiceSelection(item)
+            }
+        }
+
+        private fun openUserFile(item: ChatDisplayItem) {
+            val uriText = item.imageUri.trim()
+            if (uriText.isBlank()) return
+            val file = runCatching {
+                val parsed = Uri.parse(uriText)
+                if (parsed.scheme == "file") File(parsed.path ?: return) else File(uriText)
+            }.getOrNull()
+            if (file == null || !file.exists()) {
+                Utils.toast(context, context.getString(R.string.chat_open_file_failed))
+                return
+            }
+            val mime = ChatAttachmentHelper.decodeFileMessageContent(item.content)?.first ?: "*/*"
+            val contentUri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(contentUri, mime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            runCatching {
+                context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_open_file)))
+            }.onFailure {
+                Utils.toast(context, context.getString(R.string.chat_open_file_failed))
             }
         }
 
@@ -484,30 +575,53 @@ class ChatAdapter(
         private val tvTime: TextView = v.findViewById(R.id.tv_ai_time)
         private val loadingRow: LinearLayout = v.findViewById(R.id.layout_ai_loading_row)
         private val loading: LinearLayout = v.findViewById(R.id.layout_ai_loading)
+        private val typingDots: ChatTypingDotsView = v.findViewById(R.id.typing_dots)
         private val tvLoading: TextView = v.findViewById(R.id.tv_ai_loading_text)
-        private val ivInterrupt: ImageView = v.findViewById(R.id.iv_ai_interrupt)
         private val ivAvatar: ImageView = v.findViewById(R.id.iv_ai_avatar_msg)
         private val cbSelect: android.widget.CheckBox = v.findViewById(R.id.cb_ai_text_select)
+        private val contentColumn: LinearLayout = v.findViewById(R.id.layout_ai_text_content)
+        private val nudgeRow: LinearLayout = v.findViewById(R.id.layout_conversation_mode_nudge)
+        private val btnSwitchConversationMode: TextView = v.findViewById(R.id.btn_switch_conversation_mode)
 
         fun bind(item: ChatDisplayItem) {
+            val grouped = item.groupedWithBillReply
+            val density = itemView.resources.displayMetrics.density
+            val avatarSlot = (38 * density).toInt()
+            val avatarGap = (10 * density).toInt()
+            ivAvatar.visibility = if (grouped) View.GONE else View.VISIBLE
+            (contentColumn.layoutParams as ViewGroup.MarginLayoutParams).marginStart =
+                if (grouped) avatarSlot + avatarGap else 0
+            val verticalPad = context.resources.getDimensionPixelSize(R.dimen.chat_msg_spacing_vertical)
+            val compactTop = (2 * density).toInt()
+            val topPad = if (item.compactGroupedLayout) compactTop else verticalPad
+            itemView.setPadding(itemView.paddingLeft, topPad, itemView.paddingRight, verticalPad)
             tvTime.text = formatChatMessageTime(item.timestamp)
-            tvTime.visibility = if (shouldShowTimestamp(adapterPosition, item.timestamp)) View.VISIBLE else View.GONE
+            tvTime.visibility = if (!grouped && shouldShowTimestamp(adapterPosition, item.timestamp)) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
             loadAiAvatar(ivAvatar)
             cbSelect.visibility = if (isVoiceSelectionMode() && !item.isLoading && item.content.isNotBlank()) View.VISIBLE else View.GONE
             cbSelect.isChecked = isMessageSelected(item)
             if (item.isLoading) {
                 loadingRow.visibility = View.VISIBLE
                 tvText.visibility = View.GONE
+                nudgeRow.visibility = View.GONE
                 updateLoadingText(item.content)
-                ivInterrupt.setOnClickListener {
-                    it.pressFeedback()
-                    onInterruptAiLoading()
-                }
             } else {
                 loadingRow.visibility = View.GONE
                 tvText.visibility = View.VISIBLE
-                tvText.text = ChatMarkdownFormatter.render(item.content)
-                ivInterrupt.setOnClickListener(null)
+                ChatMarkdownFormatter.applyTo(tvText, item.content)
+                if (item.showConversationModeNudge && item.content.isNotBlank()) {
+                    nudgeRow.visibility = View.VISIBLE
+                    btnSwitchConversationMode.setOnClickListener { onSwitchConversationModeClick() }
+                    nudgeRow.setOnClickListener { onSwitchConversationModeClick() }
+                } else {
+                    nudgeRow.visibility = View.GONE
+                    btnSwitchConversationMode.setOnClickListener(null)
+                    nudgeRow.setOnClickListener(null)
+                }
             }
             tvText.alpha = if (isVoiceSelectionMode() && isMessageSelected(item)) 0.8f else 1f
             itemView.setOnClickListener {
@@ -523,10 +637,27 @@ class ChatAdapter(
         }
 
         fun updateLoadingText(text: String) {
-            val display = text.ifBlank { "分析中..." }
-            if (tvLoading.text?.toString() != display) {
-                tvLoading.text = ChatMarkdownFormatter.render(display)
+            val display = text.trim()
+            val showDots = shouldShowTypingDots(display)
+            typingDots.visibility = if (showDots) View.VISIBLE else View.GONE
+            if (showDots) {
+                tvLoading.visibility = View.GONE
+                return
             }
+            tvLoading.visibility = View.VISIBLE
+            ChatMarkdownFormatter.applyTo(tvLoading, display)
+        }
+
+        private fun shouldShowTypingDots(text: String): Boolean {
+            if (text.isBlank()) return true
+            if (text.length > 96) return false
+            if (text.contains("```") || text.contains("\n\n")) return false
+            return text.startsWith("正在") ||
+                text.contains("思考") ||
+                text.contains("分析") ||
+                text.contains("识别") ||
+                text.contains("整理") ||
+                text.contains("听懂")
         }
     }
 
@@ -535,16 +666,56 @@ class ChatAdapter(
         private val container: LinearLayout = v.findViewById(R.id.container_bills)
         private val ivAvatar: ImageView = v.findViewById(R.id.iv_ai_avatar_bill)
         private val tvHint: TextView = v.findViewById(R.id.tv_ai_bill_hint)
+        private val tvBillBatchSummary: TextView = v.findViewById(R.id.tv_bill_batch_summary)
+        private val btnExpandBills: TextView = v.findViewById(R.id.btn_expand_bills)
+        private val layoutBillBatchActions: LinearLayout = v.findViewById(R.id.layout_bill_batch_actions)
+        private val btnConfirmAll: TextView = v.findViewById(R.id.btn_confirm_all_bills)
+        private val btnDeleteAll: TextView = v.findViewById(R.id.btn_delete_all_bills)
 
         fun bind(item: ChatDisplayItem) {
             tvTime.text = formatChatMessageTime(item.timestamp)
             tvTime.visibility = if (shouldShowTimestamp(adapterPosition, item.timestamp)) View.VISIBLE else View.GONE
             loadAiAvatar(ivAvatar)
-            tvHint.text = item.billHint
             tvHint.visibility = if (item.billHint.isBlank()) View.GONE else View.VISIBLE
-            container.removeAllViews()
+            if (item.billHint.isBlank()) {
+                tvHint.text = ""
+            } else {
+                ChatMarkdownFormatter.applyTo(tvHint, item.billHint)
+            }
 
-            item.bills.forEachIndexed { index, bill ->
+            val expanded = isBillMessageExpanded(item)
+            val summary = ChatBillUiHelper.buildBatchSummaryText(item.bills, item.deprecatedBillIds)
+            if (item.bills.size >= 2 && summary.isNotBlank()) {
+                tvBillBatchSummary.visibility = View.VISIBLE
+                tvBillBatchSummary.text = summary
+            } else {
+                tvBillBatchSummary.visibility = View.GONE
+                tvBillBatchSummary.text = ""
+            }
+
+            val hiddenCount = ChatBillUiHelper.hiddenBillCount(item, expanded)
+            when {
+                hiddenCount > 0 -> {
+                    btnExpandBills.visibility = View.VISIBLE
+                    btnExpandBills.text = context.getString(R.string.chat_bill_expand_more_fmt, hiddenCount)
+                    btnExpandBills.setOnClickListener { onToggleBillExpand(item) }
+                }
+                expanded && item.bills.size > ChatBillUiHelper.COLLAPSED_BILL_VISIBLE_COUNT -> {
+                    btnExpandBills.visibility = View.VISIBLE
+                    btnExpandBills.text = context.getString(R.string.chat_bill_collapse)
+                    btnExpandBills.setOnClickListener { onToggleBillExpand(item) }
+                }
+                else -> {
+                    btnExpandBills.visibility = View.GONE
+                    btnExpandBills.setOnClickListener(null)
+                }
+            }
+
+            container.removeAllViews()
+            val displayBills = ChatBillUiHelper.billsForDisplay(item, expanded)
+
+            displayBills.forEach { bill ->
+                val index = item.bills.indexOf(bill)
                 val deprecated = item.isDeprecated || item.deprecatedBillIds.contains(bill.id)
                 val card = LayoutInflater.from(itemView.context)
                     .inflate(R.layout.item_chat_bill_card, container, false)
@@ -811,83 +982,81 @@ class ChatAdapter(
                 }
                 btnDelete.setOnClickListener {
                     if (deprecated) return@setOnClickListener
-                    val finalDelete: () -> Unit = {
-                        lifecycleScope.launch {
-                            val deletedBillSnapshot = bill.copy()
-                            withContext(Dispatchers.IO) {
-                                if (bill.id > 0L) com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
-                            }
-                            val msgIdx = displayMessages.indexOfFirst { it.dbId == item.dbId }
-                            if (msgIdx >= 0) {
-                                if (displayMessages[msgIdx].bills.size <= 1) {
-                                    displayMessages[msgIdx] = displayMessages[msgIdx].copy(
-                                        bills = mutableListOf(deletedBillSnapshot),
-                                        isDeprecated = true,
-                                        deprecatedBillIds = mutableSetOf(deletedBillSnapshot.id)
-                                    )
-                                    val msgId = displayMessages[msgIdx].dbId
-                                    if (msgId > 0L) {
-                                        withContext(Dispatchers.IO) {
-                                            db.chatMessageDao().getById(msgId)?.let { oldMsg ->
-                                                db.chatMessageDao().update(
-                                                    oldMsg.copy(
-                                                        billIds = ChatBillMessageParser.markBillIdsAsDeprecated(oldMsg.billIds),
-                                                        content = ChatBillMessageParser.buildBillMessageContent(
-                                                            bills = listOf(deletedBillSnapshot),
-                                                            formatTime = formatTime,
-                                                            deprecatedBillIds = setOf(deletedBillSnapshot.id)
-                                                        )
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    }
-                                    this@ChatAdapter.notifyItemChanged(msgIdx)
-                                } else {
-                                    val currentItem = displayMessages[msgIdx]
-                                    val updatedBills = currentItem.bills.toMutableList()
-                                    updatedBills[index] = deletedBillSnapshot
-                                    val updatedDeprecatedIds = currentItem.deprecatedBillIds.toMutableSet().apply {
-                                        add(deletedBillSnapshot.id)
-                                    }
-                                    displayMessages[msgIdx] = currentItem.copy(
-                                        bills = updatedBills,
-                                        deprecatedBillIds = updatedDeprecatedIds
-                                    )
-                                    val msgId = currentItem.dbId
-                                    if (msgId > 0L) {
-                                        withContext(Dispatchers.IO) {
-                                            db.chatMessageDao().getById(msgId)?.let { oldMsg ->
-                                                db.chatMessageDao().update(
-                                                    oldMsg.copy(
-                                                        content = ChatBillMessageParser.buildBillMessageContent(
-                                                            bills = updatedBills,
-                                                            formatTime = formatTime,
-                                                            deprecatedBillIds = updatedDeprecatedIds
-                                                        )
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    }
-                                    this@ChatAdapter.notifyItemChanged(msgIdx)
-                                }
-                            }
-                        }
-                    }
                     showCustomConfirmDialog(
                         context.getString(R.string.confirm_delete),
-                        "删除后可在回收站恢复，是否继续？\n删除聊天记录不会删除附带账单。",
+                        context.getString(R.string.chat_bill_delete_confirm),
                         context.getString(R.string.confirm_delete),
                         true
                     ) {
-                        finalDelete()
+                        lifecycleScope.launch {
+                            val result = ChatBillMessageActions.deleteBillsFromMessage(
+                                db = db,
+                                displayMessages = displayMessages,
+                                messageDbId = item.dbId,
+                                billsToDelete = listOf(bill),
+                                formatTime = formatTime
+                            )
+                            val msgIdx = displayMessages.indexOfFirst { it.dbId == item.dbId }
+                            if (msgIdx >= 0) {
+                                this@ChatAdapter.notifyItemChanged(msgIdx)
+                            }
+                            result?.deletedBillIds?.let { onBillsDeleted(it, item.dbId) }
+                        }
                     }
                 }
 
                 container.addView(card)
             }
             container.alpha = if (item.isDeprecated) 0.55f else 1f
+
+            val deletableBills = ChatBillUiHelper.deletableBills(item)
+            val confirmableCount = ChatBillUiHelper.confirmableBills(item).size
+            val showBatchActions = deletableBills.size >= 2 || confirmableCount > 0
+            layoutBillBatchActions.visibility = if (showBatchActions) View.VISIBLE else View.GONE
+            if (deletableBills.size >= 2) {
+                btnDeleteAll.visibility = View.VISIBLE
+                btnDeleteAll.text = context.getString(R.string.chat_bill_delete_all_fmt, deletableBills.size)
+                btnDeleteAll.setOnClickListener {
+                    val count = deletableBills.size
+                    showCustomConfirmDialog(
+                        context.getString(R.string.confirm_delete),
+                        context.getString(R.string.chat_bill_delete_all_confirm, count),
+                        context.getString(R.string.confirm_delete),
+                        true
+                    ) {
+                        lifecycleScope.launch {
+                            val result = ChatBillMessageActions.deleteBillsFromMessage(
+                                db = db,
+                                displayMessages = displayMessages,
+                                messageDbId = item.dbId,
+                                billsToDelete = deletableBills,
+                                formatTime = formatTime
+                            )
+                            val msgIdx = displayMessages.indexOfFirst { it.dbId == item.dbId }
+                            if (msgIdx >= 0) {
+                                this@ChatAdapter.notifyItemChanged(msgIdx)
+                            }
+                            result?.deletedBillIds?.let { onBillsDeleted(it, item.dbId) }
+                        }
+                    }
+                }
+            } else {
+                btnDeleteAll.visibility = View.GONE
+                btnDeleteAll.setOnClickListener(null)
+            }
+            if (confirmableCount > 0) {
+                btnConfirmAll.visibility = View.VISIBLE
+                btnConfirmAll.text = context.getString(R.string.chat_bill_confirm_all_fmt, confirmableCount)
+                btnConfirmAll.setOnClickListener { onConfirmAllBills(item) }
+            } else {
+                btnConfirmAll.visibility = View.GONE
+                btnConfirmAll.setOnClickListener(null)
+            }
+
+            itemView.setOnLongClickListener {
+                onShowBillMessageMenu(container, item)
+                true
+            }
         }
     }
 
@@ -1114,6 +1283,7 @@ class SessionListAdapter(
 
     inner class VH(v: View) : RecyclerView.ViewHolder(v) {
         private val foreground: View = v.findViewById(R.id.layout_session_foreground)
+        private val actionLayer: View = v.findViewById(R.id.layout_session_actions)
         private val tvTitle: TextView = v.findViewById(R.id.tv_session_title)
         private val etTitle: EditText = v.findViewById(R.id.et_session_title)
         private val tvPreview: TextView = v.findViewById(R.id.tv_session_preview)
@@ -1206,6 +1376,7 @@ class SessionListAdapter(
                     if (dragging) {
                         val tx = (startTx + dx).coerceIn(-actionsWidthPx, 0f)
                         foreground.translationX = tx
+                        updateActionLayerVisibility(tx)
                         return true
                     }
                     return true
@@ -1237,7 +1408,14 @@ class SessionListAdapter(
             } else if (openedPosition == pos) {
                 openedPosition = RecyclerView.NO_POSITION
             }
-            foreground.animate().translationX(target).setDuration(UiMotion.FAST).setInterpolator(UiMotion.STANDARD_EASING).start()
+            foreground.animate().translationX(target).setDuration(UiMotion.FAST).setInterpolator(UiMotion.STANDARD_EASING)
+                .withEndAction { updateActionLayerVisibility(target) }
+                .start()
+        }
+
+        private fun updateActionLayerVisibility(translationX: Float = foreground.translationX) {
+            actionLayer.visibility =
+                if (translationX < -slop * 0.5f) View.VISIBLE else View.GONE
         }
 
         private fun startInlineEdit(pos: Int) {
@@ -1270,6 +1448,7 @@ class SessionListAdapter(
             tvTime.text = item.displayTime
             foreground.animate().cancel()
             foreground.translationX = if (opened) -actionsWidthPx else 0f
+            updateActionLayerVisibility(foreground.translationX)
             val bgRes = when {
                 item.isCurrent && opened -> R.drawable.bg_chat_session_item_selected_opened
                 item.isCurrent -> R.drawable.bg_chat_session_item_selected
@@ -1326,11 +1505,21 @@ class DrawerSearchResultAdapter(
         private val tvContent: TextView = v.findViewById(R.id.tv_search_content)
 
         fun bind(msg: ChatMessage) {
-            val isUser = msg.msgType in listOf(ChatActivity.MSG_TYPE_USER_TEXT, ChatActivity.MSG_TYPE_USER_IMAGE, ChatActivity.MSG_TYPE_USER_VOICE)
+            val isUser = msg.msgType in listOf(
+                ChatActivity.MSG_TYPE_USER_TEXT,
+                ChatActivity.MSG_TYPE_USER_IMAGE,
+                ChatActivity.MSG_TYPE_USER_VOICE,
+                ChatActivity.MSG_TYPE_USER_FILE
+            )
             tvSender.text = if (isUser) "我" else aiNameProvider()
             tvTime.text = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(msg.timestamp))
             tvContent.text = when (msg.msgType) {
                 ChatActivity.MSG_TYPE_USER_IMAGE -> "[图片]"
+                ChatActivity.MSG_TYPE_USER_FILE -> {
+                    val fileName = ChatAttachmentHelper.decodeFileMessageContent(msg.content)?.second
+                        ?: msg.content
+                    "[文件] $fileName"
+                }
                 ChatActivity.MSG_TYPE_USER_VOICE -> {
                     val transcript = parseVoicePayload(msg.content).transcript
                     if (transcript.isNotBlank()) "语音：${transcript.replace(Regex("\\s+"), " ").trim().take(80)}" else "[语音]"

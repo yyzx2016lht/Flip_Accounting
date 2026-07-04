@@ -105,6 +105,8 @@ object ShizukuRecoveryService {
               cmd appops set --user "__D__USER_ID" "__D__PKG" START_FOREGROUND allow >/dev/null 2>&1
               cmd appops set --user "__D__USER_ID" "__D__PKG" WAKE_LOCK allow >/dev/null 2>&1
               cmd appops set --user "__D__USER_ID" "__D__PKG" SYSTEM_ALERT_WINDOW allow >/dev/null 2>&1
+              cmd appops set --user "__D__USER_ID" "__D__PKG" HIGH_SAMPLING_RATE_SENSORS allow >/dev/null 2>&1
+              cmd appops set --user "__D__USER_ID" "__D__PKG" android:access_background_sensor allow >/dev/null 2>&1
             }
 
             clear_stopped() {

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chat (dark) -->
+    <color name="chat_page_bg">#121212</color>
+    <color name="chat_toolbar_bg">#121212</color>
+    <color name="chat_input_bar_bg">#121212</color>
+    <color name="chat_input_shell_bg">#1E1E1E</color>
+    <color name="chat_input_shell_stroke">#333333</color>
+    <color name="chat_input_hint">#9CA3AF</color>
+    <color name="chat_ai_bubble_bg">#1E1E1E</color>
+    <color name="chat_ai_bubble_stroke">#333333</color>
+    <color name="chat_ai_bubble_text">#ECECEC</color>
+    <color name="chat_user_bubble">#2A2A2A</color>
+    <color name="chat_user_bubble_text">#ECECEC</color>
+    <color name="chat_user_bubble_stroke">#333333</color>
+    <color name="chat_markdown_link">#60A5FA</color>
+    <color name="chat_time_chip_text">#9CA3AF</color>
+    <color name="chat_loading_text">#B0B0B0</color>
+    <color name="chat_loading_progress">#9CA3AF</color>
+    <color name="chat_send_btn">#ECECEC</color>
+    <color name="chat_send_btn_pressed">#D1D5DB</color>
+    <color name="chat_icon_btn_tint">#9CA3AF</color>
+    <color name="chat_divider">#2A2A2A</color>
+    <color name="chat_code_block_bg">#2A2A2A</color>
+    <color name="chat_interrupt_bg">#2A2A2A</color>
+    <color name="chat_interrupt_stroke">#404040</color>
+    <color name="chat_bill_card_bg">#1E1E1E</color>
+    <color name="chat_bill_card_stroke">#333333</color>
+    <color name="chat_bill_category_text">#ECECEC</color>
+    <color name="chat_bill_detail_text">#9CA3AF</color>
+    <color name="chat_bill_hint_bg">#1E1E1E</color>
+    <color name="chat_bill_hint_text">#ECECEC</color>
+    <color name="chat_voice_overlay_bg">#F01A1A1A</color>
+    <color name="chat_voice_overlay_stroke">#33FFFFFF</color>
+    <color name="chat_voice_overlay_cancel_bg">#F04A1515</color>
+    <color name="chat_voice_overlay_cancel_stroke">#66FF8A8A</color>
+    <color name="chat_voice_record_icon_bg">#33FFFFFF</color>
+    <color name="chat_voice_record_icon_stroke">#4DFFFFFF</color>
+    <color name="chat_voice_record_icon_cancel_bg">#40FF5252</color>
+    <color name="chat_voice_record_icon_cancel_stroke">#80FF8A80</color>
+    <color name="chat_voice_hold_btn_bg">#2A2A2A</color>
+    <color name="chat_voice_hold_btn_stroke">#404040</color>
+    <color name="chat_voice_hold_btn_recording_bg">#333333</color>
+    <color name="chat_voice_bubble">@color/chat_user_bubble</color>
+    <color name="chat_voice_bubble_text">@color/chat_user_bubble_text</color>
+    <color name="chat_voice_wave_bar">#94A3B8</color>
+</resources>

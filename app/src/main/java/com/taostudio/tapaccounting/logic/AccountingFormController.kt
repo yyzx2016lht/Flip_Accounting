@@ -1,4 +1,4 @@
-﻿package com.taostudio.tapaccounting.logic
+package com.taostudio.tapaccounting.logic
 
 import android.animation.ObjectAnimator
 import android.app.Activity
@@ -1834,6 +1834,8 @@ class AccountingFormController(
 
                         val suggestion = RuleCreateSuggestion(
                             originalText = originalText,
+                            beforeType = lastAiSuggestType,
+                            beforeCategory = lastAiSuggestCategory?.takeIf { it.isNotBlank() },
                             finalType = changedType ?: type,
                             finalCategory = actualChangedCat ?: finalCategory,
                             finalAcc1 = acc1ToSuggest,
@@ -1966,6 +1968,8 @@ class AccountingFormController(
 
     private data class RuleCreateSuggestion(
         val originalText: String,
+        val beforeType: Int?,
+        val beforeCategory: String?,
         val finalType: Int,
         val finalCategory: String?,
         val finalAcc1: String?,
@@ -1980,15 +1984,17 @@ class AccountingFormController(
             return
         }
 
-        val dialog = AlertDialog.Builder(ContextThemeWrapper(safeContext, R.style.Theme_TapAccounting))
-            .setTitle(ctx.getString(R.string.rule_mismatch_title))
-            .setMessage(ctx.getString(R.string.rule_save_prompt))
-            .setNegativeButton(ctx.getString(R.string.no_need)) { dialog, _ ->
-                dialog.dismiss()
-                finishSaveFlow()
-            }
-            .setPositiveButton(ctx.getString(R.string.add_rule)) { dialog, _ ->
-                dialog.dismiss()
+        RuleLearnPromptHelper.show(
+            ctx = safeContext,
+            model = RuleLearnPromptHelper.PromptModel(
+                referenceText = suggestion.originalText,
+                beforeType = suggestion.beforeType,
+                afterType = suggestion.finalType,
+                beforeCategory = suggestion.beforeCategory,
+                afterCategory = suggestion.finalCategory
+            ),
+            isOverlay = isOverlayContext,
+            onContinue = {
                 showCreateRuleDialog(
                     suggestion.originalText,
                     suggestion.finalType,
@@ -1997,27 +2003,9 @@ class AccountingFormController(
                     suggestion.finalAcc2,
                     finishOnDone = true
                 )
-            }
-            .setCancelable(false)
-            .create()
-
-        if (isOverlayContext) {
-            OverlayDialogs.showOverlayCenterDialog(
-                dialog = dialog,
-                ctx = safeContext,
-                widthRatio = 0.88f,
-                cancelOnTouchOutside = false,
-                useSolidPanelBackground = true
-            )
-        } else {
-            OverlayDialogs.showPageCenterDialog(
-                dialog = dialog,
-                ctx = safeContext,
-                widthRatio = 0.88f,
-                cancelOnTouchOutside = false,
-                useSolidPanelBackground = true
-            )
-        }
+            },
+            onDismiss = { finishSaveFlow() }
+        )
     }
 
     private fun showCreateRuleDialog(
@@ -2039,6 +2027,7 @@ class AccountingFormController(
             defaultAcc1 = finalAcc1,
             defaultAcc2 = finalAcc2,
             isOverlay = ctx !is android.app.Activity,
+            categoryOnlyLearnMode = true,
             onSave = { newRule ->
                 scope.launch(Dispatchers.IO) {
                     val saveResult = saveRuleWithDedupDecision(newRule)

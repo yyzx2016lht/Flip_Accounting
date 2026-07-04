@@ -104,6 +104,26 @@ object ChatImageComposer {
      */
     fun isMultiImagePayload(raw: String): Boolean = raw.startsWith(MULTIMODAL_MULTI_PREFIX)
 
+    /**
+     * Decode single- or multi-image pipeline payloads into images + shared supplement.
+     */
+    fun extractPayloadImages(raw: String): MultiImagePayload? {
+        decodeMultiImagePayload(raw)?.let { return it }
+        ReceiptImageInputHelper.decodePayload(raw)?.let { single ->
+            return MultiImagePayload(
+                images = listOf(
+                    ReceiptImageInputHelper.ImagePayload(
+                        base64 = single.base64,
+                        mime = single.mime,
+                        supplement = ""
+                    )
+                ),
+                supplement = single.supplement
+            )
+        }
+        return null
+    }
+
     // ---- remove by index (returns new list) ----------------------------------
 
     /**

@@ -4,6 +4,7 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     kotlin("android")
+    kotlin("kapt")
     alias(libs.plugins.ksp)
 }
 
@@ -70,6 +71,10 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
+    configurations.configureEach {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
 }
 
 dependencies {
@@ -121,6 +126,17 @@ dependencies {
 
     // Onboarding spotlight / coach mark
     implementation("com.github.takusemba:spotlight:2.0.5")
+
+    // Markdown rendering for chat messages
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    implementation("io.noties.markwon:linkify:4.6.2")
+    implementation("io.noties.markwon:html:4.6.2")
+    implementation("io.noties.markwon:image-glide:4.6.2")
+    implementation("io.noties.markwon:syntax-highlight:4.6.2")
+    kapt("io.noties:prism4j-bundler:2.0.0")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 

@@ -13,6 +13,7 @@ import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 import com.taostudio.tapaccounting.logic.InvestmentInterestWorker
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
+import com.taostudio.tapaccounting.data.backup.BackupInitHelper
 
 class TapApplication : Application() {
 
@@ -37,7 +38,11 @@ class TapApplication : Application() {
         SharedYearMonthSession.resetToCurrentMonth()
         installCrashHandler()
         CurrencyManager.init(this)
+        ChatMarkdownFormatter.init(this)
         InvestmentInterestWorker.schedule(this)
+
+        // 首次启动：初始化默认备份目录并启用自动备份
+        BackupInitHelper.initializeIfNeeded(this)
 
         // 启动时在后台协程检查并执行数据迁移
         CoroutineScope(Dispatchers.IO).launch {
