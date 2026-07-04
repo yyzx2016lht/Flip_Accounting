@@ -9,6 +9,7 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.Category
+import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -18,6 +19,7 @@ object MigrationManager {
     private const val PREF_KEY_MIGRATED = "has_migrated_to_room"
     private const val PREF_KEY_CATEGORY_NAME_NORMALIZED = "has_normalized_category_name_storage_v2"
     private const val PREF_KEY_BALANCE_SNAPSHOT_BACKFILLED = "balance_snapshot_backfilled_v1"
+    private const val PREF_KEY_AI_RULES_MIGRATED = "has_migrated_ai_rules_to_room"
 
     internal fun normalizeLegacyBillTypeAndSubtype(legacyType: Int): Pair<Int, Int> {
         return when (legacyType) {
@@ -118,6 +120,7 @@ object MigrationManager {
 
         normalizeStoredCategoryNamesIfNeeded(context, database)
         backfillBalanceSnapshotsIfNeeded(context, database)
+        migrateAiRulesToRoomIfNeeded(context, database)
     }
 
     private suspend fun backfillBalanceSnapshotsIfNeeded(context: Context, @Suppress("UNUSED_PARAMETER") database: AppDatabase) {
@@ -128,6 +131,64 @@ object MigrationManager {
         // Asset detail shows balances derived from current balance + bills (not DB snapshot columns).
         sharedPrefs.edit().putBoolean(PREF_KEY_BALANCE_SNAPSHOT_BACKFILLED, true).apply()
         Log.d("Migration", "balance snapshot backfill skipped (display uses backward derivation)")
+    }
+
+    private suspend fun migrateAiRulesToRoomIfNeeded(context: Context, database: AppDatabase) {
+        val sharedPrefs = context.getSharedPreferences("flip_prefs", Context.MODE_PRIVATE)
+        if (sharedPrefs.getBoolean(PREF_KEY_AI_RULES_MIGRATED, false)) return
+
+        withContext(Dispatchers.IO) {
+            try {
+                val legacyRules = Prefs.getAiRules(context)
+                if (legacyRules.isEmpty()) {
+                    sharedPrefs.edit().putBoolean(PREF_KEY_AI_RULES_MIGRATED, true).apply()
+                    Log.d("Migration", "no legacy AI rules to migrate")
+                    return@withContext
+                }
+
+                val existingRules = database.aiRuleDao().getAllRulesList()
+                val existingKeys = existingRules.map { rule ->
+                    keyOf(rule.keyword, rule.targetType, rule.targetCategory, rule.targetAccount1, rule.targetAccount2)
+                }.toSet()
+
+                var inserted = 0
+                database.withTransaction {
+                    legacyRules.forEach { legacy ->
+                        val key = keyOf(legacy.keyword, legacy.targetType, legacy.targetCategory, legacy.targetAccount1, legacy.targetAccount2)
+                        if (key !in existingKeys) {
+                            database.aiRuleDao().insertRule(
+                                AiRule(
+                                    keyword = legacy.keyword,
+                                    targetType = legacy.targetType,
+                                    targetCategory = legacy.targetCategory,
+                                    targetAccount1 = legacy.targetAccount1,
+                                    targetAccount2 = legacy.targetAccount2,
+                                    isEnabled = legacy.isEnabled
+                                )
+                            )
+                            inserted++
+                        }
+                    }
+                }
+
+                // 清除 SharedPreferences 中的旧规则
+                Prefs.saveAiRules(context, emptyList())
+                sharedPrefs.edit().putBoolean(PREF_KEY_AI_RULES_MIGRATED, true).apply()
+                Log.d("Migration", "AI rules migrated to Room, inserted=$inserted, skipped=${legacyRules.size - inserted}")
+            } catch (e: Exception) {
+                Log.e("Migration", "AI rules migration failed", e)
+            }
+        }
+    }
+
+    private fun keyOf(keyword: String?, targetType: Int?, targetCategory: String?, targetAccount1: String?, targetAccount2: String?): String {
+        return listOf(
+            keyword?.trim().orEmpty(),
+            targetType?.toString().orEmpty(),
+            targetCategory.orEmpty(),
+            targetAccount1.orEmpty(),
+            targetAccount2.orEmpty()
+        ).joinToString("|")
     }
 
     private suspend fun normalizeStoredCategoryNamesIfNeeded(context: Context, database: AppDatabase) {

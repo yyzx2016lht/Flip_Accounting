@@ -64,7 +64,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         super.onViewCreated(view, savedInstanceState)
         rootRef = view
 
-        checkAndRequestPermissions()
         setupMainSettings(view)
         setupProfileInsets(view)
     }

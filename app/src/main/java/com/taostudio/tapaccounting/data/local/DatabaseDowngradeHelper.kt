@@ -1,6 +1,7 @@
 package com.taostudio.tapaccounting.data.local
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import java.io.File
 import java.text.SimpleDateFormat
@@ -26,8 +27,10 @@ import java.util.Locale
  *
  * ## 存储与恢复
  * - 目录：`context.filesDir/db_downgrade_backups/`，卸载 App 会丢失。
- * - [listBackups] / [getLastBackupInfo] 供 UI 提示恢复；恢复逻辑尚未内置，可拷回 `getDatabasePath` 或引导用户用 `.bak`。
- * - TODO：备份前做 WAL checkpoint，减少 WAL 未合并导致的数据遗漏。
+ * - [listBackups] / [getLastBackupInfo] 供 UI 提示恢复。
+ * - [restoreFromDowngradeBackup] 将备份 `.db` 拷回数据库路径（仅当 `backupVersion <= currentCodeVersion` 时允许）。
+ * - [dismissPendingBackup] 清除待处理标记，不再提示。
+ * - 备份前自动执行 WAL checkpoint，确保 WAL 中的写入已合并到主库。
  *
  * ## 改代码时注意
  * - 不要删掉 `backupIfDowngrade` 却保留 `fallbackToDestructiveMigrationOnDowngrade()`，否则降级只会无声丢数据。
@@ -56,6 +59,7 @@ object DatabaseDowngradeHelper {
 
             if (dbVersion > currentCodeVersion) {
                 Log.w(TAG, "检测到降级: 数据库版本=$dbVersion, 代码版本=$currentCodeVersion, 开始备份...")
+                walCheckpoint(context, dbName)
                 val backupFile = createBackup(context, dbFile, dbVersion)
                 if (backupFile != null) {
                     Log.i(TAG, "备份完成: ${backupFile.absolutePath}")
@@ -157,4 +161,109 @@ object DatabaseDowngradeHelper {
             file.name.startsWith("TapAccount_backup_") && file.name.endsWith(".db")
         }?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
+
+    /** 是否存在尚未处理的降级备份（供 UI 层检测后弹出提示）。 */
+    fun hasPendingDowngradeBackup(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val path = prefs.getString(PREF_LAST_BACKUP_PATH, null) ?: return false
+        return File(path).exists()
+    }
+
+    /**
+     * 将降级备份恢复到主库位置。
+     *
+     * **前提**：`backupVersion <= currentCodeVersion`，否则旧版代码读新版 schema 会再次触发降级清库。
+     * 调用方应在恢复成功后提示用户重启 App。
+     *
+     * @return [RestoreResult] 描述成功/失败及原因
+     */
+    fun restoreFromDowngradeBackup(
+        context: Context,
+        dbName: String,
+        currentCodeVersion: Int
+    ): RestoreResult {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val backupPath = prefs.getString(PREF_LAST_BACKUP_PATH, null)
+            ?: return RestoreResult(false, "没有待恢复的降级备份")
+        val backupVersion = prefs.getInt(PREF_LAST_BACKUP_VERSION, 0)
+        val backupFile = File(backupPath)
+
+        if (!backupFile.exists()) {
+            prefs.edit().remove(PREF_LAST_BACKUP_PATH).remove(PREF_LAST_BACKUP_VERSION).apply()
+            return RestoreResult(false, "备份文件已被删除")
+        }
+
+        if (backupVersion > currentCodeVersion) {
+            return RestoreResult(
+                false,
+                "备份来自更高版本（v$backupVersion），当前代码版本 v$currentCodeVersion，请先升级再恢复",
+                needUpgrade = true,
+                backupVersion = backupVersion
+            )
+        }
+
+        return try {
+            // 清除 Room 单例，避免恢复后拿到旧连接
+            AppDatabase.clearInstanceForRestore()
+
+            val dbFile = context.getDatabasePath(dbName)
+            dbFile.parentFile?.mkdirs()
+
+            backupFile.copyTo(dbFile, overwrite = true)
+
+            val walBackup = File(backupPath + "-wal")
+            val shmBackup = File(backupPath + "-shm")
+            val walTarget = File(dbFile.path + "-wal")
+            val shmTarget = File(dbFile.path + "-shm")
+
+            // 清理目标侧可能残留的 WAL/SHM
+            walTarget.delete()
+            shmTarget.delete()
+
+            if (walBackup.exists()) walBackup.copyTo(walTarget, overwrite = true)
+            if (shmBackup.exists()) shmBackup.copyTo(shmTarget, overwrite = true)
+
+            prefs.edit().remove(PREF_LAST_BACKUP_PATH).remove(PREF_LAST_BACKUP_VERSION).apply()
+            Log.i(TAG, "降级备份已恢复: ${backupFile.absolutePath}")
+            RestoreResult(true, "恢复成功")
+        } catch (e: Exception) {
+            Log.e(TAG, "恢复降级备份失败", e)
+            RestoreResult(false, "恢复失败: ${e.message}")
+        }
+    }
+
+    /** 用户选择忽略降级备份提示时调用，清除待处理标记。 */
+    fun dismissPendingBackup(context: Context) {
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
+            .remove(PREF_LAST_BACKUP_PATH)
+            .remove(PREF_LAST_BACKUP_VERSION)
+            .apply()
+    }
+
+    /**
+     * 备份前执行 WAL checkpoint，将 WAL 中的已提交事务合并到主库文件。
+     * 避免备份的 `.db` 文件遗漏 WAL 中的数据。
+     */
+    private fun walCheckpoint(context: Context, dbName: String) {
+        try {
+            val dbFile = context.getDatabasePath(dbName)
+            if (!dbFile.exists()) return
+            SQLiteDatabase.openDatabase(
+                dbFile.path, null, SQLiteDatabase.OPEN_READWRITE
+            ).use { db ->
+                db.execSQL("PRAGMA wal_checkpoint(TRUNCATE)")
+            }
+            Log.d(TAG, "WAL checkpoint 完成")
+        } catch (e: Exception) {
+            // checkpoint 失败不阻断备份流程，WAL 文件会一起拷走
+            Log.w(TAG, "WAL checkpoint 失败（继续备份 WAL 文件）", e)
+        }
+    }
+
+    data class RestoreResult(
+        val success: Boolean,
+        val message: String,
+        val needUpgrade: Boolean = false,
+        val backupVersion: Int = 0
+    )
 }

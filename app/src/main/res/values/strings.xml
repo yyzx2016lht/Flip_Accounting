@@ -103,6 +103,15 @@
     <string name="webdav_password_hint">建议使用坚果云应用密码</string>
     <string name="cloud_sync_manual_desc">只在点击时上传/下载，不自动同步</string>
 
+    <!-- 降级备份恢复 -->
+    <string name="downgrade_backup_detected_title">检测到降级数据备份</string>
+    <string name="downgrade_backup_detected_message">您曾使用更高版本的应用，降级时自动备份了完整数据库（版本 %1$d）。\n\n当前使用的是旧版本，数据库已清空。\n\n• 已重新安装新版？点「恢复数据」即可找回\n• 继续使用旧版？选「不再提示」关闭此提醒</string>
+    <string name="downgrade_restore">恢复数据</string>
+    <string name="downgrade_dismiss">暂不处理</string>
+    <string name="downgrade_dismiss_forever">不再提示</string>
+    <string name="downgrade_restore_success">数据已恢复，请重启应用</string>
+    <string name="downgrade_restore_need_upgrade">备份来自更高版本（v%1$d），请先升级应用再恢复</string>
+
     <!-- 备份 Kotlin 代码 -->
     <string name="backup_lite_hint">轻量备份不含聊天资源，体积小，适合日常同步</string>
     <string name="backup_full_hint">完整备份包含聊天资源，体积最大，适合归档</string>

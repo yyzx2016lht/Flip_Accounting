@@ -79,6 +79,12 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        /** 降级恢复时调用：清除缓存的 Room 实例，下次 [getDatabase] 会重新打开。 */
+        fun clearInstanceForRestore() {
+            INSTANCE?.close()
+            INSTANCE = null
+        }
+
         // 迁移链从 v5 起保留；v1–v4 已无用户，可按需 .fallbackToDestructiveMigrationFrom(1,2,3,4)。
 
         private val MIGRATION_5_6 = object : Migration(5, 6) {

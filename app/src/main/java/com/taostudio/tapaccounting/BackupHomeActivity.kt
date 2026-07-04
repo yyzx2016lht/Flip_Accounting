@@ -4,11 +4,14 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.taostudio.tapaccounting.data.backup.AutoBackupWorker
 import com.taostudio.tapaccounting.data.backup.BackupDefaultDirHelper
 import com.taostudio.tapaccounting.data.backup.BackupInitHelper
+import com.taostudio.tapaccounting.data.local.AppDatabase
+import com.taostudio.tapaccounting.data.local.DatabaseDowngradeHelper
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,6 +75,7 @@ class BackupHomeActivity : AppCompatActivity() {
         // 检查并创建默认备份目录（首次安装或权限恢复后）
         BackupInitHelper.ensureDefaultDirWithPermission(this)
         updateAutoBackupHint()
+        checkAndShowDowngradeBackupPrompt()
     }
 
     override fun onRequestPermissionsResult(
@@ -113,6 +117,47 @@ class BackupHomeActivity : AppCompatActivity() {
         } else {
             tvHint.text = getString(R.string.manual_backup_hint)
         }
+    }
+
+    private fun checkAndShowDowngradeBackupPrompt() {
+        if (!DatabaseDowngradeHelper.hasPendingDowngradeBackup(this)) return
+        val info = DatabaseDowngradeHelper.getLastBackupInfo(this) ?: return
+        val (_, backupVersion) = info
+        showDowngradeBackupPrompt(backupVersion)
+    }
+
+    private fun showDowngradeBackupPrompt(backupVersion: Int) {
+        val canRestore = backupVersion <= AppDatabase.CODE_VERSION
+        AlertDialog.Builder(this)
+            .setTitle(R.string.downgrade_backup_detected_title)
+            .setMessage(getString(R.string.downgrade_backup_detected_message, backupVersion))
+            .apply {
+                if (canRestore) {
+                    setPositiveButton(R.string.downgrade_restore) { _, _ ->
+                        val result = DatabaseDowngradeHelper.restoreFromDowngradeBackup(
+                            this@BackupHomeActivity, "TapAccount_database", AppDatabase.CODE_VERSION
+                        )
+                        if (result.success) {
+                            Utils.toast(this@BackupHomeActivity, getString(R.string.downgrade_restore_success))
+                        } else {
+                            Utils.toast(this@BackupHomeActivity, result.message)
+                        }
+                    }
+                } else {
+                    setPositiveButton(R.string.downgrade_restore) { _, _ ->
+                        Utils.toast(
+                            this@BackupHomeActivity,
+                            getString(R.string.downgrade_restore_need_upgrade, backupVersion)
+                        )
+                    }
+                }
+            }
+            .setNeutralButton(R.string.downgrade_dismiss, null)
+            .setNegativeButton(R.string.downgrade_dismiss_forever) { _, _ ->
+                DatabaseDowngradeHelper.dismissPendingBackup(this)
+            }
+            .setCancelable(false)
+            .show()
     }
 }
 

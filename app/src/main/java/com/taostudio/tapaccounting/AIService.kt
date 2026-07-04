@@ -1657,29 +1657,7 @@ object AIService {
     }
 
     private suspend fun loadActivePromptRules(ctx: Context): List<DbAiRule> = withContext(Dispatchers.IO) {
-        val dbRules = AppDatabase.getDatabase(ctx).aiRuleDao().getEnabledRulesList()
-        val legacyRules = Prefs.getAiRules(ctx).filter { it.isEnabled }.mapIndexed { index, rule ->
-            DbAiRule(
-                id = -(index + 1),
-                keyword = rule.keyword,
-                targetType = rule.targetType,
-                targetCategory = rule.targetCategory,
-                targetAccount1 = rule.targetAccount1,
-                targetAccount2 = rule.targetAccount2,
-                isEnabled = rule.isEnabled
-            )
-        }
-        (dbRules + legacyRules)
-            .distinctBy {
-                listOf(
-                    it.keyword.trim(),
-                    it.targetType?.toString().orEmpty(),
-                    it.targetCategory.orEmpty(),
-                    it.targetAccount1.orEmpty(),
-                    it.targetAccount2.orEmpty(),
-                    it.isEnabled.toString()
-                ).joinToString("|")
-            }
+        AppDatabase.getDatabase(ctx).aiRuleDao().getEnabledRulesList()
     }
 
     private fun findMatchedPromptRules(text: String, allRules: List<DbAiRule>): List<DbAiRule> =
