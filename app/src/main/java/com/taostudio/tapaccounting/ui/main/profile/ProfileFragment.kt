@@ -29,9 +29,6 @@ import android.os.SystemClock
 import kotlinx.coroutines.Dispatchers
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.ui.SensitivityActivity
-import android.util.Log
-import android.view.ViewTreeObserver
-import com.google.android.material.appbar.AppBarLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -48,8 +45,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private var suppressHomeTrendCardSwitchCallback = false
     private data class ToggleTracker(var count: Int = 0, var firstToggleAtMs: Long = 0L)
     private val toggleTimers = mutableMapOf<String, ToggleTracker>()
-    // ── 诊断：监听 AppBarLayout 布局变化 ──
-    private var appbarLayoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     private var pendingEditUserAvatarView: ImageView? = null
     private val pickUserAvatarLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && isAdded) startUserAvatarCrop(uri)
@@ -72,9 +67,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         checkAndRequestPermissions()
         setupMainSettings(view)
         setupProfileInsets(view)
-
-        // ── 诊断日志：追踪 AppBarLayout 高度/padding 变化 ──
-        startProfileLayoutDiagnostic(view)
     }
 
     private fun setupProfileInsets(root: View) {
@@ -102,11 +94,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         rootRef?.let { updateShowBookEntrySettingVisibility(it) }
         rootRef?.let { refreshUserAvatarCard(it) }
         rootRef?.let { refreshHomeTrendCardSwitch(it) }
-        // ── 诊断：记录 onResume 时刻的 appbar 状态 ──
-        rootRef?.let {
-            dumpAppbarState("onResume", it)
-            sampleAppbarFrames("onResumeFrames", it, 14)
-        }
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
@@ -115,132 +102,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             applyProfileStatusBarStyle()
             rootRef?.let { refreshHomeTrendCardSwitch(it) }
         }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // ── 诊断：记录 onPause 时刻的 appbar 状态 ──
-        rootRef?.let {
-            dumpAppbarState("onPause", it)
-            sampleAppbarFrames("onPauseFrames", it, 8)
-        }
-    }
-
-    /** 诊断：dump AppBarLayout 和 CoordinatorLayout 当前布局参数 */
-    private fun dumpAppbarState(tag: String, root: View) {
-        val appbar = root.findViewById<AppBarLayout>(R.id.appbar_profile) ?: return
-        val coord = appbar.parent as? android.view.ViewGroup
-        val title = root.findViewById<TextView>(R.id.tv_profile_title)
-        val nsv = findProfileScrollContainer(root)
-        val density = resources.displayMetrics.density
-        val insetsTop = ViewCompat.getRootWindowInsets(root)
-            ?.getInsets(WindowInsetsCompat.Type.statusBars())
-            ?.top ?: -1
-
-        val appbarH = appbar.height
-    val appbarTop = appbar.top
-    val appbarY = appbar.y
-    val appbarTY = appbar.translationY
-        val appbarPT = appbar.paddingTop
-        val appbarPB = appbar.paddingBottom
-        val appbarML = (appbar.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.topMargin ?: -1
-
-        val coordPT = coord?.paddingTop ?: -1
-        val coordFsw = if (coord is androidx.coordinatorlayout.widget.CoordinatorLayout)
-            coord.fitsSystemWindows else null
-
-        val titleTop = title?.top ?: -1
-        val titleY = title?.y ?: -1f
-        val titleTY = title?.translationY ?: -1f
-        val titlePT = title?.paddingTop ?: -1
-
-        val appbarLocScreen = IntArray(2)
-        val appbarLocWindow = IntArray(2)
-        appbar.getLocationOnScreen(appbarLocScreen)
-        appbar.getLocationInWindow(appbarLocWindow)
-
-        val titleLocScreen = IntArray(2)
-        val titleLocWindow = IntArray(2)
-        title?.getLocationOnScreen(titleLocScreen)
-        title?.getLocationInWindow(titleLocWindow)
-
-        val rootLocScreen = IntArray(2)
-        root.getLocationOnScreen(rootLocScreen)
-
-        Log.w("PROFILE_DIAG",
-            "[$tag] AppBar: h=${appbarH}px(${appbarH/density}dp) " +
-            "top=${appbarTop}px y=${appbarY}px translationY=${appbarTY}px " +
-            "paddingTop=${appbarPT}px(${appbarPT/density}dp) " +
-            "paddingBottom=${appbarPB}px " +
-            "topMargin=${appbarML}px | " +
-            "CoordLayout: paddingTop=${coordPT}px fitsSystemWindows=$coordFsw | " +
-            "WindowInsets.top=${insetsTop}px"
-        )
-
-        Log.w("PROFILE_DIAG",
-            "[$tag] Title: top=${titleTop}px y=${titleY}px " +
-            "translationY=${titleTY}px paddingTop=${titlePT}px"
-        )
-
-        Log.w("PROFILE_DIAG",
-            "[$tag] Loc: root(screenY=${rootLocScreen[1]}) " +
-            "appbar(screenY=${appbarLocScreen[1]} windowY=${appbarLocWindow[1]}) " +
-            "title(screenY=${titleLocScreen[1]} windowY=${titleLocWindow[1]}) " +
-            "nsv(scrollY=${nsv?.scrollY ?: -1})"
-        )
-
-        // 也 dump AppBarLayout 的所有直接子 View 高度
-        for (i in 0 until appbar.childCount) {
-            val child = appbar.getChildAt(i)
-            val childH = child.height
-            val childPT = child.paddingTop
-            Log.w("PROFILE_DIAG",
-                "[$tag]   child[$i] ${child.javaClass.simpleName} " +
-                "h=${childH}px(${childH/density}dp) paddingTop=${childPT}px"
-            )
-        }
-    }
-
-    /** 诊断：注册 GlobalLayoutListener，每次布局变化时打印状态 */
-    private fun startProfileLayoutDiagnostic(root: View) {
-        val appbar = root.findViewById<AppBarLayout>(R.id.appbar_profile) ?: return
-        var lastH = -1
-        var lastPT = -1
-        var lastTop = Int.MIN_VALUE
-        var lastTY = Float.MIN_VALUE
-        val listener = ViewTreeObserver.OnGlobalLayoutListener {
-            val h = appbar.height
-            val pt = appbar.paddingTop
-            val top = appbar.top
-            val ty = appbar.translationY
-            if (h != lastH || pt != lastPT || top != lastTop || ty != lastTY) {
-                lastH = h
-                lastPT = pt
-                lastTop = top
-                lastTY = ty
-                dumpAppbarState("LayoutChange", root)
-            }
-        }
-        appbar.viewTreeObserver.addOnGlobalLayoutListener(listener)
-        appbarLayoutListener = listener
-        Log.w("PROFILE_DIAG", "[Init] GlobalLayoutListener 已注册在 appbar_profile")
-    }
-
-    /** 诊断：连续若干帧采样，捕捉肉眼可见但生命周期日志漏掉的瞬时位移 */
-    private fun sampleAppbarFrames(label: String, root: View, frames: Int) {
-        if (frames <= 0) return
-        var remain = frames
-        val runner = object : Runnable {
-            override fun run() {
-                if (!isAdded || rootRef == null) return
-                dumpAppbarState("$label#${frames - remain + 1}", root)
-                remain--
-                if (remain > 0) {
-                    root.postOnAnimation(this)
-                }
-            }
-        }
-        root.postOnAnimation(runner)
     }
 
     private fun findProfileScrollContainer(root: View): NestedScrollView? {
@@ -261,11 +122,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     }
 
     override fun onDestroyView() {
-        // ── 诊断：清理监听器，防止内存泄漏 ──
-        rootRef?.findViewById<AppBarLayout>(R.id.appbar_profile)
-            ?.viewTreeObserver
-            ?.removeOnGlobalLayoutListener(appbarLayoutListener)
-        appbarLayoutListener = null
         rootRef = null
         super.onDestroyView()
     }
@@ -306,38 +162,18 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
         // --- 基础菜单跳转 ---
         view.findViewById<View>(R.id.btn_manage_categories).setOnClickListener {
-            rootRef?.let {
-                dumpAppbarState("BeforeStartActivity:manage_categories", it)
-                sampleAppbarFrames("BeforeStartActivityFrames:manage_categories", it, 6)
-            }
             requireActivity().startActivity(Intent(requireContext(), SettingsActivity::class.java))
         }
         view.findViewById<View>(R.id.btn_bill_display_settings).setOnClickListener {
-            rootRef?.let {
-                dumpAppbarState("BeforeStartActivity:bill_display_settings", it)
-                sampleAppbarFrames("BeforeStartActivityFrames:bill_display_settings", it, 6)
-            }
             requireActivity().startActivity(Intent(requireContext(), BillDisplaySettingsActivity::class.java))
         }
         view.findViewById<View>(R.id.btn_manage_currencies).setOnClickListener {
-            rootRef?.let {
-                dumpAppbarState("BeforeStartActivity:manage_currencies", it)
-                sampleAppbarFrames("BeforeStartActivityFrames:manage_currencies", it, 6)
-            }
             requireActivity().startActivity(Intent(requireContext(), CurrencyManagerActivity::class.java))
         }
         view.findViewById<View>(R.id.btn_sensitivity).setOnClickListener {
-            rootRef?.let {
-                dumpAppbarState("BeforeStartActivity:flip_sensitivity", it)
-                sampleAppbarFrames("BeforeStartActivityFrames:flip_sensitivity", it, 6)
-            }
             requireActivity().startActivity(Intent(requireContext(), SensitivityActivity::class.java))
         }
         view.findViewById<View>(R.id.btn_backup_restore).setOnClickListener {
-            rootRef?.let {
-                dumpAppbarState("BeforeStartActivity:backup_restore", it)
-                sampleAppbarFrames("BeforeStartActivityFrames:backup_restore", it, 6)
-            }
             requireActivity().startActivity(Intent(requireContext(), BackupActivity::class.java))
         }
         btnSyncRemoteConfig = view.findViewById(R.id.btn_sync_remote_config)
@@ -558,47 +394,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             val powerManager = requireContext().getSystemService(Context.POWER_SERVICE) as PowerManager
             powerManager.isIgnoringBatteryOptimizations(requireContext().packageName)
         }.getOrDefault(false)
-    }
-
-    private fun promptOverlayPermissionDialog() {
-        if (!isAdded) return
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle(getString(R.string.need_overlay_permission))
-            .setMessage(getString(R.string.gesture_permission_prompt))
-            .setPositiveButton(getString(R.string.go_enable)) { _, _ ->
-                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                    data = Uri.parse("package:${requireContext().packageName}")
-                }
-                requireActivity().startActivity(intent)
-            }
-            .setNegativeButton(getString(R.string.later), null)
-            .create()
-        OverlayDialogs.showPageCenterDialog(
-            dialog = dialog,
-            ctx = requireContext(),
-            cancelOnTouchOutside = true,
-            useSolidPanelBackground = true
-        )
-    }
-
-    private fun showDoubleTapGuideDialog() {
-        if (!isAdded) return
-        Prefs.setDoubleTapGuideSeen(requireContext())
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle(getString(R.string.double_tap_guide_title))
-            .setMessage(getString(R.string.tap_onboarding_hint))
-            .setPositiveButton(getString(R.string.got_it), null)
-            .create()
-        OverlayDialogs.showPageCenterDialog(
-            dialog = dialog,
-            ctx = requireContext(),
-            cancelOnTouchOutside = true,
-            useSolidPanelBackground = true
-        )
-    }
-
-    private fun checkAndRequestPermissions() {
-        // no-op: tap/flip 前台服务不再主动申请通知运行时权限
     }
 
     private fun refreshUserAvatarCard(root: View) {
@@ -852,29 +647,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             Utils.toast(ctx, getString(R.string.avatar_updated))
         }.onFailure {
             if (isAdded) Utils.toast(requireContext(), getString(R.string.avatar_update_failed))
-        }
-    }
-
-    private fun checkBatteryOptimization() {
-        val powerManager = requireContext().getSystemService(Context.POWER_SERVICE) as PowerManager
-        if (!powerManager.isIgnoringBatteryOptimizations(requireContext().packageName)) {
-            val dialog = AlertDialog.Builder(requireContext())
-                .setTitle(getString(R.string.need_battery_optimize))
-                .setMessage(getString(R.string.battery_optimize_prompt))
-                .setPositiveButton(getString(R.string.go_settings)) { _, _ ->
-                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = Uri.parse("package:" + requireContext().packageName)
-                    }
-                    requireActivity().startActivity(intent)
-                }
-                .setNegativeButton(getString(R.string.cancel), null)
-                .create()
-            OverlayDialogs.showPageCenterDialog(
-                dialog = dialog,
-                ctx = requireContext(),
-                cancelOnTouchOutside = true,
-                useSolidPanelBackground = true
-            )
         }
     }
 
