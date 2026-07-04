@@ -1,6 +1,7 @@
 package com.taostudio.tapaccounting.ui.budget
 
 import android.graphics.Color
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,9 +17,9 @@ class BudgetAdapter(
     private val onItemLongClick: (Budget) -> Unit
 ) : RecyclerView.Adapter<BudgetAdapter.ViewHolder>() {
 
-    private val items = mutableListOf<Pair<Budget, BudgetService.BudgetProgress>>()
+    private val items = mutableListOf<BudgetService.BudgetOverview>()
 
-    fun submitList(newItems: List<Pair<Budget, BudgetService.BudgetProgress>>) {
+    fun submitList(newItems: List<BudgetService.BudgetOverview>) {
         items.clear()
         items.addAll(newItems)
         notifyDataSetChanged()
@@ -42,22 +43,37 @@ class BudgetAdapter(
         private val progressBar: ProgressBar = itemView.findViewById(R.id.progress_budget)
         private val tvUsed: TextView = itemView.findViewById(R.id.tv_budget_used)
         private val tvPercent: TextView = itemView.findViewById(R.id.tv_budget_percent)
+        private val tvStatus: TextView = itemView.findViewById(R.id.tv_budget_status)
+        private val tvRemaining: TextView = itemView.findViewById(R.id.tv_budget_remaining)
 
-        fun bind(pair: Pair<Budget, BudgetService.BudgetProgress>) {
-            val (budget, progress) = pair
+        fun bind(item: BudgetService.BudgetOverview) {
+            val budget = item.budget
+            val progress = item.progress
+            val context = itemView.context
+            val statusColor = when (progress.status) {
+                BudgetService.BudgetStatus.EXCEEDED -> Color.parseColor("#FF5252")
+                BudgetService.BudgetStatus.WARNING -> Color.parseColor("#FF9800")
+                BudgetService.BudgetStatus.NORMAL -> Color.parseColor("#4CAF50")
+            }
+
             tvCategory.text = budget.categoryName ?: itemView.context.getString(R.string.budget_monthly_total)
-            tvAmount.text = "¥${String.format("%.0f", budget.amount)}"
-            tvUsed.text = "已用 ¥${String.format("%.2f", progress.usedAmount)}"
-            tvPercent.text = "${String.format("%.0f", progress.percent * 100)}%"
+            tvAmount.text = context.getString(R.string.budget_amount_display_fmt, budget.amount)
+            tvUsed.text = context.getString(R.string.budget_used_fmt, progress.usedAmount)
+            tvPercent.text = context.getString(R.string.budget_percent_fmt, progress.percent * 100)
+            tvStatus.text = when (progress.status) {
+                BudgetService.BudgetStatus.EXCEEDED -> context.getString(R.string.budget_status_exceeded)
+                BudgetService.BudgetStatus.WARNING -> context.getString(R.string.budget_status_warning)
+                BudgetService.BudgetStatus.NORMAL -> context.getString(R.string.budget_status_normal)
+            }
+            tvStatus.setTextColor(statusColor)
+            tvRemaining.text = if (progress.remaining >= 0) {
+                context.getString(R.string.budget_remaining_fmt, String.format("%.2f", progress.remaining))
+            } else {
+                context.getString(R.string.budget_over_budget_fmt, budget.amount, progress.usedAmount, -progress.remaining)
+            }
 
             progressBar.progress = (progress.percent * 100).toInt().coerceAtMost(100)
-            progressBar.progressTintList = android.content.res.ColorStateList.valueOf(
-                when (progress.status) {
-                    BudgetService.BudgetStatus.EXCEEDED -> Color.parseColor("#FF5252")
-                    BudgetService.BudgetStatus.WARNING -> Color.parseColor("#FF9800")
-                    BudgetService.BudgetStatus.NORMAL -> Color.parseColor("#4CAF50")
-                }
-            )
+            progressBar.progressTintList = ColorStateList.valueOf(statusColor)
 
             itemView.setOnClickListener { onItemClick(budget) }
             itemView.setOnLongClickListener { onItemLongClick(budget); true }

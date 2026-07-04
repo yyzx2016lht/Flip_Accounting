@@ -22,14 +22,42 @@
         android:orientation="vertical"
         android:padding="12dp">
 
-        <TextView
-            android:id="@+id/tvInsightTitle"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="#333333"
-            android:textStyle="bold"
-            android:layout_marginBottom="4dp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/tvInsightTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:textColor="#333333"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvInsightAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="#666666"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvInsightType"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:layout_marginBottom="6dp"
+            android:background="@drawable/bg_insight_type_chip"
+            android:gravity="center"
+            android:minWidth="52dp"
+            android:paddingHorizontal="8dp"
+            android:textColor="#6B7280"
+            android:textSize="11sp" />
 
         <TextView
             android:id="@+id/tvInsightBody"

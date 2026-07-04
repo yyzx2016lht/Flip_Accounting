@@ -93,10 +93,12 @@
         android:id="@+id/rv_session_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
         android:layout_weight="1"
         android:clipToPadding="false"
-        android:paddingBottom="8dp" />
+        android:overScrollMode="never"
+        android:paddingBottom="8dp"
+        android:scrollbars="none" />
 
     <TextView
         android:id="@+id/btn_clear_current_session"

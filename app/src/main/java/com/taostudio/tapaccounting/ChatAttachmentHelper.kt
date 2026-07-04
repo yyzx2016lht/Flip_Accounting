@@ -9,12 +9,22 @@ import java.util.Locale
 object ChatAttachmentHelper {
 
     const val MAX_IMAGE_BYTES = 4L * 1024L * 1024L
-    const val MAX_DOCUMENT_BYTES = 10L * 1024L * 1024L
-    const val MAX_VIDEO_BYTES = 50L * 1024L * 1024L
-    const val MAX_AUDIO_BYTES = 8L * 1024L * 1024L
-    const val MAX_INLINE_TEXT_CHARS = 120_000
+    const val MAX_PDF_BYTES = 20L * 1024L * 1024L
+    const val MAX_PDF_PAGES = 6
+    /** Internal marker prepended to the multimodal supplement when a PDF was rasterized. */
+    const val PDF_PAYLOAD_MARKER = "[PDF_PAGES]"
 
     fun isImageMime(mime: String): Boolean = mime.startsWith("image/", ignoreCase = true)
+
+    fun isPdfMime(mime: String, fileName: String = ""): Boolean =
+        mime.equals("application/pdf", ignoreCase = true) ||
+            fileName.lowercase(Locale.getDefault()).endsWith(".pdf")
+
+    /** File picker in chat only accepts PDF. */
+    fun isSupportedFilePickerMime(mime: String, fileName: String = ""): Boolean =
+        isPdfMime(mime, fileName)
+
+    fun isSupportedImagePickerMime(mime: String): Boolean = isImageMime(mime)
 
     fun isVideoMime(mime: String): Boolean = mime.startsWith("video/", ignoreCase = true)
 
@@ -31,41 +41,9 @@ object ChatAttachmentHelper {
         else -> "wav"
     }
 
-    fun isInlineTextMime(mime: String): Boolean {
-        return mime.startsWith("text/", ignoreCase = true) ||
-            mime.equals("application/json", ignoreCase = true)
-    }
-
     fun isDocxMime(mime: String, fileName: String): Boolean {
         if (mime.contains("wordprocessingml", ignoreCase = true)) return true
         return fileName.lowercase(Locale.getDefault()).endsWith(".docx")
-    }
-
-    fun isLegacyDocMime(mime: String, fileName: String): Boolean {
-        if (mime.equals("application/msword", ignoreCase = true)) return true
-        val ext = fileName.lowercase(Locale.getDefault())
-        return ext.endsWith(".doc") && !ext.endsWith(".docx")
-    }
-
-    fun shouldExtractAsInlineText(mime: String, fileName: String): Boolean {
-        return isInlineTextMime(mime) || isDocxMime(mime, fileName)
-    }
-
-    fun isSupportedMime(mime: String, fileName: String = ""): Boolean {
-        if (isImageMime(mime)) return true
-        if (isVideoMime(mime)) return true
-        if (isAudioMime(mime)) return true
-        if (mime.equals("application/pdf", ignoreCase = true)) return true
-        if (isDocxMime(mime, fileName)) return true
-        if (isLegacyDocMime(mime, fileName)) return false
-        return isInlineTextMime(mime)
-    }
-
-    fun maxBytesFor(mime: String): Long = when {
-        isImageMime(mime) -> MAX_IMAGE_BYTES
-        isVideoMime(mime) -> MAX_VIDEO_BYTES
-        isAudioMime(mime) -> MAX_AUDIO_BYTES
-        else -> MAX_DOCUMENT_BYTES
     }
 
     fun resolveMime(context: Context, uri: Uri, fileName: String): String {
@@ -117,32 +95,17 @@ object ChatAttachmentHelper {
         if (mimes.isEmpty()) return "[用户发送了附件]"
         return when {
             mimes.all(::isImageMime) -> "[用户发送了图片]"
-            mimes.all(::isVideoMime) -> "[用户发送了视频]"
-            mimes.all(::isAudioMime) -> "[用户发送了语音/音频]"
-            mimes.all { it.equals("application/pdf", ignoreCase = true) } -> "[用户发送了 PDF 文件]"
-            mimes.any { isDocxMime(it, "") || it.contains("wordprocessingml", ignoreCase = true) } &&
-                mimes.none { !isDocxMime(it, "") && !it.contains("wordprocessingml", ignoreCase = true) && !isImageMime(it) } ->
-                "[用户发送了 Word 文档]"
-            mimes.any(::isInlineTextMime) && mimes.none { !isInlineTextMime(it) && !isImageMime(it) } ->
-                "[用户发送了文本文件]"
+            mimes.all(::isPdfMime) -> "[用户发送了 PDF 文件]"
             else -> "[用户发送了附件]"
         }
     }
 
-    fun fileTypeLabel(context: Context, mime: String, fileName: String = ""): String = when {
-        mime.equals("application/pdf", ignoreCase = true) ||
-            fileName.lowercase(Locale.getDefault()).endsWith(".pdf") ->
+    fun fileTypeLabel(context: Context, mime: String, fileName: String = ""): String =
+        if (isPdfMime(mime, fileName)) {
             context.getString(R.string.chat_file_type_pdf)
-        isDocxMime(mime, fileName) ->
-            context.getString(R.string.chat_file_type_docx)
-        isVideoMime(mime) ->
-            context.getString(R.string.chat_file_type_video)
-        isAudioMime(mime) ->
-            context.getString(R.string.chat_file_type_audio)
-        isInlineTextMime(mime) ->
-            context.getString(R.string.chat_file_type_text)
-        else -> context.getString(R.string.chat_file_type_generic)
-    }
+        } else {
+            context.getString(R.string.chat_file_type_generic)
+        }
 
     fun encodeFileMessageContent(mime: String, fileName: String): String = "$mime|$fileName"
 
@@ -156,47 +119,38 @@ object ChatAttachmentHelper {
     }
 
     fun groupAttachmentsForDisplay(attachments: List<PendingImage>): Pair<List<PendingImage>, List<PendingImage>> {
-        val images = mutableListOf<PendingImage>()
-        val files = mutableListOf<PendingImage>()
-        val pdfPageGroups = mutableMapOf<String, PendingImage>()
-        attachments.forEach { attachment ->
+        val images = attachments.filter { it.showsAsImageThumbnail }
+        val files = attachments.filter { it.showsAsFileCard }
+        return images to files
+    }
+
+    /** Flatten pending attachments into base64/mime pairs for the vision API payload. */
+    fun flattenForApiPayload(attachments: List<PendingImage>): List<PendingImage> {
+        return attachments.flatMap { attachment ->
             when {
-                attachment.isInlineText -> Unit
-                attachment.showsAsImageThumbnail -> images.add(attachment)
-                attachment.sourceUri != null -> {
-                    val key = attachment.fileName.substringBefore(" (").trim().ifBlank { attachment.fileName }
-                    pdfPageGroups.putIfAbsent(
-                        key,
-                        attachment.copy(
-                            mime = "application/pdf",
-                            uri = attachment.sourceUri,
-                            fileName = key
+                attachment.pdfPagePayloads.isNotEmpty() ->
+                    attachment.pdfPagePayloads.map { (base64, mime) ->
+                        PendingImage(
+                            uri = null,
+                            base64 = base64,
+                            mime = mime,
+                            fileName = attachment.fileName
                         )
-                    )
-                }
-                else -> files.add(attachment)
+                    }
+                attachment.base64.isNotBlank() -> listOf(attachment)
+                else -> emptyList()
             }
         }
-        files.addAll(pdfPageGroups.values)
-        return images to files
     }
 
     fun attachmentSummaryLabel(mimes: List<String>): String {
         val images = mimes.count(::isImageMime)
-        val videos = mimes.count(::isVideoMime)
-        val audios = mimes.count(::isAudioMime)
-        val pdfs = mimes.count { it.equals("application/pdf", ignoreCase = true) }
-        val docx = mimes.count { isDocxMime(it, "") || it.contains("wordprocessingml", ignoreCase = true) }
-        val texts = mimes.count(::isInlineTextMime)
+        val pdfs = mimes.count { isPdfMime(it) || it.equals("application/pdf", true) }
         val parts = buildList {
             if (images > 0) add("${images}张图片")
-            if (videos > 0) add("${videos}个视频")
-            if (audios > 0) add("${audios}个音频")
             if (pdfs > 0) add("${pdfs}个 PDF")
-            if (docx > 0) add("${docx}个 Word")
-            if (texts > 0) add("${texts}个文本文件")
-            val other = mimes.size - images - videos - audios - pdfs - docx - texts
-            if (other > 0) add("${other}个文件")
+            val other = mimes.size - images - pdfs
+            if (other > 0) add("${other}个附件")
         }
         return parts.joinToString("、").ifBlank { "附件" }
     }

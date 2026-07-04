@@ -1704,9 +1704,12 @@
     <string name="chat_attach_cd">添加附件</string>
     <string name="chat_attach_camera">拍照</string>
     <string name="chat_attach_photos">图片</string>
-    <string name="chat_attach_file">文件</string>
-    <string name="chat_attach_file_unsupported">暂不支持此文件类型，可选图片、PDF、Word（.docx）或文本文件</string>
-    <string name="chat_attach_legacy_doc_unsupported">旧版 .doc 暂不支持，请在 Word 中另存为 .docx 或 PDF 后再发送</string>
+    <string name="chat_attach_pdf">PDF</string>
+    <string name="chat_attach_file">PDF</string>
+    <string name="chat_attach_pdf_hint">目前支持 PDF，AI 会读取前 6 页内容。扫描件、票据、截图类 PDF 效果更好。</string>
+    <string name="chat_attach_file_unsupported">目前仅支持 PDF 文件，请另存为 PDF 后再发送</string>
+    <string name="chat_attach_pdf_too_large">PDF 过大（超过 20MB），请拆分或选择较短文件</string>
+    <string name="chat_pdf_default_prompt">用户发来 PDF 的前几页（已转为图片），请结合内容自然回复。</string>
     <string name="chat_attach_no_file_app">无法打开文件选择器</string>
     <string name="chat_attach_empty_file">文件为空或无法读取</string>
     <string name="chat_attach_read_failed">无法读取文件</string>
@@ -1719,11 +1722,7 @@
     <string name="selected_attachment_count_fmt">已选 %1$d/%2$d 个</string>
     <string name="chat_analyzing_attachments_fmt">正在识别 %1$d 个附件…</string>
     <string name="chat_analyzing_pdf">正在读取 PDF…</string>
-    <string name="chat_file_type_pdf">PDF 文档</string>
-    <string name="chat_file_type_docx">Word 文档</string>
-    <string name="chat_file_type_video">视频</string>
-    <string name="chat_file_type_audio">音频</string>
-    <string name="chat_file_type_text">文本文件</string>
+    <string name="chat_file_type_pdf">PDF · 前 6 页</string>
     <string name="chat_file_type_generic">文件</string>
     <string name="chat_open_file">打开文件</string>
     <string name="chat_open_file_failed">无法打开此文件</string>
@@ -1829,10 +1828,17 @@
     <string name="budget_amount_invalid">请输入有效预算金额</string>
     <string name="budget_delete_confirm">确定删除「%1$s」的预算？</string>
     <string name="budget_suggest_result_fmt">参考过去 3 个月，建议总预算 ¥%1$.0f</string>
+    <string name="budget_suggest_apply_fmt">参考过去 3 个月，建议设置为 ¥%1$.0f，已填入金额</string>
     <string name="budget_suggest_empty">历史支出不足，暂时无法推荐</string>
     <string name="budget_status_normal">正常</string>
     <string name="budget_status_warning">即将超支</string>
     <string name="budget_status_exceeded">已超支</string>
+    <string name="budget_summary_title_fmt">%1$s · %2$s</string>
+    <string name="budget_summary_detail_fmt">预算 ¥%1$.0f · 已用 ¥%2$.2f · 剩余 ¥%3$.2f</string>
+    <string name="budget_over_budget_fmt">预算 ¥%1$.0f · 已用 ¥%2$.2f · 超出 ¥%3$.2f</string>
+    <string name="budget_used_fmt">已用 ¥%1$.2f</string>
+    <string name="budget_percent_fmt">%1$.0f%%</string>
+    <string name="budget_amount_display_fmt">¥%1$.0f</string>
 
     <!-- 周期账单 -->
     <string name="recurring_bills_title">周期账单</string>
@@ -1844,10 +1850,36 @@
     <string name="recurring_frequency_yearly">每年</string>
     <string name="recurring_confirm">确认</string>
     <string name="recurring_dismiss">忽略</string>
+    <string name="recurring_add">添加</string>
+    <string name="recurring_add_title">添加周期账单</string>
+    <string name="recurring_edit_title">编辑周期账单</string>
+    <string name="recurring_merchant_hint">扣费名称</string>
+    <string name="recurring_merchant_example">话费 / 会员 / 房租</string>
+    <string name="recurring_amount_hint">预计金额</string>
+    <string name="recurring_tolerance_hint">允许波动金额</string>
+    <string name="recurring_frequency_hint">周期</string>
+    <string name="recurring_day_hint">每月扣款日（可选）</string>
+    <string name="recurring_account_hint">扣款账户（可选）</string>
+    <string name="recurring_input_invalid">请填写扣费名称和有效金额</string>
+    <string name="recurring_day_invalid">扣款日应为 1 到 31</string>
+    <string name="recurring_saved">周期账单已保存</string>
+    <string name="recurring_restore_pending">转待确认</string>
+    <string name="recurring_status_pending">待确认</string>
+    <string name="recurring_status_confirmed">已确认</string>
+    <string name="recurring_status_dismissed">已忽略</string>
+    <string name="recurring_status_overdue">可能已到期</string>
+    <string name="recurring_status_due_soon">近期可能扣款</string>
+    <string name="recurring_empty_pending">没有待确认的周期账单</string>
+    <string name="recurring_empty_confirmed">没有已确认的周期账单</string>
+    <string name="recurring_empty_dismissed">没有已忽略的周期账单</string>
     <string name="recurring_view_bills">查看账单</string>
     <string name="recurring_next_expected">下次预计：%1$s</string>
+    <string name="recurring_next_unknown">下次预计：未知</string>
+    <string name="recurring_last_seen_fmt">最近：%1$s</string>
+    <string name="recurring_meta_fmt">%1$s · %2$s · 波动 ±¥%3$.2f</string>
     <string name="recurring_amount_approx">约 ¥%1$s</string>
     <string name="recurring_found_count">发现 %1$d 个疑似周期账单</string>
+    <string name="recurring_summary_fmt">%1$s：%2$d 个 · 近期 %3$d 个 · 可能到期 %4$d 个</string>
 
     <!-- 信用卡账单周期 -->
     <string name="credit_cycle_title">账单周期</string>

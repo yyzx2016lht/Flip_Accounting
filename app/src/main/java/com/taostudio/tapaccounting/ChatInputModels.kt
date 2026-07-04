@@ -13,20 +13,19 @@ enum class InputAction {
 
 /**
  * Holds a user-selected attachment copied to app storage but not yet sent.
- * Images/PDF use [base64]; plain-text files may use [inlineText] instead.
+ * Images use [base64]; PDFs use [pdfPagePayloads] (JPEG pages for the vision API).
  */
 data class PendingImage(
     val uri: Uri?,
     val base64: String,
     val mime: String,
     val fileName: String = "",
-    val inlineText: String? = null,
-    /** When a PDF is rasterized to JPEG pages, points at the original PDF for UI display. */
-    val sourceUri: Uri? = null
+    /** Rasterized JPEG pages (base64, mime) sent to the vision API for PDF attachments. */
+    val pdfPagePayloads: List<Pair<String, String>> = emptyList()
 ) {
     val isImage: Boolean get() = ChatAttachmentHelper.isImageMime(mime)
-    val isInlineText: Boolean get() = inlineText != null
-    /** True for real photos/screenshots; false for PDF pages rendered as JPEG. */
-    val showsAsImageThumbnail: Boolean get() = isImage && sourceUri == null
-    val showsAsFileCard: Boolean get() = !isInlineText && base64.isNotBlank() && !showsAsImageThumbnail
+    val isPdfAttachment: Boolean get() = ChatAttachmentHelper.isPdfMime(mime, fileName)
+    val showsAsImageThumbnail: Boolean get() = isImage && !isPdfAttachment
+    val showsAsFileCard: Boolean get() = isPdfAttachment
+    val hasApiPayload: Boolean get() = base64.isNotBlank() || pdfPagePayloads.isNotEmpty()
 }

@@ -29,7 +29,8 @@ object HomeDashboardProvider {
             }
             val cycleService = com.taostudio.tapaccounting.logic.CreditCardCycleService()
             for (asset in creditAssets) {
-                val snapshot = cycleService.calculateSnapshot(asset, emptyList())
+                val bills = db.billDao().getBillsByAssetIdOrNameList(asset.id, asset.name)
+                val snapshot = cycleService.calculateSnapshot(asset, bills)
                 if (snapshot != null && snapshot.daysToDue != null && snapshot.daysToDue <= 3 && snapshot.amountDue > 0) {
                     cards.add(
                         HomeDashboardCard.Reminder(
@@ -48,13 +49,13 @@ object HomeDashboardProvider {
                 .format(java.util.Date())
             val budgetService = com.taostudio.tapaccounting.logic.BudgetService(db.budgetDao(), db.billDao())
             val budgets = budgetService.getMonthBudgetsWithProgress("", yearMonth)
-            val exceeded = budgets.filter { it.second.status == com.taostudio.tapaccounting.logic.BudgetService.BudgetStatus.EXCEEDED }
+            val exceeded = budgets.filter { it.progress.status == com.taostudio.tapaccounting.logic.BudgetService.BudgetStatus.EXCEEDED }
             if (exceeded.isNotEmpty()) {
                 val top = exceeded.first()
                 cards.add(
                     HomeDashboardCard.Reminder(
                         title = "预算超支",
-                        body = "${top.first.categoryName ?: "总预算"} 已超支 ${String.format("%.0f", top.second.percent * 100)}%"
+                        body = "${top.budget.categoryName ?: "总预算"} 已超支 ${String.format("%.0f", top.progress.percent * 100)}%"
                     )
                 )
             }

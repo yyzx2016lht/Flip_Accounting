@@ -1176,7 +1176,11 @@ object AIService {
         Logger.d(ctx, AI_IO_LOG_TAG, "[聊天附件] USER: ${userInput.take(2000)} attachments=${images.size}")
 
         val model = AiModelCapabilities.chatMultimodalModel(ctx)
-        val safeUserInput = shortenForModel(userInput, MAX_ASSISTANT_INPUT_CHARS)
+        val hadPdfAttachment = userInput.contains(ChatAttachmentHelper.PDF_PAYLOAD_MARKER) ||
+            images.any { ChatAttachmentHelper.isPdfMime(it.second) }
+        val safeUserInput = userInput
+            .replace(ChatAttachmentHelper.PDF_PAYLOAD_MARKER, "")
+            .trim()
         val systemPrompt = when {
             openConversationMode -> buildOpenConversationSystemPrompt(ctx)
             accountingCasualMode -> buildAccountingCasualChatSystemPrompt(
@@ -1188,20 +1192,15 @@ object AIService {
                 defaultCustomReplyStyleGuide = DEFAULT_CUSTOM_REPLY_STYLE_GUIDE
             )
         }
+        val cleanedUserInput = shortenForModel(safeUserInput, MAX_ASSISTANT_INPUT_CHARS)
         // Keep the proven compatibility path: PDF pages are rasterized before
         // sending, because several OpenAI-compatible providers reject file parts.
         val apiAttachments = expandPdfAttachmentsForVisionApi(ctx, images)
         val mimes = apiAttachments.map { it.second }
-        val userPrompt = safeUserInput.trim().ifBlank {
+        val userPrompt = cleanedUserInput.ifBlank {
             when {
-                mimes.size == 1 && mimes.first().equals("application/pdf", ignoreCase = true) ->
-                    "用户发来一个 PDF 文件，请结合文件内容自然回复。"
-                mimes.size == 1 && ChatAttachmentHelper.isDocxMime(mimes.first(), "") ->
-                    "用户发来一个 Word 文档，请结合文档内容自然回复。"
-                mimes.size == 1 && ChatAttachmentHelper.isVideoMime(mimes.first()) ->
-                    "用户发来一个视频，请结合视频内容自然回复。"
-                mimes.size == 1 && ChatAttachmentHelper.isAudioMime(mimes.first()) ->
-                    "用户发来一段音频，请结合音频内容自然回复。"
+                hadPdfAttachment ->
+                    ctx.getString(R.string.chat_pdf_default_prompt)
                 mimes.all { it.startsWith("image/") } && mimes.size == 1 ->
                     "用户发来一张图片，请结合图片内容自然回复。"
                 mimes.all { it.startsWith("image/") } ->
@@ -1868,7 +1867,7 @@ object AIService {
     private fun expandPdfAttachmentsForVisionApi(
         ctx: Context,
         attachments: List<Pair<String, String>>,
-        maxPdfPages: Int = 6
+        maxPdfPages: Int = ChatAttachmentHelper.MAX_PDF_PAGES
     ): List<Pair<String, String>> {
         val expanded = mutableListOf<Pair<String, String>>()
         for ((base64, mime) in attachments) {

@@ -60,6 +60,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "insert:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, accountId=${savedBill.accountId}, toAccountId=${savedBill.toAccountId}")
             auditBill("insert", savedBill)
+            matchRecurringQuietly(db, savedBill)
             db.billDao().getBillById(savedBill.id) ?: savedBill
         }
     }
@@ -83,6 +84,7 @@ object BillMutationService {
         }
         logFull("BILL_MUTATION", "insertTx:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}")
         auditBill("insert_tx", savedBill)
+        matchRecurringQuietly(db, savedBill)
         return db.billDao().getBillById(savedBill.id) ?: savedBill
     }
 
@@ -170,6 +172,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "replace:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, category=${savedBill.categoryName}")
             auditBill("replace", savedBill)
+            matchRecurringQuietly(db, savedBill)
             db.billDao().getBillById(savedBill.id) ?: savedBill
         }
     }
@@ -278,5 +281,12 @@ object BillMutationService {
             ?: bill.toAccountName.takeIf { it.isNotBlank() }?.let { db.assetDao().getAssetByName(it) }
         BillAssetImpactService.ensureRatesForImpact(bill, sourceAsset, targetAsset)
     }
-}
 
+    private suspend fun matchRecurringQuietly(db: AppDatabase, bill: Bill) {
+        try {
+            RecurringBillingService(db).matchNewBill(bill)
+        } catch (_: Exception) {
+            // 账单保存是主流程；周期账单推进失败不能阻断入账。
+        }
+    }
+}

@@ -171,17 +171,11 @@ class AddAssetActivity : AppCompatActivity() {
         tvDueDay = findViewById(R.id.tv_due_day)
 
         fun refreshDayLabels() {
-            tvStatementDay.text = getString(
-                R.string.credit_statement_day_value,
-                com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedStatementDay)
-            )
-            tvDueDay.text = getString(
-                R.string.credit_due_day_value,
-                com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedDueDay)
-            )
+            tvStatementDay.text = com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedStatementDay)
+            tvDueDay.text = com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedDueDay)
         }
         refreshDayLabels()
-        tvStatementDay.setOnClickListener {
+        findViewById<View>(R.id.layout_statement_day).setOnClickListener {
             com.taostudio.tapaccounting.ui.common.DayPickerDialog.show(
                 this,
                 getString(R.string.credit_statement_day),
@@ -191,7 +185,7 @@ class AddAssetActivity : AppCompatActivity() {
                 refreshDayLabels()
             }
         }
-        tvDueDay.setOnClickListener {
+        findViewById<View>(R.id.layout_due_day).setOnClickListener {
             com.taostudio.tapaccounting.ui.common.DayPickerDialog.show(
                 this,
                 getString(R.string.credit_due_day),
@@ -361,14 +355,8 @@ class AddAssetActivity : AppCompatActivity() {
                     it.billingDay > 0 -> it.billingDay
                     else -> 0
                 }
-                tvStatementDay.text = getString(
-                    R.string.credit_statement_day_value,
-                    com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedStatementDay)
-                )
-                tvDueDay.text = getString(
-                    R.string.credit_due_day_value,
-                    com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedDueDay)
-                )
+                tvStatementDay.text = com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedStatementDay)
+                tvDueDay.text = com.taostudio.tapaccounting.ui.common.DayPickerDialog.formatDay(selectedDueDay)
 
                 Glide.with(this@AddAssetActivity)
                     .load(AssetIconDefaults.withDefault(it.icon))
@@ -599,6 +587,8 @@ class AddAssetActivity : AppCompatActivity() {
                         assetCategory = pending.asset.assetCategory,
                         creditLimit = pending.asset.creditLimit,
                         billingDay = pending.asset.billingDay,
+                        statementDay = pending.asset.statementDay,
+                        dueDay = pending.asset.dueDay,
                         annualInterestRate = pending.asset.annualInterestRate,
                         interestLastSettledAt = pending.asset.interestLastSettledAt,
                         isArchived = pending.asset.isArchived
@@ -1055,4 +1045,3 @@ class AddAssetActivity : AppCompatActivity() {
         private const val KEY_SKIP_NET_ASSET_TIP_SHOWN = "skip_net_asset_tip_shown"
     }
 }
-

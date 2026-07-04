@@ -395,7 +395,6 @@ BillAssetImpactService (包装汇率提供者)
 
 | Activity | 功能 |
 |----------|------|
-| AssetActivity | 资产列表(净资产/总资产/负债) |
 | AddAssetActivity | 添加/编辑资产(名称、类型、余额、币种、利率) |
 | AssetDetailActivity | 资产详情(余额、账单历史) |
 | AssetStatsActivity | 资产统计(柱状图、饼图) |
@@ -431,7 +430,6 @@ BillAssetImpactService (包装汇率提供者)
 |----------|------|
 | BackupActivity | 本地备份与恢复(.bak/.flip) |
 | BackupHomeActivity | 备份中心入口 |
-| CloudBackupActivity | WebDAV 云端备份设置 |
 | StorageCleanupActivity | 存储清理(语音、图片、缓存) |
 | StoragePreviewActivity | 清理文件预览 |
 | StorageImageViewerActivity | 图片查看器 |
@@ -3464,7 +3462,7 @@ CREATE INDEX IF NOT EXISTS index_bills_bookName_time ON bills (bookName, time)
 3. [ScreenCaptureActivity.kt - 截屏识别记账](#3-screencaptureactivitykt)
 4. [OverlayService.kt - 悬浮窗前台服务](#4-overlayservicekt)
 5. [EditBillActivity.kt - 账单编辑](#5-editbillactivitykt)
-6. [AssetActivity.kt / AssetDetailActivity.kt - 资产管理](#6-assetactivitykt--assetdetailactivitykt)
+6. [AssetDetailActivity.kt - 资产管理](#6-assetdetailactivitykt)
 7. [BackupActivity.kt - 备份恢复](#7-backupactivitykt)
 8. [HomeFragment.kt - 首页账单列表](#8-homefragmentkt)
 
@@ -3794,42 +3792,7 @@ onCreate
 
 ---
 
-## 6. AssetActivity.kt / AssetDetailActivity.kt
-
-### 6.1 AssetActivity.kt
-
-**路径**: `app/src/main/java/com/taostudio/tapaccounting/AssetActivity.kt`
-
-#### 类结构
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `tvNetAsset/tvTotalAsset/tvTotalDebt` | `TextView` | 净资产/总资产/总负债显示 |
-| `rvAssets` | `RecyclerView` | 资产列表 |
-| `adapter` | `AssetListAdapter` | 资产列表适配器 |
-| `db` | `AppDatabase` | 数据库实例 |
-| `assetRepository` | `AssetRepository` | 资产仓库 |
-
-#### 数据加载
-
-- 使用 `Flow` + `collectLatest`：`db.assetDao().getAllAssets()` 返回 `Flow<List<Asset>>`
-- `updateHeader()` 遍历资产列表，通过 `CurrencyManager.convertToCny()` 折算为人民币汇总
-- 如果有 NaN（汇率未获取），显示"需要网络更新"
-
-#### UI 交互
-
-- 点击资产：跳转 `AssetDetailActivity`（当前被注释）
-- 长按资产：弹出操作菜单（编辑/删除）
-- 删除确认：`assetRepository.deleteAssetWithCleanup(asset)`
-
-#### AssetListAdapter（内部类）
-
-- 简单的 `RecyclerView.Adapter`，`submitList` 后 `notifyDataSetChanged`
-- 每个 item 动态 inflate `item_asset_row`，使用 Glide 加载资产图标（CircleCrop）
-
----
-
-### 6.2 AssetDetailActivity.kt
+## 6. AssetDetailActivity.kt
 
 **路径**: `app/src/main/java/com/taostudio/tapaccounting/ui/main/assets/AssetDetailActivity.kt`
 
@@ -5260,13 +5223,11 @@ backup.zip (.bak)
 | QuickStartActivity | 快速启动 | 透明主题, noHistory, excludeFromRecents |
 | PermissionRequestActivity | 权限请求 | 透明主题, noHistory |
 | AppListActivity | 应用白名单 | - |
-| AssetActivity | 资产管理 | - |
 | AddAssetActivity | 新增资产 | - |
 | BalanceAdjustmentActivity | 平账 | - |
 | SettingsActivity | 分类管理 | - |
 | CategorySortActivity | 排序分类 | - |
 | BackupHomeActivity | 备份与恢复主页 | - |
-| CloudBackupActivity | 云端备份设置 | - |
 | StorageCleanupActivity | 存储清理 | - |
 | HistoryBillActivity | 回收站 | - |
 | StoragePreviewActivity | 预览待清理内容 | - |

@@ -136,7 +136,7 @@ class ChatMediaController(
         }
         view.findViewById<android.view.View>(R.id.item_attach_file).setOnClickListener {
             dialog.dismiss()
-            pickFile()
+            pickPdf()
         }
         view.findViewById<TextView>(R.id.btn_attach_cancel).setOnClickListener {
             dialog.dismiss()
@@ -185,13 +185,11 @@ class ChatMediaController(
         Utils.toast(context, context.getString(R.string.toast_camera_permission))
     }
 
-    private fun pickFile() {
+    private fun pickPdf() {
         if (!ensureAiImageFeatureEnabled()) return
-        val mimeTypes = arrayOf("image/*", "video/*", "audio/*", "application/pdf", "text/*", "application/*")
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            type = "*/*"
+            type = "application/pdf"
             addCategory(Intent.CATEGORY_OPENABLE)
-            putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 runCatching {
                     putExtra(
@@ -205,9 +203,8 @@ class ChatMediaController(
             }
         }.takeIf { it.resolveActivity(context.packageManager) != null }
             ?: Intent(Intent.ACTION_GET_CONTENT).apply {
-                type = "*/*"
+                type = "application/pdf"
                 addCategory(Intent.CATEGORY_OPENABLE)
-                putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
             }
         if (intent.resolveActivity(context.packageManager) == null) {
             Utils.toast(context, context.getString(R.string.chat_attach_no_file_app))
@@ -629,97 +626,27 @@ class ChatMediaController(
     private fun buildPendingAttachments(uri: Uri): List<PendingImage> {
         val fileName = ChatAttachmentHelper.resolveDisplayName(context, uri)
         val mime = ChatAttachmentHelper.resolveMime(context, uri, fileName)
-        if (ChatAttachmentHelper.isLegacyDocMime(mime, fileName)) {
-            throw UnsupportedAttachmentException(
-                context.getString(R.string.chat_attach_legacy_doc_unsupported)
-            )
+
+        if (ChatAttachmentHelper.isPdfMime(mime, fileName)) {
+            if (!ChatAttachmentHelper.isSupportedFilePickerMime(mime, fileName)) {
+                throw UnsupportedAttachmentException(
+                    context.getString(R.string.chat_attach_file_unsupported)
+                )
+            }
+            return listOf(buildPdfPendingAttachment(uri, fileName))
         }
-        if (!ChatAttachmentHelper.isSupportedMime(mime, fileName)) {
+
+        if (!ChatAttachmentHelper.isImageMime(mime)) {
             throw UnsupportedAttachmentException(
                 context.getString(R.string.chat_attach_file_unsupported)
             )
         }
 
-        if (ChatAttachmentHelper.shouldExtractAsInlineText(mime, fileName)) {
-            if (ChatAttachmentHelper.isDocxMime(mime, fileName)) {
-                // DOCX 走文本提取，避免 OpenAI-compatible 接口拒绝原生 file part。
-                val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
-                val rawText = context.contentResolver.openInputStream(storedUri)?.use { input ->
-                    ChatDocumentTextExtractor.extractDocxText(input)
-                }.orEmpty()
-                if (rawText.isBlank()) {
-                    throw IOException(context.getString(R.string.chat_attach_empty_file))
-                }
-                if (rawText.length > ChatAttachmentHelper.MAX_INLINE_TEXT_CHARS) {
-                    throw IOException(context.getString(R.string.chat_attach_text_too_large))
-                }
-                return listOf(
-                    PendingImage(
-                        uri = storedUri,
-                        base64 = "",
-                        mime = mime,
-                        fileName = fileName,
-                        inlineText = rawText
-                    )
-                )
-            }
-            // 文本/JSON: 提取文字（本身就是纯文本，直发没有意义）
-            val rawText = context.contentResolver.openInputStream(uri)?.use { input ->
-                input.bufferedReader(Charsets.UTF_8).readText()
-            }.orEmpty()
-            if (rawText.isBlank()) {
-                throw IOException(context.getString(R.string.chat_attach_empty_file))
-            }
-            if (rawText.length > ChatAttachmentHelper.MAX_INLINE_TEXT_CHARS) {
-                throw IOException(context.getString(R.string.chat_attach_text_too_large))
-            }
-            val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
-            return listOf(
-                PendingImage(
-                    uri = storedUri,
-                    base64 = "",
-                    mime = mime,
-                    fileName = fileName,
-                    inlineText = rawText
-                )
-            )
-        }
-
         val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
         val stableFile = File(storedUri.path ?: "")
-
-        if (mime.equals("application/pdf", ignoreCase = true)) {
-            // 保存 PDF 原文件 base64；真正发给视觉接口前会统一渲染为图片页。
-            val pdfDirectMaxBytes = 20L * 1024L * 1024L
-            if (stableFile.length() <= pdfDirectMaxBytes) {
-                val bytes = stableFile.readBytes()
-                if (bytes.isNotEmpty()) {
-                    return listOf(
-                        PendingImage(
-                            uri = storedUri,
-                            base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
-                            mime = "application/pdf",
-                            fileName = fileName
-                        )
-                    )
-                }
-            }
-            // 文件过大或读取失败，fallback 到转图片
-            return buildPdfPageAttachments(stableFile, fileName)
-        }
-
-        if (ChatAttachmentHelper.isImageMime(mime)) {
-            // 像微信一样自动压缩：不需要原图，看得清楚就行
-            compressImageForAi(stableFile)
-        }
-        val maxBytes = ChatAttachmentHelper.maxBytesFor(mime)
-        if (stableFile.length() > maxBytes) {
-            val label = if (ChatAttachmentHelper.isImageMime(mime)) {
-                context.getString(R.string.chat_attach_image_too_large)
-            } else {
-                context.getString(R.string.chat_attach_document_too_large)
-            }
-            throw IOException(label)
+        compressImageForAi(stableFile)
+        if (stableFile.length() > ChatAttachmentHelper.MAX_IMAGE_BYTES) {
+            throw IOException(context.getString(R.string.chat_attach_image_too_large))
         }
         val bytes = context.contentResolver.openInputStream(storedUri)?.readBytes()
             ?: throw IOException(context.getString(R.string.chat_attach_read_failed))
@@ -736,28 +663,32 @@ class ChatMediaController(
         )
     }
 
-    private fun buildPdfPageAttachments(pdfFile: File, fileName: String): List<PendingImage> {
-        val remaining = (ChatImageComposer.MAX_PENDING_IMAGES - pendingAttachmentCount()).coerceAtLeast(1)
-        val pageBytes = ChatPdfRenderer.renderPagesToJpeg(pdfFile, remaining)
+    private fun buildPdfPendingAttachment(uri: Uri, fileName: String): PendingImage {
+        val mime = "application/pdf"
+        val storedUri = copyPickedAttachmentToStorage(uri, mime, fileName)
+        val stableFile = File(storedUri.path ?: "")
+        if (stableFile.length() > ChatAttachmentHelper.MAX_PDF_BYTES) {
+            throw IOException(context.getString(R.string.chat_attach_pdf_too_large))
+        }
+        val pageBytes = ChatPdfRenderer.renderPagesToJpeg(stableFile, ChatAttachmentHelper.MAX_PDF_PAGES)
         if (pageBytes.isEmpty()) {
             throw IOException(context.getString(R.string.chat_attach_pdf_render_failed))
         }
-        val imageDir = File(context.filesDir, "chat_attachments").also { it.mkdirs() }
-        val stem = fileName.substringBeforeLast('.').ifBlank { "pdf" }
-        return pageBytes.mapIndexed { index, bytes ->
+        pageBytes.forEach { bytes ->
             if (bytes.size > maxAiImageBytes) {
                 throw IOException(context.getString(R.string.chat_attach_image_too_large))
             }
-            val pageFile = File(imageDir, "${stem}_p${index + 1}_${System.currentTimeMillis()}.jpg")
-            pageFile.writeBytes(bytes)
-            PendingImage(
-                uri = Uri.fromFile(pageFile),
-                base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP),
-                mime = "image/jpeg",
-                fileName = if (pageBytes.size == 1) fileName else "$fileName (${index + 1}/${pageBytes.size})",
-                sourceUri = Uri.fromFile(pdfFile)
-            )
         }
+        val pages = pageBytes.map { bytes ->
+            android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP) to "image/jpeg"
+        }
+        return PendingImage(
+            uri = storedUri,
+            base64 = "",
+            mime = mime,
+            fileName = fileName,
+            pdfPagePayloads = pages
+        )
     }
 
     private class UnsupportedAttachmentException(message: String) : IOException(message)

@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.logic.insight.InsightCardModel
 import com.taostudio.tapaccounting.logic.insight.InsightSeverity
+import com.taostudio.tapaccounting.logic.insight.InsightType
 
 class InsightCardAdapter(
     private val onCardClick: ((InsightCardModel) -> Unit)? = null
@@ -46,11 +47,24 @@ class InsightCardAdapter(
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val severityBar: View = itemView.findViewById(R.id.viewSeverityBar)
         private val tvTitle: TextView = itemView.findViewById(R.id.tvInsightTitle)
+        private val tvAmount: TextView = itemView.findViewById(R.id.tvInsightAmount)
+        private val tvType: TextView = itemView.findViewById(R.id.tvInsightType)
         private val tvBody: TextView = itemView.findViewById(R.id.tvInsightBody)
 
         fun bind(model: InsightCardModel) {
             tvTitle.text = model.title
             tvBody.text = model.body
+            tvType.text = when (model.type) {
+                InsightType.MONTH_TOTAL_DELTA -> "月度"
+                InsightType.MONTH_CATEGORY_DELTA -> "分类"
+                InsightType.LARGE_EXPENSE -> "大额"
+                InsightType.RECURRING_HINT -> "周期"
+                InsightType.WEEKEND_SPEND -> "周末"
+                InsightType.CATEGORY_CONCENTRATION -> "占比"
+            }
+            val amount = model.payload["amount"]
+            tvAmount.visibility = if (amount.isNullOrBlank()) View.GONE else View.VISIBLE
+            tvAmount.text = amount?.let { "¥$it" }.orEmpty()
 
             val color = when (model.severity) {
                 InsightSeverity.WARN -> Color.parseColor("#FF5252")

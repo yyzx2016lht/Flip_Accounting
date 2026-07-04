@@ -1,9 +1,12 @@
 package com.taostudio.tapaccounting.ui.budget
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -38,6 +41,11 @@ class BudgetManageActivity : AppCompatActivity() {
     private lateinit var adapter: BudgetAdapter
     private lateinit var rvBudgets: RecyclerView
     private lateinit var tvEmpty: TextView
+    private lateinit var layoutSummary: View
+    private lateinit var tvSummaryTitle: TextView
+    private lateinit var tvSummaryStatus: TextView
+    private lateinit var tvSummaryDetail: TextView
+    private lateinit var progressSummary: ProgressBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +63,11 @@ class BudgetManageActivity : AppCompatActivity() {
         rvBudgets = findViewById(R.id.rv_budgets)
         rvBudgets.layoutManager = LinearLayoutManager(this)
         tvEmpty = findViewById(R.id.tv_budget_empty)
+        layoutSummary = findViewById(R.id.layout_budget_summary)
+        tvSummaryTitle = findViewById(R.id.tv_budget_summary_title)
+        tvSummaryStatus = findViewById(R.id.tv_budget_summary_status)
+        tvSummaryDetail = findViewById(R.id.tv_budget_summary_detail)
+        progressSummary = findViewById(R.id.progress_budget_summary)
         val btnSuggest = findViewById<View>(R.id.btn_suggest_budget)
         val btnAdd = findViewById<View>(R.id.btn_add_budget)
 
@@ -73,11 +86,7 @@ class BudgetManageActivity : AppCompatActivity() {
                     budgetService.suggestBudgetFromHistory(currentBook, null, yearMonth)
                 }
                 if (suggested != null) {
-                    Toast.makeText(
-                        this@BudgetManageActivity,
-                        getString(R.string.budget_suggest_result_fmt, suggested),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    showAddBudgetDialog(prefillAmount = suggested, forceTotalBudget = true)
                 } else {
                     Toast.makeText(
                         this@BudgetManageActivity,
@@ -96,18 +105,50 @@ class BudgetManageActivity : AppCompatActivity() {
             }
 
             if (budgetsWithProgress.isEmpty()) {
+                layoutSummary.visibility = View.GONE
                 tvEmpty.visibility = View.VISIBLE
                 tvEmpty.text = getString(R.string.budget_empty_hint)
                 rvBudgets.visibility = View.GONE
             } else {
                 tvEmpty.visibility = View.GONE
                 rvBudgets.visibility = View.VISIBLE
+                bindSummary(budgetsWithProgress)
                 adapter.submitList(budgetsWithProgress)
             }
         }
     }
 
-    private fun showAddBudgetDialog() {
+    private fun bindSummary(items: List<BudgetService.BudgetOverview>) {
+        val total = items.firstOrNull { it.budget.categoryId == null } ?: items.firstOrNull() ?: return
+        val budget = total.budget
+        val progress = total.progress
+        val statusColor = when (progress.status) {
+            BudgetService.BudgetStatus.EXCEEDED -> Color.parseColor("#FF5252")
+            BudgetService.BudgetStatus.WARNING -> Color.parseColor("#FF9800")
+            BudgetService.BudgetStatus.NORMAL -> Color.parseColor("#4CAF50")
+        }
+        layoutSummary.visibility = View.VISIBLE
+        tvSummaryTitle.text = getString(
+            R.string.budget_summary_title_fmt,
+            yearMonth,
+            budget.categoryName ?: getString(R.string.budget_monthly_total)
+        )
+        tvSummaryStatus.text = when (progress.status) {
+            BudgetService.BudgetStatus.EXCEEDED -> getString(R.string.budget_status_exceeded)
+            BudgetService.BudgetStatus.WARNING -> getString(R.string.budget_status_warning)
+            BudgetService.BudgetStatus.NORMAL -> getString(R.string.budget_status_normal)
+        }
+        tvSummaryStatus.setTextColor(statusColor)
+        tvSummaryDetail.text = if (progress.remaining >= 0) {
+            getString(R.string.budget_summary_detail_fmt, budget.amount, progress.usedAmount, progress.remaining)
+        } else {
+            getString(R.string.budget_over_budget_fmt, budget.amount, progress.usedAmount, -progress.remaining)
+        }
+        progressSummary.progress = (progress.percent * 100).toInt().coerceAtMost(100)
+        progressSummary.progressTintList = ColorStateList.valueOf(statusColor)
+    }
+
+    private fun showAddBudgetDialog(prefillAmount: Double? = null, forceTotalBudget: Boolean = false) {
         lifecycleScope.launch {
             val categories = withContext(Dispatchers.IO) {
                 CategoryRepository(AppDatabase.getDatabase(this@BudgetManageActivity).categoryDao())
@@ -119,11 +160,22 @@ class BudgetManageActivity : AppCompatActivity() {
             val dialogView = layoutInflater.inflate(R.layout.dialog_add_budget, null)
             val spinner = dialogView.findViewById<Spinner>(R.id.spinner_budget_category)
             val etAmount = dialogView.findViewById<EditText>(R.id.et_budget_amount)
+            if (prefillAmount != null) {
+                etAmount.setText(String.format(Locale.getDefault(), "%.0f", prefillAmount))
+            }
             spinner.adapter = ArrayAdapter(
                 this@BudgetManageActivity,
                 android.R.layout.simple_spinner_dropdown_item,
                 labels
             )
+            spinner.isEnabled = !forceTotalBudget
+            if (forceTotalBudget) {
+                Toast.makeText(
+                    this@BudgetManageActivity,
+                    getString(R.string.budget_suggest_apply_fmt, prefillAmount ?: 0.0),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
 
             AlertDialog.Builder(ContextThemeWrapper(this@BudgetManageActivity, R.style.Theme_TapAccounting))
                 .setTitle(getString(R.string.budget_set))
@@ -148,17 +200,32 @@ class BudgetManageActivity : AppCompatActivity() {
                         withContext(Dispatchers.IO) {
                             val db = AppDatabase.getDatabase(this@BudgetManageActivity)
                             val now = System.currentTimeMillis()
-                            db.budgetDao().insert(
-                                Budget(
-                                    bookName = currentBook,
-                                    categoryId = categoryId,
-                                    categoryName = categoryName,
-                                    yearMonth = yearMonth,
-                                    amount = amount,
-                                    createdAt = now,
-                                    updatedAt = now
+                            val existing = if (categoryId == null) {
+                                db.budgetDao().getTotalBudget(yearMonth, currentBook)
+                            } else {
+                                db.budgetDao().getBudgetByBookAndCategory(yearMonth, currentBook, categoryId)
+                            }
+                            if (existing == null) {
+                                db.budgetDao().insert(
+                                    Budget(
+                                        bookName = currentBook,
+                                        categoryId = categoryId,
+                                        categoryName = categoryName,
+                                        yearMonth = yearMonth,
+                                        amount = amount,
+                                        createdAt = now,
+                                        updatedAt = now
+                                    )
                                 )
-                            )
+                            } else {
+                                db.budgetDao().update(
+                                    existing.copy(
+                                        categoryName = categoryName,
+                                        amount = amount,
+                                        updatedAt = now
+                                    )
+                                )
+                            }
                         }
                         loadBudgets()
                     }

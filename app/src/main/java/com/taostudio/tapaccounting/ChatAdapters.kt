@@ -1293,7 +1293,8 @@ class SessionListAdapter(
         private val btnRename: ImageView = v.findViewById(R.id.btn_session_rename)
         private val btnDelete: ImageView = v.findViewById(R.id.btn_session_delete)
         private val slop = ViewConfiguration.get(v.context).scaledTouchSlop
-        private val actionsWidthPx = 120f * v.resources.displayMetrics.density
+        private val actionsWidthPx = 112f * v.resources.displayMetrics.density
+        private var boundItem: ChatSessionRow? = null
         private var downX = 0f
         private var downY = 0f
         private var startTx = 0f
@@ -1379,6 +1380,7 @@ class SessionListAdapter(
                         val tx = (startTx + dx).coerceIn(-actionsWidthPx, 0f)
                         foreground.translationX = tx
                         updateActionLayerVisibility(tx)
+                        boundItem?.let { updateForegroundBackground(it, tx) }
                         return true
                     }
                     return true
@@ -1411,8 +1413,28 @@ class SessionListAdapter(
                 openedPosition = RecyclerView.NO_POSITION
             }
             foreground.animate().translationX(target).setDuration(UiMotion.FAST).setInterpolator(UiMotion.STANDARD_EASING)
-                .withEndAction { updateActionLayerVisibility(target) }
+                .withEndAction {
+                    updateActionLayerVisibility(target)
+                    boundItem?.let { updateForegroundBackground(it, target) }
+                }
                 .start()
+        }
+
+        private fun resolveSessionBgRes(item: ChatSessionRow, openedLike: Boolean): Int = when {
+            item.isCurrent && openedLike -> R.drawable.bg_chat_session_item_selected_opened
+            item.isCurrent -> R.drawable.bg_chat_session_item_selected
+            openedLike -> R.drawable.bg_chat_session_item_opened
+            else -> R.drawable.bg_chat_session_item
+        }
+
+        private fun updateForegroundBackground(item: ChatSessionRow, translationX: Float) {
+            val openedLike = translationX < -actionsWidthPx * 0.08f
+            val bgRes = resolveSessionBgRes(item, openedLike)
+            if (foreground.tag != bgRes) {
+                foreground.tag = bgRes
+                foreground.setBackgroundResource(bgRes)
+                foreground.clipToOutline = true
+            }
         }
 
         private fun updateActionLayerVisibility(translationX: Float = foreground.translationX) {
@@ -1445,19 +1467,14 @@ class SessionListAdapter(
         }
 
         fun bind(item: ChatSessionRow, opened: Boolean, editing: Boolean) {
+            boundItem = item
             tvTitle.text = item.title
             tvPreview.text = item.preview
             tvTime.text = item.displayTime
             foreground.animate().cancel()
             foreground.translationX = if (opened) -actionsWidthPx else 0f
             updateActionLayerVisibility(foreground.translationX)
-            val bgRes = when {
-                item.isCurrent && opened -> R.drawable.bg_chat_session_item_selected_opened
-                item.isCurrent -> R.drawable.bg_chat_session_item_selected
-                opened -> R.drawable.bg_chat_session_item_opened
-                else -> R.drawable.bg_chat_session_item
-            }
-            foreground.setBackgroundResource(bgRes)
+            updateForegroundBackground(item, foreground.translationX)
             if (editing) {
                 tvTitle.visibility = View.GONE
                 etTitle.visibility = View.VISIBLE

@@ -82,18 +82,29 @@
             <ImageView
                 android:layout_width="28dp"
                 android:layout_height="28dp"
-                android:contentDescription="@string/chat_attach_file"
+                android:contentDescription="@string/chat_attach_pdf"
                 android:src="@drawable/ic_chat_file" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="@string/chat_attach_file"
+                android:text="@string/chat_attach_pdf"
                 android:textColor="#2A3A53"
                 android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:lineSpacingExtra="2dp"
+        android:paddingHorizontal="8dp"
+        android:text="@string/chat_attach_pdf_hint"
+        android:textColor="#7B8798"
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/btn_attach_cancel"

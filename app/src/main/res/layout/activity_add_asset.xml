@@ -252,47 +252,83 @@
                             android:textSize="@dimen/text_size_16"/>
                     </LinearLayout>
 
-                    <!-- Credit Card: 账单日 / 还款日（同一行） -->
+                    <!-- Credit Card: 账单日 / 还款日 -->
                     <LinearLayout
                         android:id="@+id/layout_credit_cycle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:minHeight="56dp"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="16dp"
-                        android:paddingVertical="8dp"
+                        android:orientation="vertical"
                         android:visibility="gone">
 
-                        <TextView
-                            android:layout_width="72dp"
-                            android:layout_height="wrap_content"
-                            android:text="@string/credit_cycle_label"
-                            android:textColor="@color/text_primary"
-                            android:textSize="@dimen/text_size_16" />
+                        <LinearLayout
+                            android:id="@+id/layout_statement_day"
+                            android:layout_width="match_parent"
+                            android:layout_height="56dp"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp">
 
-                        <TextView
-                            android:id="@+id/tv_statement_day"
-                            android:layout_width="0dp"
-                            android:layout_height="36dp"
-                            android:layout_marginEnd="8dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_search_box"
-                            android:gravity="center"
-                            android:text="@string/credit_statement_day_short"
-                            android:textColor="@color/brand_primary"
-                            android:textSize="14sp" />
+                            <TextView
+                                android:layout_width="100dp"
+                                android:layout_height="wrap_content"
+                                android:text="@string/credit_statement_day"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_16" />
 
-                        <TextView
-                            android:id="@+id/tv_due_day"
-                            android:layout_width="0dp"
-                            android:layout_height="36dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_search_box"
-                            android:gravity="center"
-                            android:text="@string/credit_due_day_short"
-                            android:textColor="@color/brand_primary"
-                            android:textSize="14sp" />
+                            <TextView
+                                android:id="@+id/tv_statement_day"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:gravity="end"
+                                android:maxLines="1"
+                                android:textColor="@color/brand_primary"
+                                android:textSize="@dimen/text_size_16" />
+
+                            <ImageView
+                                android:layout_width="@dimen/icon_size_16"
+                                android:layout_height="@dimen/icon_size_16"
+                                android:layout_marginStart="4dp"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="@color/asset_empty_icon_tint" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/layout_due_day"
+                            android:layout_width="match_parent"
+                            android:layout_height="56dp"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp">
+
+                            <TextView
+                                android:layout_width="100dp"
+                                android:layout_height="wrap_content"
+                                android:text="@string/credit_due_day"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_16" />
+
+                            <TextView
+                                android:id="@+id/tv_due_day"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:gravity="end"
+                                android:maxLines="1"
+                                android:textColor="@color/brand_primary"
+                                android:textSize="@dimen/text_size_16" />
+
+                            <ImageView
+                                android:layout_width="@dimen/icon_size_16"
+                                android:layout_height="@dimen/icon_size_16"
+                                android:layout_marginStart="4dp"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="@color/asset_empty_icon_tint" />
+                        </LinearLayout>
                     </LinearLayout>
 
                     <!-- Asset Category -->

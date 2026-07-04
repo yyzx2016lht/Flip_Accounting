@@ -82,6 +82,11 @@
     <color name="chat_icon_btn_bg">@android:color/transparent</color>
     <color name="chat_icon_btn_stroke">@android:color/transparent</color>
     <color name="chat_icon_btn_tint">#6B7280</color>
+    <color name="chat_session_item_bg">#FFFFFF</color>
+    <color name="chat_session_item_stroke">#E8ECF2</color>
+    <color name="chat_session_item_selected_bg">#EEF4FF</color>
+    <color name="chat_session_item_selected_stroke">#C7DAFF</color>
+    <color name="chat_session_actions_track">#F3F6FB</color>
     <color name="chat_icon_btn_pressed_bg">#E8EEF7</color>
     <color name="chat_icon_btn_pressed_stroke">#C9D3E2</color>
     <color name="chat_bill_card_bg">#FFFFFF</color>

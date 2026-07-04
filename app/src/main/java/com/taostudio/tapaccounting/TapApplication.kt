@@ -58,18 +58,8 @@ class TapApplication : Application() {
         // P1-3: 后台周期账单检测（低优先级，失败静默忽略）
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val bills = database.billDao().getRecentExpenseBills(500)
-                val candidates = com.taostudio.tapaccounting.logic.RecurringBillDetector.detect(bills)
-                val dao = database.recurringPatternDao()
-                for (candidate in candidates) {
-                    val existing = dao.getByMerchantKey(candidate.merchantKey)
-                    if (existing != null && existing.status == com.taostudio.tapaccounting.data.local.entity.RecurringStatus.DISMISSED) {
-                        continue // 已忽略的不重复提示
-                    }
-                    if (existing == null) {
-                        dao.insert(com.taostudio.tapaccounting.logic.RecurringBillDetector.toPattern(candidate))
-                    }
-                }
+                com.taostudio.tapaccounting.logic.RecurringBillingService(database)
+                    .scanRecentBills()
             } catch (_: Exception) { /* 静默忽略 */ }
         }
     }
@@ -92,4 +82,3 @@ class TapApplication : Application() {
         }
     }
 }
-

@@ -26,6 +26,9 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND categoryId = :categoryId LIMIT 1")
     suspend fun getBudgetByCategory(yearMonth: String, categoryId: Long): Budget?
 
+    @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND bookName = :bookName AND categoryId = :categoryId LIMIT 1")
+    suspend fun getBudgetByBookAndCategory(yearMonth: String, bookName: String, categoryId: Long): Budget?
+
     @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND categoryId IS NULL AND bookName = :bookName LIMIT 1")
     suspend fun getTotalBudget(yearMonth: String, bookName: String): Budget?
 

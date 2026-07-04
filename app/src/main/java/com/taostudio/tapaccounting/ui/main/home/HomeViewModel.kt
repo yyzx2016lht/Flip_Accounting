@@ -16,8 +16,6 @@ import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
-import com.taostudio.tapaccounting.logic.insight.InsightCardModel
-import com.taostudio.tapaccounting.logic.insight.InsightEngine
 import com.taostudio.tapaccounting.ui.main.home.dashboard.HomeDashboardCard
 import com.taostudio.tapaccounting.ui.main.home.dashboard.HomeDashboardProvider
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
@@ -61,10 +59,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         HomeUiState(selectedBookName = BookAccountManager.getDefaultBook(application))
     )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
-    /** 洞察卡片（首页最多 2 张） */
-    private val _insightCards = MutableStateFlow<List<InsightCardModel>>(emptyList())
-    val insightCards: StateFlow<List<InsightCardModel>> = _insightCards.asStateFlow()
 
     /** 驾驶舱卡片（首页最多 3 张） */
     private val _dashboardCards = MutableStateFlow<List<HomeDashboardCard>>(emptyList())
@@ -282,26 +276,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     isLoading = false
                 )
                 Log.d(TAG, "StateFlow updated  [+${now() - t2}ms to emit]")
-
-                // 计算洞察卡片（仅月模式且开关开启时）
-                if (flowSnapshot.displayMode == YearMonthPickerDialog.DisplayMode.MONTH
-                    && Prefs.isInsightCardsEnabled(getApplication<Application>())
-                ) {
-                    launch(Dispatchers.Default) {
-                        val prevMonth = if (flowSnapshot.selectedMonth == 1) 12 else flowSnapshot.selectedMonth - 1
-                        val prevYear = if (flowSnapshot.selectedMonth == 1) flowSnapshot.selectedYear - 1 else flowSnapshot.selectedYear
-                        val (prevStart, prevEnd) = getMonthRange(prevYear, prevMonth)
-                        val prevBills = if (selectedBookNormalized == BookAccountManager.ALL_BOOK) {
-                            db.billDao().getBillsBetweenTimesList(prevStart, prevEnd)
-                        } else {
-                            db.billDao().getBillsByBookNamesBetweenTimesList(aliases, prevStart, prevEnd)
-                        }
-                        val cards = InsightEngine.generateForHome(monthly, prevBills)
-                        _insightCards.value = cards
-                    }
-                } else {
-                    _insightCards.value = emptyList()
-                }
 
                 // 计算驾驶舱卡片（开关开启时）
                 if (Prefs.isHomeDashboardEnabled(getApplication<Application>())) {

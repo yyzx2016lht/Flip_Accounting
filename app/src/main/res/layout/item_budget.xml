@@ -30,6 +30,15 @@
             android:textSize="@dimen/text_size_14" />
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/tv_budget_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="#666666"
+        android:textSize="@dimen/text_size_12"
+        android:textStyle="bold" />
+
     <!-- 进度条 -->
     <ProgressBar
         android:id="@+id/progress_budget"
@@ -61,4 +70,12 @@
             android:textColor="#999999"
             android:textSize="@dimen/text_size_12" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_budget_remaining"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="#999999"
+        android:textSize="@dimen/text_size_12" />
 </LinearLayout>

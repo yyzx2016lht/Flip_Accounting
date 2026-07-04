@@ -1345,24 +1345,8 @@ class ChatActivity : AppCompatActivity() {
      * Route [text] + [images] to the accounting pipeline.
      */
     private fun dispatchToAccounting(text: String, attachments: List<PendingImage>) {
-        val inlineTextBlocks = attachments.mapNotNull { attachment ->
-            attachment.inlineText?.let { body ->
-                buildString {
-                    append("[文件 ")
-                    append(attachment.fileName.ifBlank { "文本" })
-                    append("]\n")
-                    append(body)
-                }
-            }
-        }
-        val mergedText = buildString {
-            inlineTextBlocks.forEach { block ->
-                append(block)
-                append("\n\n")
-            }
-            append(text)
-        }.trim()
-        val binaryAttachments = attachments.filter { !it.isInlineText && it.base64.isNotBlank() }
+        val mergedText = text.trim()
+        val binaryAttachments = attachments.filter { it.hasApiPayload }
         val (imageAttachments, fileAttachments) = ChatAttachmentHelper.groupAttachmentsForDisplay(binaryAttachments)
 
         if (binaryAttachments.isEmpty()) {
@@ -1373,7 +1357,15 @@ class ChatActivity : AppCompatActivity() {
         }
 
         val useNaturalLanguage = Prefs.isImageAccountingNaturalLanguage(this)
-        val payload = ChatImageComposer.encodeMultiImagePayload(binaryAttachments, mergedText, useNaturalLanguage)
+        val apiAttachments = ChatAttachmentHelper.flattenForApiPayload(binaryAttachments)
+        val apiSupplement = buildString {
+            if (fileAttachments.isNotEmpty()) {
+                append(ChatAttachmentHelper.PDF_PAYLOAD_MARKER)
+                append('\n')
+            }
+            append(mergedText)
+        }.trim()
+        val payload = ChatImageComposer.encodeMultiImagePayload(apiAttachments, apiSupplement, useNaturalLanguage)
         imageAttachments.forEach { attachment ->
             appendUserMessage(
                 "",
@@ -1385,19 +1377,19 @@ class ChatActivity : AppCompatActivity() {
             appendUserMessage(
                 ChatAttachmentHelper.encodeFileMessageContent(
                     attachment.mime,
-                    attachment.fileName.ifBlank { getString(R.string.chat_attach_file) }
+                    attachment.fileName.ifBlank { getString(R.string.chat_attach_pdf) }
                 ),
                 MSG_TYPE_USER_FILE,
-                (attachment.sourceUri ?: attachment.uri)?.toString().orEmpty()
+                attachment.uri?.toString().orEmpty()
             )
         }
         if (mergedText.isNotBlank()) {
             appendUserMessage(mergedText, MSG_TYPE_USER_TEXT)
         }
         val loadingText = when {
-            binaryAttachments.size > 1 -> getString(R.string.chat_analyzing_attachments_fmt, binaryAttachments.size)
-            binaryAttachments.firstOrNull()?.mime.equals("application/pdf", ignoreCase = true) ->
+            fileAttachments.isNotEmpty() && imageAttachments.isEmpty() ->
                 getString(R.string.chat_analyzing_pdf)
+            binaryAttachments.size > 1 -> getString(R.string.chat_analyzing_attachments_fmt, binaryAttachments.size)
             else -> ""
         }
         messagePipeline.callAiAccounting(
@@ -1443,7 +1435,7 @@ class ChatActivity : AppCompatActivity() {
             when {
                 attachment.showsAsImageThumbnail ->
                     addImagePreviewChip(index, attachment, size, margin, removeBtnSize)
-                attachment.showsAsFileCard || attachment.isInlineText ->
+                attachment.showsAsFileCard ->
                     addFilePreviewChip(index, attachment, density, margin, removeBtnSize)
             }
         }
@@ -1522,8 +1514,7 @@ class ChatActivity : AppCompatActivity() {
                 marginStart = (8 * density).toInt()
             }
         }
-        val displayName = attachment.fileName.ifBlank { getString(R.string.chat_attach_file) }
-        val displayMime = if (attachment.sourceUri != null) "application/pdf" else attachment.mime
+        val displayName = attachment.fileName.ifBlank { getString(R.string.chat_attach_pdf) }
         textColumn.addView(TextView(this).apply {
             text = displayName
             textSize = 12f
@@ -1533,9 +1524,9 @@ class ChatActivity : AppCompatActivity() {
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
         textColumn.addView(TextView(this).apply {
-            text = ChatAttachmentHelper.fileTypeLabel(this@ChatActivity, displayMime, displayName)
+            text = ChatAttachmentHelper.fileTypeLabel(this@ChatActivity, attachment.mime, displayName)
             textSize = 10f
-            maxLines = 1
+            maxLines = 2
             setTextColor(Color.parseColor("#7B8798"))
         })
         chip.addView(iconView)

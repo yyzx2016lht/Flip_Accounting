@@ -223,7 +223,7 @@ System prompt 注入：工具列表、紧凑 context（账本/资产名/分类�
 | `asset.list` | READ | 列出所有资产 | `AssetDao.getAllAssetsList` |
 | `asset.count` | READ | 有多少个账户 | AssetDao |
 | `asset.get_balance` | READ | 某账户余额 | `Asset.balance` + 多币种 |
-| `asset.get_net_worth` | READ | 净资产/总资产/总负债 | `AssetsFragment.updateHeader` / `AssetActivity` |
+| `asset.get_net_worth` | READ | 净资产/总资产/总负债 | `AssetsFragment.updateHeader` |
 | `asset.query_spending` | READ | 某资产花销（账单维度） | `QUERY_ASSET_STATS` |
 | `asset.create` | WRITE | 新建资产 | `AddAssetActivity` |
 | `asset.edit` | WRITE | 改名称/图标/备注等 | `AddAssetActivity` |
@@ -289,7 +289,7 @@ System prompt 注入：工具列表、紧凑 context（账本/资产名/分类�
 | `cloud.get_config` | READ | 读 WebDAV 配置（密码打码） | cloud prefs |
 | `cloud.set_config` | SENSITIVE | 设 WebDAV | `BackupActivity` cloud |
 | `cloud.backup_now` | WRITE | 立即云备份 | Cloud backup |
-| `cloud.open_settings` | NAV | 云备份设置页 | `CloudBackupActivity` |
+| `cloud.open_settings` | NAV | 云备份设置页 | `BackupActivity` cloud |
 | `storage.get_usage` | READ | 存储占用 | `StorageCleanupActivity` |
 | `storage.cleanup` | DESTRUCTIVE | 清理缓存/语音/图片 | Storage cleanup |
 | `storage.open` | NAV | 打开存储管理 | `StorageCleanupActivity` |

@@ -86,6 +86,8 @@ interface AssetDao {
             assetCategory = :assetCategory,
             creditLimit = :creditLimit,
             billingDay = :billingDay,
+            statementDay = :statementDay,
+            dueDay = :dueDay,
             annualInterestRate = :annualInterestRate,
             interestLastSettledAt = :interestLastSettledAt,
             isArchived = :isArchived
@@ -106,6 +108,8 @@ interface AssetDao {
         assetCategory: String,
         creditLimit: Double,
         billingDay: Int,
+        statementDay: Int,
+        dueDay: Int,
         annualInterestRate: Double,
         interestLastSettledAt: Long,
         isArchived: Boolean
@@ -169,4 +173,3 @@ interface AssetDao {
     @Query("DELETE FROM assets")
     suspend fun deleteAll()
 }
-

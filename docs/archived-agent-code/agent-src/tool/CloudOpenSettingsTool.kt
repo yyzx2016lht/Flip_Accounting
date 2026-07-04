@@ -2,7 +2,7 @@ package com.taostudio.tapaccounting.chat.agent.tool
 
 import android.content.Context
 import android.content.Intent
-import com.taostudio.tapaccounting.CloudBackupActivity
+import com.taostudio.tapaccounting.BackupActivity
 import com.taostudio.tapaccounting.chat.agent.AgentTool
 import com.taostudio.tapaccounting.chat.agent.AgentToolResult
 import com.taostudio.tapaccounting.chat.agent.AgentSessionContext
@@ -21,7 +21,8 @@ class CloudOpenSettingsTool(private val context: Context) : AgentTool {
     }
 
     override suspend fun execute(params: JSONObject, context: AgentSessionContext): AgentToolResult {
-        val intent = Intent(this.context, CloudBackupActivity::class.java).apply {
+        val intent = Intent(this.context, BackupActivity::class.java).apply {
+            putExtra(BackupActivity.EXTRA_OPEN_SECTION, BackupActivity.SECTION_CLOUD)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         return AgentToolResult.success(

@@ -3,10 +3,12 @@ package com.taostudio.tapaccounting.logic.insight
 enum class InsightSeverity { WARN, POSITIVE, INFO }
 
 enum class InsightType {
+    MONTH_TOTAL_DELTA,     // 本月总支出环比
     MONTH_CATEGORY_DELTA,  // 分类支出环比
     LARGE_EXPENSE,         // 单笔大额
     RECURRING_HINT,        // 周期扣费提示
-    WEEKEND_SPEND          // 周末支出占比
+    WEEKEND_SPEND,         // 周末支出占比
+    CATEGORY_CONCENTRATION // 分类支出集中
 }
 
 enum class InsightActionType {

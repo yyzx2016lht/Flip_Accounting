@@ -56,13 +56,9 @@
 
 ## 🟡 Medium
 
-### 1. Hardcoded currency symbol in AssetActivity disregards multi-currency
+### 1. ~~Hardcoded currency symbol in AssetActivity disregards multi-currency~~ (已移除废弃页面)
 
-- **文件**: `app/src/main/java/com/taostudio/tapaccounting/AssetActivity.kt`
-- **行号**: 97-99, 169
-- **描述**: updateHeader() formats net asset, total asset, and total debt with hardcoded '¥' prefix (e.g., String.format(Locale.getDefault(), '¥%.2f', netAsset)), and the adapter also uses '¥%.2f' for individual asset balances. When assets are stored in non-CNY currencies, the display shows wrong currency symbols.
-- **影响**: Users with non-CNY assets see incorrect currency symbols (always ¥) in the asset manager, which is misleading and can cause accounting errors.
-- **建议修复**: Use CurrencyManager.getSymbol(asset.currency) or CurrencyUtils.formatAmount() instead of hardcoding '¥'. In updateHeader(), the conversion to CNY is already done, but the header could still note the display currency. In the adapter, use the asset's actual currency.
+- **文件**: `AssetActivity.kt` — 已删除，该页面未被任何入口引用，资产列表由 `AssetsFragment` 承载。
 
 ### 2. BuiltInPickerActivity selection never returned to caller
 

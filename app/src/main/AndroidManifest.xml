@@ -120,7 +120,6 @@
         </receiver>
 
         <activity android:name=".AppListActivity" android:label="应用白名单" />
-    <activity android:name=".AssetActivity" android:label="资产管理" />
     <activity android:name=".AddAssetActivity" android:label="新增资产" />
         <activity android:name=".BalanceAdjustmentActivity" android:label="@string/title_balance_adjustment" />
     <activity android:name=".SettingsActivity" android:label="分类管理" />
@@ -128,10 +127,6 @@
         <activity
             android:name=".BackupHomeActivity"
             android:label="备份与恢复"
-            android:exported="false" />
-        <activity
-            android:name=".CloudBackupActivity"
-            android:label="云端备份设置"
             android:exported="false" />
         <activity
             android:name=".StorageCleanupActivity"

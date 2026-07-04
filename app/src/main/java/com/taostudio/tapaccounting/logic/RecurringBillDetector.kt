@@ -39,11 +39,8 @@ object RecurringBillDetector {
         // 按归一化 remark + category 分组
         data class GroupKey(val normalizedRemark: String, val category: String)
 
-        fun normalize(text: String): String =
-            text.trim().lowercase().replace("\\s+".toRegex(), "")
-
         val groups = expenses.filter { it.remark.isNotBlank() }
-            .groupBy { GroupKey(normalize(it.remark), it.categoryName) }
+            .groupBy { GroupKey(RecurringBillingService.normalizeMerchantKey(it.remark), it.categoryName) }
 
         val candidates = mutableListOf<RecurringCandidate>()
 
@@ -111,7 +108,7 @@ object RecurringBillDetector {
      */
     fun toPattern(candidate: RecurringCandidate): RecurringPattern {
         val now = System.currentTimeMillis()
-        val nextExpected = calculateNextExpected(candidate.lastSeenAt, candidate.frequency)
+        val nextExpected = RecurringBillingService.calculateNextExpected(candidate.lastSeenAt, candidate.frequency)
 
         return RecurringPattern(
             merchantKey = candidate.merchantKey,
@@ -131,14 +128,4 @@ object RecurringBillDetector {
         )
     }
 
-    private fun calculateNextExpected(lastSeen: Long, frequency: RecurringFrequency): Long {
-        val cal = java.util.Calendar.getInstance()
-        cal.timeInMillis = lastSeen
-        when (frequency) {
-            RecurringFrequency.WEEKLY -> cal.add(java.util.Calendar.DAY_OF_YEAR, 7)
-            RecurringFrequency.MONTHLY -> cal.add(java.util.Calendar.MONTH, 1)
-            RecurringFrequency.YEARLY -> cal.add(java.util.Calendar.YEAR, 1)
-        }
-        return cal.timeInMillis
-    }
 }

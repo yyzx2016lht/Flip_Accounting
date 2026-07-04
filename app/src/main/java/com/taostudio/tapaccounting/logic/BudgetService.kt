@@ -2,7 +2,6 @@ package com.taostudio.tapaccounting.logic
 
 import com.taostudio.tapaccounting.data.local.dao.BillDao
 import com.taostudio.tapaccounting.data.local.dao.BudgetDao
-import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.Budget
 import java.util.Calendar
 
@@ -14,6 +13,17 @@ class BudgetService(
     private val budgetDao: BudgetDao,
     private val billDao: BillDao
 ) {
+    sealed class BudgetScope {
+        data class Book(val bookName: String) : BudgetScope()
+        object AllBooks : BudgetScope()
+
+        val daoBookName: String
+            get() = when (this) {
+                is Book -> bookName
+                AllBooks -> ""
+            }
+    }
+
     /** 预算状态 */
     enum class BudgetStatus {
         NORMAL,   // 正常
@@ -30,6 +40,11 @@ class BudgetService(
         val status: BudgetStatus
     )
 
+    data class BudgetOverview(
+        val budget: Budget,
+        val progress: BudgetProgress
+    )
+
     /**
      * 获取某分类在指定月份的支出金额。
      * 排除 excludeFromStats = true 的账单。
@@ -40,15 +55,14 @@ class BudgetService(
         yearMonth: String
     ): Double {
         val (start, end) = parseYearMonthRange(yearMonth) ?: return 0.0
-        val bills = billDao.getBillsBetweenTimesList(start, end)
-
-        return bills.filter { bill ->
-            !bill.excludeFromStats
-                    && bill.type == Bill.TYPE_EXPENSE
-                    && bill.subType != Bill.SUBTYPE_REFUND
-                    && (bookName.isBlank() || bill.bookName == bookName)
-                    && (categoryId == null || bill.categoryId == categoryId)
-        }.sumOf { it.amount }
+        return if (categoryId == null) {
+            billDao.sumBudgetExpense(start, end, bookName)
+        } else {
+            billDao.sumBudgetExpenseByCategories(start, end, bookName, listOf(categoryId))
+                .firstOrNull { it.categoryId == categoryId }
+                ?.total
+                ?: 0.0
+        }
     }
 
     /**
@@ -56,20 +70,7 @@ class BudgetService(
      */
     suspend fun getBudgetProgress(budget: Budget): BudgetProgress {
         val used = getMonthSpend(budget.bookName, budget.categoryId, budget.yearMonth)
-        val percent = if (budget.amount > 0) used / budget.amount else 0.0
-        val remaining = budget.amount - used
-        val status = when {
-            percent >= 1.0 -> BudgetStatus.EXCEEDED
-            percent >= budget.alertThreshold -> BudgetStatus.WARNING
-            else -> BudgetStatus.NORMAL
-        }
-        return BudgetProgress(
-            budgetAmount = budget.amount,
-            usedAmount = used,
-            percent = percent,
-            remaining = remaining,
-            status = status
-        )
+        return buildProgress(budget, used)
     }
 
     /**
@@ -106,15 +107,68 @@ class BudgetService(
     suspend fun getMonthBudgetsWithProgress(
         bookName: String,
         yearMonth: String
-    ): List<Pair<Budget, BudgetProgress>> {
+    ): List<BudgetOverview> {
+        return getMonthBudgetOverview(
+            scope = if (bookName.isBlank()) BudgetScope.AllBooks else BudgetScope.Book(bookName),
+            yearMonth = yearMonth
+        )
+    }
+
+    suspend fun getMonthBudgetOverview(
+        scope: BudgetScope,
+        yearMonth: String
+    ): List<BudgetOverview> {
+        val bookName = scope.daoBookName
         val budgets = if (bookName.isBlank()) {
             budgetDao.getBudgetsByMonth(yearMonth)
         } else {
             budgetDao.getBudgetsByMonthAndBook(yearMonth, bookName)
         }
-        return budgets.map { budget ->
-            budget to getBudgetProgress(budget)
+        if (scope == BudgetScope.AllBooks) {
+            return budgets.groupBy { it.bookName }
+                .flatMap { (groupBookName, groupBudgets) ->
+                    buildBudgetOverview(groupBudgets, groupBookName, yearMonth)
+                }
         }
+        return buildBudgetOverview(budgets, bookName, yearMonth)
+    }
+
+    private suspend fun buildBudgetOverview(
+        budgets: List<Budget>,
+        bookName: String,
+        yearMonth: String
+    ): List<BudgetOverview> {
+        val (start, end) = parseYearMonthRange(yearMonth) ?: return emptyList()
+        val totalUsed = billDao.sumBudgetExpense(start, end, bookName)
+        val categoryIds = budgets.mapNotNull { it.categoryId }.distinct()
+        val categoryUsage = if (categoryIds.isEmpty()) {
+            emptyMap()
+        } else {
+            billDao.sumBudgetExpenseByCategories(start, end, bookName, categoryIds)
+                .associate { it.categoryId to it.total }
+        }
+
+        return budgets.map { budget ->
+            val used = budget.categoryId?.let { categoryUsage[it] ?: 0.0 } ?: totalUsed
+            BudgetOverview(budget, buildProgress(budget, used))
+        }
+    }
+
+    private fun buildProgress(budget: Budget, used: Double): BudgetProgress {
+        val percent = if (budget.amount > 0) used / budget.amount else 0.0
+        val remaining = budget.amount - used
+        val status = when {
+            percent >= 1.0 -> BudgetStatus.EXCEEDED
+            percent >= budget.alertThreshold -> BudgetStatus.WARNING
+            else -> BudgetStatus.NORMAL
+        }
+        return BudgetProgress(
+            budgetAmount = budget.amount,
+            usedAmount = used,
+            percent = percent,
+            remaining = remaining,
+            status = status
+        )
     }
 
     /**
