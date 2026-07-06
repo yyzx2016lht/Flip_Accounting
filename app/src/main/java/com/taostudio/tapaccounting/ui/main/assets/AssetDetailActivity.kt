@@ -90,6 +90,7 @@ class AssetDetailActivity : AppCompatActivity() {
     private lateinit var tvAssetBalance: TextView
     private lateinit var tvActionReconcile: TextView
     private lateinit var tvActionArchive: TextView
+    private lateinit var tvExcludeHint: TextView
     private lateinit var toolbarDoubleTapDetector: GestureDetector
     private var fabHiddenByScroll = false
     private var fabScrollAccumulator = 0
@@ -193,6 +194,7 @@ class AssetDetailActivity : AppCompatActivity() {
 
         tvActionReconcile = findViewById(R.id.tv_action_reconcile)
         tvActionArchive = findViewById(R.id.tv_action_archive)
+        tvExcludeHint = findViewById(R.id.tv_exclude_hint)
         tvActionReconcile.setOnClickListener {
             startActivity(
                 Intent(this, com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity::class.java)
@@ -525,12 +527,12 @@ class AssetDetailActivity : AppCompatActivity() {
             noteParts += "年利率 ${formatCompactDecimal(asset.annualInterestRate)}%"
         }
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
-        if (!asset.includeInNetAsset) noteParts += "不计入总资产"
         if (asset.isArchived) noteParts += "已收纳"
         creditCycleSummaryText = null
 
-        // 更新收纳按钮
+        // 更新收纳按钮和不计入总资产提示
         tvActionArchive.text = if (asset.isArchived) "不收纳" else "收纳"
+        tvExcludeHint.visibility = if (!asset.includeInNetAsset) View.VISIBLE else View.GONE
 
         // 理财资产自动弹窗补录本金批次
         checkAndPromptInvestmentLotDraft(asset)

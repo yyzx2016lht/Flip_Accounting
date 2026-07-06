@@ -208,6 +208,17 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="@dimen/text_size_13" />
             </LinearLayout>
+
+            <!-- 不计入总资产提示 -->
+            <TextView
+                android:id="@+id/tv_exclude_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/exclude_total_asset"
+                android:textColor="@color/text_tertiary"
+                android:textSize="@dimen/text_size_11"
+                android:visibility="gone" />
         </LinearLayout>
 
         <View
