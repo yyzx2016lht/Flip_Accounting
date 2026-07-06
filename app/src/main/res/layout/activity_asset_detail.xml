@@ -208,17 +208,6 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="@dimen/text_size_13" />
             </LinearLayout>
-
-            <!-- 已收纳提示 -->
-            <TextView
-                android:id="@+id/tv_archived_hint"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="不计入总资产"
-                android:textColor="@color/text_tertiary"
-                android:textSize="@dimen/text_size_11"
-                android:visibility="gone" />
         </LinearLayout>
 
         <View
