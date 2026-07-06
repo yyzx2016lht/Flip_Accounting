@@ -1000,7 +1000,6 @@ class AssetDetailActivity : AppCompatActivity() {
             private val tvAssetRemark = v.findViewById<TextView>(R.id.tv_asset_remark)
             private val tvReconcileEntry = v.findViewById<TextView>(R.id.tv_reconcile_entry)
             private val tvInvestmentLotDraftAction = v.findViewById<TextView>(R.id.tv_investment_lot_draft_action)
-            private val dividerInvestmentLot = v.findViewById<View>(R.id.divider_investment_lot)
             private val tvArchiveAction = v.findViewById<TextView>(R.id.tv_archive_action)
 
             init {
@@ -1031,8 +1030,6 @@ class AssetDetailActivity : AppCompatActivity() {
 
                 tvInvestmentLotDraftAction.text = investmentLotDraftActionText
                 tvInvestmentLotDraftAction.visibility =
-                    if (showInvestmentLotDraftAction) View.VISIBLE else View.GONE
-                dividerInvestmentLot.visibility =
                     if (showInvestmentLotDraftAction) View.VISIBLE else View.GONE
 
                 tvArchiveAction.text = if (asset?.isArchived == true) "移出收纳资产" else "收纳这个资产"
