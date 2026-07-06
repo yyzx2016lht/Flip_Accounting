@@ -168,6 +168,57 @@
                     android:textSize="@dimen/text_size_28"
                     android:textStyle="bold" />
             </LinearLayout>
+
+            <!-- 对账 / 收纳 按钮 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_action_reconcile"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:paddingHorizontal="14dp"
+                    android:text="对账"
+                    android:textColor="@color/brand_primary"
+                    android:textSize="@dimen/text_size_13" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="14dp"
+                    android:background="@color/divider_soft" />
+
+                <TextView
+                    android:id="@+id/tv_action_archive"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:paddingHorizontal="14dp"
+                    android:text="收纳"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_13" />
+            </LinearLayout>
+
+            <!-- 已收纳提示 -->
+            <TextView
+                android:id="@+id/tv_archived_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="不计入总资产"
+                android:textColor="@color/text_tertiary"
+                android:textSize="@dimen/text_size_11"
+                android:visibility="gone" />
         </LinearLayout>
 
         <View

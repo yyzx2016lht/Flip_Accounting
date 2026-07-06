@@ -23,61 +23,8 @@
         android:id="@+id/tv_asset_remark"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
         android:textColor="@color/asset_summary_label"
         android:textSize="@dimen/text_size_12"
         android:visibility="gone" />
 
-    <com.google.android.material.chip.ChipGroup
-        android:id="@+id/layout_asset_detail_actions"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:singleLine="true"
-        xmlns:app="http://schemas.android.com/apk/res-auto">
-
-        <TextView
-            android:id="@+id/tv_reconcile_entry"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:background="@drawable/bg_action_capsule"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:paddingHorizontal="16dp"
-            android:text="@string/reconcile_entry"
-            android:textColor="@color/brand_primary"
-            android:textSize="@dimen/text_size_13"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tv_investment_lot_draft_action"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_action_capsule"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:paddingHorizontal="16dp"
-            android:text="补录本金批次"
-            android:textColor="@color/brand_primary"
-            android:textSize="@dimen/text_size_13"
-            android:textStyle="bold"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tv_archive_action"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_action_capsule"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:paddingHorizontal="16dp"
-            android:text="@string/archive_asset"
-            android:textColor="#4F75E2"
-            android:textSize="@dimen/text_size_13"
-            android:textStyle="bold" />
-    </com.google.android.material.chip.ChipGroup>
 </LinearLayout>

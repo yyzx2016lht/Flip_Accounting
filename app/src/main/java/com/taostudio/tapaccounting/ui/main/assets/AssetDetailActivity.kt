@@ -88,6 +88,9 @@ class AssetDetailActivity : AppCompatActivity() {
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var layoutBalancePanelTap: View
     private lateinit var tvAssetBalance: TextView
+    private lateinit var tvActionReconcile: TextView
+    private lateinit var tvActionArchive: TextView
+    private lateinit var tvArchivedHint: TextView
     private lateinit var toolbarDoubleTapDetector: GestureDetector
     private var fabHiddenByScroll = false
     private var fabScrollAccumulator = 0
@@ -189,6 +192,17 @@ class AssetDetailActivity : AppCompatActivity() {
         layoutBalancePanelTap = findViewById(R.id.layout_balance_panel_tap)
         tvAssetBalance = findViewById(R.id.tv_asset_balance)
         layoutBalancePanelTap.setOnClickListener { showBillBalanceDisplaySheet() }
+
+        tvActionReconcile = findViewById(R.id.tv_action_reconcile)
+        tvActionArchive = findViewById(R.id.tv_action_archive)
+        tvArchivedHint = findViewById(R.id.tv_archived_hint)
+        tvActionReconcile.setOnClickListener {
+            startActivity(
+                Intent(this, com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity::class.java)
+                    .putExtra(com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity.EXTRA_ASSET_ID, assetId)
+            )
+        }
+        tvActionArchive.setOnClickListener { toggleArchiveCurrentAsset() }
 
         rvTransactions.layoutManager = LinearLayoutManager(this)
         adapter = TransactionAdapter().apply {
@@ -544,6 +558,10 @@ class AssetDetailActivity : AppCompatActivity() {
         if (!asset.includeInNetAsset) noteParts += "不计入总资产"
         if (asset.isArchived) noteParts += "已收纳"
         creditCycleSummaryText = null
+
+        // 更新收纳按钮和提示
+        tvActionArchive.text = if (asset.isArchived) "不收纳" else "收纳"
+        tvArchivedHint.visibility = if (asset.isArchived) View.VISIBLE else View.GONE
 
         // P1-6: 信用卡周期快照
         if (asset.assetCategory == Asset.CATEGORY_CREDIT_CARD) {
@@ -998,29 +1016,8 @@ class AssetDetailActivity : AppCompatActivity() {
         inner class DetailActionHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             private val tvCreditCycleSummary = v.findViewById<TextView>(R.id.tv_credit_cycle_summary)
             private val tvAssetRemark = v.findViewById<TextView>(R.id.tv_asset_remark)
-            private val tvReconcileEntry = v.findViewById<TextView>(R.id.tv_reconcile_entry)
-            private val tvInvestmentLotDraftAction = v.findViewById<TextView>(R.id.tv_investment_lot_draft_action)
-            private val tvArchiveAction = v.findViewById<TextView>(R.id.tv_archive_action)
-
-            init {
-                tvReconcileEntry.setOnClickListener {
-                    startActivity(
-                        Intent(this@AssetDetailActivity, com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity::class.java)
-                            .putExtra(com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity.EXTRA_ASSET_ID, assetId)
-                    )
-                }
-                tvInvestmentLotDraftAction.setOnClickListener {
-                    startActivity(
-                        Intent(this@AssetDetailActivity, AddAssetActivity::class.java)
-                            .putExtra("ASSET_ID", assetId)
-                            .putExtra(AddAssetActivity.EXTRA_FORCE_INVESTMENT_LOT_SPLIT, true)
-                    )
-                }
-                tvArchiveAction.setOnClickListener { toggleArchiveCurrentAsset() }
-            }
 
             fun bind() {
-                val asset = currentAsset
                 tvCreditCycleSummary.text = creditCycleSummaryText.orEmpty()
                 tvCreditCycleSummary.visibility =
                     if (creditCycleSummaryText.isNullOrBlank()) View.GONE else View.VISIBLE
@@ -1028,12 +1025,9 @@ class AssetDetailActivity : AppCompatActivity() {
                 tvAssetRemark.text = assetDetailRemarkText
                 tvAssetRemark.visibility = if (assetDetailRemarkText.isBlank()) View.GONE else View.VISIBLE
 
-                tvInvestmentLotDraftAction.text = investmentLotDraftActionText
-                tvInvestmentLotDraftAction.visibility =
-                    if (showInvestmentLotDraftAction) View.VISIBLE else View.GONE
-
-                tvArchiveAction.text = if (asset?.isArchived == true) "移出收纳资产" else "收纳这个资产"
-                tvArchiveAction.setTextColor(Color.parseColor(if (asset?.isArchived == true) "#4080FF" else "#4F75E2"))
+                // 没有内容时隐藏整个卡片
+                val hasContent = !creditCycleSummaryText.isNullOrBlank() || assetDetailRemarkText.isNotBlank()
+                itemView.visibility = if (hasContent) View.VISIBLE else View.GONE
             }
         }
 
