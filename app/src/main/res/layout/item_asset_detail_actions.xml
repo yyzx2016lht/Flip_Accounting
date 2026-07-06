@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:background="@drawable/bg_bill_group_single"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="10dp">
+
+    <TextView
+        android:id="@+id/tv_credit_cycle_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_search_box"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="7dp"
+        android:textColor="@color/brand_primary"
+        android:textSize="@dimen/text_size_13"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tv_asset_remark"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:textColor="@color/asset_summary_label"
+        android:textSize="@dimen/text_size_12"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/layout_asset_detail_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_reconcile_entry"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="@string/reconcile_entry"
+            android:textColor="@color/brand_primary"
+            android:textSize="@dimen/text_size_14"
+            android:textStyle="bold" />
+
+        <View
+            android:id="@+id/divider_reconcile"
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:background="@color/divider_soft" />
+
+        <TextView
+            android:id="@+id/tv_investment_lot_draft_action"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="补录本金批次"
+            android:textColor="@color/brand_primary"
+            android:textSize="@dimen/text_size_14"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <View
+            android:id="@+id/divider_investment_lot"
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:background="@color/divider_soft"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_archive_action"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="@string/archive_asset"
+            android:textColor="#4F75E2"
+            android:textSize="@dimen/text_size_14"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

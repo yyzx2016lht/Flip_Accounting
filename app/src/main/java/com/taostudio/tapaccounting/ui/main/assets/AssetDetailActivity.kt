@@ -88,9 +88,6 @@ class AssetDetailActivity : AppCompatActivity() {
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var layoutBalancePanelTap: View
     private lateinit var tvAssetBalance: TextView
-    private lateinit var tvCreditCycleSummary: TextView
-    private lateinit var tvAssetRemark: TextView
-    private lateinit var tvArchiveAction: TextView
     private lateinit var toolbarDoubleTapDetector: GestureDetector
     private var fabHiddenByScroll = false
     private var fabScrollAccumulator = 0
@@ -98,6 +95,10 @@ class AssetDetailActivity : AppCompatActivity() {
     private var assetId: Long = -1
     private var currentAsset: Asset? = null
     private var allAssetBills: List<Bill> = emptyList()
+    private var assetDetailRemarkText: String = ""
+    private var creditCycleSummaryText: String? = null
+    private var showInvestmentLotDraftAction: Boolean = false
+    private var investmentLotDraftActionText: String = "补录本金批次"
     /** Per-bill balance after tx, derived backward from current asset balance (not stored snapshots). */
     private var balanceAfterByBillId: Map<Long, Double> = emptyMap()
     private var searchQuery: String = ""
@@ -125,6 +126,8 @@ class AssetDetailActivity : AppCompatActivity() {
         val inflow: Double,
         val outflow: Double
     )
+
+    object DetailActionHeaderRow
 
     data class BillRow(val bill: Bill)
 
@@ -183,21 +186,9 @@ class AssetDetailActivity : AppCompatActivity() {
             showDeleteConfirmDialog()
         }
 
-        // P0-2: 对账入口（余额区域，避免工具栏按钮过多）
-        findViewById<View>(R.id.tv_reconcile_entry)?.setOnClickListener {
-            startActivity(
-                Intent(this, com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity::class.java)
-                    .putExtra(com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity.EXTRA_ASSET_ID, assetId)
-            )
-        }
-
         layoutBalancePanelTap = findViewById(R.id.layout_balance_panel_tap)
         tvAssetBalance = findViewById(R.id.tv_asset_balance)
-        tvCreditCycleSummary = findViewById(R.id.tv_credit_cycle_summary)
-        tvAssetRemark = findViewById(R.id.tv_asset_remark)
-        tvArchiveAction = findViewById(R.id.tv_archive_action)
         layoutBalancePanelTap.setOnClickListener { showBillBalanceDisplaySheet() }
-        tvArchiveAction.setOnClickListener { toggleArchiveCurrentAsset() }
 
         rvTransactions.layoutManager = LinearLayoutManager(this)
         adapter = TransactionAdapter().apply {
@@ -514,9 +505,36 @@ class AssetDetailActivity : AppCompatActivity() {
         }
     }
 
+    private fun refreshInvestmentLotDraftAction(asset: Asset) {
+        if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.balance <= 0.0) {
+            showInvestmentLotDraftAction = false
+            investmentLotDraftActionText = "补录本金批次"
+            if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
+            return
+        }
+        lifecycleScope.launch {
+            val shouldShow = withContext(Dispatchers.IO) {
+                val hasDraft = getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
+                    .contains("asset_${asset.id}")
+                val hasOpenLots = db.investmentLotDao().getOpenLotsByAssetId(asset.id).isNotEmpty()
+                hasDraft || !hasOpenLots
+            }
+            showInvestmentLotDraftAction = shouldShow
+            investmentLotDraftActionText = if (shouldShow) {
+                val hasDraft = getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
+                    .contains("asset_${asset.id}")
+                if (hasDraft) "继续补录本金批次" else "补录本金批次"
+            } else {
+                "补录本金批次"
+            }
+            if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
+        }
+    }
+
     private fun updateAssetUI(asset: Asset) {
         tvToolbarAssetName.text = asset.name
         recomputeBalanceAfterMap()
+        refreshInvestmentLotDraftAction(asset)
         val balanceText = CurrencyUtils.formatAmount(asset.balance, asset.currency)
         val noteParts = mutableListOf<String>()
         if (asset.assetCategory == Asset.CATEGORY_INVESTMENT && asset.annualInterestRate != 0.0) {
@@ -525,6 +543,7 @@ class AssetDetailActivity : AppCompatActivity() {
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
         if (!asset.includeInNetAsset) noteParts += "不计入总资产"
         if (asset.isArchived) noteParts += "已收纳"
+        creditCycleSummaryText = null
 
         // P1-6: 信用卡周期快照
         if (asset.assetCategory == Asset.CATEGORY_CREDIT_CARD) {
@@ -544,11 +563,9 @@ class AssetDetailActivity : AppCompatActivity() {
                         summaryParts += getString(R.string.credit_due_amount_fmt, snapshot.amountDue)
                         snapshot.daysToDue?.let { summaryParts += getString(R.string.credit_days_to_due_fmt, it) }
                     }
-                    tvCreditCycleSummary.visibility = View.VISIBLE
-                    tvCreditCycleSummary.text = summaryParts.joinToString(" · ")
+                    creditCycleSummaryText = summaryParts.joinToString(" · ")
                 } else {
-                    tvCreditCycleSummary.visibility = View.VISIBLE
-                    tvCreditCycleSummary.text = getString(R.string.credit_cycle_not_configured)
+                    creditCycleSummaryText = getString(R.string.credit_cycle_not_configured)
                 }
                 if (snapshot != null) {
                     if (snapshot.unbilledSpend > 0) {
@@ -560,30 +577,17 @@ class AssetDetailActivity : AppCompatActivity() {
                 }
                 val remarkText = noteParts.joinToString(" · ")
                 tvAssetBalance.text = balanceText
-                if (remarkText.isBlank()) {
-                    tvAssetRemark.visibility = View.GONE
-                } else {
-                    tvAssetRemark.visibility = View.VISIBLE
-                    tvAssetRemark.text = remarkText
-                }
-                tvArchiveAction.text = if (asset.isArchived) "移出收纳资产" else "收纳这个资产"
+                assetDetailRemarkText = remarkText
+                if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
                 return@launch
             }
             return // 异步处理，提前返回
         }
 
-        tvCreditCycleSummary.visibility = View.GONE
-
         val remarkText = noteParts.joinToString(" · ")
         tvAssetBalance.text = balanceText
-        if (remarkText.isBlank()) {
-            tvAssetRemark.visibility = View.GONE
-        } else {
-            tvAssetRemark.visibility = View.VISIBLE
-            tvAssetRemark.text = remarkText
-        }
-        tvArchiveAction.text = if (asset.isArchived) "移出收纳资产" else "收纳这个资产"
-        tvArchiveAction.setTextColor(Color.parseColor(if (asset.isArchived) "#4080FF" else "#4F75E2"))
+        assetDetailRemarkText = remarkText
+        if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
     }
 
     private fun toggleArchiveCurrentAsset() {
@@ -760,8 +764,10 @@ class AssetDetailActivity : AppCompatActivity() {
         private val PAYLOAD_SELECTION_CHANGE = "PAYLOAD_SELECTION_CHANGE"
         private val PAYLOAD_BALANCE_DISPLAY_CHANGE = "PAYLOAD_BALANCE_DISPLAY_CHANGE"
         private val PAYLOAD_HEADER_SELECTION_CHANGE = "PAYLOAD_HEADER_SELECTION_CHANGE"
-        private val typeMonthHeader = 0
-        private val typeBillItem = 1
+        private val PAYLOAD_DETAIL_HEADER_CHANGE = "PAYLOAD_DETAIL_HEADER_CHANGE"
+        private val typeDetailActionHeader = 0
+        private val typeMonthHeader = 1
+        private val typeBillItem = 2
 
         private val rows = mutableListOf<Any>()
         private val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
@@ -786,8 +792,14 @@ class AssetDetailActivity : AppCompatActivity() {
             notifyItemRangeChanged(0, itemCount, PAYLOAD_BALANCE_DISPLAY_CHANGE)
         }
 
+        fun notifyDetailHeaderChanged() {
+            val position = rows.indexOfFirst { it is DetailActionHeaderRow }
+            if (position >= 0) notifyItemChanged(position, PAYLOAD_DETAIL_HEADER_CHANGE)
+        }
+
         fun submitList(newList: List<Bill>) {
             rows.clear()
+            rows.add(DetailActionHeaderRow)
             if (newList.isNotEmpty()) {
                 val sorted = newList.sortedWith(compareByDescending<Bill> { it.time }.thenByDescending { it.id })
                 val grouped = sorted.groupBy { monthKeyFormat.format(Date(it.time)) }
@@ -905,6 +917,7 @@ class AssetDetailActivity : AppCompatActivity() {
 
         override fun getItemViewType(position: Int): Int {
             return when (rows[position]) {
+                is DetailActionHeaderRow -> typeDetailActionHeader
                 is MonthHeaderRow -> typeMonthHeader
                 is BillRow -> typeBillItem
                 else -> typeBillItem
@@ -914,6 +927,9 @@ class AssetDetailActivity : AppCompatActivity() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             val inflater = LayoutInflater.from(parent.context)
             return when (viewType) {
+                typeDetailActionHeader -> DetailActionHeaderViewHolder(
+                    inflater.inflate(R.layout.item_asset_detail_actions, parent, false)
+                )
                 typeMonthHeader -> MonthHeaderViewHolder(
                     inflater.inflate(R.layout.item_asset_month_header, parent, false)
                 )
@@ -923,6 +939,7 @@ class AssetDetailActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val row = rows[position]) {
+                is DetailActionHeaderRow -> (holder as DetailActionHeaderViewHolder).bind()
                 is MonthHeaderRow -> (holder as MonthHeaderViewHolder).bind(row, position)
                 is BillRow -> (holder as BillViewHolder).bind(row.bill, position)
             }
@@ -960,6 +977,12 @@ class AssetDetailActivity : AppCompatActivity() {
                     return
                 }
             }
+            if (payloads.isNotEmpty() && holder is DetailActionHeaderViewHolder) {
+                if (payloads.contains(PAYLOAD_DETAIL_HEADER_CHANGE) || payloads.contains(PAYLOAD_MODE_CHANGE)) {
+                    holder.bind()
+                    return
+                }
+            }
             super.onBindViewHolder(holder, position, payloads)
         }
 
@@ -970,6 +993,51 @@ class AssetDetailActivity : AppCompatActivity() {
                 holder.cancelIconLoad()
             }
             super.onViewRecycled(holder)
+        }
+
+        inner class DetailActionHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+            private val tvCreditCycleSummary = v.findViewById<TextView>(R.id.tv_credit_cycle_summary)
+            private val tvAssetRemark = v.findViewById<TextView>(R.id.tv_asset_remark)
+            private val tvReconcileEntry = v.findViewById<TextView>(R.id.tv_reconcile_entry)
+            private val tvInvestmentLotDraftAction = v.findViewById<TextView>(R.id.tv_investment_lot_draft_action)
+            private val dividerInvestmentLot = v.findViewById<View>(R.id.divider_investment_lot)
+            private val tvArchiveAction = v.findViewById<TextView>(R.id.tv_archive_action)
+
+            init {
+                tvReconcileEntry.setOnClickListener {
+                    startActivity(
+                        Intent(this@AssetDetailActivity, com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity::class.java)
+                            .putExtra(com.taostudio.tapaccounting.ui.activity.AssetReconcileActivity.EXTRA_ASSET_ID, assetId)
+                    )
+                }
+                tvInvestmentLotDraftAction.setOnClickListener {
+                    startActivity(
+                        Intent(this@AssetDetailActivity, AddAssetActivity::class.java)
+                            .putExtra("ASSET_ID", assetId)
+                            .putExtra(AddAssetActivity.EXTRA_FORCE_INVESTMENT_LOT_SPLIT, true)
+                    )
+                }
+                tvArchiveAction.setOnClickListener { toggleArchiveCurrentAsset() }
+            }
+
+            fun bind() {
+                val asset = currentAsset
+                tvCreditCycleSummary.text = creditCycleSummaryText.orEmpty()
+                tvCreditCycleSummary.visibility =
+                    if (creditCycleSummaryText.isNullOrBlank()) View.GONE else View.VISIBLE
+
+                tvAssetRemark.text = assetDetailRemarkText
+                tvAssetRemark.visibility = if (assetDetailRemarkText.isBlank()) View.GONE else View.VISIBLE
+
+                tvInvestmentLotDraftAction.text = investmentLotDraftActionText
+                tvInvestmentLotDraftAction.visibility =
+                    if (showInvestmentLotDraftAction) View.VISIBLE else View.GONE
+                dividerInvestmentLot.visibility =
+                    if (showInvestmentLotDraftAction) View.VISIBLE else View.GONE
+
+                tvArchiveAction.text = if (asset?.isArchived == true) "移出收纳资产" else "收纳这个资产"
+                tvArchiveAction.setTextColor(Color.parseColor(if (asset?.isArchived == true) "#4080FF" else "#4F75E2"))
+            }
         }
 
         inner class MonthHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
@@ -1347,4 +1415,3 @@ class AssetDetailActivity : AppCompatActivity() {
     private fun buildCrossCurrencyDetailFormula(bill: Bill, targetCurrency: String = "CNY"): String? =
         BillDisplayFormatter.buildCrossCurrencyDetailFormula(bill, targetCurrency)
 }
-
