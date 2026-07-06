@@ -37,4 +37,10 @@ interface BudgetDao {
 
     @Query("DELETE FROM budgets WHERE yearMonth = :yearMonth")
     suspend fun deleteByMonth(yearMonth: String)
+
+    @Query("SELECT * FROM budgets ORDER BY yearMonth DESC, categoryId ASC")
+    suspend fun getAll(): List<Budget>
+
+    @Query("DELETE FROM budgets")
+    suspend fun deleteAll()
 }

@@ -134,6 +134,24 @@
                 android:visibility="gone" />
 
             <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_budgets"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/budget_data"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cb_restore_recurring_patterns"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/recurring_patterns"
+                android:textColor="#23324A"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
                 android:id="@+id/cb_restore_banners"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -953,6 +953,8 @@ class BackupActivity : AppCompatActivity() {
         }
         if (options.backupRules) fullData["rules"]?.let { toBackup["rules"] = it }
         if (options.backupChatMessages) fullData["chat_messages"]?.let { toBackup["chat_messages"] = it }
+        fullData["budgets"]?.let { toBackup["budgets"] = it }
+        fullData["recurring_patterns"]?.let { toBackup["recurring_patterns"] = it }
 
         val settingsModules = Prefs.serializeSettingsModules(this@BackupActivity)
         if (options.backupSettingsGeneralBasic) settingsModules["settings_general_basic"]?.let { toBackup["settings_general_basic"] = it }
@@ -1056,6 +1058,8 @@ class BackupActivity : AppCompatActivity() {
                 "categories" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_categories),
                 "bills" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_bills),
                 "rules" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_rules),
+                "budgets" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_budgets),
+                "recurring_patterns" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_recurring_patterns),
                 "chat_messages" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_chat_messages),
                 "chat_media" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_chat_media),
                 "settings_general_basic" to view.findViewById<MaterialCheckBox>(R.id.cb_restore_settings_general_basic),
@@ -1106,6 +1110,8 @@ class BackupActivity : AppCompatActivity() {
                 moduleViews.getValue("categories"),
                 moduleViews.getValue("bills"),
                 moduleViews.getValue("rules"),
+                moduleViews.getValue("budgets"),
+                moduleViews.getValue("recurring_patterns"),
                 moduleViews.getValue("banners")
             )
             groupChat.visibility = visibleIfAny(
@@ -1143,6 +1149,8 @@ class BackupActivity : AppCompatActivity() {
                         restoreCategories = moduleViews.getValue("categories").isChecked,
                         restoreBills = moduleViews.getValue("bills").isChecked,
                         restoreRules = moduleViews.getValue("rules").isChecked,
+                        restoreBudgets = moduleViews.getValue("budgets").isChecked,
+                        restoreRecurringPatterns = moduleViews.getValue("recurring_patterns").isChecked,
                         restoreChatMessages = moduleViews.getValue("chat_messages").isChecked,
                         restoreChatMedia = moduleViews.getValue("chat_media").isChecked,
                         restoreSettingsGeneralBasic = moduleViews.getValue("settings_general_basic").isChecked,
@@ -1196,7 +1204,9 @@ class BackupActivity : AppCompatActivity() {
                     investmentLots = if (options.restoreBills) dataMap["investment_lots"]?.let { DataExportManager.deserializeInvestmentLots(it) } else null,
                     categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
                     rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
-                    chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null
+                    chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null,
+                    budgets = if (options.restoreBudgets) dataMap["budgets"]?.let { DataExportManager.deserializeBudgets(it) } else null,
+                    recurringPatterns = if (options.restoreRecurringPatterns) dataMap["recurring_patterns"]?.let { DataExportManager.deserializeRecurringPatterns(it) } else null
                 )
 
                 val settingsModules = listOf(
@@ -1265,7 +1275,9 @@ class BackupActivity : AppCompatActivity() {
                     investmentLots = if (options.restoreBills) dataMap["investment_lots"]?.let { DataExportManager.deserializeInvestmentLots(it) } else null,
                     categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
                     rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
-                    chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null
+                    chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null,
+                    budgets = if (options.restoreBudgets) dataMap["budgets"]?.let { DataExportManager.deserializeBudgets(it) } else null,
+                    recurringPatterns = if (options.restoreRecurringPatterns) dataMap["recurring_patterns"]?.let { DataExportManager.deserializeRecurringPatterns(it) } else null
                 )
 
                 // 设置始终覆盖
@@ -1830,6 +1842,8 @@ data class RestoreOptions(
     val restoreCategories: Boolean,
     val restoreBills: Boolean,
     val restoreRules: Boolean,
+    val restoreBudgets: Boolean,
+    val restoreRecurringPatterns: Boolean,
     val restoreChatMessages: Boolean,
     val restoreChatMedia: Boolean,
     val restoreSettingsGeneralBasic: Boolean,

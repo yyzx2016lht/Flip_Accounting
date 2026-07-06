@@ -153,7 +153,7 @@ class AiRuleManageActivity : AppCompatActivity() {
         selectedRuleIds.add(initialRule.id)
         adapter.notifyDataSetChanged()
         updateMultiSelectUi()
-        restoreRuleListOffset(offset, extraOffset = multiActionOffsetPx())
+        restoreRuleListOffset(offset, extraOffset = -multiActionOffsetPx())
     }
 
     private fun exitMultiSelectMode() {
@@ -161,7 +161,7 @@ class AiRuleManageActivity : AppCompatActivity() {
         isMultiSelectMode = false
         selectedRuleIds.clear()
         adapter.notifyDataSetChanged()
-        restoreRuleListOffset(offset, extraOffset = -multiActionOffsetPx())
+        restoreRuleListOffset(offset, extraOffset = multiActionOffsetPx())
         updateMultiSelectUi()
     }
 

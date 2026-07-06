@@ -93,6 +93,18 @@ object Prefs {
         PrefsGeneralSupport.isAssetFeatureEnabled(ctx)
     fun setAssetFeatureEnabled(ctx: Context, enabled: Boolean) =
         PrefsGeneralSupport.setAssetFeatureEnabled(ctx, enabled)
+    fun isRecurringAutoDetectEnabled(ctx: Context): Boolean =
+        PrefsGeneralSupport.isRecurringAutoDetectEnabled(ctx)
+    fun setRecurringAutoDetectEnabled(ctx: Context, enabled: Boolean) =
+        PrefsGeneralSupport.setRecurringAutoDetectEnabled(ctx, enabled)
+    fun getRecurringDetectAmountTolerance(ctx: Context): Double =
+        PrefsGeneralSupport.getRecurringDetectAmountTolerance(ctx)
+    fun setRecurringDetectAmountTolerance(ctx: Context, tolerance: Double) =
+        PrefsGeneralSupport.setRecurringDetectAmountTolerance(ctx, tolerance)
+    fun hasSeenRecurringAutoDetectGuide(ctx: Context): Boolean =
+        PrefsGeneralSupport.hasSeenRecurringAutoDetectGuide(ctx)
+    fun setRecurringAutoDetectGuideSeen(ctx: Context) =
+        PrefsGeneralSupport.setRecurringAutoDetectGuideSeen(ctx)
 
     // --- AI settings ---
     fun getAiKey(ctx: Context): String = PrefsAiSupport.getAiKey(ctx)
@@ -276,11 +288,6 @@ object Prefs {
         PrefsDisplaySupport.isInsightCardsEnabled(ctx)
     fun setInsightCardsEnabled(ctx: Context, enabled: Boolean) =
         PrefsDisplaySupport.setInsightCardsEnabled(ctx, enabled)
-
-    fun isHomeDashboardEnabled(ctx: Context): Boolean =
-        PrefsDisplaySupport.isHomeDashboardEnabled(ctx)
-    fun setHomeDashboardEnabled(ctx: Context, enabled: Boolean) =
-        PrefsDisplaySupport.setHomeDashboardEnabled(ctx, enabled)
 
     fun isImportOnboardingSeen(ctx: Context): Boolean =
         PrefsDisplaySupport.isImportOnboardingSeen(ctx)

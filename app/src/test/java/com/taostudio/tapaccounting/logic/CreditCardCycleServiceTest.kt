@@ -62,8 +62,56 @@ class CreditCardCycleServiceTest {
             now = millis(2026, 2, 28, 23, 59, 59, 999)
         )!!
 
-        assertEquals(500.0, snapshot.amountDue, 0.0001)
+        assertEquals(500.0, snapshot.billedSpend, 0.0001)
         assertEquals(10, snapshot.daysToDue)
+    }
+
+    @Test
+    fun calculateSnapshot_doesNotDriftPreviousStatementWhenStatementDayExceedsShortMonth() {
+        val asset = creditCard(statementDay = 31, dueDay = 10)
+
+        val snapshot = service.calculateSnapshot(
+            asset = asset,
+            bills = listOf(
+                expense(id = 1L, amount = 100.0, time = millis(2026, 1, 28, 10)),
+                expense(id = 2L, amount = 200.0, time = millis(2026, 1, 29, 10)),
+                expense(id = 3L, amount = 300.0, time = millis(2026, 2, 1, 10))
+            ),
+            now = millis(2026, 2, 28, 23, 59, 59, 999)
+        )!!
+
+        assertEquals(300.0, snapshot.billedSpend, 0.0001)
+    }
+
+    @Test
+    fun calculateSnapshot_usesTargetMonthEndForMonthEndDueDay() {
+        val asset = creditCard(statementDay = 28, dueDay = 31)
+
+        val snapshot = service.calculateSnapshot(
+            asset = asset,
+            bills = listOf(
+                expense(id = 1L, amount = 500.0, time = millis(2026, 2, 10, 10))
+            ),
+            now = millis(2026, 3, 1, 12)
+        )!!
+
+        assertEquals(30, snapshot.daysToDue)
+    }
+
+    @Test
+    fun calculateSnapshot_keepsUnpaidBilledDebtAfterNextStatementCloses() {
+        val asset = creditCard(balance = -1000.0, creditLimit = 5000.0)
+
+        val snapshot = service.calculateSnapshot(
+            asset = asset,
+            bills = listOf(
+                expense(id = 1L, amount = 1000.0, time = millis(2026, 6, 15, 10))
+            ),
+            now = millis(2026, 8, 15, 12)
+        )!!
+
+        assertEquals(1000.0, snapshot.amountDue, 0.0001)
+        assertEquals(0, snapshot.daysToDue)
     }
 
     private fun creditCard(

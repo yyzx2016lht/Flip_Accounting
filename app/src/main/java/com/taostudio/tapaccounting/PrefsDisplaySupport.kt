@@ -22,7 +22,6 @@ object PrefsDisplaySupport {
     private const val KEY_BILL_REMARK_PRIORITY = "bill_remark_priority_v1"
     private const val KEY_INDEPENDENT_DETAIL = "independent_detail_enabled_v1"
     private const val KEY_INSIGHT_CARDS_ENABLED = "insight_cards_enabled"
-    private const val KEY_HOME_DASHBOARD_ENABLED = "home_dashboard_enabled"
     private const val KEY_IMPORT_ONBOARDING_SEEN = "import_onboarding_seen_v1"
     private const val KEY_IMPORT_REVIEW_COMPLETED = "import_review_completed_v1"
 
@@ -113,11 +112,6 @@ object PrefsDisplaySupport {
     fun setInsightCardsEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_INSIGHT_CARDS_ENABLED, enabled).apply()
 
-    fun isHomeDashboardEnabled(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_HOME_DASHBOARD_ENABLED, true)
-    fun setHomeDashboardEnabled(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean(KEY_HOME_DASHBOARD_ENABLED, enabled).apply()
-
     fun isImportOnboardingSeen(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_IMPORT_ONBOARDING_SEEN, false)
     fun setImportOnboardingSeen(ctx: Context, seen: Boolean) =
@@ -128,4 +122,3 @@ object PrefsDisplaySupport {
     fun setImportReviewCompleted(ctx: Context, completed: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_IMPORT_REVIEW_COMPLETED, completed).apply()
 }
-

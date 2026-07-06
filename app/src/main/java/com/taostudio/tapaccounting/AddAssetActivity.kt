@@ -38,7 +38,10 @@ import com.taostudio.tapaccounting.logic.BillAssetImpactService
 import com.taostudio.tapaccounting.logic.BillMutationService
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
-import com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet
+import com.taostudio.tapaccounting.logic.InvestmentLotDraft
+import com.taostudio.tapaccounting.logic.InvestmentLotDraftStorage
+import com.taostudio.tapaccounting.logic.InvestmentLotEntryHelper
+import com.taostudio.tapaccounting.ui.dialog.InvestmentLotSplitDialog
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -48,7 +51,6 @@ import java.util.Locale
 import kotlin.math.abs
 
 class AddAssetActivity : AppCompatActivity() {
-
     private lateinit var etName: EditText
     private lateinit var etBalance: EditText
     private lateinit var etAnnualInterestRate: EditText
@@ -80,6 +82,7 @@ class AddAssetActivity : AppCompatActivity() {
     private var suppressBalanceWatcher = false
     private var balanceEditedByUser = false
     private var pendingAssetSave: PendingAssetSave? = null
+    private var forceInvestmentLotSplitHandled = false
     private val assetUiPrefs by lazy { getSharedPreferences(PREFS_ASSET_UI, MODE_PRIVATE) }
 
     private val db by lazy { AppDatabase.getDatabase(this) }
@@ -117,7 +120,8 @@ class AddAssetActivity : AppCompatActivity() {
         val oldBalance: Double,
         val oldCurrency: String,
         val isNew: Boolean,
-        val investmentSchedule: InvestmentInterestService.InvestmentSchedule? = null
+        val investmentLots: List<InvestmentLotDraft> = emptyList(),
+        val investmentDraftLots: List<InvestmentLotDraft> = emptyList()
     )
 
     private data class AdjustmentDraft(
@@ -341,7 +345,7 @@ class AddAssetActivity : AppCompatActivity() {
                 selectedIcon = AssetIconDefaults.withDefault(it.icon)
                 selectedCurrency = it.currency
                 refreshCurrencyDisplay()
-                swIncludeNet.isChecked = it.includeInNetAsset
+                swIncludeNet.isChecked = if (it.isArchived) it.includeInNetBeforeArchive else it.includeInNetAsset
                 selectedAssetCategory = it.assetCategory
                 originalSortOrder = it.sortOrder
                 originalPickerSortOrder = it.pickerSortOrder
@@ -365,13 +369,48 @@ class AddAssetActivity : AppCompatActivity() {
                     .placeholder(R.drawable.ic_placeholder)
                     .error(R.drawable.ic_placeholder)
                     .into(ivTypeIcon)
+
+                maybeOpenForcedInvestmentLotSplit(it)
             }
         }
     }
 
+    private fun maybeOpenForcedInvestmentLotSplit(asset: Asset) {
+        if (forceInvestmentLotSplitHandled) return
+        if (!intent.getBooleanExtra(EXTRA_FORCE_INVESTMENT_LOT_SPLIT, false)) return
+        if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.balance <= 0.0) return
+        forceInvestmentLotSplitHandled = true
+
+        InvestmentLotSplitDialog.show(
+            activity = this,
+            title = getString(R.string.investment_lot_prompt_title),
+            message = getString(R.string.investment_principal_hint),
+            totalAmount = asset.balance,
+            annualInterestRate = asset.annualInterestRate,
+            initialDrafts = InvestmentLotDraftStorage.load(this, asset.id),
+            onLater = { drafts ->
+                InvestmentLotEntryHelper.saveDrafts(this, asset.id, drafts)
+            },
+            onConfirm = { lots ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    InvestmentLotEntryHelper.persistConfirmedLots(this@AddAssetActivity, db, asset, lots)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@AddAssetActivity,
+                            getString(R.string.investment_lot_saved),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        finish()
+                    }
+                }
+            }
+        )
+    }
+
     private fun saveAsset(
         skipCurrencyConfirm: Boolean = false,
-        investmentSchedule: InvestmentInterestService.InvestmentSchedule? = null
+        investmentLots: List<InvestmentLotDraft>? = null,
+        investmentDraftLots: List<InvestmentLotDraft> = emptyList()
     ) {
         val name = etName.text.toString().trim()
         val balance = BillAssetImpactService.roundMoney(parseLocalizedAmount(etBalance.text.toString()))
@@ -437,19 +476,35 @@ class AddAssetActivity : AppCompatActivity() {
             val previousBalance = BillAssetImpactService.roundMoney(oldBalance)
             val shouldCreateOpeningLot = selectedAssetCategory == Asset.CATEGORY_INVESTMENT &&
                 currentBalance > 0.000001 &&
-                investmentSchedule == null &&
-                (assetId == -1L || existingAsset?.assetCategory != Asset.CATEGORY_INVESTMENT)
+                investmentLots == null &&
+                (
+                    assetId == -1L ||
+                        existingAsset?.assetCategory != Asset.CATEGORY_INVESTMENT ||
+                        intent.getBooleanExtra(EXTRA_FORCE_INVESTMENT_LOT_SPLIT, false)
+                )
             if (shouldCreateOpeningLot) {
                 withContext(Dispatchers.Main) {
-                    showInvestmentScheduleDialog(
+                    InvestmentLotSplitDialog.show(
+                        activity = this@AddAssetActivity,
                         title = if (assetId == -1L) getString(R.string.set_initial_principal_time) else getString(R.string.set_convert_to_investment_time),
-                        message = getString(R.string.investment_principal_hint)
-                    ) { schedule ->
-                        saveAsset(
-                            skipCurrencyConfirm = skipCurrencyConfirm,
-                            investmentSchedule = schedule
-                        )
-                    }
+                        message = getString(R.string.investment_principal_hint),
+                        totalAmount = currentBalance,
+                        annualInterestRate = annualInterestRate,
+                        initialDrafts = if (assetId != -1L) InvestmentLotDraftStorage.load(this@AddAssetActivity, assetId) else emptyList(),
+                        onLater = { drafts ->
+                            saveAsset(
+                                skipCurrencyConfirm = skipCurrencyConfirm,
+                                investmentLots = emptyList(),
+                                investmentDraftLots = drafts
+                            )
+                        },
+                        onConfirm = { lots ->
+                            saveAsset(
+                                skipCurrencyConfirm = skipCurrencyConfirm,
+                                investmentLots = lots
+                            )
+                        }
+                    )
                 }
                 return@launch
             }
@@ -466,6 +521,8 @@ class AddAssetActivity : AppCompatActivity() {
                 existingAsset != null && existingAsset.billBalanceFromTime > 0L -> existingAsset.billBalanceFromTime
                 else -> createTime
             }
+            val isArchived = existingAsset?.isArchived ?: false
+            val includeNetPreference = swIncludeNet.isChecked
             val asset = Asset(
                 id = if (assetId == -1L) 0 else assetId,
                 name = name,
@@ -475,7 +532,7 @@ class AddAssetActivity : AppCompatActivity() {
                 currency = selectedCurrency,
                 icon = AssetIconDefaults.withDefault(selectedIcon),
                 remark = etRemark.text.toString(),
-                includeInNetAsset = swIncludeNet.isChecked,
+                includeInNetAsset = if (isArchived) false else includeNetPreference,
                 createTime = createTime,
                 showBillBalanceAfter = existingAsset?.showBillBalanceAfter ?: true,
                 billBalanceFromTime = balanceFromTime,
@@ -484,12 +541,16 @@ class AddAssetActivity : AppCompatActivity() {
                 interestLastSettledAt = interestLastSettledAt,
                 sortOrder = if (assetId == -1L) 0 else originalSortOrder,
                 pickerSortOrder = if (assetId == -1L) 0 else originalPickerSortOrder,
-                isArchived = existingAsset?.isArchived ?: false,
-                includeInNetBeforeArchive = existingAsset?.includeInNetBeforeArchive ?: true,
+                isArchived = isArchived,
+                includeInNetBeforeArchive = includeNetPreference,
                 // P1-5: 信用卡字段
-                creditLimit = etCreditLimit.text.toString().toDoubleOrNull() ?: (existingAsset?.creditLimit ?: 0.0),
-                statementDay = if (selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD) selectedStatementDay else (existingAsset?.statementDay ?: 0),
-                dueDay = if (selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD) selectedDueDay else (existingAsset?.dueDay ?: 0)
+                creditLimit = if (selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD) {
+                    parseLocalizedAmount(etCreditLimit.text.toString())
+                } else {
+                    0.0
+                },
+                statementDay = if (selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD) selectedStatementDay else 0,
+                dueDay = if (selectedAssetCategory == Asset.CATEGORY_CREDIT_CARD) selectedDueDay else 0
             )
 
             if (assetId == -1L) {
@@ -500,7 +561,8 @@ class AddAssetActivity : AppCompatActivity() {
                         oldBalance = 0.0,
                         oldCurrency = selectedCurrency,
                         isNew = true,
-                        investmentSchedule = investmentSchedule
+                        investmentLots = investmentLots.orEmpty(),
+                        investmentDraftLots = investmentDraftLots
                     ),
                     adjustment = null
                 )
@@ -513,7 +575,8 @@ class AddAssetActivity : AppCompatActivity() {
                         oldBalance = previousBalance,
                         oldCurrency = oldCurrency,
                         isNew = false,
-                        investmentSchedule = investmentSchedule
+                        investmentLots = investmentLots.orEmpty(),
+                        investmentDraftLots = investmentDraftLots
                     )
                     val intent = Intent(this@AddAssetActivity, BalanceAdjustmentActivity::class.java)
                     intent.putExtra(BalanceAdjustmentActivity.EXTRA_ASSET_ID, assetId)
@@ -531,7 +594,8 @@ class AddAssetActivity : AppCompatActivity() {
                             oldBalance = previousBalance,
                             oldCurrency = oldCurrency,
                             isNew = false,
-                            investmentSchedule = investmentSchedule
+                            investmentLots = investmentLots.orEmpty(),
+                            investmentDraftLots = investmentDraftLots
                         ),
                         adjustment = null
                     )
@@ -591,7 +655,8 @@ class AddAssetActivity : AppCompatActivity() {
                         dueDay = pending.asset.dueDay,
                         annualInterestRate = pending.asset.annualInterestRate,
                         interestLastSettledAt = pending.asset.interestLastSettledAt,
-                        isArchived = pending.asset.isArchived
+                        isArchived = pending.asset.isArchived,
+                        includeInNetBeforeArchive = pending.asset.includeInNetBeforeArchive
                     )
                     // 更新基线余额
                     db.assetDao().updateBalance(pending.asset.id, baselineBalance)
@@ -608,12 +673,20 @@ class AddAssetActivity : AppCompatActivity() {
             }
 
             // 投资资产的初始份额按用户保存后的目标余额创建；有平账记录时，账单随后会把资产余额调整到同一数值。
-            pending.investmentSchedule?.let { schedule ->
-                val assetForLot = pending.asset.copy(id = savedAssetId)
+            pending.investmentLots.forEach { lot ->
+                val assetForLot = pending.asset.copy(id = savedAssetId, balance = lot.amount)
                 InvestmentInterestService.createLotForAssetBalance(
                     db = db,
                     asset = assetForLot,
-                    schedule = schedule
+                    schedule = lot.schedule
+                )
+            }
+            when {
+                pending.investmentLots.isNotEmpty() -> InvestmentLotDraftStorage.clear(this@AddAssetActivity, savedAssetId)
+                pending.investmentDraftLots.isNotEmpty() -> InvestmentLotEntryHelper.saveDrafts(
+                    this@AddAssetActivity,
+                    savedAssetId,
+                    pending.investmentDraftLots
                 )
             }
 
@@ -823,93 +896,6 @@ class AddAssetActivity : AppCompatActivity() {
         )
     }
 
-    private fun showInvestmentScheduleDialog(
-        title: String,
-        message: String,
-        onConfirm: (InvestmentInterestService.InvestmentSchedule) -> Unit
-    ) {
-        val themeContext = ContextThemeWrapper(this, R.style.Theme_TapAccounting)
-        val content = LinearLayout(themeContext).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(10), dp(22), dp(4))
-        }
-        content.addView(TextView(themeContext).apply {
-            text = message
-            setTextColor(Color.parseColor("#667085"))
-            textSize = 14f
-        })
-
-        val todayStart = InvestmentInterestService.startOfDay(System.currentTimeMillis())
-        var startEarningAt = InvestmentInterestService.plusDays(todayStart, 1)
-
-        lateinit var startRow: TextView
-        lateinit var payoutRow: TextView
-        fun bindRow(row: TextView, label: String, value: Long) {
-            row.text = "$label    ${formatDateForSchedule(value)}"
-        }
-        fun refreshPayoutRow() {
-            val firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
-            bindRow(payoutRow, getString(R.string.earning_payout_t_plus_one), firstPayoutAt)
-        }
-
-        startRow = TextView(themeContext).apply {
-            textSize = 16f
-            setTextColor(Color.parseColor("#1F2A38"))
-            setPadding(0, dp(16), 0, dp(8))
-            bindRow(this, getString(R.string.start_earning), startEarningAt)
-            setOnClickListener {
-                ElegantDatePickerSheet.show(
-                    context = this@AddAssetActivity,
-                    initialTimeMillis = startEarningAt,
-                    minTimeMillis = todayStart
-                ) { selected ->
-                    startEarningAt = InvestmentInterestService.startOfDay(selected)
-                    bindRow(startRow, getString(R.string.start_earning), startEarningAt)
-                    refreshPayoutRow()
-                }
-            }
-        }
-        payoutRow = TextView(themeContext).apply {
-            textSize = 16f
-            setTextColor(Color.parseColor("#667085"))
-            setPadding(0, dp(16), 0, dp(8))
-        }
-        content.addView(startRow)
-        content.addView(payoutRow)
-        refreshPayoutRow()
-        content.addView(TextView(themeContext).apply {
-            text = getString(R.string.earning_default_hint)
-            setTextColor(Color.parseColor("#8A9099"))
-            textSize = 12f
-            setPadding(0, dp(10), 0, 0)
-        })
-
-        val dialog = AlertDialog.Builder(themeContext)
-            .setTitle(title)
-            .setView(content)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.confirm) { _, _ ->
-                onConfirm(
-                    InvestmentInterestService.InvestmentSchedule(
-                        startEarningAt = startEarningAt,
-                        firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
-                    )
-                )
-            }
-            .create()
-        OverlayDialogs.showPageCenterDialog(
-            dialog = dialog,
-            ctx = this,
-            widthRatio = 0.88f,
-            cancelOnTouchOutside = true,
-            useSolidPanelBackground = true
-        )
-    }
-
-    private fun formatDateForSchedule(timeMillis: Long): String {
-        return java.text.SimpleDateFormat("yyyy-MM-dd E", Locale.getDefault()).format(java.util.Date(timeMillis))
-    }
-
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
     }
@@ -1041,6 +1027,7 @@ class AddAssetActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val EXTRA_FORCE_INVESTMENT_LOT_SPLIT = "FORCE_INVESTMENT_LOT_SPLIT"
         private const val PREFS_ASSET_UI = "asset_ui_prefs"
         private const val KEY_SKIP_NET_ASSET_TIP_SHOWN = "skip_net_asset_tip_shown"
     }

@@ -45,6 +45,7 @@ class BudgetAdapter(
         private val tvPercent: TextView = itemView.findViewById(R.id.tv_budget_percent)
         private val tvStatus: TextView = itemView.findViewById(R.id.tv_budget_status)
         private val tvRemaining: TextView = itemView.findViewById(R.id.tv_budget_remaining)
+        private val btnDelete: TextView = itemView.findViewById(R.id.btn_budget_delete)
 
         fun bind(item: BudgetService.BudgetOverview) {
             val budget = item.budget
@@ -77,6 +78,7 @@ class BudgetAdapter(
 
             itemView.setOnClickListener { onItemClick(budget) }
             itemView.setOnLongClickListener { onItemLongClick(budget); true }
+            btnDelete.setOnClickListener { onItemLongClick(budget) }
         }
     }
 }

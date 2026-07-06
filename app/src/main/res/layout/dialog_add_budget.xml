@@ -1,14 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:paddingStart="20dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="20dp">
+
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/bg_rule_subtle_chip" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_budget_dialog_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/budget_set"
+            android:textColor="#111827"
+            android:textSize="@dimen/text_size_18"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_budget_cancel"
+            android:layout_width="48dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="@string/rule_learn_cancel"
+            android:textColor="#6B7280"
+            android:textSize="@dimen/text_size_14" />
+    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/budget_category_pick"
+        android:layout_marginTop="10dp"
+        android:text="@string/budget_form_category_hint"
         android:textColor="#374151"
         android:textSize="14sp" />
 
@@ -16,13 +55,15 @@
         android:id="@+id/spinner_budget_category"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_stats_filter_field_rect"
+        android:paddingHorizontal="12dp" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="@string/budget_amount_hint"
+        android:text="@string/budget_form_amount_hint"
         android:textColor="#374151"
         android:textSize="14sp" />
 
@@ -31,8 +72,30 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:layout_marginTop="8dp"
+        android:background="@drawable/bg_stats_filter_field_rect"
         android:hint="3000"
         android:inputType="numberDecimal"
+        android:paddingHorizontal="12dp"
         android:textColor="#111827"
         android:textSize="16sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/budget_form_amount_help"
+        android:textColor="#9CA3AF"
+        android:textSize="@dimen/text_size_12" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_budget_save"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="18dp"
+        android:text="@string/budget_form_save"
+        android:textColor="#FFFFFF"
+        android:textSize="@dimen/text_size_14"
+        app:backgroundTint="@color/brand_primary"
+        app:cornerRadius="12dp" />
 </LinearLayout>

@@ -107,17 +107,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
             findViewById<CompoundButton>(R.id.switch_insight_cards)?.performClick()
         }
 
-        // 首页驾驶舱开关
-        findViewById<CompoundButton>(R.id.switch_dashboard)?.apply {
-            isChecked = Prefs.isHomeDashboardEnabled(this@AiFeatureSettingsActivity)
-            setOnCheckedChangeListener { _, isChecked ->
-                Prefs.setHomeDashboardEnabled(this@AiFeatureSettingsActivity, isChecked)
-            }
-        }
-        findViewById<View>(R.id.layout_dashboard)?.setOnClickListener {
-            findViewById<CompoundButton>(R.id.switch_dashboard)?.performClick()
-        }
-
         findViewById<CompoundButton>(R.id.switch_show_voice).apply {
             isChecked = Prefs.isShowAiVoice(this@AiFeatureSettingsActivity)
             val ctx = this@AiFeatureSettingsActivity

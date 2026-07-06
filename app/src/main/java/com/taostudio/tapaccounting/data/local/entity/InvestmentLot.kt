@@ -24,6 +24,7 @@ data class InvestmentLot(
     val principalAmount: Double,
     val remainingPrincipal: Double,
     val currency: String,
+    val annualInterestRate: Double = 0.0,
     val startEarningAt: Long,
     val firstPayoutAt: Long,
     val lastSettledAt: Long,

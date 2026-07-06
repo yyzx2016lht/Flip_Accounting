@@ -82,10 +82,23 @@ class InvestmentInterestServiceTest {
         assertEquals(60.0, lateUpdated.remainingPrincipal, 0.000001)
     }
 
+    @Test
+    fun investmentLot_keepsPerLotAnnualInterestRate() {
+        val lot = lot(
+            id = 1L,
+            startEarningAt = dayMillis(2024, 1, 1),
+            remainingPrincipal = 100.0,
+            annualInterestRate = 2.35
+        )
+
+        assertEquals(2.35, lot.annualInterestRate, 0.000001)
+    }
+
     private fun lot(
         id: Long,
         startEarningAt: Long,
-        remainingPrincipal: Double
+        remainingPrincipal: Double,
+        annualInterestRate: Double = 1.8
     ) = InvestmentLot(
         id = id,
         assetId = 1L,
@@ -93,6 +106,7 @@ class InvestmentInterestServiceTest {
         principalAmount = remainingPrincipal,
         remainingPrincipal = remainingPrincipal,
         currency = "CNY",
+        annualInterestRate = annualInterestRate,
         startEarningAt = startEarningAt,
         firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1),
         lastSettledAt = startEarningAt

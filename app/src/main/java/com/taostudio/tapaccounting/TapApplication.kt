@@ -57,9 +57,10 @@ class TapApplication : Application() {
 
         // P1-3: 后台周期账单检测（低优先级，失败静默忽略）
         CoroutineScope(Dispatchers.IO).launch {
+            if (!Prefs.isRecurringAutoDetectEnabled(this@TapApplication)) return@launch
             try {
                 com.taostudio.tapaccounting.logic.RecurringBillingService(database)
-                    .scanRecentBills()
+                    .scanRecentBills(amountTolerance = Prefs.getRecurringDetectAmountTolerance(this@TapApplication))
             } catch (_: Exception) { /* 静默忽略 */ }
         }
     }

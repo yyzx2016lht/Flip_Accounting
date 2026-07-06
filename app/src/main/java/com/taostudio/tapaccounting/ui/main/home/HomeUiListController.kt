@@ -59,21 +59,6 @@ internal class HomeUiListController(
             onShowBillDetailSheet(bill)
         }
 
-        homeAdapter.onDashboardCardClick = { card ->
-            val ctx = fragment.requireContext()
-            when (card) {
-                is com.taostudio.tapaccounting.ui.main.home.dashboard.HomeDashboardCard.Reminder -> {
-                    // 信用卡提醒 → 资产页；预算超支 → 预算管理
-                    if (card.title.contains("预算")) {
-                        ctx.startActivity(android.content.Intent(ctx, com.taostudio.tapaccounting.ui.budget.BudgetManageActivity::class.java))
-                    }
-                }
-                is com.taostudio.tapaccounting.ui.main.home.dashboard.HomeDashboardCard.BudgetProgress -> {
-                    ctx.startActivity(android.content.Intent(ctx, com.taostudio.tapaccounting.ui.budget.BudgetManageActivity::class.java))
-                }
-            }
-        }
-
         homeAdapter.onSelectionChanged = { count ->
             if (homeAdapter.isMultiSelectMode) {
                 setIsMultiSelectModeActive(true)
@@ -234,4 +219,3 @@ internal class HomeUiListController(
         return event.rawX in left..right && event.rawY in top..bottom
     }
 }
-

@@ -29,6 +29,7 @@ import com.taostudio.tapaccounting.ui.main.home.HomeFragment
 import com.taostudio.tapaccounting.ui.main.stats.StatsFragment
 import com.taostudio.tapaccounting.ui.main.assets.AssetsFragment
 import com.taostudio.tapaccounting.ui.main.profile.ProfileFragment
+import com.taostudio.tapaccounting.ui.recurring.RecurringDuePromptController
 import com.taostudio.tapaccounting.ui.SensitivityActivity
 import kotlin.math.abs
 
@@ -429,6 +430,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         RecentTasksHelper.applyHideRecentsPreference(this)
         refreshBottomNavigationTabs()
+        swipeContainer.post { RecurringDuePromptController.maybeShow(this) }
     }
 
     override fun onNewIntent(intent: Intent) {

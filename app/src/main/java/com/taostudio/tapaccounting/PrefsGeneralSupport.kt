@@ -49,6 +49,9 @@ object PrefsGeneralSupport {
     private const val KEY_SHIZUKU_UNLOCKED = "shizuku_unlocked_v1"
     private const val KEY_AGGRESSIVE_KEEP_ALIVE = "aggressive_keep_alive"
     private const val KEY_BACKUP_INITIALIZED = "backup_initialized_v1"
+    private const val KEY_RECURRING_AUTO_DETECT_ENABLED = "recurring_auto_detect_enabled_v1"
+    private const val KEY_RECURRING_DETECT_AMOUNT_TOLERANCE = "recurring_detect_amount_tolerance_v1"
+    private const val KEY_RECURRING_AUTO_DETECT_GUIDE_SEEN = "recurring_auto_detect_guide_seen_v1"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -102,6 +105,26 @@ object PrefsGeneralSupport {
         prefs(ctx).getBoolean(KEY_ASSET_FEATURE_ENABLED, true)
     fun setAssetFeatureEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_ASSET_FEATURE_ENABLED, enabled).apply()
+
+    fun isRecurringAutoDetectEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_RECURRING_AUTO_DETECT_ENABLED, false)
+
+    fun setRecurringAutoDetectEnabled(ctx: Context, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(KEY_RECURRING_AUTO_DETECT_ENABLED, enabled).apply()
+
+    fun hasSeenRecurringAutoDetectGuide(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_RECURRING_AUTO_DETECT_GUIDE_SEEN, false)
+
+    fun setRecurringAutoDetectGuideSeen(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_RECURRING_AUTO_DETECT_GUIDE_SEEN, true).apply()
+
+    fun getRecurringDetectAmountTolerance(ctx: Context): Double =
+        prefs(ctx).getFloat(KEY_RECURRING_DETECT_AMOUNT_TOLERANCE, 1.0f).toDouble()
+
+    fun setRecurringDetectAmountTolerance(ctx: Context, tolerance: Double) =
+        prefs(ctx).edit()
+            .putFloat(KEY_RECURRING_DETECT_AMOUNT_TOLERANCE, tolerance.coerceAtLeast(0.0).toFloat())
+            .apply()
 
     fun enablePrivacyDebugLoggingForMinutes(ctx: Context, minutes: Int) {
         val durationMs = minutes.coerceIn(1, 240) * 60_000L
@@ -342,4 +365,3 @@ object PrefsGeneralSupport {
     fun markBackupInitialized(ctx: Context) =
         prefs(ctx).edit().putBoolean(KEY_BACKUP_INITIALIZED, true).apply()
 }
-

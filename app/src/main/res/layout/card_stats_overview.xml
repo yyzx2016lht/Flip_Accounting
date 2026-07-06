@@ -245,68 +245,116 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 预算入口行 -->
-        <LinearLayout
-            android:id="@+id/row_budget_entry"
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_8"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingVertical="8dp"
-            android:foreground="?attr/selectableItemBackground">
+            android:text="@string/stats_manage_section_title"
+            android:textColor="@color/stats_segmented_text_active"
+            android:textSize="@dimen/text_size_12"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/budget_monthly_total"
-                android:textColor="@color/stats_header_label"
-                android:textSize="@dimen/text_size_13" />
-
-            <TextView
-                android:id="@+id/tv_budget_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/budget_set"
-                android:textColor="#5C6BC0"
-                android:textSize="@dimen/text_size_13" />
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginStart="4dp"
-                android:src="@drawable/ic_chevron_right"
-                app:tint="@color/stats_header_label" />
-        </LinearLayout>
-
-        <!-- 周期账单入口行 -->
         <LinearLayout
-            android:id="@+id/row_recurring_entry"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingVertical="8dp"
-            android:foreground="?attr/selectableItemBackground">
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
 
-            <TextView
+            <!-- 预算入口 -->
+            <LinearLayout
+                android:id="@+id/row_budget_entry"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
                 android:layout_weight="1"
-                android:text="@string/recurring_bills_title"
-                android:textColor="@color/stats_header_label"
-                android:textSize="@dimen/text_size_13" />
+                android:background="@drawable/bg_stats_metric_tile"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:minHeight="72dp"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_chevron_right"
-                app:tint="@color/stats_header_label" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/budget_monthly_total"
+                        android:textColor="#1F2937"
+                        android:textSize="@dimen/text_size_14"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="#5C6BC0" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_budget_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/budget_set"
+                    android:textColor="#5C6BC0"
+                    android:textSize="@dimen/text_size_13"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 周期账单入口 -->
+            <LinearLayout
+                android:id="@+id/row_recurring_entry"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_stats_metric_tile"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:minHeight="72dp"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/recurring_bills_title"
+                        android:textColor="#1F2937"
+                        android:textSize="@dimen/text_size_14"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="#5C6BC0" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_recurring_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/recurring_entry_status_empty"
+                    android:textColor="#5C6BC0"
+                    android:textSize="@dimen/text_size_13"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
         <FrameLayout

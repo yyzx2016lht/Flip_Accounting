@@ -21,6 +21,9 @@ interface InvestmentLotDao {
     @Query("SELECT * FROM investment_lots WHERE assetId = :assetId AND remainingPrincipal > 0.0 ORDER BY startEarningAt ASC, id ASC")
     suspend fun getOpenLotsByAssetId(assetId: Long): List<InvestmentLot>
 
+    @Query("SELECT * FROM investment_lots WHERE assetId = :assetId AND remainingPrincipal > 0.0 AND annualInterestRate != 0.0 ORDER BY createTime DESC, id DESC LIMIT 1")
+    suspend fun getLatestOpenLotWithRateByAssetId(assetId: Long): InvestmentLot?
+
     @Query("SELECT * FROM investment_lots ORDER BY startEarningAt ASC, id ASC")
     suspend fun getAllLots(): List<InvestmentLot>
 

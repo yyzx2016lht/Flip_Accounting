@@ -21,7 +21,8 @@ object InvestmentInterestService {
 
     data class InvestmentSchedule(
         val startEarningAt: Long,
-        val firstPayoutAt: Long
+        val firstPayoutAt: Long,
+        val annualInterestRate: Double = 0.0
     )
 
     suspend fun ensureInvestmentCategories(db: AppDatabase) {
@@ -47,6 +48,7 @@ object InvestmentInterestService {
             principalAmount = principal,
             remainingPrincipal = principal,
             currency = targetAsset.currency,
+            annualInterestRate = schedule.annualInterestRate,
             startEarningAt = normalizedStart,
             firstPayoutAt = normalizedPayout,
             lastSettledAt = normalizedStart,
@@ -70,6 +72,7 @@ object InvestmentInterestService {
             principalAmount = principal,
             remainingPrincipal = principal,
             currency = asset.currency,
+            annualInterestRate = schedule.annualInterestRate,
             startEarningAt = normalizedStart,
             firstPayoutAt = normalizedPayout,
             lastSettledAt = normalizedStart
@@ -80,7 +83,7 @@ object InvestmentInterestService {
     suspend fun settleDueInterest(db: AppDatabase, now: Long = System.currentTimeMillis()) {
         db.withTransaction {
             db.assetDao().getAllAssetsList()
-                .filter { it.assetCategory == Asset.CATEGORY_INVESTMENT && it.annualInterestRate != 0.0 }
+                .filter { it.assetCategory == Asset.CATEGORY_INVESTMENT }
                 .forEach { asset ->
                     reconcileAssetLotsToBalance(db, asset, now)
                 }
@@ -92,7 +95,7 @@ object InvestmentInterestService {
             val todayStart = startOfDay(now)
             lots.forEach { lot ->
                 val asset = db.assetDao().getAssetById(lot.assetId) ?: return@forEach
-                if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.annualInterestRate == 0.0) return@forEach
+                if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || lot.annualInterestRate == 0.0) return@forEach
                 settleLotInterest(db, asset, lot, todayStart)
             }
         }
@@ -115,7 +118,7 @@ object InvestmentInterestService {
             createLotForAssetBalance(
                 db = db,
                 asset = asset.copy(balance = delta),
-                schedule = defaultScheduleForBalanceChange(changedAt)
+                schedule = defaultScheduleForBalanceChange(changedAt, asset.annualInterestRate)
             )
             return
         }
@@ -162,11 +165,15 @@ object InvestmentInterestService {
         return BillAssetImpactService.roundMoney(totalInterest)
     }
 
-    private fun defaultScheduleForBalanceChange(changedAt: Long): InvestmentSchedule {
+    private fun defaultScheduleForBalanceChange(
+        changedAt: Long,
+        annualInterestRate: Double
+    ): InvestmentSchedule {
         val startEarningAt = plusDays(startOfDay(changedAt), 1)
         return InvestmentSchedule(
             startEarningAt = startEarningAt,
-            firstPayoutAt = plusDays(startEarningAt, 1)
+            firstPayoutAt = plusDays(startEarningAt, 1),
+            annualInterestRate = annualInterestRate
         )
     }
 
@@ -179,7 +186,7 @@ object InvestmentInterestService {
         todayStart: Long
     ) {
         val payoutDelayDays = daysBetween(lot.startEarningAt, lot.firstPayoutAt).coerceAtLeast(1)
-        val dailyRate = asset.annualInterestRate / 100.0 / DAYS_IN_YEAR
+        val dailyRate = lot.annualInterestRate / 100.0 / DAYS_IN_YEAR
         val incomeCategory = ensureCategory(db, Bill.TYPE_INCOME)
         val expenseCategory = ensureCategory(db, Bill.TYPE_EXPENSE)
         val bookName = BookAccountManager.getDefaultBook(TapApplication.app())
@@ -207,7 +214,7 @@ object InvestmentInterestService {
                     accountName = asset.name,
                     categoryName = CATEGORY_NAME,
                     time = payoutDay,
-                    remark = "年利率 ${formatCompactDecimal(asset.annualInterestRate)}% 自动结息，收益为估算值；起息 ${formatDate(earningDay)}，到账 ${formatDate(payoutDay)}",
+                    remark = "年利率 ${formatCompactDecimal(lot.annualInterestRate)}% 自动结息，收益为估算值；起息 ${formatDate(earningDay)}，到账 ${formatDate(payoutDay)}",
                     bookName = bookName
                 )
                 BillMutationService.insertBillAndApplyImpact(db, bill, applyAssetImpact = true)

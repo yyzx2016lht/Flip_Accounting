@@ -178,6 +178,8 @@ class AutoBackupWorker(
                 }
                 if (options.backupRules) fullData["rules"]?.let { toBackup["rules"] = it }
                 if (options.backupChatMessages) fullData["chat_messages"]?.let { toBackup["chat_messages"] = it }
+                fullData["budgets"]?.let { toBackup["budgets"] = it }
+                fullData["recurring_patterns"]?.let { toBackup["recurring_patterns"] = it }
 
                 val settingsModules = Prefs.serializeSettingsModules(ctx)
                 if (options.backupSettingsGeneralBasic) settingsModules["settings_general_basic"]?.let { toBackup["settings_general_basic"] = it }
@@ -351,6 +353,8 @@ class AutoBackupWorker(
         val files = linkedMapOf<String, File>()
         File(ctx.filesDir, "chat_bg").listFiles()?.filter { it.isFile }?.forEach { files["chat_bg/${it.name}"] = it }
         File(ctx.filesDir, "chat_voice").listFiles()?.filter { it.isFile }?.forEach { files["chat_voice/${it.name}"] = it }
+        File(ctx.filesDir, "chat_images").listFiles()?.filter { it.isFile }?.forEach { files["chat_images/${it.name}"] = it }
+        File(ctx.filesDir, "chat_attachments").listFiles()?.filter { it.isFile }?.forEach { files["chat_attachments/${it.name}"] = it }
         listOf("chat_ai_avatar.jpg", "chat_user_avatar.jpg").forEach { name ->
             val file = File(ctx.filesDir, name)
             if (file.isFile) files[name] = file

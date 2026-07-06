@@ -16,8 +16,6 @@ import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
-import com.taostudio.tapaccounting.ui.main.home.dashboard.HomeDashboardCard
-import com.taostudio.tapaccounting.ui.main.home.dashboard.HomeDashboardProvider
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 import com.taostudio.tapaccounting.ui.main.YearMonthPickerDialog
 import java.util.Calendar
@@ -59,10 +57,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         HomeUiState(selectedBookName = BookAccountManager.getDefaultBook(application))
     )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
-    /** 驾驶舱卡片（首页最多 3 张） */
-    private val _dashboardCards = MutableStateFlow<List<HomeDashboardCard>>(emptyList())
-    val dashboardCards: StateFlow<List<HomeDashboardCard>> = _dashboardCards.asStateFlow()
 
     private var fetchJob: Job? = null
     private var requestGeneration: Long = 0L
@@ -277,17 +271,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 Log.d(TAG, "StateFlow updated  [+${now() - t2}ms to emit]")
 
-                // 计算驾驶舱卡片（开关开启时）
-                if (Prefs.isHomeDashboardEnabled(getApplication<Application>())) {
-                    launch(Dispatchers.Default) {
-                        val dashCards = HomeDashboardProvider.loadDashboardCards(
-                            getApplication<Application>(), db, monthly
-                        )
-                        _dashboardCards.value = dashCards
-                    }
-                } else {
-                    _dashboardCards.value = emptyList()
-                }
             }
         }
     }

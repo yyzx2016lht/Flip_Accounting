@@ -157,6 +157,20 @@ object PrefsBackupSupport {
 
         if (root.has("hide_recents_v1")) edit.putBoolean(KEY_HIDE_RECENTS, root.getBoolean("hide_recents_v1"))
 
+        if (root.has("double_tap_enabled_v1")) edit.putBoolean("double_tap_enabled", root.getBoolean("double_tap_enabled_v1"))
+        if (root.has("tap_model_v1")) edit.putString("tap_model", root.getString("tap_model_v1"))
+        if (root.has("tap_sensitivity_level_v1")) edit.putInt("tap_sensitivity_level", root.getInt("tap_sensitivity_level_v1"))
+        if (root.has("tap_nnapi_low_power_v1")) edit.putBoolean("tap_nnapi_low_power", root.getBoolean("tap_nnapi_low_power_v1"))
+        if (root.has("tap_power_saving_v1")) edit.putBoolean("tap_power_saving", root.getBoolean("tap_power_saving_v1"))
+        if (root.has("tap_force_full_ml_v1")) edit.putBoolean("tap_force_full_ml_migrated_v1", root.getBoolean("tap_force_full_ml_v1"))
+        if (root.has("tap_triple_enabled_v1")) edit.putBoolean("tap_triple_enabled", root.getBoolean("tap_triple_enabled_v1"))
+        if (root.has("tap_action_double_v1")) edit.putString("tap_action_double", root.getString("tap_action_double_v1"))
+        if (root.has("tap_action_triple_v1")) edit.putString("tap_action_triple", root.getString("tap_action_triple_v1"))
+        if (root.has("flip_enabled_v1")) edit.putBoolean("flip_enabled", root.getBoolean("flip_enabled_v1"))
+        if (root.has("flip_sensitivity_v1")) edit.putInt("flip_sensitivity_level", root.getInt("flip_sensitivity_v1"))
+        if (root.has("flip_action_v1")) edit.putString("flip_action", root.getString("flip_action_v1"))
+        if (root.has("flip_disable_landscape_v1")) edit.putBoolean("flip_disable_landscape", root.getBoolean("flip_disable_landscape_v1"))
+
         if (root.has("show_ai_text_v1")) edit.putBoolean(KEY_SHOW_AI_TEXT, root.getBoolean("show_ai_text_v1"))
         if (root.has("show_ai_voice_v1")) edit.putBoolean(KEY_SHOW_AI_VOICE, root.getBoolean("show_ai_voice_v1"))
         if (root.has("show_multi_cur_v1")) edit.putBoolean(KEY_SHOW_MULTI_CURRENCY, root.getBoolean("show_multi_cur_v1"))
@@ -170,8 +184,19 @@ object PrefsBackupSupport {
         if (root.has("bill_show_category_icon_v1")) edit.putBoolean(KEY_BILL_SHOW_CATEGORY_ICON, root.getBoolean("bill_show_category_icon_v1"))
         if (root.has("bill_show_full_category_v1")) edit.putBoolean(KEY_BILL_SHOW_FULL_CATEGORY, root.getBoolean("bill_show_full_category_v1"))
         if (root.has("bill_remark_priority_v1")) edit.putBoolean(KEY_BILL_REMARK_PRIORITY, root.getBoolean("bill_remark_priority_v1"))
+        if (root.has("insight_cards_enabled_v1")) edit.putBoolean("insight_cards_enabled", root.getBoolean("insight_cards_enabled_v1"))
+        if (root.has("independent_detail_enabled_v1")) edit.putBoolean("independent_detail_enabled_v1", root.getBoolean("independent_detail_enabled_v1"))
+        if (root.has("chat_page_mode_v1")) edit.putInt("chat_page_mode", root.getInt("chat_page_mode_v1"))
+        if (root.has("asset_amount_display_mode_v1")) edit.putString("asset_amount_display_mode_v1", root.getString("asset_amount_display_mode_v1"))
         if (root.has("ai_thinking_modify_bill_v1")) edit.putBoolean(KEY_AI_THINKING_MODIFY_BILL, root.getBoolean("ai_thinking_modify_bill_v1"))
         if (root.has("ai_thinking_category_refine_v1")) edit.putBoolean(KEY_AI_THINKING_CATEGORY_REFINE, root.getBoolean("ai_thinking_category_refine_v1"))
+        if (root.has("ai_enable_thinking_v1")) edit.putBoolean("ai_enable_thinking", root.getBoolean("ai_enable_thinking_v1"))
+        if (root.has("ai_thinking_multi_bill_v1")) edit.putBoolean("ai_thinking_multi_bill", root.getBoolean("ai_thinking_multi_bill_v1"))
+        if (root.has("ai_thinking_vision_v1")) edit.putBoolean("ai_thinking_vision", root.getBoolean("ai_thinking_vision_v1"))
+        if (root.has("ai_manual_model_selection_v1")) edit.putBoolean("ai_manual_model_selection_v1", root.getBoolean("ai_manual_model_selection_v1"))
+        if (root.has("receipt_image_draft_confirm_v1")) edit.putBoolean("receipt_image_draft_confirm_enabled", root.getBoolean("receipt_image_draft_confirm_v1"))
+        if (root.has("image_accounting_natural_language_v1")) edit.putBoolean("image_accounting_natural_language", root.getBoolean("image_accounting_natural_language_v1"))
+        if (root.has("screen_accounting_use_image_flow_v1")) edit.putBoolean("screen_accounting_use_image_flow", root.getBoolean("screen_accounting_use_image_flow_v1"))
 
         if (root.has("ai_api_key_v1")) edit.putString(KEY_AI_KEY, root.getString("ai_api_key_v1"))
         if (root.has("ai_api_url_v1")) edit.putString(KEY_AI_URL, root.getString("ai_api_url_v1"))
@@ -306,6 +331,19 @@ object PrefsBackupSupport {
         return JSONObject().apply {
             put("quick_gesture_enabled_v1", Prefs.isQuickGestureEnabled(ctx))
             put("hide_recents_v1", Prefs.isHideRecents(ctx))
+            put("double_tap_enabled_v1", Prefs.isDoubleTapEnabled(ctx))
+            put("tap_model_v1", Prefs.getTapModel(ctx))
+            put("tap_sensitivity_level_v1", Prefs.getTapSensitivityLevel(ctx))
+            put("tap_nnapi_low_power_v1", Prefs.isTapNnapiLowPower(ctx))
+            put("tap_power_saving_v1", Prefs.isTapPowerSavingEnabled(ctx))
+            put("tap_force_full_ml_v1", Prefs.isTapForceFullMl(ctx))
+            put("tap_triple_enabled_v1", Prefs.isTapTripleEnabled(ctx))
+            put("tap_action_double_v1", Prefs.getTapActionDouble(ctx))
+            put("tap_action_triple_v1", Prefs.getTapActionTriple(ctx))
+            put("flip_enabled_v1", Prefs.isFlipEnabled(ctx))
+            put("flip_sensitivity_v1", Prefs.getFlipSensitivity(ctx))
+            put("flip_action_v1", Prefs.getFlipAction(ctx))
+            put("flip_disable_landscape_v1", Prefs.isDisableLandscape(ctx))
             put("vibrate_feedback_v1", Prefs.isVibrateFeedbackEnabled(ctx))
             put("save_vibrate_v1", Prefs.isSaveVibrateEnabled(ctx))
             put("shizuku_persistence_v1", Prefs.isShizukuPersistenceEnabled(ctx))
@@ -316,7 +354,6 @@ object PrefsBackupSupport {
 
             put("app_white_list_v1", Prefs.serializeWhiteList(Prefs.getAppWhiteList(ctx)))
             put("active_currencies_v1", Prefs.getActiveCurrencies(ctx).joinToString(","))
-            put("exchange_refresh_interval_v1", Prefs.getExchangeRefreshInterval(ctx))
             put("cm_enabled_currencies_v1", com.taostudio.tapaccounting.logic.CurrencyManager.getEnabledCurrencies(ctx).joinToString(","))
             put("cm_rates_json_v1", currencyPrefs.getString("currency_rates_json", "") ?: "")
             put("cm_rates_update_time_v1", currencyPrefs.getLong("currency_rates_update_time", 0L))
@@ -329,20 +366,20 @@ object PrefsBackupSupport {
             put("show_multi_cur_v1", Prefs.isShowMultiCurrency(ctx))
             put("show_home_trend_card_v1", Prefs.isShowHomeTrendCard(ctx))
             put("show_book_entry_v1", Prefs.isShowBookEntry(ctx))
-            put("show_ai_chat_entry_v1", Prefs.isShowAiChatEntry(ctx))
-            put("save_ocr_debug_v1", Prefs.isSaveOcrDebugEnabled(ctx))
             put("amount_grouping_v1", Prefs.isAmountGroupingEnabled(ctx))
             put("bill_show_category_icon_v1", Prefs.isShowBillCategoryIcon(ctx))
             put("bill_show_full_category_v1", Prefs.isShowBillFullCategory(ctx))
             put("bill_remark_priority_v1", Prefs.isBillRemarkPriority(ctx))
+            put("insight_cards_enabled_v1", Prefs.isInsightCardsEnabled(ctx))
+            put("independent_detail_enabled_v1", Prefs.isIndependentDetailEnabled(ctx))
+            put("chat_page_mode_v1", Prefs.getChatPageMode(ctx))
+            put("asset_amount_display_mode_v1", Prefs.getAssetAmountDisplayMode(ctx))
 
-            put("multi_bill_enabled_v1", Prefs.isMultiBillEnabled(ctx))
             put("multi_bill_not_sync_v1", Prefs.isMultiBillNotSync(ctx))
 
             put("asr_mode_v1", Prefs.getAsrMode(ctx))
             put("asr_download_source_v1", Prefs.getAsrDownloadSource(ctx))
             put("ocr_mode_v1", Prefs.getOcrMode(ctx))
-            put("receipt_ocr_refine_enabled_v1", Prefs.isReceiptOcrRefineEnabled(ctx))
             put("receipt_lang_mode_v1", Prefs.getReceiptLangMode(ctx))
 
             put("ai_api_key_v1", Prefs.getAiKey(ctx))
@@ -355,18 +392,7 @@ object PrefsBackupSupport {
             put("ai_text_model_v1", textModel)
             put("ai_vision_model_v1", visionModel)
             put("ai_online_speech_model_v1", speechModel)
-            // Legacy export fields kept for backward-compatible restores.
-            put("ai_model_id_v1", Prefs.getAiModel(ctx))
-            put("ai_multi_model_v1", textModel)
-            put("ai_modify_model_v1", Prefs.getAiModifyModel(ctx))
-            put("ai_category_refine_model_v1", Prefs.getAiCategoryRefineModel(ctx))
-            put("ai_rule_model_v1", Prefs.getAiRuleModel(ctx))
             put("ai_llm_router_enabled_v1", Prefs.isAiLlmRouterEnabled(ctx))
-            put("ai_receipt_model_v1", Prefs.getAiReceiptModel(ctx))
-            put("ai_receipt_vision_model_v1", visionModel)
-            put("ai_screen_model_v1", Prefs.getAiScreenModel(ctx))
-            put("ai_receipt_ocr_refine_model_v1", Prefs.getAiReceiptOcrRefineModel(ctx))
-            put("ai_speech_model_v1", speechModel)
             put("screen_vision_supported_models_v1", (prefs(ctx).getStringSet(KEY_SCREEN_VISION_SUPPORTED_MODELS, emptySet()) ?: emptySet()).joinToString("\\n"))
             put("ai_models_cache_v1", Prefs.getAiModelsCache(ctx).joinToString("\\n"))
 
@@ -375,6 +401,13 @@ object PrefsBackupSupport {
             put("logging_enabled_v1", Prefs.isLoggingEnabled(ctx))
             put("ai_thinking_modify_bill_v1", Prefs.isAiThinkingModifyBillEnabled(ctx))
             put("ai_thinking_category_refine_v1", Prefs.isAiThinkingCategoryRefineEnabled(ctx))
+            put("ai_enable_thinking_v1", Prefs.isAiThinkingEnabled(ctx))
+            put("ai_thinking_multi_bill_v1", Prefs.isAiThinkingMultiBillEnabled(ctx))
+            put("ai_thinking_vision_v1", Prefs.isAiThinkingVisionEnabled(ctx))
+            put("ai_manual_model_selection_v1", Prefs.isAiManualModelSelectionEnabled(ctx))
+            put("receipt_image_draft_confirm_v1", Prefs.isReceiptImageDraftConfirmEnabled(ctx))
+            put("image_accounting_natural_language_v1", Prefs.isImageAccountingNaturalLanguage(ctx))
+            put("screen_accounting_use_image_flow_v1", Prefs.isScreenAccountingUseImageFlow(ctx))
 
             val bookAccounts = BookAccountManager.getBookAccounts(ctx)
             put("book_accounts_v1", BookAccountManager.serializeBookAccounts(ctx))
@@ -417,19 +450,16 @@ object PrefsBackupSupport {
     fun serializeSettingsModules(ctx: Context): Map<String, String> {
         val full = JSONObject(serializeSettings(ctx))
         return linkedMapOf(
-            "settings_general_basic" to filterSettingsModule(full, "quick_gesture_enabled_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "app_white_list_v1"),
-            "settings_general_assets" to filterSettingsModule(full, "asset_feature_enabled_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1"),
+            "settings_general_basic" to filterSettingsModule(full, "quick_gesture_enabled_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "app_white_list_v1", "double_tap_enabled_v1", "tap_model_v1", "tap_sensitivity_level_v1", "tap_nnapi_low_power_v1", "tap_power_saving_v1", "tap_force_full_ml_v1", "tap_triple_enabled_v1", "tap_action_double_v1", "tap_action_triple_v1", "flip_enabled_v1", "flip_sensitivity_v1", "flip_action_v1", "flip_disable_landscape_v1"),
+            "settings_general_assets" to filterSettingsModule(full, "asset_feature_enabled_v1", "active_currencies_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1"),
             "settings_general_cloud" to filterSettingsModule(full, "cloud_webdav_url_v1", "cloud_webdav_user_v1", "cloud_webdav_pass_v1", "cloud_webdav_dir_v1", "cloud_device_name_v1"),
-            "settings_display_entries" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1"),
+            "settings_display_entries" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "insight_cards_enabled_v1", "independent_detail_enabled_v1", "chat_page_mode_v1", "asset_amount_display_mode_v1"),
             "settings_display_bills" to filterSettingsModule(full, "amount_grouping_v1", "bill_show_category_icon_v1", "bill_show_full_category_v1", "bill_remark_priority_v1"),
-            "settings_display_multibill" to filterSettingsModule(full, "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "save_ocr_debug_v1"),
-            "settings_general" to filterSettingsModule(full, "quick_gesture_enabled_v1", "hide_recents_v1", "app_usage_mode_v1", "first_day_of_week_v1", "asset_feature_enabled_v1", "app_white_list_v1", "active_currencies_v1", "exchange_refresh_interval_v1", "cm_enabled_currencies_v1", "cm_rates_json_v1", "cm_rates_update_time_v1", "cm_refresh_interval_min_v1", "cloud_webdav_url_v1", "cloud_webdav_user_v1", "cloud_webdav_pass_v1", "cloud_webdav_dir_v1", "cloud_device_name_v1"),
-            "settings_display" to filterSettingsModule(full, "show_ai_text_v1", "show_ai_voice_v1", "show_ai_image_v1", "show_screen_accounting_v1", "show_multi_cur_v1", "show_home_trend_card_v1", "show_book_entry_v1", "show_ai_chat_entry_v1", "multi_bill_enabled_v1", "multi_bill_not_sync_v1", "save_ocr_debug_v1", "amount_grouping_v1", "bill_show_category_icon_v1", "bill_show_full_category_v1", "bill_remark_priority_v1"),
-            "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_provider_keys_v1", "ai_text_model_v1", "ai_vision_model_v1", "ai_online_speech_model_v1", "screen_vision_supported_models_v1", "ai_models_cache_v1", "asr_mode_v1", "asr_download_source_v1", "ocr_mode_v1", "receipt_ocr_refine_enabled_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1", "ai_thinking_modify_bill_v1", "ai_thinking_category_refine_v1"),
+            "settings_display_multibill" to filterSettingsModule(full, "multi_bill_not_sync_v1"),
+            "settings_ai_core" to filterSettingsModule(full, "ai_api_key_v1", "ai_api_url_v1", "ai_provider_v1", "ai_provider_keys_v1", "ai_text_model_v1", "ai_vision_model_v1", "ai_online_speech_model_v1", "screen_vision_supported_models_v1", "ai_models_cache_v1", "asr_mode_v1", "asr_download_source_v1", "ocr_mode_v1", "receipt_lang_mode_v1", "ai_prompt_correction_v1", "local_rule_override_v1", "ai_thinking_modify_bill_v1", "ai_thinking_category_refine_v1", "ai_enable_thinking_v1", "ai_thinking_multi_bill_v1", "ai_thinking_vision_v1", "ai_manual_model_selection_v1", "receipt_image_draft_confirm_v1", "image_accounting_natural_language_v1", "screen_accounting_use_image_flow_v1"),
             "settings_ai_chat" to filterSettingsModule(full, "ai_entry_mode_v1", "ai_chat_name_v1", "ai_chat_identity_v1", "user_chat_name_v1", "user_profile_desc_v1", "ai_chat_avatar_path_v1", "user_chat_avatar_path_v1", "ai_chat_bg_path_v1", "ai_chat_model_v1", "ai_chat_reply_style_v1", "ai_chat_reply_style_custom_v1", "ai_chat_model_audio_support_v1", "ai_chat_session_titles_v1"),
             "settings_books" to filterSettingsModule(full, "book_accounts_v1", "collapsed_book_accounts_v1", "selected_book_v1", "default_book_v1", "book_colors_v1", "book_banners_v1"),
-            "settings_advanced_runtime" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1"),
-            "settings_advanced" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1", "show_multi_cur_v1", "show_screen_accounting_v1")
+            "settings_advanced_runtime" to filterSettingsModule(full, "vibrate_feedback_v1", "save_vibrate_v1", "shizuku_persistence_v1", "shizuku_mode_v1", "logging_enabled_v1")
         )
     }
 

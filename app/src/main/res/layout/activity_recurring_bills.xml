@@ -46,6 +46,77 @@
             android:textStyle="bold" />
     </RelativeLayout>
 
+    <LinearLayout
+        android:id="@+id/layout_recurring_auto_detect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_bill_item_chat"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/recurring_auto_detect_title"
+                android:textColor="#333333"
+                android:textSize="@dimen/text_size_14"
+                android:textStyle="bold" />
+
+            <Switch
+                android:id="@+id/switch_recurring_auto_detect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_recurring_auto_detect_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/recurring_auto_detect_body"
+            android:textColor="#777777"
+            android:textSize="@dimen/text_size_12" />
+
+        <TextView
+            android:id="@+id/tv_recurring_auto_detect_tolerance"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:textColor="#5C6BC0"
+            android:textSize="@dimen/text_size_12"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_pending_notice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_stats_metric_tile"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:textColor="#5C6BC0"
+        android:textSize="@dimen/text_size_13"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tab_recurring"
         android:layout_width="match_parent"
@@ -56,12 +127,12 @@
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/recurring_tab_pending" />
+            android:text="@string/recurring_tab_mine" />
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/recurring_tab_confirmed" />
+            android:text="@string/recurring_tab_pending" />
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
@@ -80,6 +151,65 @@
         android:textColor="#666666"
         android:textSize="@dimen/text_size_13"
         android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/layout_recurring_bulk_actions"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/bg_stats_metric_tile"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_recurring_bulk_selected"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:textColor="#333333"
+            android:textSize="@dimen/text_size_13"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_recurring_bulk_confirm"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:text="@string/recurring_bulk_confirm"
+            android:textColor="#4CAF50"
+            android:textSize="@dimen/text_size_12"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_recurring_bulk_dismiss"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:text="@string/recurring_bulk_dismiss"
+            android:textColor="#666666"
+            android:textSize="@dimen/text_size_12"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_recurring_bulk_delete"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:text="@string/recurring_bulk_delete"
+            android:textColor="#E53935"
+            android:textSize="@dimen/text_size_12"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <FrameLayout
         android:layout_width="match_parent"

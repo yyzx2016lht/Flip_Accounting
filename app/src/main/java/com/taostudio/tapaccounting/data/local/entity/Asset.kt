@@ -29,7 +29,7 @@ data class Asset(
     val annualInterestRate: Double = 0.0, // 投资理财年化利率百分比，如 1.8 表示 1.8%
     val interestLastSettledAt: Long = System.currentTimeMillis(), // 最近一次自动结息时间
     val isArchived: Boolean = false, // 是否收纳，收纳后默认不出现在日常资产列表与记账选择器
-    /** 收纳前是否计入总资产；移出收纳时恢复此值 */
+    /** 收纳前的 includeInNetAsset；收纳时写入，取消收纳时用于恢复 */
     val includeInNetBeforeArchive: Boolean = true
 ) {
     companion object {

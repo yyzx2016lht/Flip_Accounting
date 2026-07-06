@@ -52,12 +52,16 @@ import com.taostudio.tapaccounting.logic.AssetBillBalanceHistory
 import com.taostudio.tapaccounting.logic.AssetBillBalanceDisplay
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
 import com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet
+import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import com.taostudio.tapaccounting.logic.BillDeleteHelper
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.logic.CurrencyUtils
 import com.taostudio.tapaccounting.ui.activity.EditBillActivity
 import com.taostudio.tapaccounting.ui.common.AddBillEntrySheetLauncher
-import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
+import com.taostudio.tapaccounting.logic.InvestmentLotDraftStorage
+import com.taostudio.tapaccounting.logic.InvestmentLotEntryHelper
+import com.taostudio.tapaccounting.ui.dialog.InvestmentLotPromptDialog
+import com.taostudio.tapaccounting.ui.dialog.InvestmentLotSplitDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -527,10 +531,9 @@ class AssetDetailActivity : AppCompatActivity() {
             noteParts += "年利率 ${formatCompactDecimal(asset.annualInterestRate)}%"
         }
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
-        if (asset.isArchived) noteParts += "已收纳"
         creditCycleSummaryText = null
 
-        // 更新收纳按钮和不计入总资产提示
+        // 收纳会临时把 includeInNetAsset 置 false；取消收纳时从 includeInNetBeforeArchive 恢复
         tvActionArchive.text = if (asset.isArchived) "不收纳" else "收纳"
         tvExcludeHint.visibility = if (!asset.includeInNetAsset) View.VISIBLE else View.GONE
 
@@ -588,30 +591,49 @@ class AssetDetailActivity : AppCompatActivity() {
         hasShownInvestmentLotPrompt = true
         lifecycleScope.launch {
             val needPrompt = withContext(Dispatchers.IO) {
-                val hasDraft = getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
-                    .contains("asset_${asset.id}")
+                val hasDraft = InvestmentLotDraftStorage.hasDraft(this@AssetDetailActivity, asset.id)
                 val hasOpenLots = db.investmentLotDao().getOpenLotsByAssetId(asset.id).isNotEmpty()
                 hasDraft || !hasOpenLots
             }
             if (!needPrompt) return@launch
-            val hasDraft = withContext(Dispatchers.IO) {
-                getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
-                    .contains("asset_${asset.id}")
-            }
-            val message = if (hasDraft) "检测到上次未完成的本金批次录入，是否继续？" else "该理财产品尚未录入本金批次，是否现在录入？"
-            AlertDialog.Builder(this@AssetDetailActivity)
-                .setTitle("补录本金批次")
-                .setMessage(message)
-                .setPositiveButton("去录入") { _, _ ->
-                    startActivity(
-                        Intent(this@AssetDetailActivity, AddAssetActivity::class.java)
-                            .putExtra("ASSET_ID", assetId)
-                            .putExtra(AddAssetActivity.EXTRA_FORCE_INVESTMENT_LOT_SPLIT, true)
-                    )
-                }
-                .setNegativeButton("稍后再记", null)
-                .show()
+            val hasDraft = InvestmentLotDraftStorage.hasDraft(this@AssetDetailActivity, asset.id)
+            InvestmentLotPromptDialog.show(
+                activity = this@AssetDetailActivity,
+                hasDraft = hasDraft,
+                onGo = { openInvestmentLotEntryDialog(asset, hasDraft) }
+            )
         }
+    }
+
+    private fun openInvestmentLotEntryDialog(asset: Asset, hasDraft: Boolean) {
+        val initialDrafts = if (hasDraft) {
+            InvestmentLotDraftStorage.load(this, asset.id)
+        } else {
+            emptyList()
+        }
+        InvestmentLotSplitDialog.show(
+            activity = this,
+            title = getString(R.string.investment_lot_prompt_title),
+            message = getString(R.string.investment_principal_hint),
+            totalAmount = asset.balance,
+            annualInterestRate = asset.annualInterestRate,
+            initialDrafts = initialDrafts,
+            onLater = { drafts ->
+                InvestmentLotEntryHelper.saveDrafts(this, asset.id, drafts)
+            },
+            onConfirm = { lots ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    InvestmentLotEntryHelper.persistConfirmedLots(this@AssetDetailActivity, db, asset, lots)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@AssetDetailActivity,
+                            getString(R.string.investment_lot_saved),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        )
     }
 
     private fun toggleArchiveCurrentAsset() {
@@ -1031,9 +1053,18 @@ class AssetDetailActivity : AppCompatActivity() {
                 tvAssetRemark.text = assetDetailRemarkText
                 tvAssetRemark.visibility = if (assetDetailRemarkText.isBlank()) View.GONE else View.VISIBLE
 
-                // 没有内容时隐藏整个卡片
                 val hasContent = !creditCycleSummaryText.isNullOrBlank() || assetDetailRemarkText.isNotBlank()
-                itemView.visibility = if (hasContent) View.VISIBLE else View.GONE
+                val lp = itemView.layoutParams as RecyclerView.LayoutParams
+                if (hasContent) {
+                    itemView.visibility = View.VISIBLE
+                    lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    lp.topMargin = itemView.resources.getDimensionPixelSize(R.dimen.space_8)
+                } else {
+                    itemView.visibility = View.GONE
+                    lp.height = 0
+                    lp.topMargin = 0
+                }
+                itemView.layoutParams = lp
             }
         }
 

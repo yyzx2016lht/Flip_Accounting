@@ -16,6 +16,7 @@ import androidx.appcompat.view.ContextThemeWrapper
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
@@ -169,6 +170,7 @@ class BudgetManageActivity : AppCompatActivity() {
                 labels
             )
             spinner.isEnabled = !forceTotalBudget
+            dialogView.findViewById<TextView>(R.id.tv_budget_dialog_title).text = getString(R.string.budget_set)
             if (forceTotalBudget) {
                 Toast.makeText(
                     this@BudgetManageActivity,
@@ -177,14 +179,14 @@ class BudgetManageActivity : AppCompatActivity() {
                 ).show()
             }
 
-            AlertDialog.Builder(ContextThemeWrapper(this@BudgetManageActivity, R.style.Theme_TapAccounting))
-                .setTitle(getString(R.string.budget_set))
-                .setView(dialogView)
-                .setPositiveButton(getString(R.string.rule_learn_confirm)) { _, _ ->
+            val dialog = BottomSheetDialog(this@BudgetManageActivity)
+            dialog.setContentView(dialogView)
+            dialogView.findViewById<View>(R.id.btn_budget_cancel).setOnClickListener { dialog.dismiss() }
+            dialogView.findViewById<View>(R.id.btn_budget_save).setOnClickListener {
                     val amount = etAmount.text.toString().toDoubleOrNull()
                     if (amount == null || amount <= 0) {
                         Toast.makeText(this@BudgetManageActivity, getString(R.string.budget_amount_invalid), Toast.LENGTH_SHORT).show()
-                        return@setPositiveButton
+                        return@setOnClickListener
                     }
                     val selectedIndex = spinner.selectedItemPosition
                     val categoryName = if (selectedIndex <= 0) null else labels[selectedIndex]
@@ -228,37 +230,47 @@ class BudgetManageActivity : AppCompatActivity() {
                             }
                         }
                         loadBudgets()
+                        dialog.dismiss()
                     }
                 }
-                .setNegativeButton(getString(R.string.rule_learn_cancel), null)
-                .show()
+            dialog.show()
         }
     }
 
     private fun showEditDialog(budget: Budget) {
-        val et = EditText(this).apply {
-            setText(String.format("%.0f", budget.amount))
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setPadding(48, 32, 48, 32)
-        }
-        AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_TapAccounting))
-            .setTitle(getString(R.string.budget_edit))
-            .setView(et)
-            .setPositiveButton(getString(R.string.rule_learn_confirm)) { _, _ ->
-                val newAmount = et.text.toString().toDoubleOrNull()
-                if (newAmount != null && newAmount > 0) {
-                    lifecycleScope.launch {
-                        withContext(Dispatchers.IO) {
-                            AppDatabase.getDatabase(this@BudgetManageActivity)
-                                .budgetDao()
-                                .update(budget.copy(amount = newAmount, updatedAt = System.currentTimeMillis()))
-                        }
-                        loadBudgets()
-                    }
-                }
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_budget, null)
+        val spinner = dialogView.findViewById<Spinner>(R.id.spinner_budget_category)
+        val etAmount = dialogView.findViewById<EditText>(R.id.et_budget_amount)
+        val label = budget.categoryName ?: getString(R.string.budget_monthly_total)
+        dialogView.findViewById<TextView>(R.id.tv_budget_dialog_title).text = getString(R.string.budget_edit)
+        etAmount.setText(String.format(Locale.getDefault(), "%.0f", budget.amount))
+        spinner.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            listOf(label)
+        )
+        spinner.isEnabled = false
+
+        val dialog = BottomSheetDialog(this)
+        dialog.setContentView(dialogView)
+        dialogView.findViewById<View>(R.id.btn_budget_cancel).setOnClickListener { dialog.dismiss() }
+        dialogView.findViewById<View>(R.id.btn_budget_save).setOnClickListener {
+            val newAmount = etAmount.text.toString().toDoubleOrNull()
+            if (newAmount == null || newAmount <= 0) {
+                Toast.makeText(this, getString(R.string.budget_amount_invalid), Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-            .setNegativeButton(getString(R.string.rule_learn_cancel), null)
-            .show()
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    AppDatabase.getDatabase(this@BudgetManageActivity)
+                        .budgetDao()
+                        .update(budget.copy(amount = newAmount, updatedAt = System.currentTimeMillis()))
+                }
+                loadBudgets()
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
     private fun showDeleteDialog(budget: Budget) {

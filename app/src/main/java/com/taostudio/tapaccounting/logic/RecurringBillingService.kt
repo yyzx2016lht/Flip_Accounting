@@ -5,17 +5,40 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.RecurringFrequency
 import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
 import com.taostudio.tapaccounting.data.local.entity.RecurringStatus
+import java.util.Calendar
 import kotlin.math.abs
 
 class RecurringBillingService(
     private val db: AppDatabase
 ) {
-    suspend fun scanRecentBills(limit: Int = 500): Int {
+    suspend fun scanRecentBills(
+        limit: Int = 500,
+        amountTolerance: Double = 1.0
+    ): Int {
         val bills = db.billDao().getRecentExpenseBills(limit)
-        val candidates = RecurringBillDetector.detect(bills)
+        val candidates = RecurringBillDetector.detect(bills, amountTolerance)
+        val candidateKeys = candidates.map {
+            patternSignature(
+                merchantKey = it.merchantKey,
+                bookName = it.bookName,
+                categoryName = it.categoryName,
+                accountName = it.accountName,
+                toAccountName = "",
+                billType = Bill.TYPE_EXPENSE,
+                billSubType = Bill.SUBTYPE_NORMAL
+            )
+        }.toSet()
         var changed = 0
         for (candidate in candidates) {
-            val existing = db.recurringPatternDao().getByMerchantKey(candidate.merchantKey)
+            val existing = db.recurringPatternDao().getBySignature(
+                merchantKey = candidate.merchantKey,
+                bookName = candidate.bookName,
+                categoryName = candidate.categoryName,
+                accountName = candidate.accountName,
+                toAccountName = "",
+                billType = Bill.TYPE_EXPENSE,
+                billSubType = Bill.SUBTYPE_NORMAL
+            )
             if (existing?.status == RecurringStatus.DISMISSED) continue
 
             val detected = RecurringBillDetector.toPattern(candidate)
@@ -41,6 +64,23 @@ class RecurringBillingService(
                 changed++
             }
         }
+        db.recurringPatternDao()
+            .getByStatus(RecurringStatus.SUGGESTED)
+            .filter { pattern ->
+                patternSignature(
+                    merchantKey = pattern.merchantKey,
+                    bookName = pattern.bookName,
+                    categoryName = pattern.categoryName,
+                    accountName = pattern.accountName,
+                    toAccountName = pattern.toAccountName,
+                    billType = pattern.billType,
+                    billSubType = pattern.billSubType
+                ) !in candidateKeys
+            }
+            .forEach { stalePattern ->
+                db.recurringPatternDao().deleteById(stalePattern.id)
+                changed++
+            }
         return changed
     }
 
@@ -53,7 +93,10 @@ class RecurringBillingService(
         bookName: String,
         categoryId: Long?,
         categoryName: String?,
-        accountName: String?
+        accountName: String?,
+        toAccountName: String? = null,
+        billType: Int = Bill.TYPE_EXPENSE,
+        billSubType: Int = Bill.SUBTYPE_NORMAL
     ): RecurringPattern {
         val now = System.currentTimeMillis()
         val lastSeenAt = lastSeenForHint(now, frequency, dayOfMonthHint)
@@ -62,7 +105,10 @@ class RecurringBillingService(
             categoryId = categoryId,
             categoryName = categoryName,
             accountName = accountName,
+            toAccountName = toAccountName.orEmpty(),
             bookName = bookName,
+            billType = billType,
+            billSubType = billSubType,
             amountApprox = amountApprox,
             amountTolerance = amountTolerance.coerceAtLeast(0.0),
             frequency = frequency,
@@ -73,7 +119,15 @@ class RecurringBillingService(
             createdAt = now,
             updatedAt = now
         )
-        val existing = db.recurringPatternDao().getByMerchantKey(pattern.merchantKey)
+        val existing = db.recurringPatternDao().getBySignature(
+            merchantKey = pattern.merchantKey,
+            bookName = pattern.bookName,
+            categoryName = pattern.categoryName,
+            accountName = pattern.accountName,
+            toAccountName = pattern.toAccountName,
+            billType = pattern.billType,
+            billSubType = pattern.billSubType
+        )
         return if (existing == null) {
             pattern.copy(id = db.recurringPatternDao().insert(pattern))
         } else {
@@ -84,17 +138,20 @@ class RecurringBillingService(
     }
 
     suspend fun matchNewBill(bill: Bill): RecurringPattern? {
-        if (bill.type != Bill.TYPE_EXPENSE || bill.subType == Bill.SUBTYPE_REFUND) return null
+        if (bill.subType == Bill.SUBTYPE_REFUND) return null
         val merchantKey = normalizeMerchantKey(bill.remark.ifBlank { bill.categoryName })
         if (merchantKey.isBlank()) return null
 
         val patterns = db.recurringPatternDao().getAll()
             .filter { it.status == RecurringStatus.CONFIRMED || it.status == RecurringStatus.SUGGESTED }
         val matched = patterns.firstOrNull { pattern ->
-            pattern.bookName == bill.bookName &&
+                    pattern.bookName == bill.bookName &&
+                    pattern.billType == bill.type &&
+                    pattern.billSubType == bill.subType &&
                     pattern.merchantKey == merchantKey &&
                     (pattern.categoryId == null || bill.categoryId == pattern.categoryId) &&
                     (pattern.accountName.isNullOrBlank() || pattern.accountName == bill.accountName) &&
+                    (pattern.toAccountName.isBlank() || pattern.toAccountName == bill.toAccountName) &&
                     abs(bill.amount - pattern.amountApprox) <= pattern.amountTolerance.coerceAtLeast(1.0)
         } ?: return null
 
@@ -106,6 +163,92 @@ class RecurringBillingService(
         )
         db.recurringPatternDao().update(updated)
         return updated
+    }
+
+    suspend fun getDuePatternsForPrompt(now: Long = System.currentTimeMillis()): List<RecurringPattern> {
+        return db.recurringPatternDao().getByStatus(RecurringStatus.CONFIRMED)
+            .filter { pattern -> isDueForPrompt(pattern, now) }
+            .sortedBy { it.nextExpectedAt ?: Long.MAX_VALUE }
+    }
+
+    suspend fun isDueForPrompt(pattern: RecurringPattern, now: Long = System.currentTimeMillis()): Boolean {
+        val expectedAt = pattern.nextExpectedAt ?: return false
+        val todayStart = dayBounds(now).first
+        val expectedDayStart = dayBounds(expectedAt).first
+        return pattern.status == RecurringStatus.CONFIRMED &&
+                expectedDayStart <= todayStart &&
+                !hasMatchingBillOnExpectedDay(pattern, expectedAt)
+    }
+
+    suspend fun recordDuePattern(pattern: RecurringPattern, amount: Double): Bill {
+        val billTime = pattern.nextExpectedAt?.coerceAtMost(System.currentTimeMillis())
+            ?: System.currentTimeMillis()
+        val account = pattern.accountName
+            ?.takeIf { it.isNotBlank() }
+            ?.let { db.assetDao().getAssetByName(it) }
+        val toAccount = pattern.toAccountName
+            .takeIf { it.isNotBlank() }
+            ?.let { db.assetDao().getAssetByName(it) }
+        val bill = Bill(
+            type = pattern.billType,
+            subType = pattern.billSubType,
+            amount = amount,
+            originalAmount = amount,
+            categoryId = if (pattern.billType == Bill.TYPE_TRANSFER) null else pattern.categoryId,
+            accountId = account?.id,
+            toAccountId = toAccount?.id,
+            categoryName = pattern.categoryName.orEmpty(),
+            accountName = pattern.accountName.orEmpty(),
+            toAccountName = pattern.toAccountName,
+            time = billTime,
+            remark = pattern.merchantKey,
+            bookName = pattern.bookName
+        )
+        val saved = BillMutationService.insertBillAndApplyImpact(db, bill)
+        db.recurringPatternDao().update(
+            pattern.copy(
+                amountApprox = amount,
+                lastSeenAt = billTime,
+                nextExpectedAt = calculateNextExpected(billTime, pattern.frequency),
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        return saved
+    }
+
+    suspend fun dismissPattern(pattern: RecurringPattern) {
+        db.recurringPatternDao().update(
+            pattern.copy(
+                status = RecurringStatus.DISMISSED,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    private suspend fun hasMatchingBillOnExpectedDay(pattern: RecurringPattern, expectedAt: Long): Boolean {
+        val (start, end) = dayBounds(expectedAt)
+        return db.billDao().getBillsBetweenTimesList(start, end).any { bill ->
+            bill.type == pattern.billType &&
+                    bill.subType == pattern.billSubType &&
+                    bill.bookName == pattern.bookName &&
+                    (pattern.billType == Bill.TYPE_TRANSFER || pattern.categoryId == null || bill.categoryId == pattern.categoryId) &&
+                    (pattern.accountName.isNullOrBlank() || bill.accountName == pattern.accountName) &&
+                    (pattern.toAccountName.isBlank() || bill.toAccountName == pattern.toAccountName) &&
+                    normalizeMerchantKey(bill.remark.ifBlank { bill.categoryName }) == pattern.merchantKey &&
+                    abs(bill.amount - pattern.amountApprox) <= pattern.amountTolerance.coerceAtLeast(1.0)
+        }
+    }
+
+    private fun dayBounds(timeMillis: Long): Pair<Long, Long> {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = timeMillis
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, 1)
+        return start to (cal.timeInMillis - 1)
     }
 
     companion object {
@@ -137,12 +280,41 @@ class RecurringBillingService(
                 cal.set(java.util.Calendar.MINUTE, 0)
                 cal.set(java.util.Calendar.SECOND, 0)
                 cal.set(java.util.Calendar.MILLISECOND, 0)
-                if (cal.timeInMillis > now) {
+                val isSameDay = startOfDay(cal.timeInMillis) == startOfDay(now)
+                if (cal.timeInMillis > now || isSameDay) {
                     cal.add(java.util.Calendar.MONTH, -1)
                 }
                 return cal.timeInMillis
             }
             return now
         }
+
+        private fun startOfDay(timeMillis: Long): Long {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = timeMillis
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        }
+
+        private fun patternSignature(
+            merchantKey: String,
+            bookName: String,
+            categoryName: String?,
+            accountName: String?,
+            toAccountName: String,
+            billType: Int,
+            billSubType: Int
+        ): String = listOf(
+            merchantKey,
+            bookName,
+            categoryName.orEmpty(),
+            accountName.orEmpty(),
+            toAccountName,
+            billType.toString(),
+            billSubType.toString()
+        ).joinToString("\u001F")
     }
 }

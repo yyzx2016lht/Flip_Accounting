@@ -50,7 +50,7 @@ class CreditCardCycleService {
                     || bill.accountName == asset.name || bill.toAccountName == asset.name
         }
 
-        // 已出账周期内的消费/退款
+        // 已出账周期内的消费/退款，用于展示本期出账金额。
         val billedBills = relatedBills.filter { it.time in statementStart..statementEnd }
         val billedSpend = billedBills
             .filter { it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND }
@@ -70,7 +70,7 @@ class CreditCardCycleService {
             .filter { it.type == Bill.TYPE_REPAYMENT || (it.type == Bill.TYPE_TRANSFER && it.subType == Bill.SUBTYPE_REPAYMENT) }
             .sumOf { it.amount }
 
-        val amountDue = (billedSpend - billedRefund - paymentsInCycle).coerceAtLeast(0.0)
+        val amountDue = calculateBilledOutstanding(relatedBills, statementEnd, now)
 
         val availableLimit = if (asset.creditLimit > 0) {
             val currentDebt = (-asset.balance).coerceAtLeast(0.0)
@@ -78,7 +78,7 @@ class CreditCardCycleService {
         } else null
 
         val daysToDue = if (dueDay > 0) {
-            calculateDaysToDue(dueDay, statementEnd, now)
+            calculateDaysToDue(dueDay, statementDay, statementEnd, amountDue, relatedBills, now)
         } else null
 
         return CreditCardCycleSnapshot(
@@ -121,48 +121,29 @@ class CreditCardCycleService {
      * 计算已出账周期。
      */
     private fun calculateStatementPeriod(statementDay: Int, now: Long): Pair<Long, Long> {
-        // 本次账单日
-        val thisMonthStatement = Calendar.getInstance().apply {
-            timeInMillis = now
-            set(Calendar.DAY_OF_MONTH, statementDay.coerceAtMost(getActualMaximum(Calendar.DAY_OF_MONTH)))
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
-        }
+        val nowCal = Calendar.getInstance().apply { timeInMillis = now }
+        val thisMonthStatement = statementDateFor(
+            year = nowCal.get(Calendar.YEAR),
+            month = nowCal.get(Calendar.MONTH),
+            statementDay = statementDay,
+            endOfDay = true
+        )
 
         val statementEnd: Long
         val statementStart: Long
 
         if (now < thisMonthStatement.timeInMillis) {
             // 今天未到账单日：已出账周期 = 上上月账单日次日 ~ 上月账单日
-            val lastMonthStatement = Calendar.getInstance().apply {
-                timeInMillis = thisMonthStatement.timeInMillis
-                add(Calendar.MONTH, -1)
-            }
+            val lastMonthStatement = statementDateRelativeTo(nowCal, -1, statementDay, endOfDay = true)
             statementEnd = lastMonthStatement.timeInMillis
-            val prevPrevStatement = Calendar.getInstance().apply {
-                timeInMillis = lastMonthStatement.timeInMillis
-                add(Calendar.MONTH, -1)
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-                add(Calendar.DAY_OF_MONTH, 1)
-            }
+            val prevPrevStatement = statementDateRelativeTo(nowCal, -2, statementDay, endOfDay = false)
+                .apply { add(Calendar.DAY_OF_MONTH, 1) }
             statementStart = prevPrevStatement.timeInMillis
         } else {
             // 今天已过账单日：已出账周期 = 上月账单日次日 ~ 本月账单日
             statementEnd = thisMonthStatement.timeInMillis
-            val lastMonthStatement = Calendar.getInstance().apply {
-                timeInMillis = thisMonthStatement.timeInMillis
-                add(Calendar.MONTH, -1)
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-                add(Calendar.DAY_OF_MONTH, 1)
-            }
+            val lastMonthStatement = statementDateRelativeTo(nowCal, -1, statementDay, endOfDay = false)
+                .apply { add(Calendar.DAY_OF_MONTH, 1) }
             statementStart = lastMonthStatement.timeInMillis
         }
 
@@ -172,21 +153,86 @@ class CreditCardCycleService {
     /**
      * 计算距离还款日还有几天。
      */
-    private fun calculateDaysToDue(dueDay: Int, statementEnd: Long, now: Long): Int {
-        val dueCal = Calendar.getInstance().apply {
-            timeInMillis = statementEnd
-            set(Calendar.DAY_OF_MONTH, dueDay.coerceAtMost(getActualMaximum(Calendar.DAY_OF_MONTH)))
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
+    private fun calculateDaysToDue(
+        dueDay: Int,
+        statementDay: Int,
+        statementEnd: Long,
+        amountDue: Double,
+        relatedBills: List<Bill>,
+        now: Long
+    ): Int {
+        if (amountDue <= 0.0) return 0
+
+        val statementEndCal = Calendar.getInstance().apply { timeInMillis = statementEnd }
+        val previousStatementEnd = statementDateRelativeTo(statementEndCal, -1, statementDay, endOfDay = true).timeInMillis
+        val previousOutstanding = calculateBilledOutstanding(relatedBills, previousStatementEnd, now)
+        if (previousOutstanding > 0.0) {
+            val previousDue = calculateDueDate(dueDay, previousStatementEnd)
+            if (previousDue.timeInMillis <= now) return 0
         }
 
-        if (dueCal.timeInMillis <= statementEnd) {
-            dueCal.add(Calendar.MONTH, 1)
-        }
+        val dueCal = calculateDueDate(dueDay, statementEnd)
+        if (dueCal.timeInMillis <= now) return 0
 
         val diffMs = dueCal.timeInMillis - now
         return (diffMs / (24 * 3600_000)).toInt().coerceAtLeast(0)
+    }
+
+    private fun calculateBilledOutstanding(relatedBills: List<Bill>, statementEnd: Long, now: Long): Double {
+        val billedSpend = relatedBills
+            .filter { it.time <= statementEnd && it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND }
+            .sumOf { it.amount }
+        val billedRefund = relatedBills
+            .filter { it.time <= statementEnd && it.subType == Bill.SUBTYPE_REFUND }
+            .sumOf { it.amount }
+        val payments = relatedBills
+            .filter { it.time <= now }
+            .filter { it.type == Bill.TYPE_REPAYMENT || (it.type == Bill.TYPE_TRANSFER && it.subType == Bill.SUBTYPE_REPAYMENT) }
+            .sumOf { it.amount }
+        return (billedSpend - billedRefund - payments).coerceAtLeast(0.0)
+    }
+
+    private fun calculateDueDate(dueDay: Int, statementEnd: Long): Calendar {
+        val statementCal = Calendar.getInstance().apply { timeInMillis = statementEnd }
+        var dueCal = dayInMonthRelativeTo(statementCal, 0, dueDay, endOfDay = true)
+        if (dueCal.timeInMillis <= statementEnd) {
+            dueCal = dayInMonthRelativeTo(statementCal, 1, dueDay, endOfDay = true)
+        }
+        return dueCal
+    }
+
+    private fun statementDateRelativeTo(base: Calendar, monthOffset: Int, statementDay: Int, endOfDay: Boolean): Calendar {
+        return dayInMonthRelativeTo(base, monthOffset, statementDay, endOfDay)
+    }
+
+    private fun dayInMonthRelativeTo(base: Calendar, monthOffset: Int, day: Int, endOfDay: Boolean): Calendar {
+        val target = Calendar.getInstance().apply {
+            clear()
+            set(Calendar.YEAR, base.get(Calendar.YEAR))
+            set(Calendar.MONTH, base.get(Calendar.MONTH))
+            set(Calendar.DAY_OF_MONTH, 1)
+            add(Calendar.MONTH, monthOffset)
+        }
+        return statementDateFor(
+            year = target.get(Calendar.YEAR),
+            month = target.get(Calendar.MONTH),
+            statementDay = day,
+            endOfDay = endOfDay
+        )
+    }
+
+    private fun statementDateFor(year: Int, month: Int, statementDay: Int, endOfDay: Boolean): Calendar {
+        return Calendar.getInstance().apply {
+            clear()
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month)
+            set(Calendar.DAY_OF_MONTH, statementDay.coerceAtMost(getActualMaximum(Calendar.DAY_OF_MONTH)))
+            if (endOfDay) {
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+                set(Calendar.MILLISECOND, 999)
+            }
+        }
     }
 }

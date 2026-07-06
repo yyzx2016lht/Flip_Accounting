@@ -51,6 +51,8 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.data.local.entity.RecurringStatus
+import com.taostudio.tapaccounting.logic.BudgetService
 import com.taostudio.tapaccounting.ui.main.home.InsightCardAdapter
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.ui.common.UiMotion
@@ -104,6 +106,8 @@ class StatsFragment : Fragment() {
     private lateinit var tvTotalTransfer: TextView
     private lateinit var tvTotalRepayment: TextView
     private lateinit var tvTotalRefund: TextView
+    private lateinit var tvBudgetStatus: TextView
+    private lateinit var tvRecurringStatus: TextView
     private lateinit var tvDateSelector: TextView
     private lateinit var tvDailyAvgLabel: TextView
     private lateinit var btnModeMonth: TextView
@@ -137,6 +141,8 @@ class StatsFragment : Fragment() {
     private var lastCategoryListRenderKey: Long? = null
     private var lastChartRenderKey: Long? = null
     private var chartRenderJob: Job? = null
+    private var featureEntryStatusJob: Job? = null
+    private var lastFeatureEntryStatusKey: String? = null
     private var hasPlayedEnterAnimation = false
     private var lastModeSwitchAnimAt = 0L
     private var frameCallbackPosted = false
@@ -190,6 +196,7 @@ class StatsFragment : Fragment() {
         super.onResume()
         syncHostSelectionIfNeeded("onResume")
         applyPendingExternalQueryFilter("onResume")
+        refreshFeatureEntryStatus()
         playEnterAnimationIfNeeded()
         startJankMonitor("onResume")
     }
@@ -209,6 +216,7 @@ class StatsFragment : Fragment() {
             // Fragment 从隐藏变为可见（即切换到统计 Tab）
             syncHostSelectionIfNeeded("onHiddenChanged:show")
             applyPendingExternalQueryFilter("onHiddenChanged:show")
+            refreshFeatureEntryStatus()
             startJankMonitor("onHiddenChanged:show")
         } else {
             stopJankMonitor("onHiddenChanged:hidden")
@@ -299,6 +307,8 @@ class StatsFragment : Fragment() {
         tvTotalTransfer = root.findViewById(R.id.tv_total_transfer)
         tvTotalRepayment = root.findViewById(R.id.tv_total_repayment)
         tvTotalRefund = root.findViewById(R.id.tv_total_refund)
+        tvBudgetStatus = root.findViewById(R.id.tv_budget_status)
+        tvRecurringStatus = root.findViewById(R.id.tv_recurring_status)
         tvDateSelector = root.findViewById(R.id.tv_date_selector)
         tvDailyAvgLabel = root.findViewById(R.id.tv_daily_avg_label)
         btnModeMonth = root.findViewById(R.id.btn_mode_month)
@@ -559,6 +569,7 @@ class StatsFragment : Fragment() {
         tvTotalRefund.text = "$symbol${AmountFormatHelper.formatAmount(state.totalRefund)}"
         btnPrevDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_left else R.drawable.ic_chevrons_left)
         btnNextDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_right else R.drawable.ic_chevrons_right)
+        updateFeatureEntryStatus(state)
         btnPrevDate.contentDescription = if (state.isMonthMode) "上个月" else "上一年"
         btnNextDate.contentDescription = if (state.isMonthMode) "下个月" else "下一年"
         updateModeTabStyles(state.isMonthMode)
@@ -610,6 +621,70 @@ class StatsFragment : Fragment() {
         val cost = SystemClock.elapsedRealtime() - updateStart
         Log.d(TAG, "updateUI done: bills=${state.bills.size}, list=${list.size}, costMs=$cost")
         perfStage = "idle"
+    }
+
+    private fun updateFeatureEntryStatus(state: StatsUiState) {
+        val yearMonth = String.format(Locale.getDefault(), "%04d-%02d", state.year, state.month + 1)
+        val normalizedBook = state.selectedBookName
+            ?.let { BookAccountManager.normalizeBookName(it) }
+            .orEmpty()
+        val daoBookName = if (normalizedBook == BookAccountManager.ALL_BOOK) "" else normalizedBook
+        val key = "$yearMonth|$daoBookName"
+        if (key == lastFeatureEntryStatusKey) return
+        lastFeatureEntryStatusKey = key
+        featureEntryStatusJob?.cancel()
+        featureEntryStatusJob = viewLifecycleOwner.lifecycleScope.launch {
+            val status = withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(requireContext().applicationContext)
+                val budgetService = BudgetService(db.budgetDao(), db.billDao())
+                val budgets = budgetService.getMonthBudgetsWithProgress(daoBookName, yearMonth)
+                val budgetProgress = budgets
+                    .firstOrNull { it.budget.categoryId == null }
+                    ?: budgets.maxByOrNull { it.progress.percent }
+
+                val pendingCount = db.recurringPatternDao()
+                    .getByStatus(RecurringStatus.SUGGESTED)
+                    .count { daoBookName.isBlank() || it.bookName == daoBookName }
+                val confirmed = db.recurringPatternDao()
+                    .getByStatus(RecurringStatus.CONFIRMED)
+                    .filter { daoBookName.isBlank() || it.bookName == daoBookName }
+                val now = System.currentTimeMillis()
+                val dueSoonAt = now + 3L * 24L * 3600_000L
+                val dueSoonCount = confirmed.count { pattern ->
+                    val expectedAt = pattern.nextExpectedAt ?: return@count false
+                    expectedAt in now..dueSoonAt
+                }
+
+                val budgetText = budgetProgress?.let {
+                    when (it.progress.status) {
+                        BudgetService.BudgetStatus.EXCEEDED -> getString(R.string.budget_status_exceeded)
+                        BudgetService.BudgetStatus.WARNING,
+                        BudgetService.BudgetStatus.NORMAL -> getString(
+                            R.string.budget_entry_status_fmt,
+                            it.progress.percent * 100
+                        )
+                    }
+                } ?: getString(R.string.budget_entry_status_empty)
+
+                val recurringText = when {
+                    pendingCount > 0 -> getString(R.string.recurring_entry_status_pending, pendingCount)
+                    dueSoonCount > 0 -> getString(R.string.recurring_entry_status_due, dueSoonCount)
+                    confirmed.isNotEmpty() -> getString(R.string.recurring_entry_status_confirmed, confirmed.size)
+                    else -> getString(R.string.recurring_entry_status_empty)
+                }
+
+                budgetText to recurringText
+            }
+            tvBudgetStatus.text = status.first
+            tvRecurringStatus.text = status.second
+        }
+    }
+
+    private fun refreshFeatureEntryStatus() {
+        lastFeatureEntryStatusKey = null
+        if (::tvBudgetStatus.isInitialized && ::tvRecurringStatus.isInitialized) {
+            updateFeatureEntryStatus(viewModel.uiState.value)
+        }
     }
 
     private fun scheduleCategoryChartUpdate(state: StatsUiState, listSize: Int) {

@@ -28,6 +28,19 @@
             android:layout_height="wrap_content"
             android:textColor="#666666"
             android:textSize="@dimen/text_size_14" />
+
+        <TextView
+            android:id="@+id/btn_budget_delete"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="10dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:minWidth="44dp"
+            android:text="@string/budget_delete"
+            android:textColor="#E35D5D"
+            android:textSize="@dimen/text_size_12"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <TextView

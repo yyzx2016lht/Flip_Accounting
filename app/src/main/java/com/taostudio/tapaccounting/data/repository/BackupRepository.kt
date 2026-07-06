@@ -11,8 +11,10 @@ import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.Category
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
+import com.taostudio.tapaccounting.data.local.entity.Budget
 import com.taostudio.tapaccounting.data.local.entity.DeletedBill
 import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
+import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
 
 /**
@@ -31,7 +33,9 @@ class BackupRepository(private val db: AppDatabase) {
             "investment_lots" to db.investmentLotDao().getAllLots(),
             "categories" to db.categoryDao().getAllCategoriesList(),
             "rules" to db.aiRuleDao().getAllRulesList(),
-            "chat_messages" to db.chatMessageDao().getAll()
+            "chat_messages" to db.chatMessageDao().getAll(),
+            "budgets" to db.budgetDao().getAll(),
+            "recurring_patterns" to db.recurringPatternDao().getAll()
         )
     }
 
@@ -42,7 +46,9 @@ class BackupRepository(private val db: AppDatabase) {
         investmentLots: List<InvestmentLot>?,
         categories: List<Category>?,
         rules: List<AiRule>?,
-        chatMessages: List<ChatMessage>?
+        chatMessages: List<ChatMessage>?,
+        budgets: List<Budget>?,
+        recurringPatterns: List<RecurringPattern>?
     ) {
         db.withTransaction {
             val categoryIdMap = mutableMapOf<Long, Long>()
@@ -155,6 +161,16 @@ class BackupRepository(private val db: AppDatabase) {
                     db.chatMessageDao().insert(remapChatBillReferences(msg, billIdMap).copy(id = 0))
                 }
             }
+
+            if (budgets != null) {
+                db.budgetDao().deleteAll()
+                budgets.forEach { db.budgetDao().insert(it.copy(id = 0)) }
+            }
+
+            if (recurringPatterns != null) {
+                db.recurringPatternDao().deleteAll()
+                recurringPatterns.forEach { db.recurringPatternDao().insert(it.copy(id = 0)) }
+            }
         }
     }
 
@@ -170,7 +186,9 @@ class BackupRepository(private val db: AppDatabase) {
         investmentLots: List<InvestmentLot>?,
         categories: List<Category>?,
         rules: List<AiRule>?,
-        chatMessages: List<ChatMessage>?
+        chatMessages: List<ChatMessage>?,
+        budgets: List<Budget>?,
+        recurringPatterns: List<RecurringPattern>?
     ): MergeRestoreResult {
         var insertedAssets = 0
         var skippedAssets = 0
@@ -182,6 +200,8 @@ class BackupRepository(private val db: AppDatabase) {
         var skippedInvestmentLots = 0
         var insertedRules = 0
         var insertedChatMessages = 0
+        var insertedBudgets = 0
+        var insertedRecurringPatterns = 0
 
         db.withTransaction {
             val categoryIdMap = mutableMapOf<Long, Long>()
@@ -333,6 +353,37 @@ class BackupRepository(private val db: AppDatabase) {
                     insertedChatMessages++
                 }
             }
+
+            // ── 预算：覆盖（按账本+月份+分类去重） ──
+            if (budgets != null) {
+                budgets.forEach { budget ->
+                    val mappedCategoryId = budget.categoryId?.let { categoryIdMap[it] ?: it }
+                    val existing = if (mappedCategoryId == null) {
+                        db.budgetDao().getTotalBudget(budget.yearMonth, budget.bookName)
+                    } else {
+                        db.budgetDao().getBudgetByBookAndCategory(
+                            budget.yearMonth,
+                            budget.bookName,
+                            mappedCategoryId
+                        )
+                    }
+                    val restored = budget.copy(id = existing?.id ?: 0, categoryId = mappedCategoryId)
+                    if (existing == null) {
+                        db.budgetDao().insert(restored)
+                    } else {
+                        db.budgetDao().update(restored)
+                    }
+                    insertedBudgets++
+                }
+            }
+
+            // ── 周期记账模式：追加 ──
+            if (recurringPatterns != null) {
+                recurringPatterns.forEach { pattern ->
+                    db.recurringPatternDao().insert(pattern.copy(id = 0))
+                    insertedRecurringPatterns++
+                }
+            }
         }
 
         return MergeRestoreResult(
@@ -341,7 +392,8 @@ class BackupRepository(private val db: AppDatabase) {
             insertedBills = insertedBills, skippedBills = skippedBills,
             insertedInvestmentLots = insertedInvestmentLots,
             skippedInvestmentLots = skippedInvestmentLots,
-            insertedRules = insertedRules, insertedChatMessages = insertedChatMessages
+            insertedRules = insertedRules, insertedChatMessages = insertedChatMessages,
+            insertedBudgets = insertedBudgets, insertedRecurringPatterns = insertedRecurringPatterns
         )
     }
 
@@ -436,7 +488,8 @@ data class MergeRestoreResult(
     val insertedInvestmentLots: Int = 0,
     val skippedInvestmentLots: Int = 0,
     val insertedRules: Int = 0,
-    val insertedChatMessages: Int = 0
+    val insertedChatMessages: Int = 0,
+    val insertedBudgets: Int = 0,
+    val insertedRecurringPatterns: Int = 0
 )
-
 

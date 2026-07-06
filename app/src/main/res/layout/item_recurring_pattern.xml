@@ -23,6 +23,19 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/tv_recurring_selected"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_stats_metric_tile"
+            android:gravity="center"
+            android:text="✓"
+            android:textColor="#5C6BC0"
+            android:textSize="@dimen/text_size_14"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/tv_amount_approx"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

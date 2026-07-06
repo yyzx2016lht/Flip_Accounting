@@ -27,7 +27,7 @@ import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 
 /** 与 backupIfDowngrade 第三个参数保持同步。 */
-private const val DB_VERSION = 31
+private const val DB_VERSION = 33
 
 /**
  * Room 主库。改 schema 前请先读本节，避免误用破坏性迁移或漏改版本号。
@@ -512,6 +512,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE recurring_patterns ADD COLUMN toAccountName TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE recurring_patterns ADD COLUMN billType INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE recurring_patterns ADD COLUMN billSubType INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE investment_lots ADD COLUMN annualInterestRate REAL NOT NULL DEFAULT 0.0")
+                database.execSQL(
+                    """
+                    UPDATE investment_lots
+                    SET annualInterestRate = COALESCE((
+                        SELECT annualInterestRate
+                        FROM assets
+                        WHERE assets.id = investment_lots.assetId
+                    ), 0.0)
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -553,7 +577,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_27_28,
                         MIGRATION_28_29,
                         MIGRATION_29_30,
-                        MIGRATION_30_31
+                        MIGRATION_30_31,
+                        MIGRATION_31_32,
+                        MIGRATION_32_33
                     )
                     // 仅处理降级：清库并按当前代码 schema 重建。升级缺迁移时仍应抛异常，不要改成 fallbackToDestructiveMigration()。
                     .fallbackToDestructiveMigrationOnDowngrade()
@@ -564,4 +590,3 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
-

@@ -101,58 +101,106 @@ internal class HomeMultiSelectController(
         panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "选择目标账本"
         val optionsScroll = panel.findViewById<ScrollView>(R.id.scroll_delete_book_options)
         val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
-        val availableBookNames = getAvailableBookNames()
+        val sourceBooks = getAvailableBookNames()
+            .map { BookAccountManager.normalizeBookName(it) }
+            .filter {
+                it.isNotBlank() &&
+                    it != BookAccountManager.ALL_BOOK &&
+                    it != BookAccountManager.COLLAPSED_BOOK_GROUP
+            }
+            .distinct()
+        val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext(), sourceBooks)
+        var collapsedGroupExpanded = false
 
-        availableBookNames.forEach { targetBook ->
-            val item = LayoutInflater.from(fragment.requireContext())
-                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
-            item.findViewById<TextView>(R.id.tv_delete_option_title).text = targetBook
-            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = "将所选账单迁移到该账本"
-            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
-            item.setOnClickListener {
-                val normalized = BookAccountManager.normalizeBookName(targetBook)
-                val allSameBook = bills.all {
-                    BookAccountManager.normalizeBookName(it.bookName) == normalized
-                }
-                if (allSameBook) {
-                    Toast.makeText(
-                        fragment.requireContext(),
-                        "账单已在「$targetBook」中，无需转移",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setOnClickListener
-                }
-                dialog.dismiss()
-                showConfirmDialog(
-                    title = "确认移动",
-                    message = "确定要将 ${bills.size} 条账单移动到「$targetBook」吗？",
-                    confirmText = "确认移动",
-                    isDanger = false
-                ) {
-                    val ids = bills.map { it.id }
-                    fragment.lifecycleScope.launch(Dispatchers.IO) {
-                        val db = AppDatabase.getDatabase(fragment.requireContext())
-                        db.billDao().moveBillsToBook(ids, targetBook)
-                        withContext(Dispatchers.Main) {
-                            getHomeAdapter().clearSelection()
-                            onDataChanged()
+        fun displayBooks(): List<String> = BookAccountManager.getDisplayBookAccounts(
+            context = fragment.requireContext(),
+            books = sourceBooks,
+            includeAllBook = false,
+            collapsedGroupExpanded = collapsedGroupExpanded,
+            defaultBookName = defaultBook
+        )
+
+        fun updateOptionsHeight(visibleCount: Int) {
+            val maxHeight = (fragment.resources.displayMetrics.heightPixels * 0.42f).toInt()
+            val estimatedItemHeight = ((66 + 10) * fragment.resources.displayMetrics.density).toInt()
+            val estimatedContentHeight = (visibleCount * estimatedItemHeight).coerceAtLeast(1)
+            val targetHeight = min(maxHeight, estimatedContentHeight)
+            optionsScroll.layoutParams = optionsScroll.layoutParams.apply { height = targetHeight }
+        }
+
+        fun renderOptions() {
+            optionsContainer.removeAllViews()
+            val visibleBooks = displayBooks()
+            val collapsedBooks = BookAccountManager.getCollapsedBookAccounts(
+                fragment.requireContext(),
+                sourceBooks
+            ).toSet()
+
+            visibleBooks.forEach { targetBook ->
+                val item = LayoutInflater.from(fragment.requireContext())
+                    .inflate(R.layout.item_book_delete_option, optionsContainer, false)
+                val titleView = item.findViewById<TextView>(R.id.tv_delete_option_title)
+                val descView = item.findViewById<TextView>(R.id.tv_delete_option_desc)
+                item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
+
+                if (targetBook == BookAccountManager.COLLAPSED_BOOK_GROUP) {
+                    titleView.text =
+                        "${if (collapsedGroupExpanded) "▾" else "▸"} ${BookAccountManager.COLLAPSED_BOOK_GROUP}  ${collapsedBooks.size}"
+                    descView.text = if (collapsedGroupExpanded) "收起已收纳账本" else "展开选择已收纳账本"
+                    item.setOnClickListener {
+                        collapsedGroupExpanded = !collapsedGroupExpanded
+                        renderOptions()
+                    }
+                } else {
+                    titleView.text = targetBook
+                    descView.text = if (targetBook in collapsedBooks) {
+                        "已收纳账本，仍可作为迁移目标"
+                    } else {
+                        "将所选账单迁移到该账本"
+                    }
+                    item.setOnClickListener {
+                        val normalized = BookAccountManager.normalizeBookName(targetBook)
+                        val allSameBook = bills.all {
+                            BookAccountManager.normalizeBookName(it.bookName) == normalized
+                        }
+                        if (allSameBook) {
                             Toast.makeText(
                                 fragment.requireContext(),
-                                "已将 ${bills.size} 条账单移动到「$targetBook」",
+                                "账单已在「$targetBook」中，无需转移",
                                 Toast.LENGTH_SHORT
                             ).show()
+                            return@setOnClickListener
+                        }
+                        dialog.dismiss()
+                        showConfirmDialog(
+                            title = "确认移动",
+                            message = "确定要将 ${bills.size} 条账单移动到「$targetBook」吗？",
+                            confirmText = "确认移动",
+                            isDanger = false
+                        ) {
+                            val ids = bills.map { it.id }
+                            fragment.lifecycleScope.launch(Dispatchers.IO) {
+                                val db = AppDatabase.getDatabase(fragment.requireContext())
+                                db.billDao().moveBillsToBook(ids, targetBook)
+                                withContext(Dispatchers.Main) {
+                                    getHomeAdapter().clearSelection()
+                                    onDataChanged()
+                                    Toast.makeText(
+                                        fragment.requireContext(),
+                                        "已将 ${bills.size} 条账单移动到「$targetBook」",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
                         }
                     }
                 }
+                optionsContainer.addView(item)
             }
-            optionsContainer.addView(item)
+            updateOptionsHeight(visibleBooks.size)
         }
+        renderOptions()
 
-        val maxHeight = (fragment.resources.displayMetrics.heightPixels * 0.42f).toInt()
-        val estimatedItemHeight = ((66 + 10) * fragment.resources.displayMetrics.density).toInt()
-        val estimatedContentHeight = (availableBookNames.size * estimatedItemHeight).coerceAtLeast(1)
-        val targetHeight = min(maxHeight, estimatedContentHeight)
-        optionsScroll.layoutParams = optionsScroll.layoutParams.apply { height = targetHeight }
         panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,

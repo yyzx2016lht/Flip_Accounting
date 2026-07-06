@@ -32,6 +32,8 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.ui.ExchangeRateActivity
 import com.taostudio.tapaccounting.ui.common.UiMotion.applyFormRowPressFeedback
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
+import java.text.NumberFormat
+import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.coroutines.resume
@@ -1161,6 +1163,8 @@ class AccountingFormController(
     private fun showInvestmentScheduleDialog(
         transferTime: Long,
         targetName: String,
+        annualInterestRate: Double,
+        previousAnnualInterestRate: Double?,
         onConfirm: (InvestmentInterestService.InvestmentSchedule) -> Unit
     ) {
         val safeContext = ctx
@@ -1175,6 +1179,84 @@ class AccountingFormController(
             text = ctx.getString(R.string.investment_transfer_hint, targetName)
             setTextColor(Color.parseColor("#667085"))
             textSize = 14f
+        })
+
+        val rateRow = LinearLayout(themeContext).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(16), 0, dp(4))
+        }
+        rateRow.addView(TextView(themeContext).apply {
+            text = ctx.getString(R.string.annual_interest_rate)
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2A38"))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val etAnnualRate = EditText(themeContext).apply {
+            setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or
+                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            hint = ctx.getString(R.string.optional)
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2A38"))
+            setHintTextColor(Color.parseColor("#8A9099"))
+            background = null
+            if (annualInterestRate != 0.0) setText(formatCompactDecimal(annualInterestRate))
+            layoutParams = LinearLayout.LayoutParams(dp(96), LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+
+        var usePreviousRate = previousAnnualInterestRate != null
+        previousAnnualInterestRate?.let { previousRate ->
+            val rateModeGroup = RadioGroup(themeContext).apply {
+                orientation = RadioGroup.VERTICAL
+                setPadding(0, dp(14), 0, dp(2))
+            }
+            val previousId = View.generateViewId()
+            val newId = View.generateViewId()
+            rateModeGroup.addView(RadioButton(themeContext).apply {
+                id = previousId
+                text = ctx.getString(R.string.investment_rate_use_previous, formatCompactDecimal(previousRate))
+                textSize = 15f
+                setTextColor(Color.parseColor("#1F2A38"))
+                isChecked = true
+            })
+            rateModeGroup.addView(RadioButton(themeContext).apply {
+                id = newId
+                text = ctx.getString(R.string.investment_rate_use_new)
+                textSize = 15f
+                setTextColor(Color.parseColor("#1F2A38"))
+            })
+            rateModeGroup.setOnCheckedChangeListener { _, checkedId ->
+                usePreviousRate = checkedId == previousId
+                etAnnualRate.isEnabled = !usePreviousRate
+                if (usePreviousRate) {
+                    etAnnualRate.setText(formatCompactDecimal(previousRate))
+                } else if (annualInterestRate != 0.0) {
+                    etAnnualRate.setText(formatCompactDecimal(annualInterestRate))
+                } else {
+                    etAnnualRate.text = null
+                }
+            }
+            content.addView(rateModeGroup)
+            etAnnualRate.isEnabled = false
+            etAnnualRate.setText(formatCompactDecimal(previousRate))
+        }
+
+        rateRow.addView(etAnnualRate)
+        rateRow.addView(TextView(themeContext).apply {
+            text = "%"
+            textSize = 16f
+            setTextColor(Color.parseColor("#667085"))
+            setPadding(dp(4), 0, 0, 0)
+        })
+        content.addView(rateRow)
+        content.addView(TextView(themeContext).apply {
+            text = ctx.getString(R.string.interest_rate_hint)
+            setTextColor(Color.parseColor("#8A9099"))
+            textSize = 12f
+            gravity = Gravity.END
         })
 
         var startEarningAt = InvestmentInterestService.plusDays(
@@ -1233,7 +1315,12 @@ class AccountingFormController(
                 onConfirm(
                     InvestmentInterestService.InvestmentSchedule(
                         startEarningAt = startEarningAt,
-                        firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
+                        firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1),
+                        annualInterestRate = if (usePreviousRate) {
+                            previousAnnualInterestRate ?: 0.0
+                        } else {
+                            parseLocalizedAmount(etAnnualRate.text?.toString().orEmpty())
+                        }
                     )
                 )
             }
@@ -1416,6 +1503,29 @@ class AccountingFormController(
         return (value * rootView.resources.displayMetrics.density).toInt()
     }
 
+    private fun parseLocalizedAmount(raw: String): Double {
+        val value = raw.trim().removeSuffix("%").trim()
+        if (value.isEmpty() || value == "-") return 0.0
+
+        val localized = NumberFormat.getNumberInstance(Locale.getDefault())
+        val parsePosition = ParsePosition(0)
+        localized.parse(value, parsePosition)?.toDouble()
+            ?.takeIf { parsePosition.index == value.length }
+            ?.let { return it }
+
+        val normalized = value
+            .replace("\\s".toRegex(), "")
+            .replace(',', '.')
+
+        return normalized.toDoubleOrNull() ?: 0.0
+    }
+
+    private fun formatCompactDecimal(value: Double): String {
+        return String.format(Locale.getDefault(), "%.4f", value)
+            .trimEnd('0')
+            .trimEnd('.')
+    }
+
     private fun handleSave() {
         if (isSaving) return
         val money = parseAmountInput() ?: 0.0
@@ -1505,11 +1615,17 @@ class AccountingFormController(
                 val targetAsset = accountName2.takeIf { it.isNotBlank() }
                     ?.let { AppDatabase.getDatabase(ctx).assetDao().getAssetByName(it) }
                 if (targetAsset?.assetCategory == Asset.CATEGORY_INVESTMENT) {
+                    val previousRate = AppDatabase.getDatabase(ctx)
+                        .investmentLotDao()
+                        .getLatestOpenLotWithRateByAssetId(targetAsset.id)
+                        ?.annualInterestRate
                     val transferTime = parseUiTimeToMillis(tvTime.text?.toString().orEmpty()) ?: System.currentTimeMillis()
                     withContext(Dispatchers.Main) {
                         showInvestmentScheduleDialog(
                             transferTime = transferTime,
-                            targetName = targetAsset.name
+                            targetName = targetAsset.name,
+                            annualInterestRate = targetAsset.annualInterestRate,
+                            previousAnnualInterestRate = previousRate
                         ) { schedule ->
                             pendingInvestmentSchedule = schedule
                             handleSave()
@@ -2514,4 +2630,3 @@ class AccountingFormController(
     }
 
 }
-

@@ -17,6 +17,10 @@ object DataExportManager {
     fun deserializeAiRules(json: String): List<AiRule> = gson.fromJson(json, object : TypeToken<List<AiRule>>() {}.type)
     fun deserializeChatMessages(json: String): List<ChatMessage> =
         gson.fromJson(json, object : TypeToken<List<ChatMessage>>() {}.type)
+    fun deserializeBudgets(json: String): List<Budget> =
+        gson.fromJson(json, object : TypeToken<List<Budget>>() {}.type)
+    fun deserializeRecurringPatterns(json: String): List<RecurringPattern> =
+        gson.fromJson(json, object : TypeToken<List<RecurringPattern>>() {}.type)
 }
 
 

@@ -13,7 +13,10 @@ data class RecurringPattern(
     val categoryId: Long?,
     val categoryName: String?,
     val accountName: String?,
+    val toAccountName: String = "",
     val bookName: String,
+    val billType: Int = Bill.TYPE_EXPENSE,
+    val billSubType: Int = Bill.SUBTYPE_NORMAL,
     val amountApprox: Double,          // 中位数金额
     val amountTolerance: Double,       // 允许波动
     val frequency: RecurringFrequency,

@@ -90,7 +90,8 @@ interface AssetDao {
             dueDay = :dueDay,
             annualInterestRate = :annualInterestRate,
             interestLastSettledAt = :interestLastSettledAt,
-            isArchived = :isArchived
+            isArchived = :isArchived,
+            includeInNetBeforeArchive = :includeInNetBeforeArchive
         WHERE id = :id
     """)
     suspend fun updateAssetInfo(
@@ -112,7 +113,8 @@ interface AssetDao {
         dueDay: Int,
         annualInterestRate: Double,
         interestLastSettledAt: Long,
-        isArchived: Boolean
+        isArchived: Boolean,
+        includeInNetBeforeArchive: Boolean
     )
 
     @Query("UPDATE assets SET balance = :newBalance, interestLastSettledAt = :settledAt WHERE id = :assetId")
