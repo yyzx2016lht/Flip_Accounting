@@ -100,8 +100,7 @@ class AssetDetailActivity : AppCompatActivity() {
     private var allAssetBills: List<Bill> = emptyList()
     private var assetDetailRemarkText: String = ""
     private var creditCycleSummaryText: String? = null
-    private var showInvestmentLotDraftAction: Boolean = false
-    private var investmentLotDraftActionText: String = "补录本金批次"
+    private var hasShownInvestmentLotPrompt = false
     /** Per-bill balance after tx, derived backward from current asset balance (not stored snapshots). */
     private var balanceAfterByBillId: Map<Long, Double> = emptyMap()
     private var searchQuery: String = ""
@@ -519,36 +518,9 @@ class AssetDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun refreshInvestmentLotDraftAction(asset: Asset) {
-        if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.balance <= 0.0) {
-            showInvestmentLotDraftAction = false
-            investmentLotDraftActionText = "补录本金批次"
-            if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
-            return
-        }
-        lifecycleScope.launch {
-            val shouldShow = withContext(Dispatchers.IO) {
-                val hasDraft = getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
-                    .contains("asset_${asset.id}")
-                val hasOpenLots = db.investmentLotDao().getOpenLotsByAssetId(asset.id).isNotEmpty()
-                hasDraft || !hasOpenLots
-            }
-            showInvestmentLotDraftAction = shouldShow
-            investmentLotDraftActionText = if (shouldShow) {
-                val hasDraft = getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
-                    .contains("asset_${asset.id}")
-                if (hasDraft) "继续补录本金批次" else "补录本金批次"
-            } else {
-                "补录本金批次"
-            }
-            if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
-        }
-    }
-
     private fun updateAssetUI(asset: Asset) {
         tvToolbarAssetName.text = asset.name
         recomputeBalanceAfterMap()
-        refreshInvestmentLotDraftAction(asset)
         val balanceText = CurrencyUtils.formatAmount(asset.balance, asset.currency)
         val noteParts = mutableListOf<String>()
         if (asset.assetCategory == Asset.CATEGORY_INVESTMENT && asset.annualInterestRate != 0.0) {
@@ -562,6 +534,9 @@ class AssetDetailActivity : AppCompatActivity() {
         // 更新收纳按钮和提示
         tvActionArchive.text = if (asset.isArchived) "不收纳" else "收纳"
         tvArchivedHint.visibility = if (asset.isArchived) View.VISIBLE else View.GONE
+
+        // 理财资产自动弹窗补录本金批次
+        checkAndPromptInvestmentLotDraft(asset)
 
         // P1-6: 信用卡周期快照
         if (asset.assetCategory == Asset.CATEGORY_CREDIT_CARD) {
@@ -606,6 +581,38 @@ class AssetDetailActivity : AppCompatActivity() {
         tvAssetBalance.text = balanceText
         assetDetailRemarkText = remarkText
         if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
+    }
+
+    private fun checkAndPromptInvestmentLotDraft(asset: Asset) {
+        if (hasShownInvestmentLotPrompt) return
+        if (asset.assetCategory != Asset.CATEGORY_INVESTMENT || asset.balance <= 0.0) return
+        hasShownInvestmentLotPrompt = true
+        lifecycleScope.launch {
+            val needPrompt = withContext(Dispatchers.IO) {
+                val hasDraft = getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
+                    .contains("asset_${asset.id}")
+                val hasOpenLots = db.investmentLotDao().getOpenLotsByAssetId(asset.id).isNotEmpty()
+                hasDraft || !hasOpenLots
+            }
+            if (!needPrompt) return@launch
+            val hasDraft = withContext(Dispatchers.IO) {
+                getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
+                    .contains("asset_${asset.id}")
+            }
+            val message = if (hasDraft) "检测到上次未完成的本金批次录入，是否继续？" else "该理财产品尚未录入本金批次，是否现在录入？"
+            AlertDialog.Builder(this@AssetDetailActivity)
+                .setTitle("补录本金批次")
+                .setMessage(message)
+                .setPositiveButton("去录入") { _, _ ->
+                    startActivity(
+                        Intent(this@AssetDetailActivity, AddAssetActivity::class.java)
+                            .putExtra("ASSET_ID", assetId)
+                            .putExtra(AddAssetActivity.EXTRA_FORCE_INVESTMENT_LOT_SPLIT, true)
+                    )
+                }
+                .setNegativeButton("稍后再记", null)
+                .show()
+        }
     }
 
     private fun toggleArchiveCurrentAsset() {
