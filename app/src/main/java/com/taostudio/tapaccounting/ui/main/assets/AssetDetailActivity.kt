@@ -586,18 +586,29 @@ class AssetDetailActivity : AppCompatActivity() {
         hasShownInvestmentLotPrompt = true
         lifecycleScope.launch {
             val needPrompt = withContext(Dispatchers.IO) {
-                val hasDraft = com.taostudio.tapaccounting.ui.dialog.InvestmentLotDialog.loadDrafts(this@AssetDetailActivity, asset.id).isNotEmpty()
+                val hasDraft = getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
+                    .contains("asset_${asset.id}")
                 val hasOpenLots = db.investmentLotDao().getOpenLotsByAssetId(asset.id).isNotEmpty()
                 hasDraft || !hasOpenLots
             }
             if (!needPrompt) return@launch
-            com.taostudio.tapaccounting.ui.dialog.InvestmentLotDialog.show(
-                context = this@AssetDetailActivity,
-                assetId = asset.id,
-                totalAmount = asset.balance,
-                annualInterestRate = asset.annualInterestRate,
-                scope = lifecycleScope
-            )
+            val hasDraft = withContext(Dispatchers.IO) {
+                getSharedPreferences(AddAssetActivity.PREFS_INVESTMENT_LOT_DRAFTS, MODE_PRIVATE)
+                    .contains("asset_${asset.id}")
+            }
+            val message = if (hasDraft) "检测到上次未完成的本金批次录入，是否继续？" else "该理财产品尚未录入本金批次，是否现在录入？"
+            AlertDialog.Builder(this@AssetDetailActivity)
+                .setTitle("补录本金批次")
+                .setMessage(message)
+                .setPositiveButton("去录入") { _, _ ->
+                    startActivity(
+                        Intent(this@AssetDetailActivity, AddAssetActivity::class.java)
+                            .putExtra("ASSET_ID", assetId)
+                            .putExtra(AddAssetActivity.EXTRA_FORCE_INVESTMENT_LOT_SPLIT, true)
+                    )
+                }
+                .setNegativeButton("稍后再记", null)
+                .show()
         }
     }
 
