@@ -12,10 +12,13 @@ import com.bumptech.glide.Glide
 
 class BuiltInCategoryAdapter(
     private var items: List<BuiltInCategory>,
-    private val onSelect: (BuiltInCategory) -> Unit
+    private val onSelect: (BuiltInCategory) -> Unit,
+    private val onMultiSelectionChanged: (List<BuiltInCategory>) -> Unit
 ) : RecyclerView.Adapter<BuiltInCategoryAdapter.VH>() {
 
     private var selectedIconUrl: String? = null
+    private var isMultiSelect = false
+    private val selectedItems = linkedSetOf<BuiltInCategory>()
 
     fun updateList(newItems: List<BuiltInCategory>) {
         items = newItems
@@ -25,6 +28,13 @@ class BuiltInCategoryAdapter(
     fun setSelectedIcon(iconUrl: String?) {
         selectedIconUrl = iconUrl
         notifyDataSetChanged()
+    }
+
+    fun setMultiSelect(enabled: Boolean) {
+        isMultiSelect = enabled
+        selectedItems.clear()
+        notifyDataSetChanged()
+        onMultiSelectionChanged(emptyList())
     }
 
     inner class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -45,7 +55,8 @@ class BuiltInCategoryAdapter(
         holder.tv.text = item.name
         Glide.with(holder.itemView).load(item.icon).into(holder.iv)
 
-        if (item.icon == selectedIconUrl) {
+        val isSelected = if (isMultiSelect) item in selectedItems else item.icon == selectedIconUrl
+        if (isSelected) {
             holder.container.setBackgroundColor(Color.TRANSPARENT)
             holder.iconWrap.setBackgroundResource(R.drawable.bg_category_icon_dot_selected)
             holder.iv.setColorFilter(Color.parseColor("#2196F3"), PorterDuff.Mode.SRC_IN)
@@ -58,9 +69,16 @@ class BuiltInCategoryAdapter(
         }
 
         holder.itemView.setOnClickListener {
-            selectedIconUrl = item.icon
+            if (isMultiSelect) {
+                if (!selectedItems.add(item)) {
+                    selectedItems.remove(item)
+                }
+                onMultiSelectionChanged(selectedItems.toList())
+            } else {
+                selectedIconUrl = item.icon
+                onSelect(item)
+            }
             notifyDataSetChanged()
-            onSelect(item)
         }
     }
 

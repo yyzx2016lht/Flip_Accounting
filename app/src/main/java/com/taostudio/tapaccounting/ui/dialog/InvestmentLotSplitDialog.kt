@@ -18,6 +18,7 @@ import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.logic.BillAssetImpactService
+import com.taostudio.tapaccounting.logic.CurrencyUtils
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 import com.taostudio.tapaccounting.logic.InvestmentLotDraft
 import java.text.NumberFormat
@@ -34,6 +35,7 @@ object InvestmentLotSplitDialog {
         title: String,
         message: String,
         totalAmount: Double,
+        currency: String,
         annualInterestRate: Double,
         initialDrafts: List<InvestmentLotDraft> = emptyList(),
         onLater: (List<InvestmentLotDraft>) -> Unit,
@@ -61,7 +63,7 @@ object InvestmentLotSplitDialog {
         content.addView(TextView(themeContext).apply {
             text = activity.getString(
                 R.string.investment_lot_split_balance_hint,
-                formatCompactDecimal(totalAmount)
+                formatMoney(totalAmount, currency)
             )
             setTextColor(Color.parseColor("#8A9099"))
             textSize = 13f
@@ -165,11 +167,11 @@ object InvestmentLotSplitDialog {
                 abs(remaining) <= 0.01 -> activity.getString(R.string.investment_lot_split_allocated_done)
                 remaining > 0 -> activity.getString(
                     R.string.investment_lot_split_remaining,
-                    formatCompactDecimal(remaining)
+                    formatMoney(remaining, currency)
                 )
                 else -> activity.getString(
                     R.string.investment_lot_split_over_allocated,
-                    formatCompactDecimal(abs(remaining))
+                    formatMoney(abs(remaining), currency)
                 )
             }
             remainingText.setTextColor(
@@ -424,6 +426,10 @@ object InvestmentLotSplitDialog {
         return String.format(Locale.getDefault(), "%.4f", value)
             .trimEnd('0')
             .trimEnd('.')
+    }
+
+    private fun formatMoney(value: Double, currency: String): String {
+        return CurrencyUtils.formatAmount(value, currency)
     }
 
     private fun dp(activity: AppCompatActivity, value: Int): Int {

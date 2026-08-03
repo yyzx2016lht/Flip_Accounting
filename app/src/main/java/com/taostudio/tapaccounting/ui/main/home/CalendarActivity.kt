@@ -143,6 +143,7 @@ class CalendarActivity : AppCompatActivity() {
     private lateinit var calendarAdapter: CalendarAdapter
     private lateinit var dailyAdapter: HomeAdapter
     private var monthLoadJob: Job? = null
+    private var hasResumedOnce = false
     private lateinit var calendarStartMonth: YearMonth
     private lateinit var calendarEndMonth: YearMonth
 
@@ -188,10 +189,15 @@ class CalendarActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val latestBook = BookAccountManager.normalizeBookName(BookAccountManager.getSelectedBook(this))
-        if (latestBook != selectedBookName) {
+        val bookChanged = latestBook != selectedBookName
+        if (bookChanged) {
             selectedBookName = latestBook
+        }
+        if (hasResumedOnce || bookChanged) {
+            // 独立详情页编辑/删除后返回时刷新当前月份。
             loadDataForMonth()
         }
+        hasResumedOnce = true
     }
 
     private fun initViews() {
@@ -280,6 +286,7 @@ class CalendarActivity : AppCompatActivity() {
                 com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillsAndRevertBalance(db, billsToDelete)
 
                 dailyAdapter.clearSelection()
+                loadDataForMonth()
                 Toast.makeText(this@CalendarActivity, "已删除 ${billsToDelete.size} 条账单", Toast.LENGTH_SHORT).show()
             }
         }
@@ -863,6 +870,7 @@ class CalendarActivity : AppCompatActivity() {
                 com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
 
                 withContext(Dispatchers.Main) {
+                    loadDataForMonth()
                     Toast.makeText(this@CalendarActivity, "已删除", Toast.LENGTH_SHORT).show()
                 }
             }

@@ -37,9 +37,30 @@ object ChatBillMessageActions {
             }
         }
 
+        return markBillsDeletedFromMessage(
+            db = db,
+            displayMessages = displayMessages,
+            messageDbId = messageDbId,
+            deletedBillIds = deletedIds,
+            formatTime = formatTime
+        )
+    }
+
+    suspend fun markBillsDeletedFromMessage(
+        db: AppDatabase,
+        displayMessages: MutableList<ChatDisplayItem>,
+        messageDbId: Long,
+        deletedBillIds: Collection<Long>,
+        formatTime: (Long) -> String
+    ): DeleteResult? {
+        val validDeletedIds = deletedBillIds.filter { it > 0L }.toSet()
+        if (validDeletedIds.isEmpty()) return null
+        val msgIdx = displayMessages.indexOfFirst { it.dbId == messageDbId }
+        if (msgIdx < 0) return null
+
         val currentItem = displayMessages[msgIdx]
         val updatedDeprecatedIds = currentItem.deprecatedBillIds.toMutableSet().apply {
-            billsToDelete.forEach { add(it.id) }
+            addAll(validDeletedIds)
         }
         val allDeprecated = currentItem.bills.all {
             updatedDeprecatedIds.contains(it.id) || currentItem.editedBillIds.contains(it.id)
@@ -58,7 +79,7 @@ object ChatBillMessageActions {
             markEntireMessageDeprecated = allDeprecated,
             formatTime = formatTime
         )
-        return DeleteResult(deletedBillIds = deletedIds, allDeprecated = allDeprecated)
+        return DeleteResult(deletedBillIds = validDeletedIds.toList(), allDeprecated = allDeprecated)
     }
 
     suspend fun confirmBillsInMessage(

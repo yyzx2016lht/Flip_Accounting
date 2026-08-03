@@ -49,6 +49,7 @@ class BillSearchActivity : AppCompatActivity() {
     private val adapter = HomeAdapter().apply { showChart = false }
     private var allBills: List<Bill> = emptyList()
     private var searchJob: Job? = null
+    private var hasResumedOnce = false
 
     private val sourceBookName by lazy {
         BookAccountManager.normalizeBookName(
@@ -83,7 +84,7 @@ class BillSearchActivity : AppCompatActivity() {
                     context = this,
                     lifecycleOwner = this,
                     bill = bill,
-                    onDismiss = { loadAllBills() }
+                    onBillChanged = { loadAllBills() }
                 )
             }
         }
@@ -120,6 +121,16 @@ class BillSearchActivity : AppCompatActivity() {
             etSearch.requestFocus()
             val imm = getSystemService(InputMethodManager::class.java)
             imm?.showSoftInput(etSearch, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (hasResumedOnce) {
+            // 独立详情页编辑/删除后返回时，重新读取当前搜索结果。
+            loadAllBills()
+        } else {
+            hasResumedOnce = true
         }
     }
 

@@ -8,6 +8,7 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 interface BillDao {
     data class CategoryExpenseSum(
         val categoryId: Long?,
+        val categoryName: String? = null,
         val total: Double
     )
 
@@ -55,7 +56,7 @@ interface BillDao {
     ): Double
 
     @Query("""
-        SELECT categoryId AS categoryId, COALESCE(SUM(amount), 0.0) AS total
+        SELECT categoryId AS categoryId, NULL AS categoryName, COALESCE(SUM(amount), 0.0) AS total
         FROM bills
         WHERE time BETWEEN :startTime AND :endTime
           AND (:bookName = '' OR bookName = :bookName)
@@ -70,6 +71,26 @@ interface BillDao {
         endTime: Long,
         bookName: String,
         categoryIds: List<Long>,
+        expenseType: Int = Bill.TYPE_EXPENSE,
+        refundSubtype: Int = Bill.SUBTYPE_REFUND
+    ): List<CategoryExpenseSum>
+
+    @Query("""
+        SELECT categoryId AS categoryId, MAX(categoryName) AS categoryName, COALESCE(SUM(amount), 0.0) AS total
+        FROM bills
+        WHERE time BETWEEN :startTime AND :endTime
+          AND (:bookName = '' OR bookName = :bookName)
+          AND type = :expenseType
+          AND subType != :refundSubtype
+          AND excludeFromStats = 0
+          AND categoryId IS NOT NULL
+        GROUP BY categoryId
+        ORDER BY total DESC
+    """)
+    suspend fun sumBudgetExpenseByAllCategories(
+        startTime: Long,
+        endTime: Long,
+        bookName: String,
         expenseType: Int = Bill.TYPE_EXPENSE,
         refundSubtype: Int = Bill.SUBTYPE_REFUND
     ): List<CategoryExpenseSum>

@@ -123,6 +123,7 @@ internal fun normalizeAccountingResult(
         inheritAssetCurrency(bill, assetCurrencyMap)
 
         if (type == DbBill.TYPE_TRANSFER) {
+            bill.remove("category_id")
             if (rawType == 3 || bill.optInt("subType", 0) == DbBill.SUBTYPE_REPAYMENT || bill.optString("category_name") == "还款") {
                 bill.put("subType", DbBill.SUBTYPE_REPAYMENT)
                 bill.put("category_name", "还款")
@@ -133,6 +134,19 @@ internal fun normalizeAccountingResult(
         }
 
         val candidates = if (type == DbBill.TYPE_INCOME) incomeCats else expenseCats
+        if (bill.has("category_id")) {
+            val categoryFromId = resolvePromptCategoryId(
+                categoryId = bill.optString("category_id", "").trim(),
+                type = type,
+                expenseCats = expenseCats,
+                incomeCats = incomeCats
+            )
+            bill.remove("category_id")
+            bill.put("category_name", categoryFromId ?: resolveOtherCategory(candidates).orEmpty())
+            return
+        }
+
+        // 兼容旧模型响应和历史调用方；新提示词以 category_id 为准。
         val rawCategory = bill.optString("category_name", "")
         val normalizedCategory = rawCategory
             .replace(" > ", " - ")
@@ -162,6 +176,20 @@ internal fun normalizeAccountingResult(
     } else {
         enforceNoAssetMode(root)
     }
+}
+
+internal fun resolvePromptCategoryId(
+    categoryId: String,
+    type: Int,
+    expenseCats: List<String>,
+    incomeCats: List<String>
+): String? {
+    val isIncome = type == DbBill.TYPE_INCOME
+    val prefix = if (isIncome) INCOME_CATEGORY_ID_PREFIX else EXPENSE_CATEGORY_ID_PREFIX
+    if (!categoryId.startsWith(prefix)) return null
+    val index = categoryId.removePrefix(prefix).toIntOrNull() ?: return null
+    val candidates = if (isIncome) incomeCats else expenseCats
+    return candidates.getOrNull(index)
 }
 
 /**

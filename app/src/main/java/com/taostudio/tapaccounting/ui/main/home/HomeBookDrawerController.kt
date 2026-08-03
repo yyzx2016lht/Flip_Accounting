@@ -275,11 +275,9 @@ internal class HomeBookDrawerController(
             val db = AppDatabase.getDatabase(context)
             val canonicalDefaultBook = BookAccountManager.DEFAULT_BOOK
 
-            BookAccountManager.rawAliases(BookAccountManager.DEFAULT_BOOK)
-                .filter { it.isNotBlank() && it != canonicalDefaultBook }
-                .forEach { alias ->
-                    db.billDao().renameBookName(alias, canonicalDefaultBook)
-                }
+            val defaultAliases = BookAccountManager.rawAliases(BookAccountManager.DEFAULT_BOOK)
+                .filter { it != canonicalDefaultBook }
+            db.bookScopeDao().renameBookReferences(defaultAliases, canonicalDefaultBook)
             db.billDao().renameBookName(BookAccountManager.ALL_BOOK, canonicalDefaultBook)
             db.chatMessageDao().renameBookName(BookAccountManager.ALL_BOOK, canonicalDefaultBook)
 
@@ -663,10 +661,7 @@ internal class HomeBookDrawerController(
             val context = fragment.requireContext().applicationContext
             val db = AppDatabase.getDatabase(context)
             val wasDefault = BookAccountManager.getDefaultBook(context) == oldNorm
-            BookAccountManager.rawAliases(oldNorm).forEach { alias ->
-                db.billDao().renameBookName(alias, newNorm)
-                db.chatMessageDao().renameBookName(alias, newNorm)
-            }
+            db.bookScopeDao().renameBookReferences(BookAccountManager.rawAliases(oldNorm), newNorm)
             val success = BookAccountManager.renameBookAccount(context, oldNorm, newNorm)
             withContext(Dispatchers.Main) {
                 if (!fragment.isAdded) return@withContext

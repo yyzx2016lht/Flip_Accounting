@@ -17,26 +17,51 @@ interface BudgetDao {
     @Query("DELETE FROM budgets WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth ORDER BY categoryId ASC")
-    suspend fun getBudgetsByMonth(yearMonth: String): List<Budget>
-
-    @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND bookName = :bookName ORDER BY categoryId ASC")
+    @Query("""
+        SELECT budgets.* FROM budgets
+        LEFT JOIN books ON books.id = budgets.bookId
+        WHERE budgets.yearMonth = :yearMonth
+          AND ((:bookName = '' AND budgets.bookId = 0) OR books.name = :bookName)
+        ORDER BY budgets.categoryKey ASC
+    """)
     suspend fun getBudgetsByMonthAndBook(yearMonth: String, bookName: String): List<Budget>
 
-    @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND categoryId = :categoryId LIMIT 1")
-    suspend fun getBudgetByCategory(yearMonth: String, categoryId: Long): Budget?
-
-    @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND bookName = :bookName AND categoryId = :categoryId LIMIT 1")
+    @Query("""
+        SELECT budgets.* FROM budgets
+        LEFT JOIN books ON books.id = budgets.bookId
+        WHERE budgets.yearMonth = :yearMonth
+          AND ((:bookName = '' AND budgets.bookId = 0) OR books.name = :bookName)
+          AND budgets.categoryKey = :categoryId
+        LIMIT 1
+    """)
     suspend fun getBudgetByBookAndCategory(yearMonth: String, bookName: String, categoryId: Long): Budget?
 
-    @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND categoryId IS NULL AND bookName = :bookName LIMIT 1")
+    @Query("""
+        SELECT budgets.* FROM budgets
+        LEFT JOIN books ON books.id = budgets.bookId
+        WHERE budgets.yearMonth = :yearMonth
+          AND ((:bookName = '' AND budgets.bookId = 0) OR books.name = :bookName)
+          AND budgets.categoryKey = 0
+        LIMIT 1
+    """)
     suspend fun getTotalBudget(yearMonth: String, bookName: String): Budget?
 
-    @Query("SELECT * FROM budgets WHERE yearMonth = :yearMonth AND bookName IN (:bookNames) ORDER BY categoryId ASC")
-    suspend fun getBudgetsByMonthAndBooks(yearMonth: String, bookNames: List<String>): List<Budget>
+    @Query("SELECT * FROM budgets WHERE bookId = :bookId AND yearMonth = :yearMonth AND categoryKey = :categoryKey LIMIT 1")
+    suspend fun getBySlot(bookId: Long, yearMonth: String, categoryKey: Long): Budget?
 
-    @Query("DELETE FROM budgets WHERE yearMonth = :yearMonth")
-    suspend fun deleteByMonth(yearMonth: String)
+    @Transaction
+    suspend fun saveForSlot(budget: Budget): Long {
+        val normalized = budget.copy(categoryKey = budget.categoryId ?: Budget.TOTAL_CATEGORY_KEY)
+        val existing = getBySlot(normalized.bookId, normalized.yearMonth, normalized.categoryKey)
+        if (existing == null) return insert(normalized)
+        update(
+            normalized.copy(
+                id = existing.id,
+                createdAt = existing.createdAt
+            )
+        )
+        return existing.id
+    }
 
     @Query("SELECT * FROM budgets ORDER BY yearMonth DESC, categoryId ASC")
     suspend fun getAll(): List<Budget>

@@ -42,7 +42,8 @@ object BillDetailSheetHelper {
         lifecycleOwner: LifecycleOwner,
         bill: Bill,
         onRefund: ((Bill) -> Unit)? = null,
-        onDismiss: (() -> Unit)? = null
+        onDismiss: (() -> Unit)? = null,
+        onBillChanged: (() -> Unit)? = null
     ) {
         if (Prefs.isIndependentDetailEnabled(context) && bill.id > 0L) {
             com.taostudio.tapaccounting.ui.activity.BillDetailActivity.start(context, bill.id)
@@ -148,7 +149,7 @@ object BillDetailSheetHelper {
                     withContext(Dispatchers.Main) {
                         if (original != null) {
                             linkedOriginalForRefund = original
-                            renderOriginalBill(view, original, context, lifecycleOwner, onRefund)
+                            renderOriginalBill(view, original, context, lifecycleOwner, onRefund, onBillChanged)
                         }
                     }
                 }
@@ -168,7 +169,7 @@ object BillDetailSheetHelper {
                         tvAmountFormula.visibility = View.VISIBLE
                         tvAmountFormula.text =
                             context.getString(R.string.refund_deduct_formula_simple, HomeBillFormatHelper.formatMoney(refundedAmount, bill.currency), HomeBillFormatHelper.formatMoney(bill.amount, bill.currency))
-                        renderRefundRecords(view, bill, context, lifecycleOwner, onRefund)
+                        renderRefundRecords(view, bill, context, lifecycleOwner, onRefund, onBillChanged)
                     } else {
                         tvAmount.text = "-${HomeBillFormatHelper.formatMoney(bill.amount, bill.currency)}"
                         lifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -281,7 +282,7 @@ object BillDetailSheetHelper {
         }
 
         btnDelete.setOnClickListener {
-            showDeleteConfirmDialog(context, lifecycleOwner, bill, bottomSheet)
+            showDeleteConfirmDialog(context, lifecycleOwner, bill, bottomSheet, onBillChanged)
         }
 
         bottomSheet.setContentView(view)
@@ -309,7 +310,8 @@ object BillDetailSheetHelper {
         context: Context,
         lifecycleOwner: LifecycleOwner,
         bill: Bill,
-        bottomSheet: BottomSheetDialog
+        bottomSheet: BottomSheetDialog,
+        onBillChanged: (() -> Unit)?
     ) {
         val panel = LayoutInflater.from(context).inflate(R.layout.dialog_delete_followup_confirm, null, false)
         panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = context.getString(R.string.confirm_delete)
@@ -335,6 +337,7 @@ object BillDetailSheetHelper {
                     val db = AppDatabase.getDatabase(context)
                     com.taostudio.tapaccounting.logic.BillDeleteHelper.deleteBillAndRevertBalance(db, bill)
                     withContext(Dispatchers.Main) {
+                        onBillChanged?.invoke()
                         Toast.makeText(context, context.getString(R.string.deleted), Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -460,7 +463,8 @@ object BillDetailSheetHelper {
         sourceBill: Bill,
         context: Context,
         lifecycleOwner: LifecycleOwner,
-        onRefund: ((Bill) -> Unit)? = null
+        onRefund: ((Bill) -> Unit)? = null,
+        onBillChanged: (() -> Unit)? = null
     ) {
         val section = view.findViewById<LinearLayout>(R.id.layout_refund_records_section)
         val container = view.findViewById<LinearLayout>(R.id.layout_refund_records_container)
@@ -477,7 +481,13 @@ object BillDetailSheetHelper {
                 section.visibility = View.VISIBLE
                 refunds.forEach { refundBill ->
                     addLinkedBillRow(container, refundBill, forceGrayStyle = true, context, lifecycleOwner) {
-                        showBillDetailSheet(context, lifecycleOwner, refundBill, onRefund)
+                        showBillDetailSheet(
+                            context = context,
+                            lifecycleOwner = lifecycleOwner,
+                            bill = refundBill,
+                            onRefund = onRefund,
+                            onBillChanged = onBillChanged
+                        )
                     }
                 }
             }
@@ -489,14 +499,21 @@ object BillDetailSheetHelper {
         originalBill: Bill,
         context: Context,
         lifecycleOwner: LifecycleOwner,
-        onRefund: ((Bill) -> Unit)? = null
+        onRefund: ((Bill) -> Unit)? = null,
+        onBillChanged: (() -> Unit)? = null
     ) {
         val section = view.findViewById<LinearLayout>(R.id.layout_original_bill_section)
         val container = view.findViewById<LinearLayout>(R.id.layout_original_bill_container)
         container.removeAllViews()
         section.visibility = View.VISIBLE
         addLinkedBillRow(container, originalBill, forceGrayStyle = false, context, lifecycleOwner) {
-            showBillDetailSheet(context, lifecycleOwner, originalBill, onRefund)
+            showBillDetailSheet(
+                context = context,
+                lifecycleOwner = lifecycleOwner,
+                bill = originalBill,
+                onRefund = onRefund,
+                onBillChanged = onBillChanged
+            )
         }
     }
 }

@@ -58,7 +58,7 @@ object AIPrompts {
 【输出格式】
 1. 必须只返回一个合法 JSON 对象，不要输出 Markdown、解释、代码块或额外文本。
 2. 每条 bill 字段固定为：
-amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
+amount,type,asset_name,category_id,time,remarks,currency,to_asset_name,fee
 3. 字段无法确认时使用空字符串或 0，不要臆造。
 4. fee 没有手续费时填 0。
 """
@@ -90,7 +90,7 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
                     "这是截屏记账。读懂 App 内的支付/订单/账单截图，直接返回 JSON。"
                 }
             )
-            append("\n成功时返回：{\"bills\":[{\"amount\":0.0,\"type\":0,\"asset_name\":\"\",\"category_name\":\"\",\"time\":\"yyyy-MM-dd HH:mm:ss\",\"remarks\":\"\",\"currency\":\"CNY\",\"to_asset_name\":\"\",\"fee\":0.0},...]}。")
+            append("\n成功时返回：{\"bills\":[{\"amount\":0.0,\"type\":0,\"asset_name\":\"\",\"category_id\":\"<候选id>\",\"time\":\"yyyy-MM-dd HH:mm:ss\",\"remarks\":\"\",\"currency\":\"CNY\",\"to_asset_name\":\"\",\"fee\":0.0},...]}。")
             append("\n无法识别时返回：{\"no_bill\":true,\"reply\":\"未识别到可记账内容\"}。")
             append("\n只输出 JSON，不要 Markdown、代码块、自然语言解释或额外文字。")
         } else if (isFromChat) {
@@ -142,21 +142,20 @@ amount,type,asset_name,category_name,time,remarks,currency,to_asset_name,fee
      */
     fun buildCategoryRulesCompact(hasSecondLevel: Boolean): String {
         val subCategoryRule = if (hasSecondLevel) {
-            "4. 优先命中子分类，格式为\"一级 - 二级\"。"
+            "4. 候选中存在更准确的二级分类时，选择该候选的 id。"
         } else {
-            "4. 当前分类库没有二级分类，category_name 只输出一级分类名。"
+            "4. 当前分类库没有二级分类，直接选择最合适的一级分类候选 id。"
         }
         return """
 【分类规则】
-1. category_name 只从可用分类列表中原样选择，禁止创造列表外分类。
-2. 支出从支出分类中选，收入从收入分类中选。
-3. 分类必须基于交易"性质/用途"，不是商户名/平台名。示例：酒店→住宿，外卖→餐饮，API服务→软件/服务。
+1. 支出/收入账单只输出 category_id，不要输出 category_name；category_id 必须逐字复制【数据上下文】候选中的 id，禁止自造 id 或分类名。
+2. type=0 只能选择支出分类候选（e 开头）；type=1 只能选择收入分类候选（i 开头）；type=2/3 不需要 category_id，填空字符串。
+3. 根据交易本身的性质和用途，在实际候选中选择语义最接近的一项，不要把商户或平台名当分类。
 $subCategoryRule
 5. 多条账单必须逐条独立判断分类，不得因同属一个父类而合并。同一张小票里的不同商品，按各自本体性质区分子分类。
-6. 超市/小票商品按本体分类：水果→水果类，蔬菜/调料/生鲜→蔬菜/食材类，饼干糖果→零食类。
-7. 无法判断时选"其他/其它"，无兜底类目时才留空。
-8. 收入分类禁止使用"收入""入账"等泛词。
-9. category_name 必须从【数据上下文】中的完整可选分类路径中原样选择，不要只输出叶子名。
+6. 语义上理想的分类不在候选中时，必须改选现有候选中最接近的一项，绝不能输出理想分类名。
+7. 确实无法判断时，选择候选中 name 为"其他/其它"的 id；没有兜底候选时 category_id 才可留空。
+8. 输出前逐条检查 category_id 确实存在于对应候选列表。
 
 ${buildRemarksChineseRule().trim()}
 """
@@ -435,9 +434,8 @@ ${buildRemarksChineseRule().trim()}
 
 【核心规则】
 1. 同一句中出现多个金额、多个动作、多个对象时，必须拆分成多条账单。
-2. category_name 优先命中更细的子分类；命中子分类时格式必须为 一级 - 二级。
-   - 多条账单属于同一大类时，必须逐条根据商品本体区分子分类，禁止全部归入同一个子分类。
-   - 例如：香蕉→水果，胡萝卜→蔬菜，饼干→零食，它们虽然都是"吃的"但子分类不同。
+2. 支出和收入通过 category_id 选择【数据上下文】里的实际分类候选；不要输出 category_name。
+   - 多条账单必须逐条根据商品本体选择，不要因为同属一个大类就使用相同 category_id。
 3. asset_name 与 to_asset_name 只允许从资产库中选择；无法确定时留空。
 4. type 只允许 0=支出，1=收入，2=转账，3=还款。
 5. 还款语义必须单独拆出一条账单。
@@ -451,7 +449,7 @@ ${buildRemarksChineseRule().trim()}
    若未明确给出到账金额，不要臆造这两个字段。
 【输出格式】
 
-{"bills":[{"amount":0.0,"type":0,"asset_name":"","category_name":"","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY","to_asset_name":"","fee":0.0}]}
+{"bills":[{"amount":0.0,"type":0,"asset_name":"","category_id":"<候选id>","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY","to_asset_name":"","fee":0.0}]}
 """
 
     const val CHAT_ASSISTANT_PROMPT_DEFAULT = """
@@ -486,7 +484,7 @@ ${buildRemarksChineseRule().trim()}
         }
 
     fun buildExampleAntiLeakRule(): String =
-        "\n【示例防串用硬约束】系统提示词中的示例日期、示例金额、示例商家名都只是格式示范，绝不能直接抄进当前结果；若用户未明确给出时间，请结合当前时间理解，而不是使用示例中的固定日期。\n"
+        "\n【示例防串用硬约束】系统提示词中的示例日期、金额、商家名和 category_id 都只是格式占位，绝不能直接抄进当前结果；category_id 必须从本次【数据上下文】按交易语义重新选择。若用户未明确给出时间，请结合当前时间理解，而不是使用示例中的固定日期。\n"
 
     fun buildBookFieldRule(availableBooks: List<String>): String {
         if (availableBooks.isEmpty()) return ""
@@ -496,8 +494,8 @@ ${buildRemarksChineseRule().trim()}
     fun buildRepaymentRule(creditCardNames: List<String>, assetFeatureEnabled: Boolean): String {
         if (!assetFeatureEnabled || creditCardNames.isEmpty()) return ""
         return "\n【还款识别规则·必须遵守】资产库中以下资产为信用卡账户：${creditCardNames.joinToString("、")}。\n" +
-            "- 当 to_asset_name 指向信用卡账户时，该笔账单为还款，输出 type=3（还款），category_name 固定为\"还款\"。\n" +
-            "- \"还信用卡\"、\"还款\"、\"还卡\"、\"credit card payment\"等语义 → type=3，to_asset_name=对应信用卡名，category_name=\"还款\"。\n"
+            "- 当 to_asset_name 指向信用卡账户时，该笔账单为还款，输出 type=3（还款），category_id 留空。\n" +
+            "- \"还信用卡\"、\"还款\"、\"还卡\"、\"credit card payment\"等语义 → type=3，to_asset_name=对应信用卡名；还款分类由 App 设置，不要自造分类。\n"
     }
 
     fun buildAccountingDateRule(): String =
@@ -513,15 +511,14 @@ ${buildRemarksChineseRule().trim()}
      */
     fun buildExecutionModeRule(): String =
         "\n【执行模式】直接在本轮输出所有账单，不会有第二阶段。\n" +
-            "- 每条 bill 必须包含完整字段：amount、type、asset_name、category_name、to_asset_name、time、remarks、currency、fee。\n"
+            "- 每条 bill 必须包含完整字段：amount、type、asset_name、category_id、to_asset_name、time、remarks、currency、fee。\n"
 
-    fun buildNoAssetAccountingRule(expenseCats: List<String>, incomeCats: List<String>): String =
+    fun buildNoAssetAccountingRule(): String =
         "\n【无资产记账执行规则】当前账本关闭资产功能，本轮只提取支出/收入账单。\n" +
             "- 不要要求用户提供付款账户、收款账户、资产、信用卡或转账账户。\n" +
-            "- 每条 bill 只需要包含 amount、type、category_name、time、remarks、currency；不要输出 asset_name、to_asset_name、fee。\n" +
+            "- 每条 bill 只需要包含 amount、type、category_id、time、remarks、currency；不要输出 category_name、asset_name、to_asset_name、fee。\n" +
             "- 如果模型为了兼容旧格式输出了 asset_name/to_asset_name，也必须留空字符串。\n" +
-            "- category_name 从可选分类中选择最合适的一条，支出参考：${expenseCats.joinToString("、")}；收入参考：${incomeCats.joinToString("、")}。\n" +
-            "- 若无法确定分类，优先选择对应分类列表中的\"其他/其它\"类目；仅当分类列表中没有可用兜底类目时才输出空字符串，不要因为缺少账户而追问用户。\n"
+            "- category_id 必须从【数据上下文】对应候选中选择；若无法确定，选择 name 为\"其他/其它\"的候选 id，没有兜底候选时才留空。\n"
 
     fun buildOutputJsonRuleWithTargetFields(): String =
         "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name、target_amount、target_currency（仅在用户明确提到到账金额时输出）。Do not return markdown or extra explanation.\n"

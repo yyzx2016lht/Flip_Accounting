@@ -13,7 +13,6 @@ internal fun buildAccountingSystemPrompt(
     // System prompt 尽量静态（规则文本），动态数据通过 user message 表达 → 提升缓存命中率
     var prompt = accountingBasePrompt(promptContext.assetFeatureEnabled)
     val hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
-    prompt = adaptPromptForCategoryDepth(prompt = prompt, hasSecondLevel = hasSecondLevel)
 
     prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
     prompt += AIPrompts.buildExampleAntiLeakRule()
@@ -23,8 +22,7 @@ internal fun buildAccountingSystemPrompt(
     prompt += AIPrompts.buildAccountingDateRule()
 
     prompt += if (!promptContext.assetFeatureEnabled) {
-        // 传完整分类路径（而非叶子名），与 buildCategoryRulesCompact 的格式要求一致
-        AIPrompts.buildNoAssetAccountingRule(promptContext.expenseCats, promptContext.incomeCats)
+        AIPrompts.buildNoAssetAccountingRule()
     } else {
         AIPrompts.buildExecutionModeRule()
     }
@@ -85,7 +83,9 @@ internal fun buildPromptCorrectionBlock(
         matchedRules.forEachIndexed { index, rule ->
             append("${index + 1}. 关键词：${rule.keyword}")
             rule.targetType?.let { append("；type=$it") }
-            if (includeCategory) rule.targetCategory?.takeIf { it.isNotBlank() }?.let { append("；category_name=$it") }
+            if (includeCategory) rule.targetCategory?.takeIf { it.isNotBlank() }?.let {
+                append("；目标分类名称=$it（从候选中选择对应 category_id）")
+            }
             if (includeAccount) {
                 rule.targetAccount1?.takeIf { it.isNotBlank() }?.let { append("；asset_name=$it") }
                 rule.targetAccount2?.takeIf { it.isNotBlank() }?.let { append("；to_asset_name=$it") }
@@ -123,33 +123,6 @@ internal fun hasSecondLevelCategories(
     return hasHierarchy(expenseCats) || hasHierarchy(incomeCats)
 }
 
-internal fun adaptPromptForCategoryDepth(prompt: String, hasSecondLevel: Boolean): String {
-    val removableKeywords = listOf(
-        "优先命中更细的子分类",
-        "子分类格式固定为 一级 - 二级",
-        "子分类格式必须为 一级 - 二级",
-        "子分类格式必须输出 一级 - 二级",
-        "一级 - 二级"
-    )
-    val normalized = prompt
-        .lineSequence()
-        .filterNot { line -> removableKeywords.any { key -> line.contains(key) } }
-        .map { line ->
-            // 无二级分类时，将示例中的 "XX - YY" 分类格式替换为只保留父类
-            if (!hasSecondLevel && line.contains("category_name") && line.contains(" - ")) {
-                line.replace(Regex(""""category_name"\s*:\s*"([^"]+)\s*-\s*[^"]+""""), """"category_name":"$1"""")
-            } else line
-        }
-        .joinToString("\n")
-        .trim()
-    val rule = if (hasSecondLevel) {
-        "\n【分类层级约束】当前分类库包含二级分类：优先命中更细的子分类；命中子分类时 category_name 必须输出\u201C一级 - 二级\u201D。\n"
-    } else {
-        "\n【分类层级约束】当前分类库没有二级分类，category_name 只能输出一级分类名；禁止输出\u201C一级 - 二级\u201D格式。\n"
-    }
-    return normalized + rule
-}
-
 private fun creditCardNames(promptContext: AIAccountingPromptContext): List<String> =
     promptContext.dbAssets
         .filter { it.assetCategory == Asset.CATEGORY_CREDIT_CARD }
@@ -164,11 +137,22 @@ internal fun buildDataBlock(promptContext: AIAccountingPromptContext): String = 
     if (promptContext.assetFeatureEnabled && promptContext.assetInfoList.isNotEmpty()) {
         appendLine("资产库：${Gson().toJson(promptContext.assetInfoList)}")
     }
-    appendLine("支出分类：${Gson().toJson(promptContext.expenseCats)}")
-    appendLine("收入分类：${Gson().toJson(promptContext.incomeCats)}")
+    appendLine("支出分类候选：${Gson().toJson(buildPromptCategoryOptions(promptContext.expenseCats, EXPENSE_CATEGORY_ID_PREFIX))}")
+    appendLine("收入分类候选：${Gson().toJson(buildPromptCategoryOptions(promptContext.incomeCats, INCOME_CATEGORY_ID_PREFIX))}")
     appendLine("币种列表：${Gson().toJson(promptContext.currencies)}")
     appendLine("当前时间：${promptContext.currentTimeStr}")
 }
+
+internal const val EXPENSE_CATEGORY_ID_PREFIX = "e"
+internal const val INCOME_CATEGORY_ID_PREFIX = "i"
+
+internal data class PromptCategoryOption(
+    val id: String,
+    val name: String
+)
+
+internal fun buildPromptCategoryOptions(categories: List<String>, prefix: String): List<PromptCategoryOption> =
+    categories.mapIndexed { index, name -> PromptCategoryOption(id = "$prefix$index", name = name) }
 
 internal fun buildAccountingUserPrompt(
     userInput: String,

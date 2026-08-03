@@ -1465,6 +1465,14 @@
     <string name="input_name_icon">请输入名称并选择图标</string>
     <string name="save_success">保存成功</string>
     <string name="edit_success">修改成功</string>
+    <string name="select_multiple_categories">选择要添加的分类</string>
+    <string name="add_selected_categories_empty">添加所选分类</string>
+    <string name="add_selected_categories">添加所选分类（%1$d）</string>
+    <string name="select_at_least_one_category">请至少选择一个分类</string>
+    <string name="parent_category_not_found">上级分类不存在，请返回后重试</string>
+    <string name="selected_categories_exist">所选分类均已存在</string>
+    <string name="categories_added">已添加 %1$d 个分类</string>
+    <string name="categories_added_with_skipped">已添加 %1$d 个分类，跳过 %2$d 个同名分类</string>
 
     <!-- AddAssetActivity 硬编码抽取 -->
     <string name="edit_account_title">修改账户</string>
@@ -1843,6 +1851,9 @@
     <string name="budget_remaining_fmt">剩余 ¥%1$s</string>
     <string name="budget_exceeded">已超支</string>
     <string name="budget_suggest">根据过去 3 个月推荐</string>
+    <string name="budget_suggest_advanced">预算建议</string>
+    <string name="budget_copy_previous">复制上月预算</string>
+    <string name="budget_ai_analyze">AI 分析预算</string>
     <string name="budget_monthly_total">本月总预算</string>
     <string name="budget_category_label">%1$s 预算</string>
     <string name="budget_not_set">未设置</string>
@@ -1853,17 +1864,47 @@
     <string name="budget_suggest_result_fmt">参考过去 3 个月，建议总预算 ¥%1$.0f</string>
     <string name="budget_suggest_apply_fmt">参考过去 3 个月，建议设置为 ¥%1$.0f，已填入金额</string>
     <string name="budget_suggest_empty">历史支出不足，暂时无法推荐</string>
+    <string name="budget_copy_previous_empty">上月没有可复制的预算</string>
+    <string name="budget_copy_previous_done">已复制 %1$d 条上月预算</string>
+    <string name="budget_ai_no_key">未配置 API Key，本地预算分析仍可正常使用</string>
+    <string name="budget_ai_loading">正在分析预算...</string>
+    <string name="budget_ai_failed">AI 分析失败：%1$s</string>
     <string name="budget_status_normal">正常</string>
     <string name="budget_status_warning">即将超支</string>
     <string name="budget_status_exceeded">已超支</string>
+    <string name="budget_pace_ahead">花得偏快</string>
+    <string name="budget_pace_on_track">节奏正常</string>
+    <string name="budget_pace_has_room">还有余量</string>
+    <string name="budget_reason_threshold">已接近提醒线</string>
+    <string name="budget_reason_fast">消费节奏快于时间进度</string>
+    <string name="budget_reason_exceeded">预算已超支</string>
+    <string name="budget_reason_none">当前节奏稳定</string>
     <string name="budget_entry_status_empty">去设置</string>
     <string name="budget_entry_status_fmt">已用 %1$.0f%%</string>
+    <string name="budget_entry_remaining_daily_fmt">剩 ¥%1$.0f · 每天 ¥%2$.0f</string>
+    <string name="budget_entry_over_category_fmt">%1$s超支 ¥%2$.0f</string>
     <string name="budget_summary_title_fmt">%1$s · %2$s</string>
     <string name="budget_summary_detail_fmt">预算 ¥%1$.0f · 已用 ¥%2$.2f · 剩余 ¥%3$.2f</string>
     <string name="budget_over_budget_fmt">预算 ¥%1$.0f · 已用 ¥%2$.2f · 超出 ¥%3$.2f</string>
+    <string name="budget_summary_pace_fmt">剩余 %1$d 天 · 每天可用 ¥%2$.2f · 时间进度 %3$.0f%%</string>
     <string name="budget_used_fmt">已用 ¥%1$.2f</string>
     <string name="budget_percent_fmt">%1$.0f%%</string>
+    <string name="budget_daily_remaining_fmt">剩余 %1$d 天 · 每天可用 ¥%2$.2f</string>
+    <string name="budget_pace_detail_fmt">%1$s · %2$s · 时间进度 %3$.0f%%</string>
     <string name="budget_amount_display_fmt">¥%1$.0f</string>
+    <string name="budget_suggestion_title">本地预算建议</string>
+    <string name="budget_suggestion_subtitle">基于最近有支出的月份生成，默认推荐“正常”方案。</string>
+    <string name="budget_suggestion_total_fmt">总预算：保守 ¥%1$.0f · 正常 ¥%2$.0f · 宽松 ¥%3$.0f</string>
+    <string name="budget_suggestion_amounts_fmt">保守 ¥%1$.0f · 正常 ¥%2$.0f · 宽松 ¥%3$.0f</string>
+    <string name="budget_suggestion_category_fmt">%1$s：保守 ¥%2$.0f · 正常 ¥%3$.0f · 宽松 ¥%4$.0f</string>
+    <string name="budget_suggestion_apply_normal">填入正常方案</string>
+    <string name="budget_suggestion_reason_fmt">参考均值 ¥%1$.0f · %2$d 个有效月份 · %3$s</string>
+    <string name="budget_ai_risk_normal">节奏正常</string>
+    <string name="budget_ai_risk_warning">需要留意</string>
+    <string name="budget_ai_risk_exceeded">已经超支</string>
+    <string name="budget_ai_section_insights">重点观察</string>
+    <string name="budget_ai_section_drafts">预算草稿</string>
+    <string name="budget_ai_unstructured">AI 返回内容没有按结构输出，已保留原文供参考。</string>
     <string name="stats_manage_section_title">统计管理</string>
 
     <!-- 周期账单 -->

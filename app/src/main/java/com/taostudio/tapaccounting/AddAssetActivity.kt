@@ -386,6 +386,7 @@ class AddAssetActivity : AppCompatActivity() {
             title = getString(R.string.investment_lot_prompt_title),
             message = getString(R.string.investment_principal_hint),
             totalAmount = asset.balance,
+            currency = asset.currency,
             annualInterestRate = asset.annualInterestRate,
             initialDrafts = InvestmentLotDraftStorage.load(this, asset.id),
             onLater = { drafts ->
@@ -489,6 +490,7 @@ class AddAssetActivity : AppCompatActivity() {
                         title = if (assetId == -1L) getString(R.string.set_initial_principal_time) else getString(R.string.set_convert_to_investment_time),
                         message = getString(R.string.investment_principal_hint),
                         totalAmount = currentBalance,
+                        currency = selectedCurrency,
                         annualInterestRate = annualInterestRate,
                         initialDrafts = if (assetId != -1L) InvestmentLotDraftStorage.load(this@AddAssetActivity, assetId) else emptyList(),
                         onLater = { drafts ->

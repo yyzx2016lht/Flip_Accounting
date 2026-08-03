@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.room.withTransaction
 import org.json.JSONArray
 import org.json.JSONObject
+import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.ChatBillMessageParser
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.AiRule
@@ -16,6 +17,53 @@ import com.taostudio.tapaccounting.data.local.entity.DeletedBill
 import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
 import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
+
+internal data class RestoredBudgetCategory(
+    val categoryId: Long?,
+    val categoryName: String?
+)
+
+internal fun normalizeBudgetBookName(bookName: String): String {
+    return when {
+        bookName.isBlank() || bookName == BookAccountManager.ALL_BOOK -> ""
+        else -> BookAccountManager.normalizeBookName(bookName)
+    }
+}
+
+internal fun resolveBudgetCategoryForRestore(
+    budget: Budget,
+    categoryIdMap: Map<Long, Long>,
+    currentCategories: List<Category>
+): RestoredBudgetCategory? {
+    val oldCategoryId = budget.categoryId
+        ?: return RestoredBudgetCategory(categoryId = null, categoryName = null)
+    val expenseCategories = currentCategories.filter { it.type == 0 }
+    val byId = expenseCategories.associateBy { it.id }
+    val displayNames = CategoryRepository.displayNamesById(expenseCategories)
+
+    categoryIdMap[oldCategoryId]?.let { mappedId ->
+        val mapped = byId[mappedId] ?: return@let
+        return RestoredBudgetCategory(mapped.id, displayNames[mapped.id] ?: mapped.name)
+    }
+
+    val backupName = budget.categoryName?.trim().orEmpty()
+    if (backupName.isEmpty()) return null
+
+    byId[oldCategoryId]?.let { sameId ->
+        val currentName = displayNames[sameId.id] ?: sameId.name
+        if (backupName == currentName || backupName == sameId.name) {
+            return RestoredBudgetCategory(sameId.id, currentName)
+        }
+    }
+
+    val nameMatches = expenseCategories.filter { category ->
+        val currentName = displayNames[category.id] ?: category.name
+        backupName == currentName || backupName == category.name
+    }
+    if (nameMatches.size != 1) return null
+    val matched = nameMatches.single()
+    return RestoredBudgetCategory(matched.id, displayNames[matched.id] ?: matched.name)
+}
 
 /**
  * 从 Room 读出业务数据供 `.bak` 导出，或把 `.bak` 写回数据库。
@@ -164,7 +212,11 @@ class BackupRepository(private val db: AppDatabase) {
 
             if (budgets != null) {
                 db.budgetDao().deleteAll()
-                budgets.forEach { db.budgetDao().insert(it.copy(id = 0)) }
+                val currentCategories = db.categoryDao().getAllCategoriesList()
+                budgets.forEach { budget ->
+                    prepareBudgetForRestore(budget, categoryIdMap, currentCategories)
+                        ?.let { db.budgetDao().saveForSlot(it) }
+                }
             }
 
             if (recurringPatterns != null) {
@@ -356,24 +408,13 @@ class BackupRepository(private val db: AppDatabase) {
 
             // ── 预算：覆盖（按账本+月份+分类去重） ──
             if (budgets != null) {
+                val currentCategories = db.categoryDao().getAllCategoriesList()
                 budgets.forEach { budget ->
-                    val mappedCategoryId = budget.categoryId?.let { categoryIdMap[it] ?: it }
-                    val existing = if (mappedCategoryId == null) {
-                        db.budgetDao().getTotalBudget(budget.yearMonth, budget.bookName)
-                    } else {
-                        db.budgetDao().getBudgetByBookAndCategory(
-                            budget.yearMonth,
-                            budget.bookName,
-                            mappedCategoryId
-                        )
+                    val restored = prepareBudgetForRestore(budget, categoryIdMap, currentCategories)
+                    if (restored != null) {
+                        db.budgetDao().saveForSlot(restored)
+                        insertedBudgets++
                     }
-                    val restored = budget.copy(id = existing?.id ?: 0, categoryId = mappedCategoryId)
-                    if (existing == null) {
-                        db.budgetDao().insert(restored)
-                    } else {
-                        db.budgetDao().update(restored)
-                    }
-                    insertedBudgets++
                 }
             }
 
@@ -394,6 +435,24 @@ class BackupRepository(private val db: AppDatabase) {
             skippedInvestmentLots = skippedInvestmentLots,
             insertedRules = insertedRules, insertedChatMessages = insertedChatMessages,
             insertedBudgets = insertedBudgets, insertedRecurringPatterns = insertedRecurringPatterns
+        )
+    }
+
+    private suspend fun prepareBudgetForRestore(
+        budget: Budget,
+        categoryIdMap: Map<Long, Long>,
+        currentCategories: List<Category>
+    ): Budget? {
+        val category = resolveBudgetCategoryForRestore(budget, categoryIdMap, currentCategories)
+            ?: return null
+        val bookName = normalizeBudgetBookName(budget.bookName)
+        return budget.copy(
+            id = 0,
+            bookId = db.bookDao().resolveOrCreateId(bookName),
+            bookName = bookName,
+            categoryId = category.categoryId,
+            categoryKey = category.categoryId ?: Budget.TOTAL_CATEGORY_KEY,
+            categoryName = category.categoryName
         )
     }
 
@@ -492,4 +551,3 @@ data class MergeRestoreResult(
     val insertedBudgets: Int = 0,
     val insertedRecurringPatterns: Int = 0
 )
-

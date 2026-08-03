@@ -45,6 +45,7 @@ class BudgetAdapter(
         private val tvPercent: TextView = itemView.findViewById(R.id.tv_budget_percent)
         private val tvStatus: TextView = itemView.findViewById(R.id.tv_budget_status)
         private val tvRemaining: TextView = itemView.findViewById(R.id.tv_budget_remaining)
+        private val tvPace: TextView = itemView.findViewById(R.id.tv_budget_pace)
         private val btnDelete: TextView = itemView.findViewById(R.id.btn_budget_delete)
 
         fun bind(item: BudgetService.BudgetOverview) {
@@ -68,10 +69,20 @@ class BudgetAdapter(
             }
             tvStatus.setTextColor(statusColor)
             tvRemaining.text = if (progress.remaining >= 0) {
-                context.getString(R.string.budget_remaining_fmt, String.format("%.2f", progress.remaining))
+                context.getString(
+                    R.string.budget_daily_remaining_fmt,
+                    progress.remainingDays,
+                    progress.dailyRemainingAllowance
+                )
             } else {
                 context.getString(R.string.budget_over_budget_fmt, budget.amount, progress.usedAmount, -progress.remaining)
             }
+            tvPace.text = context.getString(
+                R.string.budget_pace_detail_fmt,
+                paceLabel(progress.pace),
+                reasonLabel(progress.riskReason),
+                progress.timeProgress * 100
+            )
 
             progressBar.progress = (progress.percent * 100).toInt().coerceAtMost(100)
             progressBar.progressTintList = ColorStateList.valueOf(statusColor)
@@ -79,6 +90,25 @@ class BudgetAdapter(
             itemView.setOnClickListener { onItemClick(budget) }
             itemView.setOnLongClickListener { onItemLongClick(budget); true }
             btnDelete.setOnClickListener { onItemLongClick(budget) }
+        }
+
+        private fun paceLabel(pace: BudgetService.BudgetPace): String {
+            val context = itemView.context
+            return when (pace) {
+                BudgetService.BudgetPace.AHEAD -> context.getString(R.string.budget_pace_ahead)
+                BudgetService.BudgetPace.ON_TRACK -> context.getString(R.string.budget_pace_on_track)
+                BudgetService.BudgetPace.HAS_ROOM -> context.getString(R.string.budget_pace_has_room)
+            }
+        }
+
+        private fun reasonLabel(reason: BudgetService.BudgetRiskReason): String {
+            val context = itemView.context
+            return when (reason) {
+                BudgetService.BudgetRiskReason.EXCEEDED -> context.getString(R.string.budget_reason_exceeded)
+                BudgetService.BudgetRiskReason.THRESHOLD_REACHED -> context.getString(R.string.budget_reason_threshold)
+                BudgetService.BudgetRiskReason.SPENDING_FAST -> context.getString(R.string.budget_reason_fast)
+                BudgetService.BudgetRiskReason.NONE -> context.getString(R.string.budget_reason_none)
+            }
         }
     }
 }

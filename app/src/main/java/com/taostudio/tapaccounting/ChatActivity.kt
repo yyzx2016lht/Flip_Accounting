@@ -614,6 +614,7 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        adapter.reconcileDeletedBillCards()
         if (::tvAiModel.isInitialized) {
             updateConversationSubtitle()
             ensureModelAudioSupportProbed()

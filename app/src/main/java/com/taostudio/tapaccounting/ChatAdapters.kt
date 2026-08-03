@@ -104,6 +104,51 @@ class ChatAdapter(
 
     override fun getItemCount(): Int = displayMessages.size
 
+    fun reconcileDeletedBillCards() {
+        val activeBillIds = displayMessages
+            .flatMap { item ->
+                item.bills.mapNotNull { bill ->
+                    bill.id.takeIf {
+                        it > 0L &&
+                            !item.isDeprecated &&
+                            !item.deprecatedBillIds.contains(it)
+                    }
+                }
+            }
+            .distinct()
+        if (activeBillIds.isEmpty()) return
+
+        lifecycleScope.launch {
+            val existingIds = withContext(Dispatchers.IO) {
+                db.billDao().getBillsByIds(activeBillIds).map { it.id }.toSet()
+            }
+            val missingIds = activeBillIds.filterNot(existingIds::contains).toSet()
+            if (missingIds.isEmpty()) return@launch
+
+            displayMessages.toList().forEach { item ->
+                val deletedForMessage = item.bills
+                    .map { it.id }
+                    .filter { it in missingIds }
+                if (deletedForMessage.isNotEmpty()) {
+                    markBillCardsDeleted(item.dbId, deletedForMessage)
+                }
+            }
+        }
+    }
+
+    private suspend fun markBillCardsDeleted(messageDbId: Long, billIds: Collection<Long>) {
+        val result = ChatBillMessageActions.markBillsDeletedFromMessage(
+            db = db,
+            displayMessages = displayMessages,
+            messageDbId = messageDbId,
+            deletedBillIds = billIds,
+            formatTime = formatTime
+        ) ?: return
+        val msgIdx = displayMessages.indexOfFirst { it.dbId == messageDbId }
+        if (msgIdx >= 0) notifyItemChanged(msgIdx)
+        onBillsDeleted(result.deletedBillIds, messageDbId)
+    }
+
     override fun getItemViewType(position: Int): Int = displayMessages[position].msgType
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -962,7 +1007,12 @@ class ChatAdapter(
                         BillDetailSheetHelper.showBillDetailSheet(
                             context = context,
                             lifecycleOwner = context,
-                            bill = bill
+                            bill = bill,
+                            onBillChanged = {
+                                lifecycleScope.launch {
+                                    markBillCardsDeleted(item.dbId, listOf(bill.id))
+                                }
+                            }
                         )
                     }
                 }

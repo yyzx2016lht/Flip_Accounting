@@ -108,26 +108,62 @@
             android:visibility="gone" />
     </FrameLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_add_budget"
-        style="@style/Widget.MaterialComponents.Button"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="12dp"
-        android:text="@string/budget_set"
-        android:textColor="#FFFFFF"
-        android:textSize="@dimen/text_size_14"
-        app:backgroundTint="@color/brand_primary"
-        app:cornerRadius="12dp" />
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_add_budget"
+            style="@style/Widget.MaterialComponents.Button"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="@string/budget_set"
+            android:textColor="#FFFFFF"
+            android:textSize="@dimen/text_size_14"
+            app:backgroundTint="@color/brand_primary"
+            app:cornerRadius="12dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_copy_previous_budget"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:text="@string/budget_copy_previous"
+            android:textColor="#4E5A6A"
+            android:textSize="@dimen/text_size_14"
+            app:backgroundTint="#FFFFFF"
+            app:cornerRadius="12dp"
+            app:strokeColor="#DCE2EA" />
+    </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_suggest_budget"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="48dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="10dp"
+        android:text="@string/budget_suggest_advanced"
+        android:textColor="#4E5A6A"
+        android:textSize="@dimen/text_size_14"
+        app:backgroundTint="#FFFFFF"
+        app:cornerRadius="12dp"
+        app:strokeColor="#DCE2EA" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_ai_budget"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
         android:layout_margin="16dp"
-        android:text="@string/budget_suggest"
+        android:layout_marginTop="10dp"
+        android:text="@string/budget_ai_analyze"
         android:textColor="#4E5A6A"
         android:textSize="@dimen/text_size_14"
         app:backgroundTint="#FFFFFF"

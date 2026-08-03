@@ -9,6 +9,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.taostudio.tapaccounting.data.local.dao.AiRuleDao
 import com.taostudio.tapaccounting.data.local.dao.AssetDao
 import com.taostudio.tapaccounting.data.local.dao.BillDao
+import com.taostudio.tapaccounting.data.local.dao.BookDao
+import com.taostudio.tapaccounting.data.local.dao.BookScopeDao
 import com.taostudio.tapaccounting.data.local.dao.BudgetDao
 import com.taostudio.tapaccounting.data.local.dao.CategoryDao
 import com.taostudio.tapaccounting.data.local.dao.ChatMessageDao
@@ -18,6 +20,7 @@ import com.taostudio.tapaccounting.data.local.dao.RecurringPatternDao
 import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.data.local.entity.Book
 import com.taostudio.tapaccounting.data.local.entity.Budget
 import com.taostudio.tapaccounting.data.local.entity.Category
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
@@ -27,7 +30,7 @@ import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 
 /** 与 backupIfDowngrade 第三个参数保持同步。 */
-private const val DB_VERSION = 33
+private const val DB_VERSION = 34
 
 /**
  * Room 主库。改 schema 前请先读本节，避免误用破坏性迁移或漏改版本号。
@@ -56,13 +59,15 @@ private const val DB_VERSION = 33
     entities = [
         Bill::class, Asset::class, Category::class, AiRule::class,
         ChatMessage::class, InvestmentLot::class, DeletedBill::class,
-        Budget::class, RecurringPattern::class
+        Budget::class, RecurringPattern::class, Book::class
     ],
     version = DB_VERSION,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun billDao(): BillDao
+    abstract fun bookDao(): BookDao
+    abstract fun bookScopeDao(): BookScopeDao
     abstract fun assetDao(): AssetDao
     abstract fun categoryDao(): CategoryDao
     abstract fun aiRuleDao(): AiRuleDao
@@ -536,6 +541,88 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                com.taostudio.tapaccounting.BookAccountManager
+                    .rawAliases(com.taostudio.tapaccounting.BookAccountManager.DEFAULT_BOOK)
+                    .filter { it.isNotBlank() && it != com.taostudio.tapaccounting.BookAccountManager.DEFAULT_BOOK }
+                    .forEach { alias ->
+                        database.execSQL(
+                            "UPDATE budgets SET bookName = ? WHERE bookName = ?",
+                            arrayOf<Any>(com.taostudio.tapaccounting.BookAccountManager.DEFAULT_BOOK, alias)
+                        )
+                    }
+                database.execSQL(
+                    "UPDATE budgets SET bookName = '' WHERE bookName = ?",
+                    arrayOf<Any>(com.taostudio.tapaccounting.BookAccountManager.ALL_BOOK)
+                )
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `books` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL
+                    )"""
+                )
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_books_name` ON `books` (`name`)")
+                database.execSQL(
+                    """INSERT OR IGNORE INTO books(name)
+                       SELECT DISTINCT bookName FROM budgets WHERE bookName != ''"""
+                )
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `budgets_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bookId` INTEGER NOT NULL,
+                        `bookName` TEXT NOT NULL,
+                        `categoryId` INTEGER,
+                        `categoryKey` INTEGER NOT NULL,
+                        `categoryName` TEXT,
+                        `yearMonth` TEXT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `currency` TEXT NOT NULL,
+                        `alertThreshold` REAL NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )"""
+                )
+                database.execSQL(
+                    """INSERT INTO budgets_new(
+                        id, bookId, bookName, categoryId, categoryKey, categoryName,
+                        yearMonth, amount, currency, alertThreshold, createdAt, updatedAt
+                    )
+                    SELECT b.id,
+                           CASE WHEN b.bookName = '' THEN 0
+                                ELSE COALESCE((SELECT id FROM books WHERE name = b.bookName), 0)
+                           END,
+                           b.bookName,
+                           b.categoryId,
+                           IFNULL(b.categoryId, 0),
+                           b.categoryName,
+                           b.yearMonth,
+                           b.amount,
+                           b.currency,
+                           b.alertThreshold,
+                           b.createdAt,
+                           b.updatedAt
+                    FROM budgets b
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM budgets newer
+                        WHERE newer.bookName = b.bookName
+                          AND newer.yearMonth = b.yearMonth
+                          AND IFNULL(newer.categoryId, 0) = IFNULL(b.categoryId, 0)
+                          AND (
+                              newer.updatedAt > b.updatedAt
+                              OR (newer.updatedAt = b.updatedAt AND newer.id > b.id)
+                          )
+                    )"""
+                )
+                database.execSQL("DROP TABLE budgets")
+                database.execSQL("ALTER TABLE budgets_new RENAME TO budgets")
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_budgets_bookId_yearMonth_categoryKey` " +
+                        "ON `budgets` (`bookId`, `yearMonth`, `categoryKey`)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -579,7 +666,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_29_30,
                         MIGRATION_30_31,
                         MIGRATION_31_32,
-                        MIGRATION_32_33
+                        MIGRATION_32_33,
+                        MIGRATION_33_34
                     )
                     // 仅处理降级：清库并按当前代码 schema 重建。升级缺迁移时仍应抛异常，不要改成 fallbackToDestructiveMigration()。
                     .fallbackToDestructiveMigrationOnDowngrade()

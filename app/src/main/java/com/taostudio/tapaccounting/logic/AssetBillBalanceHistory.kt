@@ -49,7 +49,7 @@ object AssetBillBalanceHistory {
 
             bill.type == Bill.TYPE_EXPENSE -> {
                 if (!matchesSource(bill, assetId, assetName)) return 0.0
-                return -convert(bill.amount, bill.currency, assetCurrency)
+                return -convert(amountAtTransactionTime(bill), bill.currency, assetCurrency)
             }
 
             bill.type == Bill.TYPE_INCOME -> {
@@ -75,6 +75,22 @@ object AssetBillBalanceHistory {
             }
 
             else -> return 0.0
+        }
+    }
+
+    /**
+     * Refunds reduce an expense bill's current [Bill.amount], but the asset timeline must
+     * preserve the amount that actually left the account when the expense happened.
+     */
+    fun amountAtTransactionTime(bill: Bill): Double {
+        return if (
+            bill.type == Bill.TYPE_EXPENSE &&
+            bill.subType != Bill.SUBTYPE_REFUND &&
+            bill.originalAmount > 0.0
+        ) {
+            kotlin.math.max(bill.originalAmount, bill.amount)
+        } else {
+            bill.amount
         }
     }
 

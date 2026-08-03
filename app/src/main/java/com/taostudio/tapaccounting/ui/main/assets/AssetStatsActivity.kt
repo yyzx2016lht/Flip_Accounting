@@ -171,6 +171,7 @@ class AssetStatsActivity : AppCompatActivity() {
     private var pieRenderJob: Job? = null
     private var billRenderToken: Long = 0L
     private var pieRenderToken: Long = 0L
+    private var hasResumedOnce = false
     private var pieChartHasRendered = false
     private var pagedBillRows: List<Any> = emptyList()
     private var pagedBillChunkEnds: List<Int> = emptyList()
@@ -254,6 +255,19 @@ class AssetStatsActivity : AppCompatActivity() {
         initCharts()
         setupBackPressForMultiSelect()
         loadAssetAndBills()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (hasResumedOnce) {
+            // 独立账单详情页返回后，刷新账单列表和统计缓存。
+            filteredBillsCache.clear()
+            billRowsCache.clear()
+            categoryBreakdownCache.clear()
+            loadAssetAndBills()
+        } else {
+            hasResumedOnce = true
+        }
     }
 
     override fun onDestroy() {

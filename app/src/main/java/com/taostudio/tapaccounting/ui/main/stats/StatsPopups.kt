@@ -257,7 +257,7 @@ class SubCategoryBottomSheet(
 
 class BillListBottomSheet(
     private val title: String,
-    private val bills: List<Bill>
+    initialBills: List<Bill>
 ) : BottomSheetDialogFragment() {
     companion object {
         private const val DEFAULT_VISIBLE_BILL_COUNT = 5
@@ -265,7 +265,9 @@ class BillListBottomSheet(
 
     private val dfDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var newestFirst = true
+    private var bills: List<Bill> = initialBills
     private var displayBills: List<Bill> = emptyList()
+    private var hasResumedOnce = false
 
     private lateinit var rootView: View
     private lateinit var rvBills: RecyclerView
@@ -318,6 +320,23 @@ class BillListBottomSheet(
 
         applySort()
         return root
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!hasResumedOnce) {
+            hasResumedOnce = true
+            return
+        }
+        val appContext = context?.applicationContext ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val ids = bills.map { it.id }.filter { it > 0L }
+            bills = withContext(Dispatchers.IO) {
+                if (ids.isEmpty()) emptyList()
+                else AppDatabase.getDatabase(appContext).billDao().getBillsByIds(ids)
+            }
+            applySort()
+        }
     }
 
     override fun onStart() {

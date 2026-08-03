@@ -13,6 +13,30 @@ class CategoryRepository(
     private val billDao: BillDao? = null
 ) {
 
+    companion object {
+        /** Current hierarchical display paths keyed by stable category ID. */
+        fun displayNamesById(categories: List<Category>): Map<Long, String> {
+            val byId = categories.associateBy { it.id }
+            val resolved = mutableMapOf<Long, String>()
+
+            fun resolve(category: Category, visiting: Set<Long>): String {
+                resolved[category.id]?.let { return it }
+                if (category.id in visiting) return category.name
+                val parent = category.parentId?.let(byId::get)
+                val name = if (parent == null) {
+                    category.name
+                } else {
+                    "${resolve(parent, visiting + category.id)} - ${category.name}"
+                }
+                resolved[category.id] = name
+                return name
+            }
+
+            categories.forEach { resolve(it, emptySet()) }
+            return resolved
+        }
+    }
+
     val expenseCategories: Flow<List<Category>> = categoryDao.getCategoriesByType(0)
     val incomeCategories: Flow<List<Category>> = categoryDao.getCategoriesByType(1)
 

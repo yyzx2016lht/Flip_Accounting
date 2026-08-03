@@ -30,6 +30,20 @@
                 android:padding="8dp"
                 android:src="@drawable/ic_chevron_left" />
 
+            <TextView
+                android:id="@+id/btn_multi_select"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:gravity="center"
+                android:minWidth="48dp"
+                android:paddingHorizontal="8dp"
+                android:text="@string/multi_select"
+                android:textColor="#2C74FF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -57,6 +71,7 @@
         </RelativeLayout>
 
         <LinearLayout
+            android:id="@+id/layout_category_editor"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -147,6 +162,7 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/tv_icon_section_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="18dp"

@@ -2,8 +2,12 @@ package com.taostudio.tapaccounting.logic
 
 import com.taostudio.tapaccounting.data.local.dao.BillDao
 import com.taostudio.tapaccounting.data.local.dao.BudgetDao
+import com.taostudio.tapaccounting.data.local.dao.CategoryDao
 import com.taostudio.tapaccounting.data.local.entity.Budget
+import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import java.util.Calendar
+import kotlin.math.ceil
+import kotlin.math.max
 
 /**
  * 预算计算服务。
@@ -11,7 +15,8 @@ import java.util.Calendar
  */
 class BudgetService(
     private val budgetDao: BudgetDao,
-    private val billDao: BillDao
+    private val billDao: BillDao,
+    private val categoryDao: CategoryDao
 ) {
     sealed class BudgetScope {
         data class Book(val bookName: String) : BudgetScope()
@@ -31,18 +36,49 @@ class BudgetService(
         EXCEEDED  // 已超支
     }
 
+    enum class BudgetPace {
+        AHEAD, ON_TRACK, HAS_ROOM
+    }
+
+    enum class BudgetRiskReason {
+        NONE,
+        THRESHOLD_REACHED,
+        SPENDING_FAST,
+        EXCEEDED
+    }
+
     /** 预算进度 */
     data class BudgetProgress(
         val budgetAmount: Double,
         val usedAmount: Double,
         val percent: Double,
         val remaining: Double,
-        val status: BudgetStatus
+        val status: BudgetStatus,
+        val daysInMonth: Int,
+        val elapsedDays: Int,
+        val remainingDays: Int,
+        val timeProgress: Double,
+        val dailyRemainingAllowance: Double,
+        val paceRatio: Double,
+        val pace: BudgetPace,
+        val riskReason: BudgetRiskReason,
+        val riskScore: Double
     )
 
     data class BudgetOverview(
         val budget: Budget,
         val progress: BudgetProgress
+    )
+
+    data class BudgetSuggestionPlan(
+        val categoryId: Long?,
+        val categoryName: String?,
+        val conservativeAmount: Double,
+        val normalAmount: Double,
+        val looseAmount: Double,
+        val historyAverage: Double,
+        val activeMonths: Int,
+        val reason: String
     )
 
     /**
@@ -82,23 +118,88 @@ class BudgetService(
         currentYearMonth: String,
         months: Int = 3
     ): Double? {
-        val historyMonths = getPreviousMonths(currentYearMonth, months)
-        if (historyMonths.isEmpty()) return null
+        return suggestBudgetPlanFromHistory(bookName, categoryId, null, currentYearMonth, months)
+            ?.normalAmount
+    }
 
-        var totalSpend = 0.0
-        var validMonths = 0
+    suspend fun suggestBudgetPlanFromHistory(
+        bookName: String,
+        categoryId: Long?,
+        categoryName: String?,
+        currentYearMonth: String,
+        months: Int = 6
+    ): BudgetSuggestionPlan? {
+        val spends = collectHistorySpends(bookName, categoryId, currentYearMonth, months)
+        if (spends.isEmpty()) return null
+        val avg = spends.average()
+        return buildSuggestionPlan(
+            categoryId = categoryId,
+            categoryName = categoryName,
+            historyAverage = avg,
+            activeMonths = spends.size,
+            reason = "近 ${spends.size} 个有支出月份的月均支出"
+        )
+    }
+
+    suspend fun suggestUnbudgetedCategoryPlans(
+        bookName: String,
+        currentYearMonth: String,
+        months: Int = 6,
+        limit: Int = 5
+    ): List<BudgetSuggestionPlan> {
+        val currentBudgets = budgetDao.getBudgetsByMonthAndBook(currentYearMonth, bookName)
+        val budgetedCategoryIds = currentBudgets.mapNotNull { it.categoryId }.toSet()
+        val categoryNames = CategoryRepository.displayNamesById(
+            categoryDao.getCategoriesListByType(0)
+        )
+        val historyMonths = getPreviousMonths(currentYearMonth, months)
+        val totals = linkedMapOf<Long, Pair<String?, MutableList<Double>>>()
         for (month in historyMonths) {
-            val spend = getMonthSpend(bookName, categoryId, month)
-            if (spend > 0) {
-                totalSpend += spend
-                validMonths++
+            val (start, end) = parseYearMonthRange(month) ?: continue
+            billDao.sumBudgetExpenseByAllCategories(start, end, bookName).forEach { item ->
+                val categoryId = item.categoryId ?: return@forEach
+                if (categoryId in budgetedCategoryIds || item.total <= 0.0) return@forEach
+                val entry = totals.getOrPut(categoryId) { item.categoryName to mutableListOf() }
+                entry.second += item.total
             }
         }
+        return totals.mapNotNull { (categoryId, pair) ->
+            val spends = pair.second
+            if (spends.isEmpty()) return@mapNotNull null
+            buildSuggestionPlan(
+                categoryId = categoryId,
+                categoryName = categoryNames[categoryId] ?: pair.first,
+                historyAverage = spends.average(),
+                activeMonths = spends.size,
+                reason = "未设置预算，但历史支出较高"
+            )
+        }.sortedByDescending { it.historyAverage }
+            .take(limit)
+    }
 
-        if (validMonths == 0) return null
-        val avg = totalSpend / validMonths
-        // 向上取整到 10 元
-        return kotlin.math.ceil(avg / 10.0) * 10.0
+    suspend fun copyPreviousMonthBudgets(
+        bookName: String,
+        targetYearMonth: String
+    ): Int {
+        val previousMonth = getPreviousMonths(targetYearMonth, 1).firstOrNull() ?: return 0
+        val source = budgetDao.getBudgetsByMonthAndBook(previousMonth, bookName)
+        if (source.isEmpty()) return 0
+        val existing = budgetDao.getBudgetsByMonthAndBook(targetYearMonth, bookName)
+        val existingKeys = existing.map { it.categoryKey }.toSet()
+        val now = System.currentTimeMillis()
+        val missing = source.filterNot { it.categoryKey in existingKeys }
+        missing
+            .forEach { budget ->
+                budgetDao.saveForSlot(
+                    budget.copy(
+                        id = 0,
+                        yearMonth = targetYearMonth,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                )
+            }
+        return missing.size
     }
 
     /**
@@ -119,17 +220,7 @@ class BudgetService(
         yearMonth: String
     ): List<BudgetOverview> {
         val bookName = scope.daoBookName
-        val budgets = if (bookName.isBlank()) {
-            budgetDao.getBudgetsByMonth(yearMonth)
-        } else {
-            budgetDao.getBudgetsByMonthAndBook(yearMonth, bookName)
-        }
-        if (scope == BudgetScope.AllBooks) {
-            return budgets.groupBy { it.bookName }
-                .flatMap { (groupBookName, groupBudgets) ->
-                    buildBudgetOverview(groupBudgets, groupBookName, yearMonth)
-                }
-        }
+        val budgets = budgetDao.getBudgetsByMonthAndBook(yearMonth, bookName)
         return buildBudgetOverview(budgets, bookName, yearMonth)
     }
 
@@ -148,27 +239,178 @@ class BudgetService(
                 .associate { it.categoryId to it.total }
         }
 
-        return budgets.map { budget ->
+        val currentCategoryNames = CategoryRepository.displayNamesById(
+            categoryDao.getCategoriesListByType(0)
+        )
+        return budgets.map { storedBudget ->
+            val budget = storedBudget.categoryId?.let { categoryId ->
+                currentCategoryNames[categoryId]?.let { currentName ->
+                    storedBudget.copy(categoryName = currentName)
+                }
+            } ?: storedBudget
             val used = budget.categoryId?.let { categoryUsage[it] ?: 0.0 } ?: totalUsed
             BudgetOverview(budget, buildProgress(budget, used))
-        }
+        }.sortedWith(
+            compareByDescending<BudgetOverview> { it.budget.categoryId == null }
+                .thenByDescending { it.progress.riskScore }
+                .thenByDescending { it.progress.percent }
+                .thenBy { it.budget.categoryName.orEmpty() }
+        )
     }
 
-    private fun buildProgress(budget: Budget, used: Double): BudgetProgress {
-        val percent = if (budget.amount > 0) used / budget.amount else 0.0
-        val remaining = budget.amount - used
-        val status = when {
-            percent >= 1.0 -> BudgetStatus.EXCEEDED
-            percent >= budget.alertThreshold -> BudgetStatus.WARNING
-            else -> BudgetStatus.NORMAL
-        }
-        return BudgetProgress(
+    private suspend fun collectHistorySpends(
+        bookName: String,
+        categoryId: Long?,
+        currentYearMonth: String,
+        months: Int
+    ): List<Double> {
+        return getPreviousMonths(currentYearMonth, months)
+            .map { month -> getMonthSpend(bookName, categoryId, month) }
+            .filter { it > 0.0 }
+    }
+
+    private fun buildSuggestionPlan(
+        categoryId: Long?,
+        categoryName: String?,
+        historyAverage: Double,
+        activeMonths: Int,
+        reason: String
+    ): BudgetSuggestionPlan {
+        return BudgetSuggestionPlan(
+            categoryId = categoryId,
+            categoryName = categoryName,
+            conservativeAmount = roundBudget(historyAverage * 0.9),
+            normalAmount = roundBudget(historyAverage * 1.05),
+            looseAmount = roundBudget(historyAverage * 1.2),
+            historyAverage = historyAverage,
+            activeMonths = activeMonths,
+            reason = reason
+        )
+    }
+
+    private fun roundBudget(value: Double): Double {
+        return ceil(value / 10.0) * 10.0
+    }
+
+    fun buildProgress(
+        budget: Budget,
+        used: Double,
+        nowMillis: Long = System.currentTimeMillis()
+    ): BudgetProgress {
+        return buildProgress(
             budgetAmount = budget.amount,
             usedAmount = used,
-            percent = percent,
-            remaining = remaining,
-            status = status
+            alertThreshold = budget.alertThreshold,
+            yearMonth = budget.yearMonth,
+            nowMillis = nowMillis
         )
+    }
+
+    companion object {
+        fun buildProgress(
+            budgetAmount: Double,
+            usedAmount: Double,
+            alertThreshold: Double,
+            yearMonth: String,
+            nowMillis: Long
+        ): BudgetProgress {
+            val monthPosition = monthPosition(yearMonth, nowMillis)
+            val percent = if (budgetAmount > 0) usedAmount / budgetAmount else 0.0
+            val remaining = budgetAmount - usedAmount
+            val dailyRemaining = if (remaining > 0 && monthPosition.remainingDays > 0) {
+                remaining / monthPosition.remainingDays
+            } else {
+                0.0
+            }
+            val paceRatio = if (monthPosition.timeProgress > 0.0) {
+                percent / monthPosition.timeProgress
+            } else if (percent > 0.0) {
+                Double.POSITIVE_INFINITY
+            } else {
+                0.0
+            }
+            val pace = when {
+                percent >= 1.0 || paceRatio >= 1.15 -> BudgetPace.AHEAD
+                paceRatio <= 0.85 -> BudgetPace.HAS_ROOM
+                else -> BudgetPace.ON_TRACK
+            }
+            val riskReason = when {
+                percent >= 1.0 -> BudgetRiskReason.EXCEEDED
+                percent >= alertThreshold -> BudgetRiskReason.THRESHOLD_REACHED
+                paceRatio >= 1.15 && percent >= 0.2 -> BudgetRiskReason.SPENDING_FAST
+                else -> BudgetRiskReason.NONE
+            }
+            val status = when (riskReason) {
+                BudgetRiskReason.EXCEEDED -> BudgetStatus.EXCEEDED
+                BudgetRiskReason.THRESHOLD_REACHED,
+                BudgetRiskReason.SPENDING_FAST -> BudgetStatus.WARNING
+                BudgetRiskReason.NONE -> BudgetStatus.NORMAL
+            }
+            val riskScore = when (status) {
+                BudgetStatus.EXCEEDED -> 300.0 + percent
+                BudgetStatus.WARNING -> 200.0 + max(percent, paceRatio)
+                BudgetStatus.NORMAL -> percent
+            }
+            return BudgetProgress(
+                budgetAmount = budgetAmount,
+                usedAmount = usedAmount,
+                percent = percent,
+                remaining = remaining,
+                status = status,
+                daysInMonth = monthPosition.daysInMonth,
+                elapsedDays = monthPosition.elapsedDays,
+                remainingDays = monthPosition.remainingDays,
+                timeProgress = monthPosition.timeProgress,
+                dailyRemainingAllowance = dailyRemaining,
+                paceRatio = paceRatio,
+                pace = pace,
+                riskReason = riskReason,
+                riskScore = riskScore
+            )
+        }
+
+        private data class MonthPosition(
+            val daysInMonth: Int,
+            val elapsedDays: Int,
+            val remainingDays: Int,
+            val timeProgress: Double
+        )
+
+        private fun monthPosition(yearMonth: String, nowMillis: Long): MonthPosition {
+            val parts = yearMonth.split("-")
+            val year = parts.getOrNull(0)?.toIntOrNull()
+            val month = parts.getOrNull(1)?.toIntOrNull()
+            if (year == null || month == null) {
+                return MonthPosition(30, 0, 30, 0.0)
+            }
+
+            val monthCal = Calendar.getInstance().apply {
+                set(year, month - 1, 1, 0, 0, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val daysInMonth = monthCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val nowCal = Calendar.getInstance().apply { timeInMillis = nowMillis }
+            val currentYear = nowCal.get(Calendar.YEAR)
+            val currentMonth = nowCal.get(Calendar.MONTH) + 1
+            val isPastMonth = currentYear > year || (currentYear == year && currentMonth > month)
+            val isFutureMonth = currentYear < year || (currentYear == year && currentMonth < month)
+            val elapsedDays = when {
+                isPastMonth -> daysInMonth
+                isFutureMonth -> 0
+                else -> nowCal.get(Calendar.DAY_OF_MONTH).coerceIn(1, daysInMonth)
+            }
+            val remainingDays = when {
+                isPastMonth -> 0
+                isFutureMonth -> daysInMonth
+                else -> daysInMonth - elapsedDays + 1
+            }
+            return MonthPosition(
+                daysInMonth = daysInMonth,
+                elapsedDays = elapsedDays,
+                remainingDays = remainingDays,
+                timeProgress = (elapsedDays.toDouble() / daysInMonth).coerceIn(0.0, 1.0)
+            )
+        }
     }
 
     /**

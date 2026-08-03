@@ -51,17 +51,16 @@ object ReceiptImageInputHelper {
         return "$cleanedSupplement\n$cleanedSummary"
     }
 
-    /**
-     * 图片草稿确认后交给记账模型的输入，确保补充说明（尤其支付方式）不会被漏掉。
-     */
+    /** 图片草稿确认后交给记账模型的输入，确保用户补充说明不会被漏掉。 */
     fun buildAccountingInputFromImageDraft(draft: String, supplement: String): String {
         val cleanedDraft = draft.trim()
         val cleanedSupplement = supplement.trim()
         if (cleanedSupplement.isBlank()) return cleanedDraft
         if (cleanedDraft.contains(cleanedSupplement)) return cleanedDraft
         return buildString {
-            append("【用户补充（必须写入每条账单的支付方式 asset_name，不可遗漏）】\n")
+            append("【用户补充（高优先级）】\n")
             append(cleanedSupplement)
+            append("\n请结合补充说明修正对应账单；不要把补充内容强行解释为支付方式，也不要复制到无关账单。")
             append("\n\n【待记账清单】\n")
             append(cleanedDraft)
         }

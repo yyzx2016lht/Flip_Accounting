@@ -636,10 +636,12 @@ class StatsFragment : Fragment() {
         featureEntryStatusJob = viewLifecycleOwner.lifecycleScope.launch {
             val status = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(requireContext().applicationContext)
-                val budgetService = BudgetService(db.budgetDao(), db.billDao())
+                val budgetService = BudgetService(db.budgetDao(), db.billDao(), db.categoryDao())
                 val budgets = budgetService.getMonthBudgetsWithProgress(daoBookName, yearMonth)
                 val budgetProgress = budgets
-                    .firstOrNull { it.budget.categoryId == null }
+                    .filter { it.budget.categoryId != null && it.progress.status == BudgetService.BudgetStatus.EXCEEDED }
+                    .maxByOrNull { -it.progress.remaining }
+                    ?: budgets.firstOrNull { it.budget.categoryId == null }
                     ?: budgets.maxByOrNull { it.progress.percent }
 
                 val pendingCount = db.recurringPatternDao()
@@ -656,12 +658,25 @@ class StatsFragment : Fragment() {
                 }
 
                 val budgetText = budgetProgress?.let {
-                    when (it.progress.status) {
-                        BudgetService.BudgetStatus.EXCEEDED -> getString(R.string.budget_status_exceeded)
-                        BudgetService.BudgetStatus.WARNING,
-                        BudgetService.BudgetStatus.NORMAL -> getString(
+                    val progress = it.progress
+                    when {
+                        progress.status == BudgetService.BudgetStatus.EXCEEDED && it.budget.categoryId != null ->
+                            getString(
+                                R.string.budget_entry_over_category_fmt,
+                                it.budget.categoryName ?: getString(R.string.budget_monthly_total),
+                                -progress.remaining
+                            )
+                        progress.status == BudgetService.BudgetStatus.EXCEEDED ->
+                            getString(R.string.budget_status_exceeded)
+                        progress.remaining >= 0 ->
+                            getString(
+                                R.string.budget_entry_remaining_daily_fmt,
+                                progress.remaining,
+                                progress.dailyRemainingAllowance
+                            )
+                        else -> getString(
                             R.string.budget_entry_status_fmt,
-                            it.progress.percent * 100
+                            progress.percent * 100
                         )
                     }
                 } ?: getString(R.string.budget_entry_status_empty)

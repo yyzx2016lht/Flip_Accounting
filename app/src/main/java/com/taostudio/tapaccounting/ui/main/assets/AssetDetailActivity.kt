@@ -616,6 +616,7 @@ class AssetDetailActivity : AppCompatActivity() {
             title = getString(R.string.investment_lot_prompt_title),
             message = getString(R.string.investment_principal_hint),
             totalAmount = asset.balance,
+            currency = asset.currency,
             annualInterestRate = asset.annualInterestRate,
             initialDrafts = initialDrafts,
             onLater = { drafts ->
@@ -1132,7 +1133,9 @@ class AssetDetailActivity : AppCompatActivity() {
 
             fun updateBalanceAfter(bill: Bill) {
                 val asset = currentAsset
-                if (asset == null || !AssetBillBalanceDisplay.shouldShowBalanceForBill(
+                val refundStatus = refundStatusText(bill)
+                val balanceLabel = if (
+                    asset != null && AssetBillBalanceDisplay.shouldShowBalanceForBill(
                         asset,
                         bill.time,
                         allAssetBills,
@@ -1140,17 +1143,19 @@ class AssetDetailActivity : AppCompatActivity() {
                         asset.name
                     )
                 ) {
+                    balanceAfterByBillId[bill.id]?.let { balanceAfter ->
+                        AssetBillBalanceHistory.formatBalanceAfterLabel(balanceAfter, asset.currency)
+                    }
+                } else {
+                    null
+                }
+                val labels = listOfNotNull(refundStatus, balanceLabel)
+                if (labels.isEmpty()) {
                     tvAsset.visibility = View.GONE
                     return
                 }
-                val balanceAfter = balanceAfterByBillId[bill.id]
-                val currency = asset.currency
-                if (balanceAfter != null) {
-                    tvAsset.text = AssetBillBalanceHistory.formatBalanceAfterLabel(balanceAfter, currency)
-                    tvAsset.visibility = View.VISIBLE
-                } else {
-                    tvAsset.visibility = View.GONE
-                }
+                tvAsset.text = labels.joinToString(" · ")
+                tvAsset.visibility = View.VISIBLE
             }
 
             fun bind(bill: Bill, position: Int) {
@@ -1207,11 +1212,7 @@ class AssetDetailActivity : AppCompatActivity() {
 
                 val refundAmount = refundedAmountInBillCurrency(bill)
                 tvAmount.text = if (!isRefund && bill.type == Bill.TYPE_EXPENSE && refundAmount > 0.0) {
-                    BillDisplayFormatter.buildRefundedExpenseAmountText(
-                        netAmount = bill.amount,
-                        originalAmount = BillDisplayFormatter.originalAmountOfExpenseBill(bill),
-                        currency = bill.currency
-                    )
+                    "-${BillDisplayFormatter.formatMoney(AssetBillBalanceHistory.amountAtTransactionTime(bill), bill.currency)}"
                 } else {
                     val amountPrefix = when {
                         isRefund -> ""
@@ -1420,6 +1421,16 @@ class AssetDetailActivity : AppCompatActivity() {
     private fun refundedAmountInBillCurrency(bill: Bill): Double {
         if (bill.type != Bill.TYPE_EXPENSE || bill.subType == Bill.SUBTYPE_REFUND) return 0.0
         return (baseOriginalAmount(bill) - bill.amount).coerceAtLeast(0.0)
+    }
+
+    private fun refundStatusText(bill: Bill): String? {
+        val refundedAmount = refundedAmountInBillCurrency(bill)
+        if (refundedAmount <= 0.0) return null
+        return if (refundedAmount >= baseOriginalAmount(bill) - 1e-9) {
+            "已全额退款"
+        } else {
+            "已退款${formatMoney(refundedAmount, bill.currency)}"
+        }
     }
 
     private fun buildAssetDetailFormula(bill: Bill, ownerAssetId: Long): String? {
