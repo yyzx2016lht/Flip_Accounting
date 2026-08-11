@@ -7,15 +7,12 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.EditText
-import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import com.taostudio.tapaccounting.R
-import java.text.DecimalFormat
+import com.taostudio.tapaccounting.logic.AmountInputEdit
+import com.taostudio.tapaccounting.logic.AmountInputEditor
 
 class AmountKeypadDialog(
     context: Context,
@@ -44,6 +41,7 @@ class AmountKeypadDialog(
 
     private fun initViews() {
         etAmount = findViewById(R.id.et_amount)
+        etAmount.showSoftInputOnFocus = false
         btnConfirm = findViewById(R.id.btn_key_confirm)
         findViewById<View>(R.id.layout_amount_keypad)?.visibility = View.VISIBLE
 
@@ -107,31 +105,16 @@ class AmountKeypadDialog(
 
     private fun appendAmountInput(token: String) {
         val current = etAmount.text?.toString().orEmpty()
-        val next = when (token) {
-            "." -> {
-                val lastOperatorIndex = current.indexOfLast { it in charArrayOf('+', '-', '×', '÷') }
-                val currentSegment = if (lastOperatorIndex >= 0) current.substring(lastOperatorIndex + 1) else current
-                when {
-                    current.isEmpty() -> "0."
-                    currentSegment.contains(".") -> current
-                    current.lastOrNull()?.let { it in charArrayOf('+', '-', '×', '÷') } == true -> "${current}0."
-                    else -> "$current."
-                }
-            }
-            else -> {
-                if (current == "0") token else current + token
-            }
-        }
-        etAmount.setText(next)
-        etAmount.setSelection(etAmount.text?.length ?: 0)
+        applyAmountEdit(
+            AmountInputEditor.insert(current, etAmount.selectionStart, etAmount.selectionEnd, token)
+        )
     }
 
     private fun deleteAmountInput() {
         val current = etAmount.text?.toString().orEmpty()
-        if (current.isEmpty()) return
-        val next = current.dropLast(1)
-        etAmount.setText(next)
-        etAmount.setSelection(etAmount.text?.length ?: 0)
+        applyAmountEdit(
+            AmountInputEditor.delete(current, etAmount.selectionStart, etAmount.selectionEnd)
+        )
     }
 
     private fun clearAmountInput() {
@@ -142,14 +125,14 @@ class AmountKeypadDialog(
 
     private fun appendOperatorInput(operator: String) {
         val current = etAmount.text?.toString().orEmpty()
-        if (current.isBlank() || current.all { it in charArrayOf('+', '-', '×', '÷') }) return
-        val next = if (current.lastOrNull()?.let { it in charArrayOf('+', '-', '×', '÷') } == true) {
-            current.dropLast(1) + operator
-        } else {
-            current + operator
-        }
-        etAmount.setText(next)
-        etAmount.setSelection(etAmount.text?.length ?: 0)
+        applyAmountEdit(
+            AmountInputEditor.insertOperator(current, etAmount.selectionStart, etAmount.selectionEnd, operator)
+        )
+    }
+
+    private fun applyAmountEdit(edit: AmountInputEdit) {
+        etAmount.setText(edit.text)
+        etAmount.setSelection(edit.cursor.coerceIn(0, edit.text.length))
     }
 
     private fun updateConfirmKeyState() {

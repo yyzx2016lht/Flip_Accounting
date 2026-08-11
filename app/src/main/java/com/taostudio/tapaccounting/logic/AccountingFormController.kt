@@ -591,7 +591,7 @@ class AccountingFormController(
             if (event.action == MotionEvent.ACTION_UP) {
                 showAmountKeypad()
             }
-            true
+            false
         }
         etMoney.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) showAmountKeypad()
@@ -815,8 +815,7 @@ class AccountingFormController(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             etMoney.showSoftInputOnFocus = false
         }
-        etMoney.isLongClickable = false
-        etMoney.setTextIsSelectable(false)
+        etMoney.isLongClickable = true
         etMoney.isCursorVisible = false
 
         val keypadView = rootView.findViewById<View>(R.id.layout_amount_keypad) ?: return
@@ -878,6 +877,7 @@ class AccountingFormController(
     }
 
     private fun showAmountKeypad() {
+        etMoney.isCursorVisible = true
         val keypad = amountKeypadView ?: return
         if (isAmountKeypadVisible) return
         val formBody = rootView.findViewById<View>(R.id.layout_form_body)
@@ -903,6 +903,7 @@ class AccountingFormController(
         keypad.visibility = View.GONE
         rootView.findViewById<View>(R.id.layout_form_body)?.visibility = View.VISIBLE
         isAmountKeypadVisible = false
+        etMoney.isCursorVisible = false
         etMoney.clearFocus()
     }
 
@@ -917,31 +918,16 @@ class AccountingFormController(
 
     private fun appendAmountInput(token: String) {
         val current = etMoney.text?.toString().orEmpty()
-        val next = when (token) {
-            "." -> {
-                val lastOperatorIndex = current.indexOfLast { it in charArrayOf('+', '-', '×', '÷') }
-                val currentSegment = if (lastOperatorIndex >= 0) current.substring(lastOperatorIndex + 1) else current
-                when {
-                    current.isEmpty() -> "0."
-                    currentSegment.contains(".") -> current
-                    current.lastOrNull()?.let { it in charArrayOf('+', '-', '×', '÷') } == true -> "${current}0."
-                    else -> "$current."
-                }
-            }
-            else -> {
-                if (current == "0") token else current + token
-            }
-        }
-        etMoney.setText(next)
-        etMoney.setSelection(etMoney.text?.length ?: 0)
+        applyAmountEdit(
+            AmountInputEditor.insert(current, etMoney.selectionStart, etMoney.selectionEnd, token)
+        )
     }
 
     private fun deleteAmountInput() {
         val current = etMoney.text?.toString().orEmpty()
-        if (current.isEmpty()) return
-        val next = current.dropLast(1)
-        etMoney.setText(next)
-        etMoney.setSelection(etMoney.text?.length ?: 0)
+        applyAmountEdit(
+            AmountInputEditor.delete(current, etMoney.selectionStart, etMoney.selectionEnd)
+        )
     }
 
     private fun clearAmountInput() {
@@ -952,15 +938,14 @@ class AccountingFormController(
 
     private fun appendOperatorInput(operator: String) {
         val current = etMoney.text?.toString().orEmpty()
-        // 没有任何数字时，运算符一律不响应（避免出现负数或以运算符开头的表达式）
-        if (current.isBlank() || current.all { it in charArrayOf('+', '-', '×', '÷') }) return
-        val next = if (current.lastOrNull()?.let { it in charArrayOf('+', '-', '×', '÷') } == true) {
-            current.dropLast(1) + operator
-        } else {
-            current + operator
-        }
-        etMoney.setText(next)
-        etMoney.setSelection(etMoney.text?.length ?: 0)
+        applyAmountEdit(
+            AmountInputEditor.insertOperator(current, etMoney.selectionStart, etMoney.selectionEnd, operator)
+        )
+    }
+
+    private fun applyAmountEdit(edit: AmountInputEdit) {
+        etMoney.setText(edit.text)
+        etMoney.setSelection(edit.cursor.coerceIn(0, edit.text.length))
     }
 
     private fun confirmAmountInput() {
@@ -972,6 +957,7 @@ class AccountingFormController(
         keypad.visibility = View.GONE
         rootView.findViewById<View>(R.id.layout_form_body)?.visibility = View.VISIBLE
         isAmountKeypadVisible = false
+        etMoney.isCursorVisible = false
         etMoney.clearFocus()
     }
 

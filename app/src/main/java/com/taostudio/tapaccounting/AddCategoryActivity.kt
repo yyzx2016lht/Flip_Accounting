@@ -5,6 +5,7 @@ import android.graphics.PorterDuff
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -16,6 +17,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.room.withTransaction
 import com.bumptech.glide.Glide
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -34,6 +36,7 @@ class AddCategoryActivity : AppCompatActivity() {
     private var oldName: String = ""
     private var editId: Long = 0L
     private var isMultiSelect = false
+    private var isSaving = false
     private var lastAutoFilledName: String? = null
     private var selectedCategories: List<BuiltInCategory> = emptyList()
 
@@ -105,6 +108,7 @@ class AddCategoryActivity : AppCompatActivity() {
             },
             onMultiSelectionChanged = { selected ->
                 selectedCategories = selected
+                btn.isEnabled = !isMultiSelect || selected.isNotEmpty()
                 btn.text = if (selected.isEmpty()) {
                     getString(R.string.add_selected_categories_empty)
                 } else {
@@ -119,6 +123,7 @@ class AddCategoryActivity : AppCompatActivity() {
         }
 
         btnMultiSelect.setOnClickListener {
+            if (isSaving) return@setOnClickListener
             isMultiSelect = !isMultiSelect
             adapter.setMultiSelect(isMultiSelect)
             categoryEditor.visibility = if (isMultiSelect) View.GONE else View.VISIBLE
@@ -149,7 +154,7 @@ class AddCategoryActivity : AppCompatActivity() {
 
         btn.setOnClickListener {
             if (isMultiSelect) {
-                saveMultipleCategories(btn)
+                saveMultipleCategories(btn, btnMultiSelect)
                 return@setOnClickListener
             }
 
@@ -194,74 +199,94 @@ class AddCategoryActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveMultipleCategories(button: Button) {
+    private fun saveMultipleCategories(button: Button, multiSelectButton: TextView) {
         if (selectedCategories.isEmpty()) {
             Utils.toast(this, getString(R.string.select_at_least_one_category))
             return
         }
 
+        if (isSaving) return
+        isSaving = true
         button.isEnabled = false
+        multiSelectButton.isEnabled = false
+        adapter.setInteractionEnabled(false)
         val selection = selectedCategories
             .distinctBy { it.name.trim() }
             .filter { it.name.isNotBlank() }
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val dbType = if (type == Prefs.TYPE_INCOME) 1 else 0
-            val existing = categoryRepository.getCategoriesListByType(dbType)
-            val parentId = parentName?.let { name ->
-                existing.firstOrNull { it.parentId == null && it.name == name }?.id
-            }
-
-            if (parentName != null && parentId == null) {
-                withContext(Dispatchers.Main) {
-                    button.isEnabled = true
-                    Utils.toast(this@AddCategoryActivity, getString(R.string.parent_category_not_found))
+            try {
+                val dbType = if (type == Prefs.TYPE_INCOME) 1 else 0
+                val existing = categoryRepository.getCategoriesListByType(dbType)
+                val parentId = parentName?.let { name ->
+                    existing.firstOrNull { it.parentId == null && it.name == name }?.id
                 }
-                return@launch
-            }
 
-            val existingNames = existing
-                .asSequence()
-                .filter { it.parentId == parentId }
-                .map { it.name }
-                .toSet()
-            val categoriesToAdd = selection.filter { it.name.trim() !in existingNames }
-
-            database.withTransaction {
-                categoriesToAdd.forEach { selected ->
-                    categoryRepository.addCategory(
-                        Category(
-                            name = selected.name.trim(),
-                            type = dbType,
-                            parentId = parentId,
-                            iconId = selected.icon
-                        )
-                    )
+                if (parentName != null && parentId == null) {
+                    withContext(Dispatchers.Main) {
+                        Utils.toast(this@AddCategoryActivity, getString(R.string.parent_category_not_found))
+                    }
+                    return@launch
                 }
-            }
 
-            val skippedCount = selectedCategories.size - categoriesToAdd.size
-            withContext(Dispatchers.Main) {
-                button.isEnabled = true
-                when {
-                    categoriesToAdd.isEmpty() ->
-                        Utils.toast(this@AddCategoryActivity, getString(R.string.selected_categories_exist))
-                    skippedCount > 0 ->
-                        Utils.toast(
-                            this@AddCategoryActivity,
-                            getString(
-                                R.string.categories_added_with_skipped,
-                                categoriesToAdd.size,
-                                skippedCount
+                val existingNames = existing
+                    .asSequence()
+                    .filter { it.parentId == parentId }
+                    .map { it.name.trim() }
+                    .toSet()
+                val categoriesToAdd = selection.filter { it.name.trim() !in existingNames }
+
+                database.withTransaction {
+                    categoriesToAdd.forEach { selected ->
+                        categoryRepository.addCategory(
+                            Category(
+                                name = selected.name.trim(),
+                                type = dbType,
+                                parentId = parentId,
+                                iconId = selected.icon
                             )
                         )
-                    else ->
-                        Utils.toast(
-                            this@AddCategoryActivity,
-                            getString(R.string.categories_added, categoriesToAdd.size)
-                        )
+                    }
                 }
-                if (categoriesToAdd.isNotEmpty()) finish()
+
+                val skippedCount = selection.size - categoriesToAdd.size
+                withContext(Dispatchers.Main) {
+                    when {
+                        categoriesToAdd.isEmpty() ->
+                            Utils.toast(this@AddCategoryActivity, getString(R.string.selected_categories_exist))
+                        skippedCount > 0 ->
+                            Utils.toast(
+                                this@AddCategoryActivity,
+                                getString(
+                                    R.string.categories_added_with_skipped,
+                                    categoriesToAdd.size,
+                                    skippedCount
+                                )
+                            )
+                        else ->
+                            Utils.toast(
+                                this@AddCategoryActivity,
+                                getString(R.string.categories_added, categoriesToAdd.size)
+                            )
+                    }
+                    if (categoriesToAdd.isNotEmpty()) finish()
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.e("AddCategoryActivity", "Failed to add selected categories", error)
+                withContext(Dispatchers.Main) {
+                    Utils.toast(this@AddCategoryActivity, getString(R.string.categories_add_failed))
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    if (!isFinishing && !isDestroyed) {
+                        isSaving = false
+                        button.isEnabled = true
+                        multiSelectButton.isEnabled = true
+                        adapter.setInteractionEnabled(true)
+                    }
+                }
             }
         }
     }

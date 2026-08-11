@@ -18,7 +18,8 @@ class BuiltInCategoryAdapter(
 
     private var selectedIconUrl: String? = null
     private var isMultiSelect = false
-    private val selectedItems = linkedSetOf<BuiltInCategory>()
+    private var isInteractionEnabled = true
+    private val multiSelection = BuiltInCategorySelection()
 
     fun updateList(newItems: List<BuiltInCategory>) {
         items = newItems
@@ -26,15 +27,20 @@ class BuiltInCategoryAdapter(
     }
 
     fun setSelectedIcon(iconUrl: String?) {
+        val oldIconUrl = selectedIconUrl
         selectedIconUrl = iconUrl
-        notifyDataSetChanged()
+        notifyItemsWithIcons(oldIconUrl, iconUrl)
     }
 
     fun setMultiSelect(enabled: Boolean) {
         isMultiSelect = enabled
-        selectedItems.clear()
+        multiSelection.clear()
         notifyDataSetChanged()
         onMultiSelectionChanged(emptyList())
+    }
+
+    fun setInteractionEnabled(enabled: Boolean) {
+        isInteractionEnabled = enabled
     }
 
     inner class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -55,7 +61,11 @@ class BuiltInCategoryAdapter(
         holder.tv.text = item.name
         Glide.with(holder.itemView).load(item.icon).into(holder.iv)
 
-        val isSelected = if (isMultiSelect) item in selectedItems else item.icon == selectedIconUrl
+        val isSelected = if (isMultiSelect) {
+            multiSelection.isSelected(item)
+        } else {
+            item.icon == selectedIconUrl
+        }
         if (isSelected) {
             holder.container.setBackgroundColor(Color.TRANSPARENT)
             holder.iconWrap.setBackgroundResource(R.drawable.bg_category_icon_dot_selected)
@@ -69,19 +79,35 @@ class BuiltInCategoryAdapter(
         }
 
         holder.itemView.setOnClickListener {
+            if (!isInteractionEnabled) return@setOnClickListener
+
             if (isMultiSelect) {
-                if (!selectedItems.add(item)) {
-                    selectedItems.remove(item)
-                }
-                onMultiSelectionChanged(selectedItems.toList())
+                multiSelection.toggle(item)
+                onMultiSelectionChanged(multiSelection.selectedItems())
+                notifyItemsWithNames(item.name.trim())
             } else {
+                val oldIconUrl = selectedIconUrl
                 selectedIconUrl = item.icon
                 onSelect(item)
+                notifyItemsWithIcons(oldIconUrl, item.icon)
             }
-            notifyDataSetChanged()
         }
     }
 
     override fun getItemCount() = items.size
+
+    private fun notifyItemsWithNames(vararg names: String) {
+        val changedNames = names.toSet()
+        items.forEachIndexed { index, item ->
+            if (item.name.trim() in changedNames) notifyItemChanged(index)
+        }
+    }
+
+    private fun notifyItemsWithIcons(vararg icons: String?) {
+        val changedIcons = icons.toSet()
+        items.forEachIndexed { index, item ->
+            if (item.icon in changedIcons) notifyItemChanged(index)
+        }
+    }
 }
 

@@ -1473,6 +1473,7 @@
     <string name="selected_categories_exist">所选分类均已存在</string>
     <string name="categories_added">已添加 %1$d 个分类</string>
     <string name="categories_added_with_skipped">已添加 %1$d 个分类，跳过 %2$d 个同名分类</string>
+    <string name="categories_add_failed">添加分类失败，请重试</string>
 
     <!-- AddAssetActivity 硬编码抽取 -->
     <string name="edit_account_title">修改账户</string>
