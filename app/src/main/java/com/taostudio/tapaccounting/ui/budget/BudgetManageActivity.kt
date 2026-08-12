@@ -26,6 +26,7 @@ import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Budget
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
+import com.taostudio.tapaccounting.data.sync.SharedBudgetHooks
 import com.taostudio.tapaccounting.logic.BudgetService
 import com.taostudio.tapaccounting.logic.BudgetCategoryOptions
 import kotlinx.coroutines.Dispatchers
@@ -99,7 +100,14 @@ class BudgetManageActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 try {
                     val copied = withContext(Dispatchers.IO) {
-                        budgetService.copyPreviousMonthBudgets(currentBook, yearMonth)
+                        val copied = budgetService.copyPreviousMonthBudgets(currentBook, yearMonth)
+                        if (copied > 0 && currentBook.isNotBlank()) {
+                            val db = AppDatabase.getDatabase(this@BudgetManageActivity)
+                            db.budgetDao().getBudgetsByMonthAndBook(yearMonth, currentBook)
+                                .filter { !it.isShared }
+                                .forEach { SharedBudgetHooks.save(db, it) }
+                        }
+                        copied
                     }
                     Toast.makeText(
                         this@BudgetManageActivity,
@@ -536,7 +544,7 @@ ${suggestionLines.ifBlank { "无" }}
                             withContext(Dispatchers.IO) {
                                 val db = AppDatabase.getDatabase(this@BudgetManageActivity)
                                 val now = System.currentTimeMillis()
-                                db.budgetDao().saveForSlot(
+                                SharedBudgetHooks.save(db,
                                     Budget(
                                         bookId = db.bookDao().resolveOrCreateId(currentBook),
                                         bookName = currentBook,
@@ -594,9 +602,8 @@ ${suggestionLines.ifBlank { "无" }}
             lifecycleScope.launch {
                 try {
                     withContext(Dispatchers.IO) {
-                        AppDatabase.getDatabase(this@BudgetManageActivity)
-                            .budgetDao()
-                            .saveForSlot(budget.copy(amount = newAmount, updatedAt = System.currentTimeMillis()))
+                        val db = AppDatabase.getDatabase(this@BudgetManageActivity)
+                        SharedBudgetHooks.save(db, budget.copy(amount = newAmount, updatedAt = System.currentTimeMillis()))
                     }
                     loadBudgets()
                     dialog.dismiss()
@@ -621,7 +628,8 @@ ${suggestionLines.ifBlank { "无" }}
             .setPositiveButton(getString(R.string.rule_learn_confirm)) { _, _ ->
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) {
-                        AppDatabase.getDatabase(this@BudgetManageActivity).budgetDao().delete(budget)
+                        val db = AppDatabase.getDatabase(this@BudgetManageActivity)
+                        SharedBudgetHooks.delete(db, budget)
                     }
                     loadBudgets()
                 }

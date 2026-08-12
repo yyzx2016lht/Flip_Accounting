@@ -7,6 +7,7 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.DeletedBill
+import com.taostudio.tapaccounting.data.sync.SharedMutationHooks
 
 object BillDeleteHelper {
     private fun logFull(tag: String, message: String) {
@@ -104,6 +105,8 @@ object BillDeleteHelper {
                 billDao.backfillAssetLinksByName()
             }
             val latestBill = if (bill.id > 0L) billDao.getBillById(bill.id) ?: bill else bill
+            SharedMutationHooks.requireOwner(db, latestBill)
+            SharedMutationHooks.enqueueDelete(db, latestBill)
 
             // 先保存到 deleted_bills 表
             deletedBillDao.insert(billToDeletedBill(latestBill))
@@ -120,7 +123,9 @@ object BillDeleteHelper {
                                 original.amount
                             }
                             val restored = (original.amount + latestBill.amount).coerceAtMost(baseOriginal)
-                            billDao.updateBill(original.copy(amount = restored, originalAmount = baseOriginal))
+                            val savedOriginal = SharedMutationHooks.prepareLocalBill(db, original.copy(amount = restored, originalAmount = baseOriginal))
+                            billDao.updateBill(savedOriginal)
+                            SharedMutationHooks.enqueueSaved(db, savedOriginal)
                         }
                     }
                     val impacted = BillAssetImpactService.revertBillBalanceImpact(db, latestBill)
@@ -148,6 +153,8 @@ object BillDeleteHelper {
                     }
                     if (refundsToDelete.isNotEmpty()) {
                         refundsToDelete.forEach { refund ->
+                            SharedMutationHooks.requireOwner(db, refund)
+                            SharedMutationHooks.enqueueDelete(db, refund)
                             deletedBillDao.insert(billToDeletedBill(refund))
                             val impacted = BillAssetImpactService.revertBillBalanceImpact(db, refund)
                             if (impacted == 0) {
@@ -184,4 +191,3 @@ object BillDeleteHelper {
         }
     }
 }
-

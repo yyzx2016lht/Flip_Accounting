@@ -66,6 +66,18 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets ORDER BY yearMonth DESC, categoryId ASC")
     suspend fun getAll(): List<Budget>
 
+    @Query("SELECT * FROM budgets WHERE bookId=:bookId")
+    suspend fun getAllByBookId(bookId: Long): List<Budget>
+
+    @Query("SELECT * FROM budgets WHERE sharedId=:sharedId LIMIT 1")
+    suspend fun getBySharedId(sharedId: String): Budget?
+
+    @Query("UPDATE budgets SET sharedId=NULL, revision=0, isShared=0, sharedDeviceId=NULL WHERE bookId=:bookId")
+    suspend fun clearSharedState(bookId: Long)
+
+    @Query("DELETE FROM budgets WHERE bookId=:bookId")
+    suspend fun deleteAllByBookId(bookId: Long)
+
     @Query("DELETE FROM budgets")
     suspend fun deleteAll()
 }

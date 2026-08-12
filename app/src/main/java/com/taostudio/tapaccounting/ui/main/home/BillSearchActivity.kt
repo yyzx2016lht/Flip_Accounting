@@ -214,7 +214,14 @@ class BillSearchActivity : AppCompatActivity() {
                 }
                 dialog.dismiss()
                 lifecycleScope.launch(Dispatchers.IO) {
-                    db.billDao().moveBillsToBook(bills.map { it.id }, targetBook)
+                    runCatching {
+                        com.taostudio.tapaccounting.data.sync.SharedMutationHooks.moveBills(db, bills, targetBook)
+                    }.onFailure { error ->
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@BillSearchActivity, error.message ?: "移动失败", Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
                     withContext(Dispatchers.Main) {
                         adapter.clearSelection()
                         loadAllBills()
@@ -299,4 +306,3 @@ class BillSearchActivity : AppCompatActivity() {
         }
     }
 }
-

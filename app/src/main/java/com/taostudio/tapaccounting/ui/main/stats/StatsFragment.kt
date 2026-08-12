@@ -87,7 +87,8 @@ class StatsFragment : Fragment() {
     private val homeViewModel: HomeViewModel by activityViewModels()
 
     private val viewModel: StatsViewModel by viewModels {
-        StatsViewModelFactory(AppDatabase.getDatabase(requireContext().applicationContext).billDao())
+        val db = AppDatabase.getDatabase(requireContext().applicationContext)
+        StatsViewModelFactory(db.billDao()) { bookName -> db.sharedLedgerDao().getByBookName(bookName)?.localMemberId }
     }
 
     private lateinit var pieChart: PieChart
@@ -121,6 +122,7 @@ class StatsFragment : Fragment() {
     private lateinit var rowRepayment: View
     private lateinit var rowRefund: View
     private lateinit var layoutOverviewExtra: View
+    private lateinit var layoutMemberStats: LinearLayout
     private lateinit var ivOverviewExpand: View
     private lateinit var btnPrevDate: ImageView
     private lateinit var btnNextDate: ImageView
@@ -322,6 +324,7 @@ class StatsFragment : Fragment() {
         rowRepayment = root.findViewById(R.id.row_total_repayment)
         rowRefund = root.findViewById(R.id.row_total_refund)
         layoutOverviewExtra = root.findViewById(R.id.layout_overview_extra)
+        layoutMemberStats = root.findViewById(R.id.layout_member_stats)
         ivOverviewExpand = root.findViewById(R.id.iv_overview_expand)
         btnPrevDate = root.findViewById(R.id.btn_prev_date)
         btnNextDate = root.findViewById(R.id.btn_next_date)
@@ -567,6 +570,7 @@ class StatsFragment : Fragment() {
         tvTotalTransfer.text = "$symbol${AmountFormatHelper.formatAmount(state.totalTransfer)}"
         tvTotalRepayment.text = "$symbol${AmountFormatHelper.formatAmount(state.totalRepayment)}"
         tvTotalRefund.text = "$symbol${AmountFormatHelper.formatAmount(state.totalRefund)}"
+        renderMemberStats(state, symbol)
         btnPrevDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_left else R.drawable.ic_chevrons_left)
         btnNextDate.setImageResource(if (state.isMonthMode) R.drawable.ic_chevron_right else R.drawable.ic_chevrons_right)
         updateFeatureEntryStatus(state)
@@ -621,6 +625,29 @@ class StatsFragment : Fragment() {
         val cost = SystemClock.elapsedRealtime() - updateStart
         Log.d(TAG, "updateUI done: bills=${state.bills.size}, list=${list.size}, costMs=$cost")
         perfStage = "idle"
+    }
+
+    private fun renderMemberStats(state: StatsUiState, symbol: String) {
+        val bookName = state.selectedBookName ?: run { layoutMemberStats.visibility = View.GONE; return }
+        viewLifecycleOwner.lifecycleScope.launch {
+            val names = withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(requireContext())
+                val ledger = db.sharedLedgerDao().getByBookName(bookName) ?: return@withContext emptyMap()
+                db.sharedMemberDao().getByLedgerId(ledger.id).associate { it.memberId to it.resolvedName() }
+            }
+            layoutMemberStats.removeAllViews()
+            layoutMemberStats.visibility = if (names.isEmpty()) View.GONE else View.VISIBLE
+            names.forEach { (memberId, name) ->
+                val stat = state.memberStats.firstOrNull { it.memberId == memberId } ?: MemberStat(memberId, 0.0, 0.0)
+                val row = TextView(requireContext()).apply {
+                    setPadding(12, 10, 12, 10)
+                    textSize = 13f
+                    setTextColor(Color.parseColor("#374151"))
+                    text = "$name　支出 $symbol${AmountFormatHelper.formatAmount(stat.expense)}　收入 $symbol${AmountFormatHelper.formatAmount(stat.income)}"
+                }
+                layoutMemberStats.addView(row)
+            }
+        }
     }
 
     private fun updateFeatureEntryStatus(state: StatsUiState) {

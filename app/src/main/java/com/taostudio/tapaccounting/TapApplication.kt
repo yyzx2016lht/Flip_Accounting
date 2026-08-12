@@ -14,6 +14,8 @@ import com.taostudio.tapaccounting.logic.InvestmentInterestService
 import com.taostudio.tapaccounting.logic.InvestmentInterestWorker
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 import com.taostudio.tapaccounting.data.backup.BackupInitHelper
+import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
+import com.taostudio.tapaccounting.data.sync.SharedMutationHooks
 
 class TapApplication : Application() {
 
@@ -47,6 +49,8 @@ class TapApplication : Application() {
         // 启动时在后台协程检查并执行数据迁移
         CoroutineScope(Dispatchers.IO).launch {
             MigrationManager.migrateIfNecessary(this@TapApplication, database)
+            SharedMutationHooks.repairMovedSharedBills(database)
+            SharedSyncScheduler.enqueueNow(this@TapApplication)
             InvestmentInterestService.settleDueInterest(database)
         }
 

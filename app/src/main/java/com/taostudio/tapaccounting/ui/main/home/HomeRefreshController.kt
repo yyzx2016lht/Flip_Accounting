@@ -11,9 +11,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.data.sync.SharedSyncEngine
 
 internal class HomeRefreshController(
     private val fragment: Fragment,
@@ -32,7 +34,10 @@ internal class HomeRefreshController(
     )
 
     private var refreshTimeoutJob: Job? = null
+    private var syncJob: Job? = null
     private var isPullRefreshing = false
+    private var pullRefreshSharedSync = false
+    private var pullRefreshSyncFailed = false
     private var pullRefreshBeforeSnapshot: RefreshSnapshot? = null
     private var billsInvalidationObserver: InvalidationTracker.Observer? = null
     private var billsInvalidationDebounceJob: Job? = null
@@ -41,19 +46,39 @@ internal class HomeRefreshController(
         swipeRefreshLayout.setOnRefreshListener {
             swipeRefreshLayout.isRefreshing = true
             isPullRefreshing = true
+            pullRefreshSharedSync = false
+            pullRefreshSyncFailed = false
             pullRefreshBeforeSnapshot = buildRefreshSnapshot(homeViewModel.uiState.value.monthlyBills)
-            homeViewModel.forceReload(
-                bookName = getSelectedBookName(),
-                year = getSelectedYear(),
-                month = getSelectedMonth(),
-                timeRange = getCurrentTimeRange(),
-                type = getCurrentType(),
-                isChartHidden = !Prefs.isShowHomeTrendCard(fragment.requireContext())
-            )
+            syncJob?.cancel()
+            syncJob = fragment.viewLifecycleOwner.lifecycleScope.launch {
+                val bookName = getSelectedBookName()
+                val (isShared, syncError) = withContext(Dispatchers.IO) {
+                    val context = fragment.requireContext().applicationContext
+                    val db = AppDatabase.getDatabase(context)
+                    val ledgerId = db.sharedLedgerDao().getByBookName(bookName)?.id
+                    ledgerId?.let { id -> true to runCatching {
+                        SharedSyncEngine(context, db).syncLedger(id)
+                    }.exceptionOrNull() } ?: (false to null)
+                }
+                if (!fragment.isAdded) return@launch
+                pullRefreshSharedSync = isShared
+                pullRefreshSyncFailed = syncError != null
+                if (syncError != null) {
+                    Toast.makeText(fragment.requireContext(), "同步失败：${syncError.message ?: "请稍后重试"}", Toast.LENGTH_LONG).show()
+                }
+                homeViewModel.forceReload(
+                    bookName = bookName,
+                    year = getSelectedYear(),
+                    month = getSelectedMonth(),
+                    timeRange = getCurrentTimeRange(),
+                    type = getCurrentType(),
+                    isChartHidden = !Prefs.isShowHomeTrendCard(fragment.requireContext())
+                )
+            }
 
             refreshTimeoutJob?.cancel()
             refreshTimeoutJob = fragment.viewLifecycleOwner.lifecycleScope.launch {
-                delay(3500)
+                delay(30_000)
                 if (fragment.isAdded && swipeRefreshLayout.isRefreshing) {
                     swipeRefreshLayout.isRefreshing = false
                     Log.d("HomePerf", "pull refresh timeout fallback: stop spinner")
@@ -64,6 +89,7 @@ internal class HomeRefreshController(
     }
 
     fun onStateCollected(monthlyBills: List<Bill>, isLoading: Boolean) {
+        if (syncJob?.isActive == true) return
         swipeRefreshLayout.isRefreshing = false
         refreshTimeoutJob?.cancel()
         refreshTimeoutJob = null
@@ -77,6 +103,8 @@ internal class HomeRefreshController(
         refreshTimeoutJob?.cancel()
         refreshTimeoutJob = null
         isPullRefreshing = false
+        pullRefreshSharedSync = false
+        pullRefreshSyncFailed = false
         pullRefreshBeforeSnapshot = null
     }
 
@@ -111,6 +139,8 @@ internal class HomeRefreshController(
     }
 
     fun onDestroyView() {
+        syncJob?.cancel()
+        syncJob = null
         refreshTimeoutJob?.cancel()
         refreshTimeoutJob = null
         billsInvalidationDebounceJob?.cancel()
@@ -148,10 +178,17 @@ internal class HomeRefreshController(
         val before = pullRefreshBeforeSnapshot
         val after = buildRefreshSnapshot(latestBills)
         val changed = before == null || before != after
-        val message = if (changed) "已同步最新账单" else "已经是最新了"
-        Toast.makeText(fragment.requireContext(), message, Toast.LENGTH_SHORT).show()
+        if (!pullRefreshSyncFailed) {
+            val message = when {
+                pullRefreshSharedSync -> "同步成功"
+                changed -> "已刷新最新账单"
+                else -> "已经是最新了"
+            }
+            Toast.makeText(fragment.requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
         isPullRefreshing = false
+        pullRefreshSharedSync = false
+        pullRefreshSyncFailed = false
         pullRefreshBeforeSnapshot = null
     }
 }
-

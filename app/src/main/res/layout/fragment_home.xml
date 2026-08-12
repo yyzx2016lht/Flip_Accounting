@@ -168,6 +168,38 @@
                                         android:textStyle="normal"
                                         android:letterSpacing="0" />
                             </LinearLayout>
+
+                            <LinearLayout
+                                android:id="@+id/layoutSyncError"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:background="@drawable/bg_sync_error"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="6dp"
+                                android:visibility="gone"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintBottom_toBottomOf="parent">
+
+                                <ImageView
+                                    android:layout_width="14dp"
+                                    android:layout_height="14dp"
+                                    android:src="@drawable/ic_error"
+                                    app:tint="#FF5252" />
+
+                                <TextView
+                                    android:id="@+id/tvSyncError"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:textColor="#FF5252"
+                                    android:textSize="11sp"
+                                    android:maxLines="1"
+                                    android:ellipsize="end" />
+                            </LinearLayout>
                         </androidx.constraintlayout.widget.ConstraintLayout>
 
                         <RelativeLayout
@@ -218,57 +250,6 @@
                     android:paddingBottom="96dp"
                     app:layout_behavior="@string/appbar_scrolling_view_behavior"
                     tools:listitem="@layout/item_home_transaction" />
-
-                <LinearLayout
-                    android:id="@+id/layoutEmptyView"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:paddingBottom="80dp"
-                    android:visibility="gone"
-                    app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-                        <ImageView
-                            android:layout_width="@dimen/home_empty_icon_size"
-                            android:layout_height="@dimen/home_empty_icon_size"
-                            android:src="@drawable/ic_empty_bills"
-                            android:scaleType="fitCenter"
-                            android:alpha="0.85" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
-                            android:text="@string/no_bills_yet"
-                            android:textColor="@color/home_empty_title"
-                            android:textSize="@dimen/text_size_18"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.04" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="@string/no_bills_hint"
-                            android:textColor="@color/home_empty_subtitle"
-                            android:textSize="@dimen/text_size_13"
-                            android:letterSpacing="0.02" />
-
-                        <TextView
-                            android:id="@+id/btnEmptyAddBill"
-                            android:layout_width="160dp"
-                            android:layout_height="@dimen/home_empty_action_height"
-                            android:layout_marginTop="24dp"
-                            android:background="@drawable/bg_home_empty_action"
-                            android:gravity="center"
-                            android:text="@string/record_one"
-                            android:textColor="#FFFFFF"
-                            android:textSize="@dimen/text_size_15"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.04" />
-
-                </LinearLayout>
 
                 <!-- 固定顶栏：始终覆盖在 AppBarLayout 上方，不随折叠滚动消失 -->
                 <!-- 月份选择器 / 账本切换 / 日历 三个控件在此处 -->
@@ -336,6 +317,21 @@
                         android:focusable="true"
                         android:padding="7dp"
                         android:src="@drawable/ic_home_search"
+                        app:tint="#FFFFFF" />
+
+                    <ImageView
+                        android:id="@+id/ivSyncStatus"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_below="@id/ivSearchBill"
+                        android:layout_alignParentEnd="true"
+                        android:layout_marginTop="4dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="7dp"
+                        android:src="@drawable/ic_sync_status"
+                        android:visibility="gone"
                         app:tint="#FFFFFF" />
                 </RelativeLayout>
 
@@ -556,6 +552,18 @@
                     android:text="@string/add_new_book"
                     android:textColor="#3D67DA"
                     android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnJoinSharedLedger"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_book_item_normal"
+                    android:gravity="center"
+                    android:text="加入共享账本"
+                    android:textColor="#3D67DA"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <LinearLayout

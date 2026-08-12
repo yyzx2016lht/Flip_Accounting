@@ -88,6 +88,10 @@ class BudgetDaoTest {
 
         override suspend fun getAll() = rows.toList()
 
+        override suspend fun getAllByBookId(bookId: Long) = rows.filter { it.bookId == bookId }
+
+        override suspend fun getBySharedId(sharedId: String) = rows.firstOrNull { it.sharedId == sharedId }
+
         override suspend fun deleteAll() {
             rows.clear()
         }

@@ -74,6 +74,8 @@ import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.repository.BillRepository
+import com.taostudio.tapaccounting.data.sync.SharedSyncEngine
+import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
 import com.taostudio.tapaccounting.ui.activity.EditBillActivity
 import com.taostudio.tapaccounting.ui.common.StatusBarStyle
 import com.taostudio.tapaccounting.ui.common.UiMotion
@@ -179,6 +181,9 @@ class HomeFragment : Fragment() {
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var ivCalendarView: ImageView
     private lateinit var ivSearchBill: ImageView
+    private lateinit var ivSyncStatus: ImageView
+    private lateinit var layoutSyncError: View
+    private lateinit var tvSyncError: TextView
     private lateinit var ivBookSwitcher: ImageView
     private lateinit var drawerBooks: DrawerLayout
     private lateinit var layoutBookDrawer: View
@@ -280,8 +285,8 @@ class HomeFragment : Fragment() {
             showChartSettingsDialog()
         }
         rvTransactions = view.findViewById(R.id.rvTransactions)
-        layoutEmptyView = view.findViewById(R.id.layoutEmptyView)
-        btnEmptyAddBill = view.findViewById(R.id.btnEmptyAddBill)
+        layoutEmptyView = layoutInflater.inflate(R.layout.item_home_empty, null, false)
+        btnEmptyAddBill = layoutEmptyView.findViewById(R.id.btnEmptyAddBill)
         swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout)
         drawerBooks = view.findViewById(R.id.drawerBooks)
         layoutBookDrawer = view.findViewById(R.id.layoutBookDrawer)
@@ -297,6 +302,9 @@ class HomeFragment : Fragment() {
         tvMonthSelector = view.findViewById(R.id.tvMonthSelector)
         ivCalendarView = view.findViewById(R.id.ivCalendarView)
         ivSearchBill = view.findViewById(R.id.ivSearchBill)
+        ivSyncStatus = view.findViewById(R.id.ivSyncStatus)
+        layoutSyncError = view.findViewById(R.id.layoutSyncError)
+        tvSyncError = view.findViewById(R.id.tvSyncError)
         ivBookSwitcher = view.findViewById(R.id.ivBookSwitcher)
         // tvChartTotal / tvChartTitle 已在 cvChartContainer inflate 时绑定，此处不再重复
         vBannerTopScrim = view.findViewById(R.id.vBannerTopScrim)
@@ -305,6 +313,10 @@ class HomeFragment : Fragment() {
         rvBookAccountsBasePaddingTop = rvBookAccounts.paddingTop
         rvBookAccountsBasePaddingBottom = rvBookAccounts.paddingBottom
         btnAddBookAccount = view.findViewById(R.id.btnAddBookAccount)
+        view.findViewById<View>(R.id.btnJoinSharedLedger).setOnClickListener {
+            drawerBooks.closeDrawer(GravityCompat.START)
+            (activity as? com.taostudio.tapaccounting.MainActivity)?.showJoinSharedLedgerDialog()
+        }
         layoutAddBookInput = view.findViewById(R.id.layoutAddBookInput)
         etAddBookAccountName = view.findViewById(R.id.etAddBookAccountName)
         btnAddBookSetDefaultToggle = view.findViewById(R.id.btnAddBookSetDefaultToggle)
@@ -501,6 +513,10 @@ class HomeFragment : Fragment() {
             startActivity(intent)
         }
 
+        ivSyncStatus.setOnClickListener {
+            runSharedSync()
+        }
+
         // ivChartSettings 的点击已在 cvChartContainer inflate 时设置，此处无需再设置
 
         refreshController.setupPullToRefresh()
@@ -539,6 +555,7 @@ class HomeFragment : Fragment() {
                     currentTimeRange = state.currentTimeRange
                     currentType = state.currentType
                     isChartHidden = state.isChartHidden
+                    refreshSharedUi()
                     // 切换账本时重置 stagger 标记，让新账本数据也做入场动画
                     if (prevBookName != selectedBookName) {
                         hasPlayedInitialStagger = false
@@ -550,13 +567,12 @@ class HomeFragment : Fragment() {
 
                     val monthlyBills = state.monthlyBills
                     val adapterT0 = System.currentTimeMillis()
+                    homeAdapter.showEmptyState = !state.isLoading && monthlyBills.isEmpty()
 
                     if (state.isLoading && monthlyBills.isEmpty()) {
                         // 正在切换账本/加载中，且还没有新数据：直接清空列表，不走 DiffUtil
                         homeAdapter.submitList(emptyList())
                         rvTransactions.requestLayout()
-                        layoutEmptyView.visibility = View.GONE
-                        rvTransactions.visibility = View.VISIBLE
                     } else {
                         val shouldAnimateReveal = animateNextBookDataReveal && !state.isLoading && monthlyBills.isNotEmpty()
                         if (shouldAnimateReveal) {
@@ -583,22 +599,20 @@ class HomeFragment : Fragment() {
                             UiMotion.staggerFirstLoadAnimation(rvTransactions, maxItems = 6, itemDelayMs = 40L, startDelayMs = 100L)
                         }
 
-                        // 只有当加载完成且真的没有账单时，才显示"暂无账单"
+                        // 只有当加载完成且真的没有账单时，才复位空列表的滚动位置。
                         if (!state.isLoading && monthlyBills.isEmpty()) {
                             animateNextBookDataReveal = false
-                            // 空列表态会隐藏 RecyclerView；若此时 AppBar 处于折叠状态，
-                            // 用户无法再通过滚动把横幅拉回展开，因此这里主动复位到展开态。
+                            // 无账单时也可能保留趋势卡；主动展开 AppBar，保证趋势卡和空态从顶部开始展示。
                             homeAppBar?.setExpanded(true, false)
                             appBarVerticalOffset = 0
                             (rvTransactions.layoutManager as? LinearLayoutManager)
                                 ?.scrollToPositionWithOffset(0, 0)
-                            layoutEmptyView.visibility = View.VISIBLE
-                            rvTransactions.visibility = View.GONE
-                        } else {
-                            layoutEmptyView.visibility = View.GONE
-                            rvTransactions.visibility = View.VISIBLE
                         }
                     }
+
+                    // 趋势卡和空态都是 RecyclerView 内容，空月份时两者可按顺序同时展示。
+                    layoutEmptyView.visibility = if (homeAdapter.showEmptyState) View.VISIBLE else View.GONE
+                    rvTransactions.visibility = View.VISIBLE
 
                     val filteredForChart = state.filteredByBook.filter {
                         it.time in state.chartStart..state.chartEnd
@@ -615,6 +629,8 @@ class HomeFragment : Fragment() {
         // 后台刷新账本列表 UI（异步，不阻塞账单加载）
         observeBillTableChanges()
         refreshBookAccounts(reloadTransactions = false)
+        refreshSharedUi()
+        SharedSyncScheduler.enqueueNow(requireContext())
         skipNextResume = true  // onViewCreated 已触发加载，紧随其后的 onResume 无需重复
         
         // 立刻关闭 loading 圈，显示上次缓存的静态数据，后台无声更新
@@ -653,6 +669,44 @@ class HomeFragment : Fragment() {
         // 打开设置/分类等新 Activity 时，onPause 也会触发，
         // 此处若切到 decorFits=true 会导致当前窗口根视图瞬时整体下移（用户可见“抖一下”）。
         // 状态栏恢复逻辑改为仅在 Tab 真正隐藏时执行（onHiddenChanged hidden=true）。
+    }
+
+    private fun refreshSharedUi() {
+        if (!isAdded || !::ivSyncStatus.isInitialized) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(requireContext().applicationContext)
+                val ledger = db.sharedLedgerDao().getByBookName(selectedBookName)
+                if (ledger == null) null else Triple(
+                    ledger,
+                    db.sharedMemberDao().getByLedgerId(ledger.id).associate { it.memberId to it.resolvedName() },
+                    db.syncStateDao().get(ledger.id) to db.syncQueueDao().count(ledger.id)
+                )
+            }
+            ivSyncStatus.visibility = if (result == null) View.GONE else View.VISIBLE
+            homeAdapter.setMembers(result?.second.orEmpty(), result?.first?.localMemberId)
+            val state = result?.third?.first
+            val pending = result?.third?.second ?: 0
+            layoutSyncError.visibility = if (state?.lastError.isNullOrBlank()) View.GONE else View.VISIBLE
+            tvSyncError.text = state?.lastError.orEmpty()
+            ivSyncStatus.contentDescription = when {
+                state?.isSyncing == true -> "同步中"
+                !state?.lastError.isNullOrBlank() -> "同步失败：${state?.lastError}"
+                pending > 0 -> "待上传 $pending 项"
+                else -> "同步完成"
+            }
+        }
+    }
+
+    private fun runSharedSync() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val ledgerId = withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(requireContext()).sharedLedgerDao().getByBookName(selectedBookName)?.id
+            } ?: return@launch
+            runCatching { withContext(Dispatchers.IO) { SharedSyncEngine(requireContext().applicationContext, AppDatabase.getDatabase(requireContext())).syncLedger(ledgerId) } }
+            refreshSharedUi()
+            homeViewModel.forceReload(selectedBookName, selectedYear, selectedMonth, currentTimeRange, currentType, !Prefs.isShowHomeTrendCard(requireContext()))
+        }
     }
 
     /**

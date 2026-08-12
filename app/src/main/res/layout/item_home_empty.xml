@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layoutEmptyView"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:minHeight="360dp"
+    android:orientation="vertical"
+    android:paddingTop="0dp"
+    android:paddingBottom="112dp">
+
+    <ImageView
+        android:layout_width="@dimen/home_empty_icon_size"
+        android:layout_height="@dimen/home_empty_icon_size"
+        android:alpha="0.85"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_empty_bills" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:letterSpacing="0.04"
+        android:text="@string/no_bills_yet"
+        android:textColor="@color/home_empty_title"
+        android:textSize="@dimen/text_size_18"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:letterSpacing="0.02"
+        android:text="@string/no_bills_hint"
+        android:textColor="@color/home_empty_subtitle"
+        android:textSize="@dimen/text_size_13" />
+
+    <TextView
+        android:id="@+id/btnEmptyAddBill"
+        android:layout_width="160dp"
+        android:layout_height="@dimen/home_empty_action_height"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/bg_home_empty_action"
+        android:gravity="center"
+        android:letterSpacing="0.04"
+        android:text="@string/record_one"
+        android:textColor="#FFFFFF"
+        android:textSize="@dimen/text_size_15"
+        android:textStyle="bold" />
+
+</LinearLayout>

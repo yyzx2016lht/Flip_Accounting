@@ -187,4 +187,15 @@
     <color name="dialog_picker_normal_text">#333333</color>
     <color name="dialog_picker_item_bg">#F5F7FA</color>
     <color name="dialog_picker_item_selected_stroke">@color/brand_primary</color>
+
+    <!-- Shared book dialogs -->
+    <color name="shared_dialog_section_title">#6F7E95</color>
+    <color name="shared_dialog_input_bg">#F9FBFF</color>
+    <color name="shared_dialog_input_stroke">#DCE6F5</color>
+    <color name="shared_dialog_success">#2E8B57</color>
+    <color name="shared_dialog_success_bg">#EAF7EF</color>
+    <color name="shared_dialog_summary_bg">#F9FBFF</color>
+    <color name="shared_dialog_summary_stroke">#E7EDF8</color>
+    <color name="shared_dialog_summary_divider">#E7EDF8</color>
+    <color name="shared_dialog_note">#8C97AA</color>
 </resources>

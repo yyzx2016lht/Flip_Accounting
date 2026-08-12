@@ -470,7 +470,7 @@ internal class AssetBillDetailSheetController(
             currentExcludeFromStats = !currentExcludeFromStats
             updateExcludeStatsButton()
             scope.launch(Dispatchers.IO) {
-                db.billDao().updateExcludeStats(bill.id, currentExcludeFromStats)
+                com.taostudio.tapaccounting.logic.BillMutationService.setExcludeFromStats(db, bill, currentExcludeFromStats)
             }
         }
 
@@ -717,4 +717,3 @@ internal class AssetBillDetailSheetController(
         bottomSheet.show()
     }
 }
-

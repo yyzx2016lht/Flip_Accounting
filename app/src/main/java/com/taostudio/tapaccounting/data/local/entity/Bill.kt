@@ -19,7 +19,9 @@ import androidx.room.PrimaryKey
         Index(value = ["time"]),
         Index(value = ["bookName"]),
         Index(value = ["relatedBillId"]),
-        Index(value = ["bookName", "time"])
+        Index(value = ["bookName", "time"]),
+        Index(value = ["sharedId"], unique = true),
+        Index(value = ["isShared"])
     ]
 )
 data class Bill(
@@ -64,7 +66,14 @@ data class Bill(
     val isSynced: Boolean = false,
 
     // 是否不计入统计
-    val excludeFromStats: Boolean = false
+    val excludeFromStats: Boolean = false,
+    val sharedId: String? = null,
+    val memberId: String? = null,
+    val isShared: Boolean = false,
+    val cateIcon: String? = null,
+    val sharedRevision: Long = 0,
+    val sharedDeviceId: String? = null,
+    val relatedSharedId: String? = null
 ) {
     companion object {
         const val TYPE_EXPENSE = 0
@@ -79,4 +88,3 @@ data class Bill(
         const val SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED = 4
     }
 }
-

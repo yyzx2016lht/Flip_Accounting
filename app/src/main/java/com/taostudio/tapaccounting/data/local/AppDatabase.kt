@@ -17,6 +17,11 @@ import com.taostudio.tapaccounting.data.local.dao.ChatMessageDao
 import com.taostudio.tapaccounting.data.local.dao.DeletedBillDao
 import com.taostudio.tapaccounting.data.local.dao.InvestmentLotDao
 import com.taostudio.tapaccounting.data.local.dao.RecurringPatternDao
+import com.taostudio.tapaccounting.data.local.dao.SharedLedgerDao
+import com.taostudio.tapaccounting.data.local.dao.SharedMemberDao
+import com.taostudio.tapaccounting.data.local.dao.SyncOperationDao
+import com.taostudio.tapaccounting.data.local.dao.SyncQueueDao
+import com.taostudio.tapaccounting.data.local.dao.SyncStateDao
 import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
@@ -27,10 +32,15 @@ import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.DeletedBill
 import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
 import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
+import com.taostudio.tapaccounting.data.local.entity.SharedLedger
+import com.taostudio.tapaccounting.data.local.entity.SharedMember
+import com.taostudio.tapaccounting.data.local.entity.SyncOperation
+import com.taostudio.tapaccounting.data.local.entity.SyncQueue
+import com.taostudio.tapaccounting.data.local.entity.SyncState
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 
 /** 与 backupIfDowngrade 第三个参数保持同步。 */
-private const val DB_VERSION = 34
+private const val DB_VERSION = 35
 
 /**
  * Room 主库。改 schema 前请先读本节，避免误用破坏性迁移或漏改版本号。
@@ -59,7 +69,9 @@ private const val DB_VERSION = 34
     entities = [
         Bill::class, Asset::class, Category::class, AiRule::class,
         ChatMessage::class, InvestmentLot::class, DeletedBill::class,
-        Budget::class, RecurringPattern::class, Book::class
+        Budget::class, RecurringPattern::class, Book::class,
+        SharedLedger::class, SharedMember::class, SyncOperation::class,
+        SyncQueue::class, SyncState::class
     ],
     version = DB_VERSION,
     exportSchema = false
@@ -76,6 +88,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun deletedBillDao(): DeletedBillDao
     abstract fun budgetDao(): BudgetDao
     abstract fun recurringPatternDao(): RecurringPatternDao
+    abstract fun sharedLedgerDao(): SharedLedgerDao
+    abstract fun sharedMemberDao(): SharedMemberDao
+    abstract fun syncOperationDao(): SyncOperationDao
+    abstract fun syncQueueDao(): SyncQueueDao
+    abstract fun syncStateDao(): SyncStateDao
 
     companion object {
         /** 对外暴露的数据库版本号（与 [DB_VERSION] 相同）。 */
@@ -623,6 +640,55 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE bills ADD COLUMN sharedId TEXT")
+                database.execSQL("ALTER TABLE bills ADD COLUMN memberId TEXT")
+                database.execSQL("ALTER TABLE bills ADD COLUMN isShared INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE bills ADD COLUMN cateIcon TEXT")
+                database.execSQL("ALTER TABLE bills ADD COLUMN sharedRevision INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE bills ADD COLUMN sharedDeviceId TEXT")
+                database.execSQL("ALTER TABLE bills ADD COLUMN relatedSharedId TEXT")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_bills_sharedId ON bills(sharedId)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_bills_isShared ON bills(isShared)")
+
+                database.execSQL("ALTER TABLE budgets ADD COLUMN sharedId TEXT")
+                database.execSQL("ALTER TABLE budgets ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE budgets ADD COLUMN isShared INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE budgets ADD COLUMN sharedDeviceId TEXT")
+
+                database.execSQL("""CREATE TABLE IF NOT EXISTS shared_ledger (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, uuid TEXT NOT NULL, bookId INTEGER NOT NULL,
+                    name TEXT NOT NULL, webdavUrl TEXT NOT NULL, webdavUser TEXT NOT NULL, remotePath TEXT NOT NULL,
+                    localMemberId TEXT NOT NULL, createdAt INTEGER NOT NULL,
+                    FOREIGN KEY(bookId) REFERENCES books(id) ON DELETE CASCADE)""")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_shared_ledger_uuid ON shared_ledger(uuid)")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_shared_ledger_bookId ON shared_ledger(bookId)")
+                database.execSQL("""CREATE TABLE IF NOT EXISTS shared_member (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, ledgerId INTEGER NOT NULL, memberId TEXT NOT NULL,
+                    displayName TEXT NOT NULL, joinOrder INTEGER NOT NULL, isLocal INTEGER NOT NULL,
+                    FOREIGN KEY(ledgerId) REFERENCES shared_ledger(id) ON DELETE CASCADE)""")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_shared_member_ledgerId ON shared_member(ledgerId)")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_shared_member_ledgerId_memberId ON shared_member(ledgerId,memberId)")
+                database.execSQL("""CREATE TABLE IF NOT EXISTS sync_operation (
+                    operationId TEXT PRIMARY KEY NOT NULL, ledgerId INTEGER NOT NULL, entityType TEXT NOT NULL,
+                    entityId TEXT NOT NULL, action TEXT NOT NULL, revision INTEGER NOT NULL, deviceId TEXT NOT NULL,
+                    memberId TEXT NOT NULL, payload TEXT, appliedAt INTEGER NOT NULL,
+                    FOREIGN KEY(ledgerId) REFERENCES shared_ledger(id) ON DELETE CASCADE)""")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_sync_operation_ledgerId ON sync_operation(ledgerId)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_sync_operation_ledgerId_entityType_entityId_revision_deviceId ON sync_operation(ledgerId,entityType,entityId,revision,deviceId)")
+                database.execSQL("""CREATE TABLE IF NOT EXISTS sync_queue (
+                    operationId TEXT PRIMARY KEY NOT NULL, ledgerId INTEGER NOT NULL, operationJson TEXT NOT NULL,
+                    remotePath TEXT NOT NULL, createdAt INTEGER NOT NULL, retryCount INTEGER NOT NULL DEFAULT 0,
+                    lastError TEXT, FOREIGN KEY(ledgerId) REFERENCES shared_ledger(id) ON DELETE CASCADE)""")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_sync_queue_ledgerId ON sync_queue(ledgerId)")
+                database.execSQL("""CREATE TABLE IF NOT EXISTS sync_state (
+                    ledgerId INTEGER PRIMARY KEY NOT NULL, deviceId TEXT NOT NULL, lastSyncTime INTEGER NOT NULL DEFAULT 0,
+                    lastError TEXT, isSyncing INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY(ledgerId) REFERENCES shared_ledger(id) ON DELETE CASCADE)""")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -667,7 +733,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_30_31,
                         MIGRATION_31_32,
                         MIGRATION_32_33,
-                        MIGRATION_33_34
+                        MIGRATION_33_34,
+                        MIGRATION_34_35
                     )
                     // 仅处理降级：清库并按当前代码 schema 重建。升级缺迁移时仍应抛异常，不要改成 fallbackToDestructiveMigration()。
                     .fallbackToDestructiveMigrationOnDowngrade()

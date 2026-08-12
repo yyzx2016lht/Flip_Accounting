@@ -484,7 +484,8 @@ internal class HomeBillSheetsController(
             currentExcludeFromStats = !currentExcludeFromStats
             updateExcludeStatsButton()
             fragment.lifecycleScope.launch(Dispatchers.IO) {
-                AppDatabase.getDatabase(fragment.requireContext()).billDao().updateExcludeStats(bill.id, currentExcludeFromStats)
+                val db = AppDatabase.getDatabase(fragment.requireContext())
+                com.taostudio.tapaccounting.logic.BillMutationService.setExcludeFromStats(db, bill, currentExcludeFromStats)
             }
         }
 
@@ -770,4 +771,3 @@ internal class HomeBillSheetsController(
         bottomSheet.show()
     }
 }
-

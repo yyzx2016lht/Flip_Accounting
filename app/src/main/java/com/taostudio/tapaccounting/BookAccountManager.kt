@@ -8,7 +8,6 @@ object BookAccountManager {
     const val DEFAULT_BOOK = "\u65E5\u5E38\u8D26\u672C"
     const val ALL_BOOK = "\u5168\u90E8\u8D26\u672C"
     const val COLLAPSED_BOOK_GROUP = "\u6536\u7EB3\u8D26\u672C"
-    private const val LEGACY_PREVIOUS_DEFAULT_BOOK = "\u9ED8\u8BA4\u8D26\u672C"
     private const val LEGACY_DEFAULT_BOOK = "\u699B\u6A3F\uE17B\u7490\uFE3D\u6E70"
 
     private const val PREF_NAME = "flip_prefs"
@@ -86,7 +85,6 @@ object BookAccountManager {
         val value = raw?.trim().orEmpty()
         return when {
             value.isBlank() -> DEFAULT_BOOK
-            value == LEGACY_PREVIOUS_DEFAULT_BOOK -> DEFAULT_BOOK
             value == LEGACY_DEFAULT_BOOK -> DEFAULT_BOOK
             else -> value
         }
@@ -135,7 +133,7 @@ object BookAccountManager {
         return when (normalized) {
             ALL_BOOK -> emptyList()
             COLLAPSED_BOOK_GROUP -> emptyList()
-            DEFAULT_BOOK -> listOf(DEFAULT_BOOK, LEGACY_PREVIOUS_DEFAULT_BOOK, LEGACY_DEFAULT_BOOK, "")
+            DEFAULT_BOOK -> listOf(DEFAULT_BOOK, LEGACY_DEFAULT_BOOK, "")
             else -> listOf(normalized)
         }
     }

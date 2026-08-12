@@ -195,7 +195,11 @@ class BudgetService(
                         id = 0,
                         yearMonth = targetYearMonth,
                         createdAt = now,
-                        updatedAt = now
+                        updatedAt = now,
+                        sharedId = null,
+                        revision = 0,
+                        isShared = false,
+                        sharedDeviceId = null
                     )
                 )
             }
@@ -248,10 +252,15 @@ class BudgetService(
                     storedBudget.copy(categoryName = currentName)
                 }
             } ?: storedBudget
-            val used = budget.categoryId?.let { categoryUsage[it] ?: 0.0 } ?: totalUsed
+            val used = when {
+                budget.categoryKey == Budget.TOTAL_CATEGORY_KEY -> totalUsed
+                budget.categoryId != null -> categoryUsage[budget.categoryId] ?: 0.0
+                !budget.categoryName.isNullOrBlank() -> billDao.sumBudgetExpenseByCategoryName(start, end, bookName, budget.categoryName)
+                else -> 0.0
+            }
             BudgetOverview(budget, buildProgress(budget, used))
         }.sortedWith(
-            compareByDescending<BudgetOverview> { it.budget.categoryId == null }
+            compareByDescending<BudgetOverview> { it.budget.categoryKey == Budget.TOTAL_CATEGORY_KEY }
                 .thenByDescending { it.progress.riskScore }
                 .thenByDescending { it.progress.percent }
                 .thenBy { it.budget.categoryName.orEmpty() }

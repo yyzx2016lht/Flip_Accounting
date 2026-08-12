@@ -3,6 +3,8 @@ package com.taostudio.tapaccounting.ui.main.home
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -33,6 +35,8 @@ import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
+import com.taostudio.tapaccounting.data.sync.InviteCodec
+import com.taostudio.tapaccounting.data.sync.SharedLedgerService
 import com.taostudio.tapaccounting.ui.activity.BookOverviewActivity
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import kotlin.math.max
@@ -587,6 +591,13 @@ internal class HomeBookDrawerController(
             )
             add(
                 ManageOption(
+                    title = "共享账本",
+                    desc = "创建共享或重新复制、分享邀请",
+                    onClick = { showSharedLedgerAction(target) }
+                )
+            )
+            add(
+                ManageOption(
                     title = "删除账本",
                     desc = if (isDefault) "默认账本不能删除" else "删除前可选择迁移或处理账单",
                     highRisk = true,
@@ -682,6 +693,16 @@ internal class HomeBookDrawerController(
     }
 
     private fun deleteBook(bookName: String) {
+        fragment.lifecycleScope.launch {
+            val ledger = withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(fragment.requireContext().applicationContext)
+                    .sharedLedgerDao().getByBookName(BookAccountManager.normalizeBookName(bookName))
+            }
+            if (ledger != null) showSharedLedgerManagement(bookName, ledger.id) else deleteRegularBook(bookName)
+        }
+    }
+
+    private fun deleteRegularBook(bookName: String) {
         val target = BookAccountManager.normalizeBookName(bookName)
         val defaultBook = BookAccountManager.getDefaultBook(fragment.requireContext())
         if (target == BookAccountManager.ALL_BOOK) {
@@ -978,5 +999,276 @@ internal class HomeBookDrawerController(
             }
         }
     }
-}
 
+    private fun showCreateSharedLedgerDialog(bookName: String) {
+        dismissKeyboardForDialog()
+        val themeCtx = ContextThemeWrapper(fragment.requireContext(), R.style.Theme_TapAccounting)
+        val panel = LayoutInflater.from(fragment.requireContext())
+            .inflate(R.layout.dialog_create_shared_ledger, null, false)
+        val dialog = AlertDialog.Builder(themeCtx)
+            .setView(panel)
+            .create()
+
+        val etLedgerName = panel.findViewById<EditText>(R.id.et_shared_ledger_name)
+        val etMember1Name = panel.findViewById<EditText>(R.id.et_member1_name)
+        val etMember2Name = panel.findViewById<EditText>(R.id.et_member2_name)
+        val etWebdavUrl = panel.findViewById<EditText>(R.id.et_webdav_url)
+        val etWebdavUser = panel.findViewById<EditText>(R.id.et_webdav_user)
+        val etWebdavPassword = panel.findViewById<EditText>(R.id.et_webdav_password)
+
+        // 设置默认值
+        etLedgerName.setText(bookName)
+        etMember1Name.setText(
+            Prefs.getUserChatName(fragment.requireContext()).trim().takeUnless { it == "我" }.orEmpty()
+        )
+        etWebdavUrl.setText("https://dav.jianguoyun.com/dav/")
+
+        panel.findViewById<TextView>(R.id.btn_create_shared_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        panel.findViewById<TextView>(R.id.btn_create_shared_confirm).setOnClickListener {
+            val ledgerName = etLedgerName.text.toString().trim()
+            val member1Name = etMember1Name.text.toString().trim()
+            val member2Name = etMember2Name.text.toString().trim()
+            val webdavUrl = etWebdavUrl.text.toString().trim()
+            val webdavUser = etWebdavUser.text.toString().trim()
+            val webdavPassword = etWebdavPassword.text.toString().trim()
+
+            if (ledgerName.isEmpty()) {
+                Toast.makeText(fragment.requireContext(), "请输入账本名称", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (webdavUrl.isEmpty() || webdavUser.isEmpty() || webdavPassword.isEmpty()) {
+                Toast.makeText(fragment.requireContext(), "请填写完整的WebDAV配置", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            panel.findViewById<TextView>(R.id.btn_create_shared_confirm).isEnabled = false
+            fragment.lifecycleScope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        SharedLedgerService(fragment.requireContext().applicationContext, AppDatabase.getDatabase(fragment.requireContext()))
+                            .create(bookName, ledgerName, listOf(member1Name, member2Name), webdavUrl, webdavUser, webdavPassword)
+                    }
+                }.onSuccess { invite ->
+                    val clipboard = fragment.requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("FlipAccounting 共享账本邀请", invite))
+                    dialog.dismiss()
+                    showCreatedInviteDialog(invite, copiedAlready = true)
+                }.onFailure { error ->
+                    panel.findViewById<TextView>(R.id.btn_create_shared_confirm).isEnabled = true
+                    Toast.makeText(fragment.requireContext(), error.message ?: "创建失败", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.9f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun showSharedLedgerAction(bookName: String) {
+        fragment.lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val context = fragment.requireContext().applicationContext
+                val db = AppDatabase.getDatabase(context)
+                db.bookDao().getByName(bookName)?.let { book ->
+                    db.sharedLedgerDao().getByBookId(book.id)
+                }
+            }
+            if (result == null) showCreateSharedLedgerDialog(bookName)
+            else copySharedInvite(result.id)
+        }
+    }
+
+    private fun showSharedLedgerManagement(bookName: String, ledgerId: Long) {
+        fragment.lifecycleScope.launch {
+            val info = withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(fragment.requireContext().applicationContext)
+                val ledger = db.sharedLedgerDao().getById(ledgerId) ?: return@withContext null
+                val isCreator = db.sharedMemberDao().get(ledgerId, ledger.localMemberId)?.joinOrder == 1
+                Triple(ledger, isCreator, db.syncQueueDao().count(ledgerId))
+            } ?: return@launch
+            val options = buildList {
+                add(Triple("退出共享，保留本地副本", "停止同步，当前账单和预算会变为普通本地数据", false))
+                add(Triple("退出共享，删除本地副本", "停止同步，并永久删除本机中的账单和预算", true))
+                if (info.second) add(Triple("解散共享账本", "旧邀请失效，双方下次同步后停止共享并保留副本", true))
+            }
+
+            val panel = LayoutInflater.from(fragment.requireContext())
+                .inflate(R.layout.dialog_book_delete_options, null, false)
+            panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "管理共享账本「$bookName」"
+            panel.findViewById<TextView>(R.id.tv_delete_book_desc).text =
+                if (info.third > 0) "有 ${info.third} 项内容尚未上传；退出会放弃上传，但本机账单仍可保留" else "选择退出或解散方式"
+            val container = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+            val dialog = AlertDialog.Builder(ContextThemeWrapper(fragment.requireContext(), R.style.Theme_TapAccounting))
+                .setView(panel)
+                .create()
+            options.forEachIndexed { index, option ->
+                val item = LayoutInflater.from(fragment.requireContext())
+                    .inflate(R.layout.item_book_delete_option, container, false)
+                item.findViewById<TextView>(R.id.tv_delete_option_title).text = option.first
+                item.findViewById<TextView>(R.id.tv_delete_option_desc).text = option.second
+                item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility =
+                    if (option.third) View.VISIBLE else View.GONE
+                item.setOnClickListener {
+                    dialog.dismiss()
+                    when (index) {
+                        0 -> confirmExitShared(bookName, ledgerId, deleteLocal = false)
+                        1 -> confirmExitShared(bookName, ledgerId, deleteLocal = true)
+                        2 -> confirmDissolveShared(bookName, ledgerId)
+                    }
+                }
+                container.addView(item)
+            }
+            panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
+            OverlayDialogs.showPageCenterDialog(
+                dialog = dialog,
+                ctx = fragment.requireContext(),
+                widthRatio = 0.86f,
+                cancelOnTouchOutside = true,
+                useSolidPanelBackground = true
+            )
+        }
+    }
+
+    private fun copySharedInvite(ledgerId: Long) {
+        fragment.lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val ctx = fragment.requireContext().applicationContext
+                    SharedLedgerService(ctx, AppDatabase.getDatabase(ctx)).inviteText(ledgerId)
+                }
+            }.onSuccess(::showCreatedInviteDialog).onFailure {
+                Toast.makeText(fragment.requireContext(), it.message ?: "读取邀请失败", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun confirmExitShared(bookName: String, ledgerId: Long, deleteLocal: Boolean) {
+        val action = if (deleteLocal) "退出并删除" else "退出共享"
+        fragment.lifecycleScope.launch {
+            val pending = withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(fragment.requireContext().applicationContext).syncQueueDao().count(ledgerId)
+            }
+            val pendingNote = if (pending > 0) "尚未上传的 $pending 项内容将不再上传。" else ""
+            val message = if (deleteLocal) {
+                "${pendingNote}将停止同步并永久删除本机“$bookName”的账单和预算；对方及坚果云数据不受影响。"
+            } else {
+                "${pendingNote}将停止同步，“$bookName”当前内容会保留为普通本地账本。"
+            }
+            showDeleteFollowupConfirmDialog(action, message, action, deleteLocal) {
+                fragment.lifecycleScope.launch {
+                val error = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val ctx = fragment.requireContext().applicationContext
+                        val db = AppDatabase.getDatabase(ctx)
+                        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: return@runCatching
+                        SharedLedgerService(ctx, db).exitKeepingLocalCopy(ledgerId)
+                        if (deleteLocal) {
+                            db.billDao().deleteAllByBookName(bookName)
+                            db.budgetDao().deleteAllByBookId(ledger.bookId)
+                            db.chatMessageDao().deleteAllByBookName(bookName)
+                        }
+                    }.exceptionOrNull()
+                }
+                if (error != null) {
+                    Toast.makeText(fragment.requireContext(), error.message ?: "$action 失败", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                if (deleteLocal) {
+                    val fallback = getAvailableBookNames().firstOrNull { it != BookAccountManager.ALL_BOOK && it != bookName }
+                    BookAccountManager.removeBookAccount(fragment.requireContext(), bookName, fallback)
+                    if (getSelectedBookName() == bookName) setSelectedBookName(fallback ?: BookAccountManager.getDefaultBook(fragment.requireContext()))
+                }
+                refreshBookAccounts(reloadTransactions = true)
+                Toast.makeText(fragment.requireContext(), if (deleteLocal) "已退出并删除本地副本" else "已退出共享，本地副本已保留", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun confirmDissolveShared(bookName: String, ledgerId: Long) {
+        showDeleteFollowupConfirmDialog(
+            "解散共享账本", "解散后旧邀请失效，双方下次同步时都会停止共享并保留本地副本。坚果云归档不会被直接删除。",
+            "确认解散", true
+        ) {
+            fragment.lifecycleScope.launch {
+                val error = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val ctx = fragment.requireContext().applicationContext
+                        SharedLedgerService(ctx, AppDatabase.getDatabase(ctx)).dissolve(ledgerId)
+                    }.exceptionOrNull()
+                }
+                if (error == null) {
+                    refreshBookAccounts(reloadTransactions = true)
+                    Toast.makeText(fragment.requireContext(), "共享账本已解散，本地副本已保留", Toast.LENGTH_LONG).show()
+                } else Toast.makeText(fragment.requireContext(), error.message ?: "解散失败", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showCreatedInviteDialog(invite: String, copiedAlready: Boolean = false) {
+        val details = InviteCodec.decode(invite) ?: return
+        val panel = LayoutInflater.from(fragment.requireContext())
+            .inflate(R.layout.dialog_shared_ledger_invite, null, false)
+        val dialog = AlertDialog.Builder(fragment.requireContext())
+            .setView(panel)
+            .create()
+
+        panel.findViewById<TextView>(R.id.tv_shared_invite_subtitle).text =
+            if (copiedAlready) "共享账本已创建，邀请已复制到剪贴板"
+            else "复制或分享给另一位成员即可加入"
+        panel.findViewById<TextView>(R.id.tv_shared_invite_ledger).text = details.ledgerName
+        panel.findViewById<TextView>(R.id.tv_shared_invite_member).text =
+            details.memberName.ifBlank { "成员${details.joinOrder}" }
+
+        panel.findViewById<TextView>(R.id.btn_shared_invite_copy).setOnClickListener {
+            val clipboard = fragment.requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("FlipAccounting 共享账本邀请", invite))
+            panel.findViewById<TextView>(R.id.tv_shared_invite_subtitle).text = "邀请已复制到剪贴板"
+            Toast.makeText(fragment.requireContext(), "邀请已复制", Toast.LENGTH_SHORT).show()
+        }
+        panel.findViewById<TextView>(R.id.btn_shared_invite_share).setOnClickListener {
+            fragment.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, invite)
+            }, "发送共享账本邀请"))
+        }
+        panel.findViewById<TextView>(R.id.btn_shared_invite_manage).setOnClickListener {
+            fragment.lifecycleScope.launch {
+                val ledger = withContext(Dispatchers.IO) {
+                    AppDatabase.getDatabase(fragment.requireContext().applicationContext)
+                        .sharedLedgerDao().getByUuid(details.ledgerId)
+                }
+                if (ledger == null) {
+                    Toast.makeText(fragment.requireContext(), "共享账本不存在", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                dialog.dismiss()
+                val bookName = withContext(Dispatchers.IO) {
+                    AppDatabase.getDatabase(fragment.requireContext().applicationContext)
+                        .bookDao().getById(ledger.bookId)?.name
+                } ?: details.ledgerName
+                showSharedLedgerManagement(bookName, ledger.id)
+            }
+        }
+        panel.findViewById<TextView>(R.id.btn_shared_invite_done).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+}

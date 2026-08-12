@@ -131,6 +131,12 @@
             android:layout_marginTop="@dimen/space_4"
             android:orientation="vertical">
 
+            <LinearLayout
+                android:id="@+id/layout_member_stats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"

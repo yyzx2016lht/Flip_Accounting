@@ -33,6 +33,21 @@ interface BillDao {
     @Query("SELECT * FROM bills")
     suspend fun getAllBillsList(): List<Bill>
 
+    @Query("SELECT * FROM bills WHERE bookName=:bookName")
+    suspend fun getAllByBookName(bookName: String): List<Bill>
+
+    @Query("SELECT * FROM bills WHERE sharedId=:sharedId LIMIT 1")
+    suspend fun getBySharedId(sharedId: String): Bill?
+
+    @Query("""
+        UPDATE bills SET sharedId=NULL, memberId=NULL, isShared=0, sharedRevision=0,
+            sharedDeviceId=NULL, relatedSharedId=NULL WHERE bookName=:bookName AND isShared=1
+    """)
+    suspend fun clearSharedState(bookName: String)
+
+    @Query("UPDATE bills SET relatedBillId=:sourceId WHERE relatedSharedId=:sourceSharedId")
+    suspend fun linkPendingSharedRefunds(sourceSharedId: String, sourceId: Long)
+
     @Query("SELECT * FROM bills WHERE time BETWEEN :startTime AND :endTime ORDER BY time DESC")
     fun getBillsBetweenTimes(startTime: Long, endTime: Long): Flow<List<Bill>>
 
@@ -53,6 +68,18 @@ interface BillDao {
         bookName: String,
         expenseType: Int = Bill.TYPE_EXPENSE,
         refundSubtype: Int = Bill.SUBTYPE_REFUND
+    ): Double
+
+    @Query("""
+        SELECT COALESCE(SUM(amount), 0.0) FROM bills
+        WHERE time BETWEEN :startTime AND :endTime
+          AND (:bookName = '' OR bookName = :bookName)
+          AND type = :expenseType AND subType != :refundSubtype
+          AND excludeFromStats = 0 AND categoryName = :categoryName
+    """)
+    suspend fun sumBudgetExpenseByCategoryName(
+        startTime: Long, endTime: Long, bookName: String, categoryName: String,
+        expenseType: Int = Bill.TYPE_EXPENSE, refundSubtype: Int = Bill.SUBTYPE_REFUND
     ): Double
 
     @Query("""

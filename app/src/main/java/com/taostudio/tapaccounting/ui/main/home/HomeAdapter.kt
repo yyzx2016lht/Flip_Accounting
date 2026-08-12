@@ -51,6 +51,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
         const val TYPE_CHART = 2
+        const val TYPE_EMPTY = 3
         const val TYPE_HEADER = 0
         const val TYPE_ITEM = 1
         const val PAYLOAD_MODE_CHANGE = "PAYLOAD_MODE_CHANGE"
@@ -81,6 +82,9 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         // 用于承载首页图表占位项。
         object Chart : ListItem()
 
+        // 空账单提示紧跟趋势卡展示。
+        object Empty : ListItem()
+
         data class Header(
             val dateStr: String,
             val weekdayStr: String,
@@ -97,9 +101,12 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     // 外部注入的图表视图，作为列表的第 0 项展示。
     var chartView: android.view.View? = null
+    var emptyView: android.view.View? = null
     // 控制是否在列表顶部显示图表项。
     var showChart: Boolean = false
+    var showEmptyState: Boolean = false
     private var lastSubmittedShowChart: Boolean = false
+    private var lastSubmittedShowEmptyState: Boolean = false
 
     var isMultiSelectMode: Boolean = false
     val selectedBills = mutableSetOf<Bill>()
@@ -107,6 +114,15 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     var onBillItemClick: ((Bill) -> Unit)? = null
     var onSelectionChanged: ((Int) -> Unit)? = null
     var detailSuffixProvider: ((Bill) -> String?)? = null
+    private var memberNames: Map<String, String> = emptyMap()
+    private var localMemberId: String? = null
+
+    fun setMembers(names: Map<String, String>, localId: String?) {
+        if (memberNames == names && localMemberId == localId) return
+        memberNames = names.toMap()
+        localMemberId = localId
+        notifyItemRangeChanged(0, itemCount)
+    }
     private fun isRefundBill(bill: Bill): Boolean = bill.subType == Bill.SUBTYPE_REFUND
 
     private fun refundAmountOfExpenseBill(bill: Bill): Double {
@@ -141,7 +157,10 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             )
         }.sortedByDescending { it.bill.time }
         // 数据和展示状态都没变时，直接跳过，避免无效刷新。
-        if (rawBills == combinedBills && lastSubmittedShowChart == showChart) {
+        if (rawBills == combinedBills &&
+            lastSubmittedShowChart == showChart &&
+            lastSubmittedShowEmptyState == showEmptyState
+        ) {
             Log.d("HomePerf", "submitList: skip (list unchanged)")
             return
         }
@@ -150,6 +169,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         val generation = ++submitGeneration
         // 固定当前提交的图表开关，避免异步阶段读取到后续变化。
         val includeChart = showChart
+        val includeEmptyState = showEmptyState
 
         val oldItems = items.toList()
 
@@ -159,8 +179,18 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             val dfWeekday = SimpleDateFormat("E", Locale.CHINESE)
 
             val newItems = mutableListOf<ListItem>()
-            // 可选地在首位插入图表项，然后按天分组生成 Header + Item。
-            if (includeChart) newItems.add(ListItem.Chart)
+            // 趋势卡在前，空账单提示在后；二者可同时存在。
+            resolveHomeLeadingItems(
+                showChart = includeChart,
+                showEmptyState = includeEmptyState
+            ).forEach { item ->
+                newItems.add(
+                    when (item) {
+                        HomeLeadingItem.TREND_CARD -> ListItem.Chart
+                        HomeLeadingItem.EMPTY_STATE -> ListItem.Empty
+                    }
+                )
+            }
             if (combinedBills.isNotEmpty()) {
                 val grouped = combinedBills.groupBy { dfKey.format(Date(it.bill.time)) }
                 for ((dateKey, billsInDay) in grouped) {
@@ -192,6 +222,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     val old = oldItems[oldItemPosition]
                     val new = newItems[newItemPosition]
                     if (old is ListItem.Chart && new is ListItem.Chart) return true
+                    if (old is ListItem.Empty && new is ListItem.Empty) return true
                     if (old is ListItem.Header && new is ListItem.Header) return old.rawDateKey == new.rawDateKey
                     if (old is ListItem.Item && new is ListItem.Item) return old.displayBill.bill.id == new.displayBill.bill.id
                     return false
@@ -212,6 +243,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 rawBills.clear()
                 rawBills.addAll(combinedBills)
                 lastSubmittedShowChart = includeChart
+                lastSubmittedShowEmptyState = includeEmptyState
                 items.clear()
                 items.addAll(newItems)
 
@@ -301,6 +333,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     override fun getItemViewType(position: Int): Int {
         return when (items[position]) {
             is ListItem.Chart -> TYPE_CHART
+            is ListItem.Empty -> TYPE_EMPTY
             is ListItem.Header -> TYPE_HEADER
             is ListItem.Item -> TYPE_ITEM
         }
@@ -318,6 +351,15 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     )
                 }
                 ChartViewHolder(container)
+            }
+            TYPE_EMPTY -> {
+                val container = android.widget.FrameLayout(parent.context).apply {
+                    layoutParams = RecyclerView.LayoutParams(
+                        RecyclerView.LayoutParams.MATCH_PARENT,
+                        RecyclerView.LayoutParams.WRAP_CONTENT
+                    )
+                }
+                EmptyViewHolder(container)
             }
             TYPE_HEADER -> HeaderViewHolder(inflater.inflate(R.layout.item_bill_header, parent, false))
             else -> ItemViewHolder(inflater.inflate(R.layout.item_home_transaction, parent, false))
@@ -347,6 +389,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
             is ListItem.Chart -> (holder as ChartViewHolder).bind(chartView)
+            is ListItem.Empty -> (holder as EmptyViewHolder).bind(emptyView)
             is ListItem.Header -> (holder as HeaderViewHolder).bind(item, position)
             is ListItem.Item -> (holder as ItemViewHolder).bind(item.displayBill, position)
         }
@@ -373,6 +416,16 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     // 只负责承载外部传入的图表 view，不参与图表内部状态管理。
     inner class ChartViewHolder(val container: android.widget.FrameLayout) : RecyclerView.ViewHolder(container) {
+        fun bind(view: android.view.View?) {
+            container.removeAllViews()
+            if (view != null) {
+                (view.parent as? android.view.ViewGroup)?.removeView(view)
+                container.addView(view)
+            }
+        }
+    }
+
+    inner class EmptyViewHolder(val container: android.widget.FrameLayout) : RecyclerView.ViewHolder(container) {
         fun bind(view: android.view.View?) {
             container.removeAllViews()
             if (view != null) {
@@ -453,6 +506,7 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     inner class ItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvCategory: TextView = itemView.findViewById(R.id.tv_bill_category)
         private val tvAmount: TextView = itemView.findViewById(R.id.tv_bill_amount)
+        private val tvMember: TextView = itemView.findViewById(R.id.tv_bill_member)
         private val tvAsset: TextView = itemView.findViewById(R.id.tv_bill_asset)
         private val tvTime: TextView = itemView.findViewById(R.id.tv_bill_time)
         private val tvDetail: TextView = itemView.findViewById(R.id.tv_bill_detail)
@@ -648,6 +702,15 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
             tvTime.text = itemTimeFormatter.format(Date(bill.time))
 
+            // \u663E\u793A\u6210\u5458\u540D\u79F0\uFF08\u5982\u679C\u662F\u5171\u4EAB\u8D26\u5355\uFF09
+            if (bill.isShared && bill.memberId != null) {
+                val name = memberNames[bill.memberId] ?: "共享成员"
+                tvMember.text = if (bill.memberId == localMemberId || bill.accountName.isNotBlank()) name else "${name}的账户"
+                tvMember.visibility = View.VISIBLE
+            } else {
+                tvMember.visibility = View.GONE
+            }
+
             val assetBuilder = SpannableStringBuilder()
             if (isTransfer) {
                 if (bill.accountName.isNotEmpty()) {
@@ -740,6 +803,14 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 setIconContainerSizeDp(44, 44)
                 setIconSizeDp(21)
                 ivIcon.setImageDrawable(null)
+                if (!bill.cateIcon.isNullOrBlank()) {
+                    Glide.with(itemView.context)
+                        .load(bill.cateIcon)
+                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                        .into(ivIcon)
+                    updateMode(!isDeprecated && selectedBills.contains(bill), animate = false)
+                    return
+                }
                 val cachedIconUrl = getCachedIconUrl(iconCacheKey)
                 if (cachedIconUrl != null) {
                     if (cachedIconUrl.isNotEmpty()) {

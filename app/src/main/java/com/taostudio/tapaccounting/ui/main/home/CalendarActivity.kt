@@ -827,7 +827,8 @@ class CalendarActivity : AppCompatActivity() {
             currentExcludeFromStats = !currentExcludeFromStats
             updateExcludeStatsButton()
             lifecycleScope.launch(Dispatchers.IO) {
-                AppDatabase.getDatabase(this@CalendarActivity).billDao().updateExcludeStats(bill.id, currentExcludeFromStats)
+                val db = AppDatabase.getDatabase(this@CalendarActivity)
+                com.taostudio.tapaccounting.logic.BillMutationService.setExcludeFromStats(db, bill, currentExcludeFromStats)
             }
         }
 
@@ -1508,4 +1509,3 @@ class CalendarActivity : AppCompatActivity() {
         return if (text.endsWith(".00")) text.replace(".00", "") else text
     }
 }
-

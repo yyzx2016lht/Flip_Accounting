@@ -178,11 +178,18 @@ internal class HomeMultiSelectController(
                             confirmText = "确认移动",
                             isDanger = false
                         ) {
-                            val ids = bills.map { it.id }
                             fragment.lifecycleScope.launch(Dispatchers.IO) {
                                 val db = AppDatabase.getDatabase(fragment.requireContext())
-                                db.billDao().moveBillsToBook(ids, targetBook)
+                                val error = runCatching {
+                                    com.taostudio.tapaccounting.data.sync.SharedMutationHooks.moveBills(db, bills, targetBook)
+                                }.exceptionOrNull()
                                 withContext(Dispatchers.Main) {
+                                    if (error != null) {
+                                        Toast.makeText(
+                                            fragment.requireContext(), error.message ?: "移动失败", Toast.LENGTH_LONG
+                                        ).show()
+                                        return@withContext
+                                    }
                                     getHomeAdapter().clearSelection()
                                     onDataChanged()
                                     Toast.makeText(

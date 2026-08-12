@@ -85,6 +85,7 @@ internal class HomeUiListController(
             }
         })
         homeAdapter.chartView = cvChartContainer
+        homeAdapter.emptyView = layoutEmptyView
         onRefreshAccountCurrencyCache()
 
         swipeRefreshLayout.setOnChildScrollUpCallback { _, _ ->

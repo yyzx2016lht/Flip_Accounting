@@ -6,6 +6,7 @@ import com.taostudio.tapaccounting.Logger
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.data.sync.SharedMutationHooks
 
 object BillMutationService {
 
@@ -47,7 +48,7 @@ object BillMutationService {
     ): Bill {
         logFull("BILL_MUTATION", "insert:start type=${bill.type}, amount=${bill.amount}, account=${bill.accountName}, to=${bill.toAccountName}, assetImpact=$applyAssetImpact")
         return db.withTransaction {
-            val normalizedInput = normalizeBillCategoryName(bill)
+            val normalizedInput = normalizeBillCategoryName(SharedMutationHooks.prepareLocalBill(db, bill))
             if (applyAssetImpact) {
                 validateRequiredRatesForBill(db, normalizedInput)
             }
@@ -60,6 +61,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "insert:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, accountId=${savedBill.accountId}, toAccountId=${savedBill.toAccountId}")
             auditBill("insert", savedBill)
+            SharedMutationHooks.enqueueSaved(db, savedBill)
             matchRecurringQuietly(db, savedBill)
             db.billDao().getBillById(savedBill.id) ?: savedBill
         }
@@ -71,7 +73,7 @@ object BillMutationService {
         applyAssetImpact: Boolean = true
     ): Bill {
         logFull("BILL_MUTATION", "insertTx:start type=${bill.type}, amount=${bill.amount}, account=${bill.accountName}, to=${bill.toAccountName}, assetImpact=$applyAssetImpact")
-        val normalizedInput = normalizeBillCategoryName(bill)
+        val normalizedInput = normalizeBillCategoryName(SharedMutationHooks.prepareLocalBill(db, bill))
         if (applyAssetImpact) {
             validateRequiredRatesForBill(db, normalizedInput)
         }
@@ -84,6 +86,7 @@ object BillMutationService {
         }
         logFull("BILL_MUTATION", "insertTx:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}")
         auditBill("insert_tx", savedBill)
+        SharedMutationHooks.enqueueSaved(db, savedBill)
         matchRecurringQuietly(db, savedBill)
         return db.billDao().getBillById(savedBill.id) ?: savedBill
     }
@@ -104,6 +107,7 @@ object BillMutationService {
     ): Bill {
         logFull("BILL_MUTATION", "replace:start oldId=${oldBill.id}, oldType=${oldBill.type}, oldAmount=${oldBill.amount}, newType=${newBill.type}, newAmount=${newBill.amount}, assetImpact=$applyAssetImpact")
         return db.withTransaction {
+            SharedMutationHooks.requireOwner(db, oldBill)
             val normalizedBill = when {
                 oldBill.subType == Bill.SUBTYPE_REFUND -> {
                     val fallbackCategory = stripRefundPrefix(oldBill.categoryName)
@@ -131,7 +135,14 @@ object BillMutationService {
                     )
                 }
             }
-            val normalizedBillForStorage = normalizeBillCategoryName(normalizedBill)
+            val normalizedBillForStorage = normalizeBillCategoryName(
+                SharedMutationHooks.prepareLocalBill(db, normalizedBill.copy(
+                    sharedId = oldBill.sharedId,
+                    memberId = oldBill.memberId,
+                    isShared = oldBill.isShared,
+                    relatedSharedId = oldBill.relatedSharedId
+                ))
+            )
 
             if (oldBill.subType == Bill.SUBTYPE_REFUND && oldBill.relatedBillId != null) {
                 val sourceBill = db.billDao().getBillById(oldBill.relatedBillId)
@@ -172,6 +183,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "replace:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, category=${savedBill.categoryName}")
             auditBill("replace", savedBill)
+            SharedMutationHooks.enqueueSaved(db, savedBill)
             matchRecurringQuietly(db, savedBill)
             db.billDao().getBillById(savedBill.id) ?: savedBill
         }
@@ -185,6 +197,7 @@ object BillMutationService {
     ): Bill {
         logFull("BILL_MUTATION", "refund:start sourceId=${originalBill.id}, refundId=${refundBill.id}, refundAmount=${refundBill.amount}")
         return db.withTransaction {
+            previousRefundBill?.let { SharedMutationHooks.requireOwner(db, it) }
             val latestOriginal = db.billDao().getBillById(originalBill.id)
                 ?: error("Original bill not found")
 
@@ -208,12 +221,14 @@ object BillMutationService {
 
             val baseOriginalAmount = baseOriginalAmount(latestOriginal)
             val newActualExpense = (latestOriginal.amount - delta).coerceIn(0.0, baseOriginalAmount)
-            db.billDao().updateBill(
+            val savedOriginal = SharedMutationHooks.prepareLocalBill(db,
                 latestOriginal.copy(
                     amount = newActualExpense,
                     originalAmount = baseOriginalAmount
                 )
             )
+            db.billDao().updateBill(savedOriginal)
+            SharedMutationHooks.enqueueSaved(db, savedOriginal)
 
             val sourceCategory = stripRefundPrefix(latestOriginal.categoryName)
             val normalizedRefundBill = refundBill.copy(
@@ -228,7 +243,14 @@ object BillMutationService {
                 bookName = latestOriginal.bookName,
                 originalAmount = refundBill.amount
             )
-            val normalizedRefundForStorage = normalizeBillCategoryName(normalizedRefundBill)
+            val normalizedRefundForStorage = normalizeBillCategoryName(
+                SharedMutationHooks.prepareLocalBill(db, normalizedRefundBill.copy(
+                    sharedId = existingRefund?.sharedId,
+                    memberId = existingRefund?.memberId,
+                    isShared = existingRefund?.isShared ?: false,
+                    relatedSharedId = latestOriginal.sharedId
+                ))
+            )
 
             // 编辑已有退款账单时用 updateBill，新建时才用 insertBill
             validateRequiredRatesForBill(db, normalizedRefundForStorage)
@@ -251,6 +273,7 @@ object BillMutationService {
             }
             logFull("BILL_MUTATION", "refund:done refundId=${savedRefundBill.id}, sourceId=${latestOriginal.id}, refundAmount=${savedRefundBill.amount}, sourceCurrentAmount=${newActualExpense}")
             auditBill("refund", savedRefundBill)
+            SharedMutationHooks.enqueueSaved(db, savedRefundBill)
             db.billDao().getBillById(savedRefundBill.id) ?: savedRefundBill
         }
     }
@@ -272,6 +295,16 @@ object BillMutationService {
             db.billDao().updateBill(refundBill.copy(relatedBillId = source.id))
         }
         return source
+    }
+
+    suspend fun setExcludeFromStats(db: AppDatabase, bill: Bill, exclude: Boolean) {
+        db.withTransaction {
+            val latest = db.billDao().getBillById(bill.id) ?: return@withTransaction
+            SharedMutationHooks.requireOwner(db, latest)
+            val saved = SharedMutationHooks.prepareLocalBill(db, latest.copy(excludeFromStats = exclude))
+            db.billDao().updateBill(saved)
+            SharedMutationHooks.enqueueSaved(db, saved)
+        }
     }
 
     private suspend fun validateRequiredRatesForBill(db: AppDatabase, bill: Bill) {

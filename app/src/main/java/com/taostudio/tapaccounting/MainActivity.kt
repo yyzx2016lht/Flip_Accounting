@@ -4,6 +4,22 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.os.Bundle
 import android.content.Intent
+import android.content.ClipboardManager
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import android.view.LayoutInflater
+import android.view.ContextThemeWrapper
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.taostudio.tapaccounting.data.local.AppDatabase
+import com.taostudio.tapaccounting.data.sync.InviteCodec
+import com.taostudio.tapaccounting.data.sync.SharedInvite
+import com.taostudio.tapaccounting.data.sync.SharedLedgerService
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
@@ -25,12 +41,14 @@ import com.google.android.material.snackbar.Snackbar
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 import com.taostudio.tapaccounting.ui.common.AddBillEntrySheetLauncher
 import com.taostudio.tapaccounting.ui.common.UiMotion
+import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import com.taostudio.tapaccounting.ui.main.home.HomeFragment
 import com.taostudio.tapaccounting.ui.main.stats.StatsFragment
 import com.taostudio.tapaccounting.ui.main.assets.AssetsFragment
 import com.taostudio.tapaccounting.ui.main.profile.ProfileFragment
 import com.taostudio.tapaccounting.ui.recurring.RecurringDuePromptController
 import com.taostudio.tapaccounting.ui.SensitivityActivity
+import com.google.android.material.textfield.TextInputLayout
 import kotlin.math.abs
 
 // 支持水平滑动接管的 FrameLayout（用于页面切换手势）
@@ -220,6 +238,7 @@ class MainActivity : AppCompatActivity() {
     // 防止快速连续切换 Tab 导致状态错乱
     private var isSwitching = false
     private var homeOnboardingShownThisSession = false
+    private var pendingInviteDialog = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -419,6 +438,177 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState == null) {
             swipeContainer.post { showHomeOnboardingIfNeeded() }
         }
+        swipeContainer.post { checkSharedInviteIntent(intent) }
+    }
+
+    private fun checkSharedInviteIntent(source: Intent?) {
+        if (source?.action != Intent.ACTION_SEND || source.type != "text/plain") return
+        val text = source.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+        source.action = null
+        val invite = InviteCodec.decode(text) ?: return
+        pendingInviteDialog = true
+        showInviteConfirmDialog("收到共享账本邀请", invite) {
+            showJoinOptionsDialog(invite, "handled_invite_${invite.ledgerId}_${invite.memberId}")
+        }
+    }
+
+    private fun checkSharedInviteClipboard() {
+        if (pendingInviteDialog) return
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
+        val invite = InviteCodec.decode(text) ?: return
+        val key = "handled_invite_${invite.ledgerId}_${invite.memberId}"
+        if (getSharedPreferences("shared_invites", MODE_PRIVATE).getBoolean(key, false)) return
+        pendingInviteDialog = true
+        showInviteConfirmDialog("发现共享账本邀请", invite) { showJoinOptionsDialog(invite, key) }
+    }
+
+    private fun showInviteConfirmDialog(title: String, invite: SharedInvite, onJoin: () -> Unit) {
+        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_delete_followup_confirm, null, false)
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_TapAccounting)).setView(panel).create()
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_title).text = title
+        panel.findViewById<TextView>(R.id.tv_followup_confirm_message).text = "是否加入“${invite.ledgerName}”？"
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_cancel).setOnClickListener {
+            pendingInviteDialog = false
+            dialog.dismiss()
+        }
+        panel.findViewById<TextView>(R.id.btn_followup_confirm_ok).apply {
+            text = "加入"
+            setOnClickListener { dialog.dismiss(); onJoin() }
+        }
+        dialog.setOnCancelListener { pendingInviteDialog = false }
+        OverlayDialogs.showPageCenterDialog(dialog, this, widthRatio = 0.86f)
+    }
+
+    /** 剪贴板隔离或系统禁止后台读取时的可靠加入入口。 */
+    fun showJoinSharedLedgerDialog() {
+        showJoinInputDialog(
+            title = "加入共享账本",
+            subtitle = "请粘贴对方发送的完整邀请文本",
+            hint = "邀请文本",
+            buttonText = "下一步",
+            multiline = true
+        ) { input, dialog, button ->
+            val invite = InviteCodec.decode(input.text.toString())
+            if (invite == null) {
+                input.error = "邀请文本无效或不完整"
+                return@showJoinInputDialog
+            }
+            dialog.dismiss()
+            pendingInviteDialog = true
+            showJoinOptionsDialog(invite, "handled_invite_${invite.ledgerId}_${invite.memberId}")
+        }
+    }
+
+    private fun showJoinInputDialog(
+        title: String,
+        subtitle: String,
+        hint: String,
+        buttonText: String,
+        multiline: Boolean = false,
+        password: Boolean = false,
+        onConfirm: (EditText, AlertDialog, TextView) -> Unit
+    ) {
+        val panel = LayoutInflater.from(this).inflate(R.layout.dialog_shared_join_input, null, false)
+        val input = panel.findViewById<EditText>(R.id.et_shared_join_input).apply {
+            this.hint = hint
+            if (multiline) {
+                minLines = 4
+                maxLines = 8
+                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            } else if (password) {
+                inputType = android.text.InputType.TYPE_CLASS_TEXT
+                transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+                panel.findViewById<TextInputLayout>(R.id.layout_shared_join_input).endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
+            }
+        }
+        panel.findViewById<TextView>(R.id.tv_shared_join_title).text = title
+        panel.findViewById<TextView>(R.id.tv_shared_join_subtitle).text = subtitle
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_TapAccounting)).setView(panel).create()
+        panel.findViewById<TextView>(R.id.btn_shared_join_cancel).setOnClickListener {
+            pendingInviteDialog = false
+            dialog.dismiss()
+        }
+        panel.findViewById<TextView>(R.id.btn_shared_join_confirm).apply {
+            text = buttonText
+            setOnClickListener { onConfirm(input, dialog, this) }
+        }
+        dialog.setOnCancelListener { pendingInviteDialog = false }
+        OverlayDialogs.showPageCenterDialog(dialog, this, widthRatio = 0.88f)
+    }
+
+    private fun showJoinOptionsDialog(invite: SharedInvite, handledKey: String) {
+        lifecycleScope.launch {
+            val books = withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(applicationContext)
+                val names = linkedSetOf<String>().apply {
+                    addAll(BookAccountManager.getBookAccounts(this@MainActivity))
+                    addAll(db.billDao().getAllBookNames())
+                    addAll(db.bookDao().getAll().map { it.name })
+                }
+                names.filter { name ->
+                    name.isNotBlank() && name != BookAccountManager.ALL_BOOK &&
+                        db.bookDao().getByName(name)?.let { db.sharedLedgerDao().getByBookId(it.id) == null } != false
+                }
+            }
+            if (isFinishing) return@launch
+            val panel = LayoutInflater.from(this@MainActivity).inflate(R.layout.dialog_book_delete_options, null, false)
+            panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "选择加入方式"
+            panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "可创建新账本，也可将本机已有账本合并进来"
+            val container = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
+            val dialog = AlertDialog.Builder(ContextThemeWrapper(this@MainActivity, R.style.Theme_TapAccounting)).setView(panel).create()
+            val options = listOf(null) + books
+            options.forEach { book ->
+                val item = LayoutInflater.from(this@MainActivity).inflate(R.layout.item_book_delete_option, container, false)
+                item.findViewById<TextView>(R.id.tv_delete_option_title).text =
+                    book?.let { "合并到已有账本“$it”" } ?: "创建新账本“${invite.ledgerName}”"
+                item.findViewById<TextView>(R.id.tv_delete_option_desc).text =
+                    if (book == null) "使用共享账本名称创建一个新账本" else "上传其中的普通收支、退款和预算"
+                item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
+                item.setOnClickListener {
+                    dialog.dismiss()
+                    showJoinPasswordDialog(invite, handledKey, book)
+                }
+                container.addView(item)
+            }
+            panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener {
+                pendingInviteDialog = false
+                dialog.dismiss()
+            }
+            dialog.setOnCancelListener { pendingInviteDialog = false }
+            OverlayDialogs.showPageCenterDialog(dialog, this@MainActivity, widthRatio = 0.88f)
+        }
+    }
+
+    private fun showJoinPasswordDialog(invite: SharedInvite, handledKey: String, existingBookName: String?) {
+        val title = existingBookName?.let { "合并“$it”并加入" } ?: "加入 ${invite.ledgerName}"
+        showJoinInputDialog(title, "请输入创建者同一坚果云账号的应用密码", "坚果云应用密码", "加入", password = true) { input, dialog, button ->
+            val password = input.text.toString()
+            if (password.isBlank()) {
+                input.error = "请输入应用密码"
+                return@showJoinInputDialog
+            }
+            button.isEnabled = false
+            lifecycleScope.launch {
+                    runCatching { withContext(Dispatchers.IO) { SharedLedgerService(applicationContext, AppDatabase.getDatabase(applicationContext)).join(invite, password, existingBookName) } }
+                        .onSuccess { ledgerId ->
+                            val db = AppDatabase.getDatabase(applicationContext)
+                            val ledger = withContext(Dispatchers.IO) { db.sharedLedgerDao().getById(ledgerId) }
+                            val bookName = ledger?.let { withContext(Dispatchers.IO) { db.bookDao().getById(it.bookId)?.name } }
+                            if (!bookName.isNullOrBlank()) {
+                                BookAccountManager.addBookAccount(this@MainActivity, bookName)
+                                BookAccountManager.setSelectedBook(this@MainActivity, bookName)
+                            }
+                            getSharedPreferences("shared_invites", MODE_PRIVATE).edit().putBoolean(handledKey, true).apply()
+                            dialog.dismiss(); pendingInviteDialog = false
+                            Toast.makeText(this@MainActivity, "已加入共享账本", Toast.LENGTH_LONG).show()
+                            recreate()
+                        }.onFailure {
+                            button.isEnabled = true
+                            Toast.makeText(this@MainActivity, it.message ?: "加入失败", Toast.LENGTH_LONG).show()
+                        }
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -428,6 +618,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        checkSharedInviteClipboard()
+        com.taostudio.tapaccounting.data.sync.SharedSyncScheduler.enqueueNow(this)
         RecentTasksHelper.applyHideRecentsPreference(this)
         refreshBottomNavigationTabs()
         swipeContainer.post { RecurringDuePromptController.maybeShow(this) }
@@ -436,6 +628,7 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        swipeContainer.post { checkSharedInviteIntent(intent) }
         resolveRequestedTabIndex(intent)?.let { requestedIndex ->
             if (requestedIndex in tabIds.indices && isTabVisible(requestedIndex)) {
                 val previousIndex = currentTabIndex

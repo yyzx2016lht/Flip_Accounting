@@ -54,10 +54,10 @@ class BudgetRestoreResolverTest {
     }
 
     @Test
-    fun normalizeBudgetBookName_preservesGlobalScopeAndNormalizesLegacyDefault() {
+    fun normalizeBudgetBookName_preservesGlobalScopeAndUserChosenBookName() {
         assertEquals("", normalizeBudgetBookName(""))
         assertEquals("", normalizeBudgetBookName(BookAccountManager.ALL_BOOK))
-        assertEquals(BookAccountManager.DEFAULT_BOOK, normalizeBudgetBookName("默认账本"))
+        assertEquals("默认账本", normalizeBudgetBookName("默认账本"))
     }
 
     @Test

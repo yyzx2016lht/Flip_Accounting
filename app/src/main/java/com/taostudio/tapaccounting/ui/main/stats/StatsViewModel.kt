@@ -39,6 +39,8 @@ data class CategoryStat(
     val amountDiffFromLastPeriod: Double
 )
 
+data class MemberStat(val memberId: String, val expense: Double, val income: Double)
+
 data class TimeReport(
     val dateString: String,
     val expense: Double,
@@ -71,6 +73,7 @@ data class StatsUiState(
     val totalTransfer: Double = 0.0,
     val totalRepayment: Double = 0.0,
     val totalRefund: Double = 0.0,
+    val memberStats: List<MemberStat> = emptyList(),
     val trendStats: List<TrendStat> = emptyList(),
     val categoryStatsExpense: List<CategoryStat> = emptyList(),
     val categoryStatsIncome: List<CategoryStat> = emptyList(),
@@ -78,7 +81,7 @@ data class StatsUiState(
     val bills: List<Bill> = emptyList()
 )
 
-class StatsViewModel(private val billDao: BillDao) : ViewModel() {
+class StatsViewModel(private val billDao: BillDao, private val localMemberIdForBook: suspend (String) -> String? = { null }) : ViewModel() {
     companion object {
         private const val TAG = "StatsViewModel"
         private const val MAX_STATS_CACHE_ENTRIES = 24
@@ -468,6 +471,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
                 }
                 .collectLatest { (currentBillsRaw, prevBillsRaw) ->
                     val stateNow = _uiState.value
+                    val localMemberId = stateNow.selectedBookName?.let { localMemberIdForBook(it) }
                     val calcStart = SystemClock.elapsedRealtime()
                     val (currentBills, prevBills, newState, filterCost, processCost) = withContext(Dispatchers.Default) {
                         val filterStart = SystemClock.elapsedRealtime()
@@ -475,7 +479,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
                         val filteredPrev = applyExtraFilters(prevBillsRaw, stateNow)
                         val filterDuration = SystemClock.elapsedRealtime() - filterStart
                         val processStart = SystemClock.elapsedRealtime()
-                        val processed = processData(filteredCurrent, filteredPrev, stateNow, start, end)
+                        val processed = processData(filteredCurrent, filteredPrev, stateNow, start, end, localMemberId)
                         val processDuration = SystemClock.elapsedRealtime() - processStart
                         CalcPayload(filteredCurrent, filteredPrev, processed, filterDuration, processDuration)
                     }
@@ -675,7 +679,8 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         prevBills: List<Bill>,
         state: StatsUiState,
         rangeStart: Long,
-        rangeEnd: Long
+        rangeEnd: Long,
+        localMemberId: String?
     ): StatsUiState {
         var totalExpense = 0.0
         var totalIncome = 0.0
@@ -687,6 +692,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         val categoryIncomeMap = mutableMapOf<String, Double>()
         val prevCategoryExpenseMap = mutableMapOf<String, Double>()
         val prevCategoryIncomeMap = mutableMapOf<String, Double>()
+        val memberTotals = linkedMapOf<String, DoubleArray>()
         val topLevelCache = HashMap<String, String>(64)
 
         val dayMap = mutableMapOf<Int, DayAggregate>()
@@ -702,25 +708,39 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             val amount = statsAmountOf(bill, state.selectedCurrency)
             val isRefund = bill.subType == Bill.SUBTYPE_REFUND
             val isRepayment = bill.type == Bill.TYPE_TRANSFER && bill.subType == Bill.SUBTYPE_REPAYMENT
+            bill.memberId?.let { memberId ->
+                val totals = memberTotals.getOrPut(memberId) { doubleArrayOf(0.0, 0.0) }
+                when {
+                    isRefund -> totals[0] -= amount
+                    bill.type == Bill.TYPE_EXPENSE -> totals[0] += amount
+                    bill.type == Bill.TYPE_INCOME -> totals[1] += amount
+                }
+            }
 
             if (isRefund) {
                 totalRefund += amount
                 // 退款抵扣支出
                 totalExpense -= amount
-                val topLevel = topLevelCached(bill.categoryName)
-                categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) - amount
+                if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
+                    val topLevel = topLevelCached(bill.categoryName)
+                    categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) - amount
+                }
             } else if (isRepayment) {
                 totalRepayment += amount
             } else if (bill.type == Bill.TYPE_TRANSFER) {
                 totalTransfer += amount
             } else if (bill.type == Bill.TYPE_EXPENSE) {
                 totalExpense += amount
-                val topLevel = topLevelCached(bill.categoryName)
-                categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) + amount
+                if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
+                    val topLevel = topLevelCached(bill.categoryName)
+                    categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) + amount
+                }
             } else if (bill.type == Bill.TYPE_INCOME) {
                 totalIncome += amount
-                val topLevel = topLevelCached(bill.categoryName)
-                categoryIncomeMap[topLevel] = (categoryIncomeMap[topLevel] ?: 0.0) + amount
+                if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
+                    val topLevel = topLevelCached(bill.categoryName)
+                    categoryIncomeMap[topLevel] = (categoryIncomeMap[topLevel] ?: 0.0) + amount
+                }
             }
 
             cal.timeInMillis = bill.time
@@ -737,6 +757,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         }
 
         prevBills.forEach { bill ->
+            if (localMemberId != null && bill.isShared && bill.memberId != localMemberId) return@forEach
             val amount = statsAmountOf(bill, state.selectedCurrency)
             val isRefund = bill.subType == Bill.SUBTYPE_REFUND
             val topLevel = topLevelCached(bill.categoryName)
@@ -836,6 +857,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             totalTransfer = totalTransfer,
             totalRepayment = totalRepayment,
             totalRefund = totalRefund,
+            memberStats = memberTotals.map { MemberStat(it.key, it.value[0], it.value[1]) },
             balance = totalIncome - totalExpense,
             dailyAvg = avgValue,
             categoryStatsExpense = categoryStatsExpense,
@@ -868,6 +890,7 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
         ) {
             return true
         }
+        if (oldState.memberStats != newState.memberStats) return true
         if (categoryStatsFingerprint(oldState.categoryStatsExpense) != categoryStatsFingerprint(newState.categoryStatsExpense)) {
             return true
         }
@@ -892,6 +915,8 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
             acc = (acc xor bill.categoryName.hashCode().toLong()).times(1099511628211L)
             acc = (acc xor bill.currency.hashCode().toLong()).times(1099511628211L)
             acc = (acc xor bill.bookName.hashCode().toLong()).times(1099511628211L)
+            acc = (acc xor bill.memberId.hashCode().toLong()).times(1099511628211L)
+            acc = (acc xor bill.sharedRevision).times(1099511628211L)
             acc = (acc xor (if (bill.excludeFromStats) 1L else 0L)).times(1099511628211L)
         }
         return acc xor bills.size.toLong()
@@ -978,11 +1003,11 @@ class StatsViewModel(private val billDao: BillDao) : ViewModel() {
     }
 }
 
-class StatsViewModelFactory(private val billDao: BillDao) : ViewModelProvider.Factory {
+class StatsViewModelFactory(private val billDao: BillDao, private val localMemberIdForBook: suspend (String) -> String? = { null }) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(StatsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return StatsViewModel(billDao) as T
+            return StatsViewModel(billDao, localMemberIdForBook) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

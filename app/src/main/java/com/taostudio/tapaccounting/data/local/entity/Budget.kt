@@ -25,7 +25,11 @@ data class Budget(
     val currency: String = "CNY",
     val alertThreshold: Double = 0.8,  // 80% 提醒
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val sharedId: String? = null,
+    val revision: Long = 0,
+    val isShared: Boolean = false,
+    val sharedDeviceId: String? = null
 ) {
     companion object {
         const val TOTAL_CATEGORY_KEY = 0L

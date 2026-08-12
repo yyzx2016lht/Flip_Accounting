@@ -244,7 +244,8 @@ object BillDetailSheetHelper {
             currentExcludeFromStats = !currentExcludeFromStats
             updateExcludeStatsButton()
             lifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                AppDatabase.getDatabase(context).billDao().updateExcludeStats(bill.id, currentExcludeFromStats)
+                val db = AppDatabase.getDatabase(context)
+                com.taostudio.tapaccounting.logic.BillMutationService.setExcludeFromStats(db, bill, currentExcludeFromStats)
             }
         }
 
@@ -517,4 +518,3 @@ object BillDetailSheetHelper {
         }
     }
 }
-
