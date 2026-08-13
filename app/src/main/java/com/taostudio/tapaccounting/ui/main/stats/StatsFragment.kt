@@ -122,6 +122,7 @@ class StatsFragment : Fragment() {
     private lateinit var rowRepayment: View
     private lateinit var rowRefund: View
     private lateinit var layoutOverviewExtra: View
+    private lateinit var layoutMemberStatsSection: View
     private lateinit var layoutMemberStats: LinearLayout
     private lateinit var ivOverviewExpand: View
     private lateinit var btnPrevDate: ImageView
@@ -136,6 +137,7 @@ class StatsFragment : Fragment() {
     private var modeSwitcherRevealProgress: Float = 1f
 
     private var isOverviewExpanded = false
+    private var hasSharedMembers = false
     private var lastModeIsMonth: Boolean? = null
     private var lastDateLabel: String? = null
     private var lastHostSyncSignature: String? = null
@@ -324,6 +326,7 @@ class StatsFragment : Fragment() {
         rowRepayment = root.findViewById(R.id.row_total_repayment)
         rowRefund = root.findViewById(R.id.row_total_refund)
         layoutOverviewExtra = root.findViewById(R.id.layout_overview_extra)
+        layoutMemberStatsSection = root.findViewById(R.id.layout_member_stats_section)
         layoutMemberStats = root.findViewById(R.id.layout_member_stats)
         ivOverviewExpand = root.findViewById(R.id.iv_overview_expand)
         btnPrevDate = root.findViewById(R.id.btn_prev_date)
@@ -505,6 +508,8 @@ class StatsFragment : Fragment() {
 
     private fun updateOverviewExpandState() {
         layoutOverviewExtra.visibility = if (isOverviewExpanded) View.VISIBLE else View.GONE
+        layoutMemberStatsSection.visibility =
+            if (isOverviewExpanded && hasSharedMembers) View.VISIBLE else View.GONE
         if (ivOverviewExpand is android.widget.ImageView) {
             (ivOverviewExpand as android.widget.ImageView).animate().rotation(if (isOverviewExpanded) 180f else 0f).setDuration(180).start()
         }
@@ -628,26 +633,48 @@ class StatsFragment : Fragment() {
     }
 
     private fun renderMemberStats(state: StatsUiState, symbol: String) {
-        val bookName = state.selectedBookName ?: run { layoutMemberStats.visibility = View.GONE; return }
+        val bookName = state.selectedBookName ?: run {
+            hasSharedMembers = false
+            updateMemberStatsVisibility()
+            return
+        }
         viewLifecycleOwner.lifecycleScope.launch {
-            val names = withContext(Dispatchers.IO) {
+            val members = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(requireContext())
-                val ledger = db.sharedLedgerDao().getByBookName(bookName) ?: return@withContext emptyMap()
-                db.sharedMemberDao().getByLedgerId(ledger.id).associate { it.memberId to it.resolvedName() }
+                val ledger = db.sharedLedgerDao().getByBookName(bookName) ?: return@withContext emptyList()
+                db.sharedMemberDao().getByLedgerId(ledger.id).sortedBy { it.joinOrder }
             }
             layoutMemberStats.removeAllViews()
-            layoutMemberStats.visibility = if (names.isEmpty()) View.GONE else View.VISIBLE
-            names.forEach { (memberId, name) ->
-                val stat = state.memberStats.firstOrNull { it.memberId == memberId } ?: MemberStat(memberId, 0.0, 0.0)
-                val row = TextView(requireContext()).apply {
-                    setPadding(12, 10, 12, 10)
-                    textSize = 13f
-                    setTextColor(Color.parseColor("#374151"))
-                    text = "$name　支出 $symbol${AmountFormatHelper.formatAmount(stat.expense)}　收入 $symbol${AmountFormatHelper.formatAmount(stat.income)}"
+            hasSharedMembers = members.isNotEmpty()
+            updateMemberStatsVisibility()
+            members.forEach { member ->
+                val name = member.resolvedName()
+                val stat = state.memberStats.firstOrNull { it.memberId == member.memberId }
+                    ?: MemberStat(member.memberId, 0.0, 0.0)
+                val card = layoutInflater.inflate(R.layout.item_stats_member_summary, layoutMemberStats, false)
+                card.findViewById<TextView>(R.id.tv_member_avatar).apply {
+                    text = name.firstOrNull()?.toString().orEmpty()
+                    setBackgroundResource(
+                        if (member.isLocal) R.drawable.bg_stats_member_avatar_local
+                        else R.drawable.bg_stats_member_avatar_remote
+                    )
+                    contentDescription = "$name 的头像"
                 }
-                layoutMemberStats.addView(row)
+                card.findViewById<TextView>(R.id.tv_member_name).text = name
+                card.findViewById<TextView>(R.id.tv_member_role).text =
+                    if (member.isLocal) "我 · 本机成员" else "另一位成员"
+                card.findViewById<TextView>(R.id.tv_member_expense).text =
+                    "$symbol${AmountFormatHelper.formatAmount(stat.expense)}"
+                card.findViewById<TextView>(R.id.tv_member_income).text =
+                    "$symbol${AmountFormatHelper.formatAmount(stat.income)}"
+                layoutMemberStats.addView(card)
             }
         }
+    }
+
+    private fun updateMemberStatsVisibility() {
+        layoutMemberStatsSection.visibility =
+            if (isOverviewExpanded && hasSharedMembers) View.VISIBLE else View.GONE
     }
 
     private fun updateFeatureEntryStatus(state: StatsUiState) {

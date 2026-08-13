@@ -131,12 +131,6 @@
             android:layout_marginTop="@dimen/space_4"
             android:orientation="vertical">
 
-            <LinearLayout
-                android:id="@+id/layout_member_stats"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-
             <View
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
@@ -361,6 +355,31 @@
                     android:textSize="@dimen/text_size_13"
                     android:textStyle="bold" />
             </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_member_stats_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="双方收支"
+                android:textColor="@color/stats_segmented_text_active"
+                android:textSize="@dimen/text_size_12"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/layout_member_stats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:orientation="horizontal" />
         </LinearLayout>
 
         <FrameLayout

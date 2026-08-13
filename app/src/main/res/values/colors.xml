@@ -171,6 +171,10 @@
     <color name="stats_header_label">#9CA3AF</color>
     <color name="stats_daily_header_bg">#F8FAFC</color>
     <color name="stats_daily_header_text">#64748B</color>
+    <color name="stats_member_card_bg">#F8FAFC</color>
+    <color name="stats_member_card_stroke">#E8EDF5</color>
+    <color name="stats_member_avatar_local">#4F7DF3</color>
+    <color name="stats_member_avatar_remote">#8B6FD6</color>
 
     <!-- ==================== Dialog / BottomSheet / Picker ==================== -->
     <color name="dialog_title">@color/text_primary</color>
