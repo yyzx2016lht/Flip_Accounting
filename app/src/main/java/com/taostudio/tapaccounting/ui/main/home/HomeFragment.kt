@@ -74,6 +74,7 @@ import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.repository.BillRepository
+import com.taostudio.tapaccounting.logic.BudgetService
 import com.taostudio.tapaccounting.data.sync.SharedSyncEngine
 import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
 import com.taostudio.tapaccounting.ui.activity.EditBillActivity
@@ -222,6 +223,7 @@ class HomeFragment : Fragment() {
     // fetchJob 已迁移到 HomeViewModel，Fragment 内不再持有
     // 防止 onViewCreated 之后 onResume 立即重复触发一次加载
     private var skipNextResume: Boolean = false
+    private var summaryRenderGeneration: Long = 0L
 
     /** Activity 作用域 ViewModel，跨 Fragment 重建存活，StateFlow 缓存账单数据 */
     private val homeViewModel: HomeViewModel by activityViewModels()
@@ -591,7 +593,13 @@ class HomeFragment : Fragment() {
                         }
                         Log.d("HomePerf", "submitList called: ${monthlyBills.size} bills  [${System.currentTimeMillis() - adapterT0}ms]")
                         rvTransactions.requestLayout()
-                        crossfadeSummaryAmounts(monthlyBills)
+                        crossfadeSummaryAmounts(
+                            transactions = monthlyBills,
+                            displayMode = state.displayMode,
+                            bookName = state.selectedBookName,
+                            year = state.selectedYear,
+                            month = state.selectedMonth
+                        )
 
                         // 首次加载到数据时，对首屏可见的前几项做 stagger 入场动画
                         if (!hasPlayedInitialStagger && !state.isLoading && monthlyBills.isNotEmpty()) {
@@ -656,6 +664,16 @@ class HomeFragment : Fragment() {
         if (skipNextResume) {
             skipNextResume = false
             return  // 跳过本次，避免与 onViewCreated 的加载重复
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            val state = homeViewModel.uiState.value
+            crossfadeSummaryAmounts(
+                transactions = state.monthlyBills,
+                displayMode = state.displayMode,
+                bookName = state.selectedBookName,
+                year = state.selectedYear,
+                month = state.selectedMonth
+            )
         }
         refreshBookAccounts(reloadTransactions = true)
     }
@@ -1103,20 +1121,57 @@ class HomeFragment : Fragment() {
         ensureChartController().showChartSettingsDialog()
     }
 
-    private fun updateSummary(transactions: List<Bill>) {
-        ensureChartController().updateSummary(transactions)
+    private fun updateSummary(
+        transactions: List<Bill>,
+        incomeOverride: Double? = null,
+        balanceOverride: Double? = null
+    ) {
+        ensureChartController().updateSummary(transactions, incomeOverride, balanceOverride)
     }
 
     /**
      * 对头部摘要金额做 crossfade 过渡，避免切换月份/账本时数字直接闪变。
      * 在 updateSummary 之前记录旧文本，之后比较并应用淡出→更新→淡入。
      */
-    private fun crossfadeSummaryAmounts(transactions: List<Bill>) {
+    private suspend fun crossfadeSummaryAmounts(
+        transactions: List<Bill>,
+        displayMode: YearMonthPickerDialog.DisplayMode,
+        bookName: String,
+        year: Int,
+        month: Int
+    ) {
+        val generation = ++summaryRenderGeneration
+        val useBudget = displayMode == YearMonthPickerDialog.DisplayMode.MONTH &&
+            Prefs.isHomeBudgetSummaryEnabled(requireContext(), bookName)
+        val budgetAmounts = if (useBudget) {
+            withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(requireContext().applicationContext)
+                val budgetBook = if (BookAccountManager.normalizeBookName(bookName) == BookAccountManager.ALL_BOOK) {
+                    ""
+                } else {
+                    BookAccountManager.normalizeBookName(bookName)
+                }
+                val yearMonth = String.format(Locale.US, "%04d-%02d", year, month)
+                val budget = db.budgetDao().getTotalBudget(yearMonth, budgetBook)
+                val used = BudgetService(db.budgetDao(), db.billDao(), db.categoryDao())
+                    .getMonthSpend(budgetBook, null, yearMonth)
+                (budget?.amount ?: 0.0) to used
+            }
+        } else {
+            null
+        }
+        if (generation != summaryRenderGeneration || !isAdded) return
+
+        updateSummaryLabels(displayMode, useBudget)
         val oldExpense = tvMonthExpense.text?.toString()
         val oldIncome = tvMonthIncome.text?.toString()
         val oldBalance = tvMonthBalance.text?.toString()
         // updateSummary 会同步设置 TextView 文本
-        updateSummary(transactions)
+        updateSummary(
+            transactions = transactions,
+            incomeOverride = budgetAmounts?.first,
+            balanceOverride = budgetAmounts?.let { (budget, used) -> budget - used }
+        )
         val newExpense = tvMonthExpense.text?.toString()
         val newIncome = tvMonthIncome.text?.toString()
         val newBalance = tvMonthBalance.text?.toString()
@@ -1136,6 +1191,29 @@ class HomeFragment : Fragment() {
             tvMonthBalance.animate().alpha(1f).setDuration(180L)
                 .setStartDelay(60L)
                 .setInterpolator(UiMotion.STANDARD_EASING).start()
+        }
+    }
+
+    private fun updateSummaryLabels(
+        displayMode: YearMonthPickerDialog.DisplayMode,
+        useBudget: Boolean
+    ) {
+        when (displayMode) {
+            YearMonthPickerDialog.DisplayMode.MONTH -> {
+                tvMonthExpenseLabel.setText(R.string.home_month_expense)
+                tvMonthIncomeLabel.setText(if (useBudget) R.string.home_month_budget else R.string.home_month_income)
+                tvMonthBalanceLabel.setText(if (useBudget) R.string.home_month_budget_remaining else R.string.home_month_balance)
+            }
+            YearMonthPickerDialog.DisplayMode.YEAR -> {
+                tvMonthExpenseLabel.setText(R.string.home_year_expense)
+                tvMonthIncomeLabel.setText(R.string.home_year_income)
+                tvMonthBalanceLabel.setText(R.string.home_year_balance)
+            }
+            YearMonthPickerDialog.DisplayMode.ALL -> {
+                tvMonthExpenseLabel.setText(R.string.home_all_expense)
+                tvMonthIncomeLabel.setText(R.string.home_all_income)
+                tvMonthBalanceLabel.setText(R.string.home_all_balance)
+            }
         }
     }
 

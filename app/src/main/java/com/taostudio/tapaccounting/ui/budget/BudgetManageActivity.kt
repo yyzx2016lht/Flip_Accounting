@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.taostudio.tapaccounting.AIService
 import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.Prefs
@@ -44,6 +45,7 @@ class BudgetManageActivity : AppCompatActivity() {
 
     private lateinit var budgetService: BudgetService
     private lateinit var currentBook: String
+    private lateinit var preferenceBook: String
     private lateinit var yearMonth: String
     private lateinit var adapter: BudgetAdapter
     private lateinit var rvBudgets: RecyclerView
@@ -62,7 +64,8 @@ class BudgetManageActivity : AppCompatActivity() {
 
         val db = AppDatabase.getDatabase(this)
         budgetService = BudgetService(db.budgetDao(), db.billDao(), db.categoryDao())
-        currentBook = BookAccountManager.getSelectedBook(this).let { selectedBook ->
+        preferenceBook = BookAccountManager.getSelectedBook(this)
+        currentBook = preferenceBook.let { selectedBook ->
             if (selectedBook == BookAccountManager.ALL_BOOK) "" else selectedBook
         }
         yearMonth = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(
@@ -81,6 +84,14 @@ class BudgetManageActivity : AppCompatActivity() {
         val btnCopyPrevious = findViewById<View>(R.id.btn_copy_previous_budget)
         val btnAiBudget = findViewById<View>(R.id.btn_ai_budget)
         val btnAdd = findViewById<View>(R.id.btn_add_budget)
+        val rowHomeBudgetSummary = findViewById<View>(R.id.row_home_budget_summary)
+        val switchHomeBudgetSummary = findViewById<SwitchMaterial>(R.id.switch_home_budget_summary)
+
+        switchHomeBudgetSummary.isChecked = Prefs.isHomeBudgetSummaryEnabled(this, preferenceBook)
+        switchHomeBudgetSummary.setOnCheckedChangeListener { _, enabled ->
+            Prefs.setHomeBudgetSummaryEnabled(this, preferenceBook, enabled)
+        }
+        rowHomeBudgetSummary.setOnClickListener { switchHomeBudgetSummary.performClick() }
 
         adapter = BudgetAdapter(
             onItemClick = { budget -> showEditDialog(budget) },

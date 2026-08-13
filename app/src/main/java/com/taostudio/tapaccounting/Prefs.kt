@@ -301,6 +301,12 @@ object Prefs {
     fun setShowHomeTrendCard(ctx: Context, show: Boolean) =
         PrefsDisplaySupport.setShowHomeTrendCard(ctx, show)
 
+    fun isHomeBudgetSummaryEnabled(ctx: Context, bookName: String): Boolean =
+        PrefsDisplaySupport.isHomeBudgetSummaryEnabled(ctx, bookName)
+
+    fun setHomeBudgetSummaryEnabled(ctx: Context, bookName: String, enabled: Boolean) =
+        PrefsDisplaySupport.setHomeBudgetSummaryEnabled(ctx, bookName, enabled)
+
     fun isMultiBillEnabled(ctx: Context): Boolean = PrefsDisplaySupport.isMultiBillEnabled(ctx)
     fun setMultiBillEnabled(ctx: Context, enabled: Boolean) =
         PrefsDisplaySupport.setMultiBillEnabled(ctx, enabled)

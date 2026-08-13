@@ -176,7 +176,11 @@ internal class HomeChartController(
         dialog.show()
     }
 
-    fun updateSummary(transactions: List<Bill>) {
+    fun updateSummary(
+        transactions: List<Bill>,
+        incomeOverride: Double? = null,
+        balanceOverride: Double? = null
+    ) {
         var expense = 0.0
         var income = 0.0
 
@@ -188,8 +192,8 @@ internal class HomeChartController(
         }
 
         tvMonthExpense.text = buildHeadlineAmount(expense)
-        tvMonthIncome.text = "¥${AmountFormatHelper.formatAmount(income)}"
-        tvMonthBalance.text = "¥${AmountFormatHelper.formatAmount(income - expense)}"
+        tvMonthIncome.text = "¥${AmountFormatHelper.formatAmount(incomeOverride ?: income)}"
+        tvMonthBalance.text = "¥${AmountFormatHelper.formatAmount(balanceOverride ?: (income - expense))}"
     }
 
     private fun buildHeadlineAmount(amount: Double): SpannableString {

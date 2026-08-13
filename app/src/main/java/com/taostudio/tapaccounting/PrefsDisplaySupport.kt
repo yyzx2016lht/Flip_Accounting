@@ -24,6 +24,7 @@ object PrefsDisplaySupport {
     private const val KEY_INSIGHT_CARDS_ENABLED = "insight_cards_enabled"
     private const val KEY_IMPORT_ONBOARDING_SEEN = "import_onboarding_seen_v1"
     private const val KEY_IMPORT_REVIEW_COMPLETED = "import_review_completed_v1"
+    private const val KEY_HOME_BUDGET_SUMMARY_PREFIX = "home_budget_summary_v1_"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -53,6 +54,15 @@ object PrefsDisplaySupport {
         prefs(ctx).getBoolean(KEY_SHOW_HOME_TREND_CARD, true)
     fun setShowHomeTrendCard(ctx: Context, show: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_SHOW_HOME_TREND_CARD, show).apply()
+
+    fun isHomeBudgetSummaryEnabled(ctx: Context, bookName: String): Boolean =
+        prefs(ctx).getBoolean(homeBudgetSummaryKey(bookName), false)
+
+    fun setHomeBudgetSummaryEnabled(ctx: Context, bookName: String, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(homeBudgetSummaryKey(bookName), enabled).apply()
+
+    private fun homeBudgetSummaryKey(bookName: String): String =
+        KEY_HOME_BUDGET_SUMMARY_PREFIX + BookAccountManager.normalizeBookName(bookName)
 
     fun isMultiBillEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_MULTI_BILL_ENABLED, false)
