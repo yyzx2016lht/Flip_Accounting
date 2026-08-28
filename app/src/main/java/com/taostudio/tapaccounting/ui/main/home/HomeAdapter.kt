@@ -21,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.AmountFormatHelper
+import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.CategoryIconHelper
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
@@ -28,6 +29,7 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.ui.common.UiMotion.applyItemPressFeedback
+import com.taostudio.tapaccounting.viewscope.SharedBookMemberContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -114,13 +116,24 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     var onBillItemClick: ((Bill) -> Unit)? = null
     var onSelectionChanged: ((Int) -> Unit)? = null
     var detailSuffixProvider: ((Bill) -> String?)? = null
-    private var memberNames: Map<String, String> = emptyMap()
-    private var localMemberId: String? = null
+    private var memberContexts: Map<String, SharedBookMemberContext> = emptyMap()
+    private var showMemberLabels: Boolean = true
+    private var showBookNamesWithMembers: Boolean = false
 
-    fun setMembers(names: Map<String, String>, localId: String?) {
-        if (memberNames == names && localMemberId == localId) return
-        memberNames = names.toMap()
-        localMemberId = localId
+    fun setViewContext(
+        contextsByBookName: Map<String, SharedBookMemberContext>,
+        showMembers: Boolean,
+        showBookNames: Boolean
+    ) {
+        val normalized = contextsByBookName.mapKeys { BookAccountManager.normalizeBookName(it.key) }
+        if (
+            memberContexts == normalized &&
+            showMemberLabels == showMembers &&
+            showBookNamesWithMembers == showBookNames
+        ) return
+        memberContexts = normalized
+        showMemberLabels = showMembers
+        showBookNamesWithMembers = showBookNames
         notifyItemRangeChanged(0, itemCount)
     }
     private fun isRefundBill(bill: Bill): Boolean = bill.subType == Bill.SUBTYPE_REFUND
@@ -703,9 +716,10 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             tvTime.text = itemTimeFormatter.format(Date(bill.time))
 
             // \u663E\u793A\u6210\u5458\u540D\u79F0\uFF08\u5982\u679C\u662F\u5171\u4EAB\u8D26\u5355\uFF09
-            if (bill.isShared && bill.memberId != null) {
-                val name = memberNames[bill.memberId] ?: "共享成员"
-                tvMember.text = if (bill.memberId == localMemberId || bill.accountName.isNotBlank()) name else "${name}的账户"
+            if (showMemberLabels && bill.isShared && bill.memberId != null) {
+                val bookName = BookAccountManager.normalizeBookName(bill.bookName)
+                val name = memberContexts[bookName]?.memberNames?.get(bill.memberId) ?: "未知成员"
+                tvMember.text = if (showBookNamesWithMembers) "$bookName · $name" else name
                 tvMember.visibility = View.VISIBLE
             } else {
                 tvMember.visibility = View.GONE

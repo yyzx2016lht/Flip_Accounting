@@ -29,6 +29,9 @@ import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
+import com.taostudio.tapaccounting.viewscope.LedgerMemberScope
+import com.taostudio.tapaccounting.viewscope.LedgerViewScopeStore
+import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
 import kotlin.math.min
 import java.util.Locale
 
@@ -50,6 +53,7 @@ class BillSearchActivity : AppCompatActivity() {
     private var allBills: List<Bill> = emptyList()
     private var searchJob: Job? = null
     private var hasResumedOnce = false
+    private var viewScope: ResolvedLedgerViewScope? = null
 
     private val sourceBookName by lazy {
         BookAccountManager.normalizeBookName(
@@ -88,19 +92,7 @@ class BillSearchActivity : AppCompatActivity() {
                 )
             }
         }
-        adapter.detailSuffixProvider = { bill ->
-            if (sourceBookName == BookAccountManager.ALL_BOOK) {
-                "账本: ${BookAccountManager.normalizeBookName(bill.bookName)}"
-            } else {
-                null
-            }
-        }
-
-        tvScope.text = if (sourceBookName == BookAccountManager.ALL_BOOK) {
-            "范围：全部账本"
-        } else {
-            "范围：$sourceBookName"
-        }
+        tvScope.text = "范围：加载中"
 
         etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -255,11 +247,23 @@ class BillSearchActivity : AppCompatActivity() {
     private fun loadAllBills() {
         lifecycleScope.launch {
             val bills = withContext(Dispatchers.IO) {
-                db.billDao().getAllBillsList()
+                val scope = LedgerViewScopeStore.resolve(applicationContext, db, sourceBookName)
+                scope to db.billDao().getAllBillsList()
             }
-            allBills = bills
+            viewScope = bills.first
+            val scope = bills.first
+            tvScope.text = "范围：${scope.displayLabel}"
+            adapter.setViewContext(
+                contextsByBookName = scope.memberContextsByBookName,
+                showMembers = scope.scope.members == LedgerMemberScope.EVERYONE,
+                showBookNames = false
+            )
+            adapter.detailSuffixProvider = if (scope.isAggregate) {
+                { bill -> "账本：${BookAccountManager.normalizeBookName(bill.bookName)}" }
+            } else null
+            allBills = bills.second
                 .asSequence()
-                .filter { BookAccountManager.isBillInBook(it.bookName, sourceBookName) }
+                .filter(scope::includes)
                 .sortedWith(compareByDescending<Bill> { it.time }.thenByDescending { it.id })
                 .toList()
             applyFilter(etSearch.text?.toString().orEmpty().trim())

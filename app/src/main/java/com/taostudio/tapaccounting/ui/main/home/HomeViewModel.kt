@@ -18,6 +18,9 @@ import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 import com.taostudio.tapaccounting.ui.main.YearMonthPickerDialog
+import com.taostudio.tapaccounting.viewscope.LedgerBookSelection
+import com.taostudio.tapaccounting.viewscope.LedgerViewScopeStore
+import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
 import java.util.Calendar
 
 private const val TAG = "HomePerf"
@@ -49,6 +52,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val currentType: Int = 0,
         val displayMode: YearMonthPickerDialog.DisplayMode = YearMonthPickerDialog.DisplayMode.MONTH,
         val isChartHidden: Boolean = false,
+        val viewScope: ResolvedLedgerViewScope? = null,
+        val viewScopeRevision: Long = -1L,
         /** true 表示 Room 查询正在进行中（首次加载），false 表示已有数据 */
         val isLoading: Boolean = true
     )
@@ -81,11 +86,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         SharedYearMonthSession.setYearMonth(normalizedYear, normalizedMonth)
 
         val cur = _uiState.value
+        val scopeRevision = LedgerViewScopeStore.revision(getApplication())
         val changed = cur.selectedBookName != bookName
             || cur.selectedYear != normalizedYear
             || cur.selectedMonth != normalizedMonth
             || cur.currentTimeRange != timeRange
             || cur.currentType != type
+            || cur.viewScopeRevision != scopeRevision
 
         val cacheHit = fetchJob != null && fetchJob!!.isActive && !changed
         Log.d(TAG, "syncAndLoad: cacheHit=$cacheHit  changed=$changed  jobActive=${fetchJob?.isActive}  billsInCache=${cur.monthlyBills.size}")
@@ -98,6 +105,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             currentTimeRange = timeRange,
             currentType = type,
             isChartHidden = isChartHidden,
+            viewScopeRevision = scopeRevision,
             isLoading = if (changed) true else cur.isLoading
         )
 
@@ -132,6 +140,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             currentTimeRange = timeRange,
             currentType = type,
             isChartHidden = isChartHidden,
+            viewScopeRevision = LedgerViewScopeStore.revision(getApplication()),
             isLoading = true
         )
         startFlow()
@@ -195,8 +204,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // 启动时锁定本次 flow 所用的参数快照，collectLatest 内部始终使用此快照，
         // 避免 DB 多次 emission 期间外部修改 _uiState 导致用了错误的 year/month 筛出错误结果
         val flowSnapshot = _uiState.value
-        val selectedBookNormalized = BookAccountManager.normalizeBookName(flowSnapshot.selectedBookName)
-        val aliases = BookAccountManager.rawAliases(flowSnapshot.selectedBookName).distinct()
         val (periodStart, periodEnd) = when (flowSnapshot.displayMode) {
             YearMonthPickerDialog.DisplayMode.MONTH ->
                 getMonthRange(flowSnapshot.selectedYear, flowSnapshot.selectedMonth)
@@ -218,10 +225,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             maxOf(periodEnd, chartEnd)
         }
         fetchJob = viewModelScope.launch {
-            val billsFlow = if (selectedBookNormalized == BookAccountManager.ALL_BOOK) {
+            val resolvedScope = withContext(Dispatchers.IO) {
+                LedgerViewScopeStore.resolve(
+                    context = getApplication(),
+                    db = db,
+                    legacyBookName = flowSnapshot.selectedBookName
+                )
+            }
+            val selectedAliases = resolvedScope.selectedBooks
+                .flatMap { BookAccountManager.rawAliases(it.name) }
+                .distinct()
+            val billsFlow = if (resolvedScope.scope.books is LedgerBookSelection.All) {
                 db.billDao().getBillsBetweenTimes(queryStart, queryEnd)
             } else {
-                db.billDao().getBillsByBookNamesBetweenTimes(aliases, queryStart, queryEnd)
+                db.billDao().getBillsByBookNamesBetweenTimes(selectedAliases, queryStart, queryEnd)
             }
             billsFlow.collectLatest { allTransactions ->
                 if (generation != requestGeneration) {
@@ -234,7 +251,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
                 val (monthly, filtered) =
                     withContext(Dispatchers.Default) {
-                        val filtered = allTransactions.sortedByDescending { it.time }
+                        val filtered = allTransactions
+                            .asSequence()
+                            .filter(resolvedScope::includes)
+                            .sortedByDescending { it.time }
+                            .toList()
                         val monthly = when (flowSnapshot.displayMode) {
                             YearMonthPickerDialog.DisplayMode.MONTH ->
                                 filtered.filter { isBillInSelectedMonth(it, flowSnapshot.selectedYear, flowSnapshot.selectedMonth) }
@@ -256,7 +277,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
                 // 用 flowSnapshot 参数更新 StateFlow，保证 year/month/book 等参数与计算结果严格对应
                 _uiState.value = _uiState.value.copy(
-                    selectedBookName = flowSnapshot.selectedBookName,
+                    selectedBookName = resolvedScope.legacyBookName,
                     selectedYear = flowSnapshot.selectedYear,
                     selectedMonth = flowSnapshot.selectedMonth,
                     currentTimeRange = flowSnapshot.currentTimeRange,
@@ -267,6 +288,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     chartStart = chartStart,
                     chartEnd = chartEnd,
                     isChartHidden = isChartHiddenNow,
+                    viewScope = resolvedScope,
+                    viewScopeRevision = LedgerViewScopeStore.revision(getApplication()),
                     isLoading = false
                 )
                 Log.d(TAG, "StateFlow updated  [+${now() - t2}ms to emit]")

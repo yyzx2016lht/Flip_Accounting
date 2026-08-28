@@ -495,6 +495,32 @@
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="2dp"
+            android:layout_marginTop="10dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#DCE5F2"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/btnViewScope"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:drawableEnd="@drawable/ic_chevron_right"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="查看范围：全部账本"
+                android:textColor="#365DA8"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_marginHorizontal="2dp"
             android:layout_marginTop="10dp"

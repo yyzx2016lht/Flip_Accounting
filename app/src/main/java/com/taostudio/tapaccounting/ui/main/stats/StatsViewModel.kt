@@ -26,6 +26,7 @@ import com.taostudio.tapaccounting.logic.insight.InsightCardModel
 import com.taostudio.tapaccounting.logic.insight.InsightEngine
 import com.taostudio.tapaccounting.logic.BillStatsContribution
 import com.taostudio.tapaccounting.ui.main.stats.StatsExternalQueryFilter
+import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -66,6 +67,7 @@ data class StatsUiState(
     val forcedLabel: String? = null,
     val selectedCurrency: String? = null,
     val selectedBookName: String? = null,
+    val viewScope: ResolvedLedgerViewScope? = null,
     val isLoading: Boolean = true,
     val totalExpense: Double = 0.0,
     val totalIncome: Double = 0.0,
@@ -351,6 +353,16 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
         loadData()
     }
 
+    fun setViewScope(scope: ResolvedLedgerViewScope) {
+        _uiState.update {
+            it.copy(
+                viewScope = scope,
+                selectedBookName = scope.singleBookName
+            )
+        }
+        loadData()
+    }
+
     fun applyExternalQueryFilter(filter: StatsExternalQueryFilter) {
         _uiState.update { state ->
             val forcedRange = if (filter.startMillis != null && filter.endMillis != null) {
@@ -373,7 +385,12 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
         loadData()
     }
 
-    fun syncHostSelection(year: Int, month: Int, bookName: String?) {
+    fun syncHostSelection(
+        year: Int,
+        month: Int,
+        bookName: String?,
+        viewScope: ResolvedLedgerViewScope? = null
+    ) {
         val normalizedBook = bookName?.takeIf { it.isNotBlank() }
         val old = _uiState.value
         var changed = false
@@ -388,9 +405,9 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
                 forcedLabel = null
             )
         }
-        if (old.selectedBookName != normalizedBook) {
+        if (old.selectedBookName != normalizedBook || old.viewScope?.signature != viewScope?.signature) {
             changed = true
-            next = next.copy(selectedBookName = normalizedBook)
+            next = next.copy(selectedBookName = normalizedBook, viewScope = viewScope)
         }
         if (changed) {
             _uiState.value = next
@@ -452,6 +469,7 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
                     forcedLabel = snapshot.forcedLabel,
                     selectedCurrency = snapshot.selectedCurrency,
                     selectedBookName = snapshot.selectedBookName,
+                    viewScope = snapshot.viewScope,
                     isLoading = false
                 )
             }
@@ -472,7 +490,6 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
                 }
                 .collectLatest { (currentBillsRaw, prevBillsRaw) ->
                     val stateNow = _uiState.value
-                    val localMemberId = stateNow.selectedBookName?.let { localMemberIdForBook(it) }
                     val calcStart = SystemClock.elapsedRealtime()
                     val (currentBills, prevBills, newState, filterCost, processCost) = withContext(Dispatchers.Default) {
                         val filterStart = SystemClock.elapsedRealtime()
@@ -480,7 +497,7 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
                         val filteredPrev = applyExtraFilters(prevBillsRaw, stateNow)
                         val filterDuration = SystemClock.elapsedRealtime() - filterStart
                         val processStart = SystemClock.elapsedRealtime()
-                        val processed = processData(filteredCurrent, filteredPrev, stateNow, start, end, localMemberId)
+                        val processed = processData(filteredCurrent, filteredPrev, stateNow, start, end)
                         val processDuration = SystemClock.elapsedRealtime() - processStart
                         CalcPayload(filteredCurrent, filteredPrev, processed, filterDuration, processDuration)
                     }
@@ -528,7 +545,8 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
             prevStart,
             prevEnd,
             state.selectedCurrency.orEmpty(),
-            state.selectedBookName.orEmpty()
+            state.selectedBookName.orEmpty(),
+            state.viewScope?.signature.orEmpty()
         ).joinToString("|")
     }
 
@@ -635,13 +653,14 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
     }
 
     private fun applyExtraFilters(bills: List<Bill>, state: StatsUiState): List<Bill> {
-        if (state.selectedCurrency == null && state.selectedBookName == null) return bills
+        if (state.selectedCurrency == null && state.selectedBookName == null && state.viewScope == null) return bills
         val selectedBookNormalized = state.selectedBookName?.let { BookAccountManager.normalizeBookName(it) }
         return bills.filter { bill ->
             val currencyMatched = state.selectedCurrency == null || bill.currency == state.selectedCurrency
             val bookMatched = selectedBookNormalized == null ||
                 BookAccountManager.normalizeBookName(bill.bookName) == selectedBookNormalized
-            currencyMatched && bookMatched
+            val scopeMatched = state.viewScope?.includes(bill) ?: true
+            currencyMatched && bookMatched && scopeMatched
         }
     }
 
@@ -680,8 +699,7 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
         prevBills: List<Bill>,
         state: StatsUiState,
         rangeStart: Long,
-        rangeEnd: Long,
-        localMemberId: String?
+        rangeEnd: Long
     ): StatsUiState {
         var totalExpense = 0.0
         var totalIncome = 0.0
@@ -719,9 +737,7 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
             if (isRefund) {
                 totalRefund += contribution.refund
                 totalExpense += contribution.expense
-                if (contribution.expense != 0.0 &&
-                    (localMemberId == null || !bill.isShared || bill.memberId == localMemberId)
-                ) {
+                if (contribution.expense != 0.0) {
                     val topLevel = topLevelCached(bill.categoryName)
                     categoryExpenseMap[topLevel] =
                         (categoryExpenseMap[topLevel] ?: 0.0) + contribution.expense
@@ -732,16 +748,12 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
                 totalTransfer += amount
             } else if (bill.type == Bill.TYPE_EXPENSE) {
                 totalExpense += contribution.expense
-                if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
-                    val topLevel = topLevelCached(bill.categoryName)
-                    categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) + contribution.expense
-                }
+                val topLevel = topLevelCached(bill.categoryName)
+                categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) + contribution.expense
             } else if (bill.type == Bill.TYPE_INCOME) {
                 totalIncome += contribution.income
-                if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
-                    val topLevel = topLevelCached(bill.categoryName)
-                    categoryIncomeMap[topLevel] = (categoryIncomeMap[topLevel] ?: 0.0) + contribution.income
-                }
+                val topLevel = topLevelCached(bill.categoryName)
+                categoryIncomeMap[topLevel] = (categoryIncomeMap[topLevel] ?: 0.0) + contribution.income
             }
 
             cal.timeInMillis = bill.time
@@ -755,7 +767,7 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
         }
 
         prevBills.forEach { bill ->
-            if (localMemberId != null && bill.isShared && bill.memberId != localMemberId) return@forEach
+            if (bill.excludeFromStats) return@forEach
             val amount = statsAmountOf(bill, state.selectedCurrency)
             val contribution = BillStatsContribution.from(bill, amount)
             val topLevel = topLevelCached(bill.categoryName)
@@ -873,7 +885,11 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
         if (oldState.year != newState.year || oldState.month != newState.month || oldState.isMonthMode != newState.isMonthMode) {
             return true
         }
-        if (oldState.selectedCurrency != newState.selectedCurrency || oldState.selectedBookName != newState.selectedBookName) {
+        if (
+            oldState.selectedCurrency != newState.selectedCurrency ||
+            oldState.selectedBookName != newState.selectedBookName ||
+            oldState.viewScope?.signature != newState.viewScope?.signature
+        ) {
             return true
         }
         if (oldState.totalExpense != newState.totalExpense ||

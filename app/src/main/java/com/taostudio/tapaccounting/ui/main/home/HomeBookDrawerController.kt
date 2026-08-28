@@ -39,6 +39,8 @@ import com.taostudio.tapaccounting.data.sync.InviteCodec
 import com.taostudio.tapaccounting.data.sync.SharedLedgerService
 import com.taostudio.tapaccounting.ui.activity.BookOverviewActivity
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
+import com.taostudio.tapaccounting.ui.dialog.LedgerViewScopeDialog
+import com.taostudio.tapaccounting.viewscope.LedgerViewScopeStore
 import kotlin.math.max
 
 internal class HomeBookDrawerController(
@@ -47,6 +49,7 @@ internal class HomeBookDrawerController(
     private val drawerBooks: DrawerLayout,
     private val layoutBookDrawer: View,
     private val rvBookAccounts: RecyclerView,
+    private val btnViewScope: TextView,
     private val btnAddBookAccount: View,
     private val layoutAddBookInput: View,
     private val etAddBookAccountName: EditText,
@@ -152,6 +155,39 @@ internal class HomeBookDrawerController(
                 putExtra(BookOverviewActivity.EXTRA_SELECTED_MONTH, getSelectedMonth())
             }
             fragment.startActivity(intent)
+        }
+
+        btnViewScope.setOnClickListener {
+            fragment.lifecycleScope.launch {
+                val context = fragment.requireContext().applicationContext
+                val resolved = withContext(Dispatchers.IO) {
+                    LedgerViewScopeStore.resolve(context, AppDatabase.getDatabase(context), getSelectedBookName())
+                }
+                if (!fragment.isAdded) return@launch
+                LedgerViewScopeDialog.show(fragment.requireContext(), resolved) { scope ->
+                    LedgerViewScopeStore.save(context, scope)
+                    fragment.lifecycleScope.launch {
+                        val next = withContext(Dispatchers.IO) {
+                            LedgerViewScopeStore.resolve(context, AppDatabase.getDatabase(context), getSelectedBookName())
+                        }
+                        if (!fragment.isAdded) return@launch
+                        val legacyBook = next.legacyBookName
+                        setSelectedBookName(legacyBook)
+                        BookAccountManager.setSelectedBook(fragment.requireContext(), legacyBook)
+                        btnViewScope.text = "查看范围：${next.displayLabel}"
+                        bookAccountAdapter.submitList(
+                            books = drawerDisplayBooks,
+                            selected = legacyBook,
+                            defaultBookName = BookAccountManager.getDefaultBook(fragment.requireContext()),
+                            collapsedBookNames = BookAccountManager.getCollapsedBookAccounts(fragment.requireContext())
+                        )
+                        updateHeaderBanner()
+                        setAnimateNextBookDataReveal(true)
+                        setPendingBookSwitchName(legacyBook)
+                        drawerBooks.closeDrawer(GravityCompat.START)
+                    }
+                }
+            }
         }
 
         drawerBooks.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
@@ -291,6 +327,7 @@ internal class HomeBookDrawerController(
             val booksWithAll = BookAccountManager.withAllBookOption(mergedBooks, defaultBook)
             val selectedFromPrefs = BookAccountManager.getSelectedBook(context, booksWithAll)
             val collapsedBooks = BookAccountManager.getCollapsedBookAccounts(context, mergedBooks)
+            val resolvedScope = LedgerViewScopeStore.resolve(context, db, selectedFromPrefs)
 
             withContext(Dispatchers.Main) {
                 if (!fragment.isAdded) return@withContext
@@ -312,6 +349,7 @@ internal class HomeBookDrawerController(
                     defaultBookName = defaultBook,
                     collapsedBookNames = collapsedBooks
                 )
+                btnViewScope.text = "查看范围：${resolvedScope.displayLabel}"
                 if (drawerBooks.isDrawerOpen(GravityCompat.START)) {
                     scrollBookListToSelected(animate = false)
                 }
@@ -498,22 +536,26 @@ internal class HomeBookDrawerController(
             rvBookAccounts.post { adjustBookListBottomPaddingForWholeRows() }
             return
         }
-        if (target == getSelectedBookName()) {
+        fragment.lifecycleScope.launch {
+            val context = fragment.requireContext().applicationContext
+            val resolved = withContext(Dispatchers.IO) {
+                LedgerViewScopeStore.saveLegacySelection(context, AppDatabase.getDatabase(context), target)
+            }
+            if (!fragment.isAdded) return@launch
+            setSelectedBookName(target)
+            setAnimateNextBookDataReveal(true)
+            BookAccountManager.setSelectedBook(fragment.requireContext(), target)
+            btnViewScope.text = "查看范围：${resolved.displayLabel}"
+            bookAccountAdapter.submitList(
+                books = drawerDisplayBooks,
+                selected = target,
+                defaultBookName = BookAccountManager.getDefaultBook(fragment.requireContext()),
+                collapsedBookNames = BookAccountManager.getCollapsedBookAccounts(fragment.requireContext())
+            )
+            updateHeaderBanner()
+            setPendingBookSwitchName(target)
             drawerBooks.closeDrawer(GravityCompat.START)
-            return
         }
-        setSelectedBookName(target)
-        setAnimateNextBookDataReveal(true)
-        BookAccountManager.setSelectedBook(fragment.requireContext(), getSelectedBookName())
-        bookAccountAdapter.submitList(
-            books = drawerDisplayBooks,
-            selected = getSelectedBookName(),
-            defaultBookName = BookAccountManager.getDefaultBook(fragment.requireContext()),
-            collapsedBookNames = BookAccountManager.getCollapsedBookAccounts(fragment.requireContext())
-        )
-        updateHeaderBanner()
-        setPendingBookSwitchName(getSelectedBookName())
-        drawerBooks.closeDrawer(GravityCompat.START)
     }
 
     private fun toggleBookCollapsed(bookName: String) {

@@ -84,6 +84,8 @@ import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import com.taostudio.tapaccounting.MainActivity
 import com.taostudio.tapaccounting.ui.main.YearMonthPickerDialog
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
+import com.taostudio.tapaccounting.viewscope.LedgerMemberScope
+import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -330,6 +332,7 @@ class HomeFragment : Fragment() {
             drawerBooks = drawerBooks,
             layoutBookDrawer = layoutBookDrawer,
             rvBookAccounts = rvBookAccounts,
+            btnViewScope = view.findViewById(R.id.btnViewScope),
             btnAddBookAccount = btnAddBookAccount,
             layoutAddBookInput = layoutAddBookInput,
             etAddBookAccountName = etAddBookAccountName,
@@ -557,6 +560,18 @@ class HomeFragment : Fragment() {
                     currentTimeRange = state.currentTimeRange
                     currentType = state.currentType
                     isChartHidden = state.isChartHidden
+                    state.viewScope?.let { scope ->
+                        homeAdapter.setViewContext(
+                            contextsByBookName = scope.memberContextsByBookName,
+                            showMembers = scope.scope.members == LedgerMemberScope.EVERYONE,
+                            showBookNames = false
+                        )
+                        homeAdapter.detailSuffixProvider = if (scope.isAggregate) {
+                            { bill -> "账本：${BookAccountManager.normalizeBookName(bill.bookName)}" }
+                        } else {
+                            null
+                        }
+                    }
                     refreshSharedUi()
                     // 切换账本时重置 stagger 标记，让新账本数据也做入场动画
                     if (prevBookName != selectedBookName) {
@@ -598,7 +613,8 @@ class HomeFragment : Fragment() {
                             displayMode = state.displayMode,
                             bookName = state.selectedBookName,
                             year = state.selectedYear,
-                            month = state.selectedMonth
+                            month = state.selectedMonth,
+                            viewScope = state.viewScope
                         )
 
                         // 首次加载到数据时，对首屏可见的前几项做 stagger 入场动画
@@ -672,7 +688,8 @@ class HomeFragment : Fragment() {
                 displayMode = state.displayMode,
                 bookName = state.selectedBookName,
                 year = state.selectedYear,
-                month = state.selectedMonth
+                month = state.selectedMonth,
+                viewScope = state.viewScope
             )
         }
         refreshBookAccounts(reloadTransactions = true)
@@ -694,7 +711,9 @@ class HomeFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(requireContext().applicationContext)
-                val ledger = db.sharedLedgerDao().getByBookName(selectedBookName)
+                val sharedBookName = homeViewModel.uiState.value.viewScope?.singleBookName
+                    ?: selectedBookName.takeIf { it != BookAccountManager.ALL_BOOK }
+                val ledger = sharedBookName?.let { db.sharedLedgerDao().getByBookName(it) }
                 if (ledger == null) null else Triple(
                     ledger,
                     db.sharedMemberDao().getByLedgerId(ledger.id).associate { it.memberId to it.resolvedName() },
@@ -702,7 +721,6 @@ class HomeFragment : Fragment() {
                 )
             }
             ivSyncStatus.visibility = if (result == null) View.GONE else View.VISIBLE
-            homeAdapter.setMembers(result?.second.orEmpty(), result?.first?.localMemberId)
             val state = result?.third?.first
             val pending = result?.third?.second ?: 0
             layoutSyncError.visibility = if (state?.lastError.isNullOrBlank()) View.GONE else View.VISIBLE
@@ -1138,19 +1156,19 @@ class HomeFragment : Fragment() {
         displayMode: YearMonthPickerDialog.DisplayMode,
         bookName: String,
         year: Int,
-        month: Int
+        month: Int,
+        viewScope: ResolvedLedgerViewScope?
     ) {
         val generation = ++summaryRenderGeneration
         val useBudget = displayMode == YearMonthPickerDialog.DisplayMode.MONTH &&
+            (viewScope?.supportsBudgetSummary != false) &&
             Prefs.isHomeBudgetSummaryEnabled(requireContext(), bookName)
         val budgetAmounts = if (useBudget) {
             withContext(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(requireContext().applicationContext)
-                val budgetBook = if (BookAccountManager.normalizeBookName(bookName) == BookAccountManager.ALL_BOOK) {
-                    ""
-                } else {
-                    BookAccountManager.normalizeBookName(bookName)
-                }
+                val budgetBook = viewScope?.singleBookName
+                    ?: if (viewScope?.isAllBooks == true || BookAccountManager.normalizeBookName(bookName) == BookAccountManager.ALL_BOOK) ""
+                    else BookAccountManager.normalizeBookName(bookName)
                 val yearMonth = String.format(Locale.US, "%04d-%02d", year, month)
                 val budget = db.budgetDao().getTotalBudget(yearMonth, budgetBook)
                 val used = BudgetService(db.budgetDao(), db.billDao(), db.categoryDao())

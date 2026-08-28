@@ -63,9 +63,12 @@ import com.taostudio.tapaccounting.ui.common.UiMotion
 import com.taostudio.tapaccounting.ui.common.UiMotion.crossfadeText
 import com.taostudio.tapaccounting.ui.common.UiMotion.fadeIn
 import com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet
+import com.taostudio.tapaccounting.ui.dialog.LedgerViewScopeDialog
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import com.taostudio.tapaccounting.ui.main.YearMonthPickerDialog
 import com.taostudio.tapaccounting.ui.main.home.HomeViewModel
+import com.taostudio.tapaccounting.viewscope.LedgerMemberScope
+import com.taostudio.tapaccounting.viewscope.LedgerViewScopeStore
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -158,6 +161,7 @@ class StatsFragment : Fragment() {
     private var featureEntryStatusJob: Job? = null
     private var memberStatsJob: Job? = null
     private var budgetOverviewJob: Job? = null
+    private var hostSyncJob: Job? = null
     private var lastFeatureEntryStatusKey: String? = null
     private var hasPlayedEnterAnimation = false
     private var lastModeSwitchAnimAt = 0L
@@ -205,7 +209,6 @@ class StatsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         syncHostSelectionIfNeeded("onViewCreated")
-        applyPendingExternalQueryFilter("onViewCreated")
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 AppDatabase.getDatabase(requireContext().applicationContext)
@@ -219,7 +222,6 @@ class StatsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         syncHostSelectionIfNeeded("onResume")
-        applyPendingExternalQueryFilter("onResume")
         refreshFeatureEntryStatus()
         if (!isHidden) SharedSyncScheduler.enqueueFullNow(requireContext())
         val state = viewModel.uiState.value
@@ -242,7 +244,6 @@ class StatsFragment : Fragment() {
         if (!hidden) {
             // Fragment 从隐藏变为可见（即切换到统计 Tab）
             syncHostSelectionIfNeeded("onHiddenChanged:show")
-            applyPendingExternalQueryFilter("onHiddenChanged:show")
             refreshFeatureEntryStatus()
             SharedSyncScheduler.enqueueFullNow(requireContext())
             startJankMonitor("onHiddenChanged:show")
@@ -278,21 +279,27 @@ class StatsFragment : Fragment() {
         val targetYear = homeState.selectedYear
         val targetMonth = (homeState.selectedMonth - 1).coerceIn(0, 11)
         val globalBook = BookAccountManager.normalizeBookName(BookAccountManager.getSelectedBook(requireContext()))
-        val targetBookFilter = if (globalBook == BookAccountManager.ALL_BOOK) null else globalBook
-        val signature = "$targetYear|$targetMonth|${targetBookFilter.orEmpty()}"
-        val current = viewModel.uiState.value
-        val currentBook = current.selectedBookName?.let { BookAccountManager.normalizeBookName(it) }
-        if (signature == lastHostSyncSignature &&
-            current.year == targetYear &&
-            current.month == targetMonth &&
-            currentBook == targetBookFilter &&
-            current.bills.isNotEmpty()
-        ) {
-            return
+        hostSyncJob?.cancel()
+        hostSyncJob = viewLifecycleOwner.lifecycleScope.launch {
+            val context = requireContext().applicationContext
+            val scope = withContext(Dispatchers.IO) {
+                LedgerViewScopeStore.resolve(context, AppDatabase.getDatabase(context), globalBook)
+            }
+            val targetBookFilter = scope.singleBookName
+            val signature = "$targetYear|$targetMonth|${scope.signature}"
+            val current = viewModel.uiState.value
+            if (
+                signature != lastHostSyncSignature ||
+                current.year != targetYear ||
+                current.month != targetMonth ||
+                current.viewScope?.signature != scope.signature
+            ) {
+                lastHostSyncSignature = signature
+                Log.d(TAG, "syncHostSelectionIfNeeded: reason=$reason, signature=$signature")
+                viewModel.syncHostSelection(targetYear, targetMonth, targetBookFilter, scope)
+            }
+            applyPendingExternalQueryFilter(reason)
         }
-        lastHostSyncSignature = signature
-        Log.d(TAG, "syncHostSelectionIfNeeded: reason=$reason, signature=$signature")
-        viewModel.syncHostSelection(targetYear, targetMonth, targetBookFilter)
     }
 
     private fun syncHomeDateFromStatsIfNeeded(state: StatsUiState) {
@@ -536,7 +543,7 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateOverviewExpandState() {
-        val budgetMode = isStatsBudgetModeEnabled()
+        val budgetMode = isStatsBudgetModeEnabled(viewModel.uiState.value)
         layoutOverviewExtra.visibility =
             if (isOverviewExpanded && !budgetMode) View.VISIBLE else View.GONE
         layoutMemberStatsSection.visibility =
@@ -660,7 +667,7 @@ class StatsFragment : Fragment() {
     }
 
     private fun renderStatsOverview(state: StatsUiState, symbol: String): Boolean {
-        val budgetMode = isStatsBudgetModeEnabled()
+        val budgetMode = isStatsBudgetModeEnabled(state)
         if (budgetMode && !hasAppliedBudgetModeDefaultExpansion) {
             isOverviewExpanded = true
             hasAppliedBudgetModeDefaultExpansion = true
@@ -709,12 +716,9 @@ class StatsFragment : Fragment() {
         val range = budgetStatsYearMonthRange(state) ?: return
         budgetOverviewJob = viewLifecycleOwner.lifecycleScope.launch {
             val (totalBudget, spentAmount) = withContext(Dispatchers.IO) {
-                val globalBook = BookAccountManager.normalizeBookName(
-                    BookAccountManager.getSelectedBook(requireContext())
-                )
-                val budgetBookName = state.selectedBookName ?: globalBook
-                    .takeUnless { it == BookAccountManager.ALL_BOOK }
-                    .orEmpty()
+                val budgetBookName = state.viewScope?.singleBookName
+                    ?: state.selectedBookName
+                    ?: ""
                 val db = AppDatabase.getDatabase(requireContext())
                 val budgets = db.budgetDao().getTotalBudgetsBetween(
                         startYearMonth = range.first,
@@ -733,7 +737,7 @@ class StatsFragment : Fragment() {
                 }
                 budgetTotal to spent
             }
-            if (!isStatsBudgetModeEnabled()) return@launch
+            if (!isStatsBudgetModeEnabled(state)) return@launch
             tvTotalIncome.text = "$symbol${AmountFormatHelper.formatAmount(spentAmount)}"
             if (totalBudget == null) {
                 tvTotalExpense.setText(R.string.budget_not_set_short)
@@ -772,10 +776,13 @@ class StatsFragment : Fragment() {
         }
     }
 
-    private fun isStatsBudgetModeEnabled(): Boolean = Prefs.isStatsBudgetModeEnabled(
-        requireContext(),
-        BookAccountManager.getSelectedBook(requireContext())
-    )
+    private fun isStatsBudgetModeEnabled(state: StatsUiState = viewModel.uiState.value): Boolean {
+        if (state.viewScope?.supportsBudgetSummary == false) return false
+        return Prefs.isStatsBudgetModeEnabled(
+            requireContext(),
+            state.viewScope?.legacyBookName ?: BookAccountManager.getSelectedBook(requireContext())
+        )
+    }
 
     private fun budgetStatsYearMonthRange(state: StatsUiState): Pair<String, String>? {
         if (state.forcedStartTime == null && state.forcedEndTime == null) {
@@ -829,7 +836,12 @@ class StatsFragment : Fragment() {
                 val db = AppDatabase.getDatabase(requireContext())
                 val ledger = db.sharedLedgerDao().getByBookName(bookName)
                     ?: return@withContext emptyList<SharedMember>() to null
-                val members = db.sharedMemberDao().getByLedgerId(ledger.id).sortedBy { it.joinOrder }
+                val allMembers = db.sharedMemberDao().getByLedgerId(ledger.id).sortedBy { it.joinOrder }
+                val members = if (state.viewScope?.scope?.members == LedgerMemberScope.MINE) {
+                    allMembers.filter { it.isLocal }
+                } else {
+                    allMembers
+                }
                 val budget = if (supportsMonthlyBudget) {
                     db.budgetDao().getTotalBudget(requireNotNull(budgetYearMonth), bookName)?.takeIf {
                         state.selectedCurrency == null || state.selectedCurrency == it.currency
@@ -924,7 +936,8 @@ class StatsFragment : Fragment() {
             ?.let { BookAccountManager.normalizeBookName(it) }
             .orEmpty()
         val daoBookName = if (normalizedBook == BookAccountManager.ALL_BOOK) "" else normalizedBook
-        val key = "$yearMonth|$daoBookName"
+        val supportsBudgetSummary = state.viewScope?.supportsBudgetSummary != false
+        val key = "$yearMonth|$daoBookName|${state.viewScope?.signature.orEmpty()}"
         if (key == lastFeatureEntryStatusKey) return
         lastFeatureEntryStatusKey = key
         featureEntryStatusJob?.cancel()
@@ -932,19 +945,32 @@ class StatsFragment : Fragment() {
             val status = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(requireContext().applicationContext)
                 val budgetService = BudgetService(db.budgetDao(), db.billDao(), db.categoryDao())
-                val budgets = budgetService.getMonthBudgetsWithProgress(daoBookName, yearMonth)
+                val budgets = if (supportsBudgetSummary) {
+                    budgetService.getMonthBudgetsWithProgress(daoBookName, yearMonth)
+                } else {
+                    emptyList()
+                }
                 val budgetProgress = budgets
                     .filter { it.budget.categoryId != null && it.progress.status == BudgetService.BudgetStatus.EXCEEDED }
                     .maxByOrNull { -it.progress.remaining }
                     ?: budgets.firstOrNull { it.budget.categoryId == null }
                     ?: budgets.maxByOrNull { it.progress.percent }
 
+                fun isBookInView(bookName: String): Boolean {
+                    val scope = state.viewScope
+                    return if (scope != null) {
+                        scope.isAllBooks || BookAccountManager.normalizeBookName(bookName) in scope.selectedBookNames
+                    } else {
+                        daoBookName.isBlank() || BookAccountManager.normalizeBookName(bookName) == daoBookName
+                    }
+                }
+
                 val pendingCount = db.recurringPatternDao()
                     .getByStatus(RecurringStatus.SUGGESTED)
-                    .count { daoBookName.isBlank() || it.bookName == daoBookName }
+                    .count { isBookInView(it.bookName) }
                 val confirmed = db.recurringPatternDao()
                     .getByStatus(RecurringStatus.CONFIRMED)
-                    .filter { daoBookName.isBlank() || it.bookName == daoBookName }
+                    .filter { isBookInView(it.bookName) }
                 val now = System.currentTimeMillis()
                 val dueSoonAt = now + 3L * 24L * 3600_000L
                 val dueSoonCount = confirmed.count { pattern ->
@@ -952,7 +978,9 @@ class StatsFragment : Fragment() {
                     expectedAt in now..dueSoonAt
                 }
 
-                val budgetText = budgetProgress?.let {
+                val budgetText = if (!supportsBudgetSummary) {
+                    "当前查看范围不汇总预算"
+                } else budgetProgress?.let {
                     val progress = it.progress
                     when {
                         progress.status == BudgetService.BudgetStatus.EXCEEDED && it.budget.categoryId != null ->
@@ -1154,6 +1182,7 @@ class StatsFragment : Fragment() {
         acc = (acc xor state.totalTransfer.toRawBits()).times(1099511628211L)
         acc = (acc xor state.totalRepayment.toRawBits()).times(1099511628211L)
         acc = (acc xor state.totalRefund.toRawBits()).times(1099511628211L)
+        acc = (acc xor state.viewScope?.signature.hashCode().toLong()).times(1099511628211L)
         acc = (acc xor categoryStatsFingerprint(state.categoryStatsExpense)).times(1099511628211L)
         acc = (acc xor categoryStatsFingerprint(state.categoryStatsIncome)).times(1099511628211L)
         return acc xor state.bills.size.toLong()
@@ -1339,14 +1368,7 @@ class StatsFragment : Fragment() {
     }
 
     private fun syncBookFromGlobalIfNeeded() {
-        val globalBook = BookAccountManager.normalizeBookName(BookAccountManager.getSelectedBook(requireContext()))
-        val targetBookFilter = if (globalBook == BookAccountManager.ALL_BOOK) null else globalBook
-        val currentBookFilter = viewModel.uiState.value.selectedBookName
-            ?.let { BookAccountManager.normalizeBookName(it) }
-
-        if (currentBookFilter != targetBookFilter) {
-            viewModel.setBookFilter(targetBookFilter)
-        }
+        syncHostSelectionIfNeeded("globalBookChanged")
     }
 
     private fun showUnifiedMonthYearPicker() {
@@ -1374,34 +1396,22 @@ class StatsFragment : Fragment() {
     }
 
     private fun showBookFilterDialog() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val db = AppDatabase.getDatabase(requireContext())
-            val books = db.billDao().getAllBookNames()
-            val mergedBooks = BookAccountManager.getBookAccounts(requireContext().applicationContext, books)
-            val normalizedBooks = mergedBooks
-                .map { BookAccountManager.normalizeBookName(it) }
-                .filter { it.isNotBlank() && it != BookAccountManager.ALL_BOOK }
-                .distinct()
-
-            withContext(Dispatchers.Main) {
-                val options = BookAccountManager.withAllBookOption(
-                    books = normalizedBooks,
-                    defaultBookName = BookAccountManager.getDefaultBook(requireContext(), normalizedBooks)
-                )
-                val currentSelection = viewModel.uiState.value.selectedBookName
-                    ?.let { BookAccountManager.normalizeBookName(it) }
-                    ?.takeIf { it.isNotBlank() && options.contains(it) }
-                    ?: options.firstOrNull().orEmpty()
-
-                OverlayDialogs.showBookPickerDialog(
-                    ctx = requireContext(),
-                    books = options,
-                    currentBook = currentSelection
-                ) { chosen ->
-                    BookAccountManager.setSelectedBook(requireContext(), chosen)
-                    viewModel.setBookFilter(
-                        if (chosen == BookAccountManager.ALL_BOOK) null else chosen
-                    )
+        viewLifecycleOwner.lifecycleScope.launch {
+            val context = requireContext().applicationContext
+            val db = AppDatabase.getDatabase(context)
+            val current = withContext(Dispatchers.IO) {
+                LedgerViewScopeStore.resolve(context, db, BookAccountManager.getSelectedBook(context))
+            }
+            LedgerViewScopeDialog.show(requireContext(), current) { scope ->
+                LedgerViewScopeStore.save(context, scope)
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val resolved = withContext(Dispatchers.IO) {
+                        LedgerViewScopeStore.resolve(context, db, current.legacyBookName)
+                    }
+                    BookAccountManager.setSelectedBook(requireContext(), resolved.legacyBookName)
+                    lastHostSyncSignature = null
+                    viewModel.setViewScope(resolved)
+                    homeViewModel.switchBook(resolved.legacyBookName)
                 }
             }
         }

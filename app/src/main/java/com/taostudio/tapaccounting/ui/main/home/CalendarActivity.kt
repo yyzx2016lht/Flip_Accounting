@@ -52,6 +52,9 @@ import com.taostudio.tapaccounting.ui.activity.EditBillActivity
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 import com.taostudio.tapaccounting.ui.main.YearMonthPickerDialog
+import com.taostudio.tapaccounting.viewscope.LedgerMemberScope
+import com.taostudio.tapaccounting.viewscope.LedgerViewScopeStore
+import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
 import java.text.SimpleDateFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -96,6 +99,8 @@ class CalendarActivity : AppCompatActivity() {
     private var selectedMonth: Int = 12
     private var selectedDay: Int = 1
     private var selectedBookName: String = BookAccountManager.DEFAULT_BOOK
+    private var selectedViewScope: ResolvedLedgerViewScope? = null
+    private var selectedScopeRevision: Long = -1L
 
     private val dfChartKey = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val dfDetailTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -191,10 +196,11 @@ class CalendarActivity : AppCompatActivity() {
         super.onResume()
         val latestBook = BookAccountManager.normalizeBookName(BookAccountManager.getSelectedBook(this))
         val bookChanged = latestBook != selectedBookName
+        val scopeChanged = LedgerViewScopeStore.revision(this) != selectedScopeRevision
         if (bookChanged) {
             selectedBookName = latestBook
         }
-        if (hasResumedOnce || bookChanged) {
+        if (hasResumedOnce || bookChanged || scopeChanged) {
             // 独立详情页编辑/删除后返回时刷新当前月份。
             loadDataForMonth()
         }
@@ -1091,9 +1097,23 @@ class CalendarActivity : AppCompatActivity() {
 
         monthLoadJob?.cancel()
         monthLoadJob = lifecycleScope.launch {
+            val scope = withContext(Dispatchers.IO) {
+                LedgerViewScopeStore.resolve(applicationContext, db, selectedBookName)
+            }
+            selectedViewScope = scope
+            selectedScopeRevision = LedgerViewScopeStore.revision(this@CalendarActivity)
+            selectedBookName = scope.legacyBookName
+            dailyAdapter.setViewContext(
+                contextsByBookName = scope.memberContextsByBookName,
+                showMembers = scope.scope.members == LedgerMemberScope.EVERYONE,
+                showBookNames = false
+            )
+            dailyAdapter.detailSuffixProvider = if (scope.isAggregate) {
+                { bill -> "账本：${BookAccountManager.normalizeBookName(bill.bookName)}" }
+            } else null
             db.billDao().getBillsBetweenTimes(calStart.timeInMillis, calEnd.timeInMillis).collectLatest { bills ->
                 currentMonthBills = bills
-                    .filter { BookAccountManager.isBillInBook(it.bookName, selectedBookName) }
+                    .filter(scope::includes)
                     .sortedByDescending { it.time }
                 processMonthData()
                 updateSelectedDayDetails()

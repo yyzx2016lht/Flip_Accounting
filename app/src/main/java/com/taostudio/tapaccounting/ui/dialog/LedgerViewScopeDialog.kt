@@ -1,0 +1,90 @@
+package com.taostudio.tapaccounting.ui.dialog
+
+import android.content.Context
+import android.view.LayoutInflater
+import android.widget.CheckBox
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.ContextThemeWrapper
+import com.taostudio.tapaccounting.R
+import com.taostudio.tapaccounting.viewscope.LedgerBookSelection
+import com.taostudio.tapaccounting.viewscope.LedgerMemberScope
+import com.taostudio.tapaccounting.viewscope.LedgerViewScope
+import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
+
+object LedgerViewScopeDialog {
+    fun show(
+        context: Context,
+        current: ResolvedLedgerViewScope,
+        onConfirm: (LedgerViewScope) -> Unit
+    ) {
+        val themedContext = ContextThemeWrapper(context, R.style.Theme_TapAccounting)
+        val view = LayoutInflater.from(themedContext)
+            .inflate(R.layout.dialog_ledger_view_scope, null, false)
+        val dialog = AlertDialog.Builder(themedContext).setView(view).create()
+        val booksContainer = view.findViewById<LinearLayout>(R.id.layout_scope_books)
+        val everyoneButton = view.findViewById<RadioButton>(R.id.rb_scope_everyone)
+        val mineButton = view.findViewById<RadioButton>(R.id.rb_scope_mine)
+        val selectedIds = current.selectedBooks.mapTo(linkedSetOf()) { it.id }
+        val checks = current.availableBooks.associateWith { book ->
+            CheckBox(themedContext).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(themedContext, 46)
+                )
+                text = if (book.isShared) "${book.name}  · 共享" else book.name
+                textSize = 14f
+                setTextColor(themedContext.getColor(R.color.dialog_title))
+                isChecked = book.id in selectedIds
+                setPadding(0, 0, 0, 0)
+                booksContainer.addView(this)
+            }
+        }
+
+        if (current.scope.members == LedgerMemberScope.MINE) mineButton.isChecked = true
+        else everyoneButton.isChecked = true
+
+        fun select(bookIds: Set<Long>, memberScope: LedgerMemberScope) {
+            checks.forEach { (book, check) -> check.isChecked = book.id in bookIds }
+            if (memberScope == LedgerMemberScope.MINE) mineButton.isChecked = true
+            else everyoneButton.isChecked = true
+        }
+
+        view.findViewById<android.view.View>(R.id.btn_scope_mine).setOnClickListener {
+            select(current.availableBooks.mapTo(linkedSetOf()) { it.id }, LedgerMemberScope.MINE)
+        }
+        view.findViewById<android.view.View>(R.id.btn_scope_personal).setOnClickListener {
+            val personal = current.availableBooks.filterNot { it.isShared }.mapTo(linkedSetOf()) { it.id }
+            if (personal.isEmpty()) {
+                Toast.makeText(context, "当前没有个人账本", Toast.LENGTH_SHORT).show()
+            } else {
+                select(personal, LedgerMemberScope.MINE)
+            }
+        }
+        view.findViewById<android.view.View>(R.id.btn_scope_all).setOnClickListener {
+            select(current.availableBooks.mapTo(linkedSetOf()) { it.id }, LedgerMemberScope.EVERYONE)
+        }
+        view.findViewById<android.view.View>(R.id.btn_scope_cancel).setOnClickListener { dialog.dismiss() }
+        view.findViewById<android.view.View>(R.id.btn_scope_confirm).setOnClickListener {
+            val chosen = checks.filterValues { it.isChecked }.keys.mapTo(linkedSetOf()) { it.id }
+            if (chosen.isEmpty()) {
+                Toast.makeText(context, "请至少选择一个账本", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val books = if (chosen.size == current.availableBooks.size) {
+                LedgerBookSelection.All
+            } else {
+                LedgerBookSelection.Selected(chosen)
+            }
+            val members = if (mineButton.isChecked) LedgerMemberScope.MINE else LedgerMemberScope.EVERYONE
+            onConfirm(LedgerViewScope(books, members))
+            dialog.dismiss()
+        }
+        OverlayDialogs.showPageCenterDialog(dialog, context, widthRatio = 0.9f)
+    }
+
+    private fun dp(context: Context, value: Int): Int =
+        (value * context.resources.displayMetrics.density).toInt()
+}
