@@ -64,9 +64,16 @@ object LedgerViewScopeStore {
 
         val ledgers = db.sharedLedgerDao().getAll()
         val ledgerByBookId = ledgers.associateBy { it.bookId }
+        val collapsedNames = BookAccountManager.getCollapsedBookAccounts(context, visibleNames)
+            .mapTo(hashSetOf(), BookAccountManager::normalizeBookName)
         val options = visibleNames.map { name ->
             val id = db.bookDao().resolveOrCreateId(name)
-            ViewBookOption(id = id, name = name, isShared = ledgerByBookId.containsKey(id))
+            ViewBookOption(
+                id = id,
+                name = name,
+                isShared = ledgerByBookId.containsKey(id),
+                isCollapsed = name in collapsedNames
+            )
         }
         val availableIds = options.map { it.id }.toSet()
         val requested = read(context) ?: legacyScope(context, db, legacyBookName)

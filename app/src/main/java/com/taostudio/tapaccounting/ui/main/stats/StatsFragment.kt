@@ -959,7 +959,7 @@ class StatsFragment : Fragment() {
                 fun isBookInView(bookName: String): Boolean {
                     val scope = state.viewScope
                     return if (scope != null) {
-                        scope.isAllBooks || BookAccountManager.normalizeBookName(bookName) in scope.selectedBookNames
+                        BookAccountManager.normalizeBookName(bookName) in scope.selectedBookNames
                     } else {
                         daoBookName.isBlank() || BookAccountManager.normalizeBookName(bookName) == daoBookName
                     }

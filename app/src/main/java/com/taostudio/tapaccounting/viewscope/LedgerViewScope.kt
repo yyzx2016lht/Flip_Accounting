@@ -26,7 +26,8 @@ data class LedgerViewScope(
 data class ViewBookOption(
     val id: Long,
     val name: String,
-    val isShared: Boolean
+    val isShared: Boolean,
+    val isCollapsed: Boolean = false
 )
 
 data class SharedBookMemberContext(
@@ -48,8 +49,10 @@ data class ResolvedLedgerViewScope(
         BookAccountManager.normalizeBookName(it.key)
     }
 
+    val activeBooks: List<ViewBookOption> = availableBooks.filterNot { it.isCollapsed }
+
     val selectedBooks: List<ViewBookOption> = when (val selection = scope.books) {
-        LedgerBookSelection.All -> availableBooks
+        LedgerBookSelection.All -> activeBooks
         is LedgerBookSelection.Selected -> availableBooks.filter { it.id in selection.bookIds }
     }
 
@@ -57,10 +60,18 @@ data class ResolvedLedgerViewScope(
         .mapTo(linkedSetOf()) { BookAccountManager.normalizeBookName(it.name) }
 
     val isAllBooks: Boolean = scope.books is LedgerBookSelection.All
+    val hasCollapsedBooks: Boolean = availableBooks.any { it.isCollapsed }
+    val includesCollapsedBooks: Boolean = selectedBooks.any { it.isCollapsed }
+    val coversAllAvailableBooks: Boolean =
+        selectedBooks.map { it.id }.toSet() == availableBooks.map { it.id }.toSet()
     val singleBook: ViewBookOption? = selectedBooks.singleOrNull()
     val singleBookName: String? = singleBook?.name
     val isAggregate: Boolean = isAllBooks || selectedBooks.size > 1
-    val legacyBookName: String = singleBookName ?: BookAccountManager.ALL_BOOK
+    val legacyBookName: String = if (isAllBooks) {
+        BookAccountManager.ALL_BOOK
+    } else {
+        singleBookName ?: BookAccountManager.ALL_BOOK
+    }
 
     val signature: String = buildString {
         append(if (isAllBooks) "all" else "selected")
@@ -73,7 +84,15 @@ data class ResolvedLedgerViewScope(
     val displayLabel: String
         get() {
             if (isAllBooks) {
-                return if (scope.members == LedgerMemberScope.MINE) "我的账单" else BookAccountManager.ALL_BOOK
+                val base = if (scope.members == LedgerMemberScope.MINE) "我的账单" else BookAccountManager.ALL_BOOK
+                return if (hasCollapsedBooks) "$base（不含已收纳）" else base
+            }
+            if (coversAllAvailableBooks && hasCollapsedBooks) {
+                return if (scope.members == LedgerMemberScope.MINE) {
+                    "我的账单（含已收纳）"
+                } else {
+                    "${BookAccountManager.ALL_BOOK}（含已收纳）"
+                }
             }
             singleBook?.let { book ->
                 return if (book.isShared && scope.members == LedgerMemberScope.MINE) {
@@ -83,8 +102,12 @@ data class ResolvedLedgerViewScope(
                 }
             }
             val personalBooks = availableBooks.filterNot { it.isShared }.map { it.id }.toSet()
+            val activePersonalBooks = activeBooks.filterNot { it.isShared }.map { it.id }.toSet()
             val selectedIds = selectedBooks.map { it.id }.toSet()
             if (selectedIds.isNotEmpty() && selectedIds == personalBooks) return "仅个人账本"
+            if (selectedIds.isNotEmpty() && selectedIds == activePersonalBooks && personalBooks != activePersonalBooks) {
+                return "仅个人账本（不含已收纳）"
+            }
             val suffix = if (scope.members == LedgerMemberScope.MINE) "仅我" else "全部成员"
             return "${selectedBooks.size} 个账本 · $suffix"
         }
@@ -93,7 +116,7 @@ data class ResolvedLedgerViewScope(
         get() = when {
             singleBook != null && singleBook?.isShared == false -> true
             scope.members != LedgerMemberScope.EVERYONE -> false
-            else -> isAllBooks || singleBook != null
+            else -> coversAllAvailableBooks || singleBook != null
         }
 
     fun includes(bill: Bill): Boolean {

@@ -103,6 +103,36 @@ class LedgerViewScopeTest {
         )
     }
 
+    @Test
+    fun `all ignores collapsed books until they are explicitly selected`() {
+        val booksWithCollapsed = books + ViewBookOption(
+            id = 4L,
+            name = "旧账本",
+            isShared = false,
+            isCollapsed = true
+        )
+        val defaultScope = ResolvedLedgerViewScope(
+            LedgerViewScope(LedgerBookSelection.All, LedgerMemberScope.EVERYONE),
+            booksWithCollapsed,
+            members
+        )
+        val expandedSelection = ResolvedLedgerViewScope(
+            LedgerViewScope(
+                LedgerBookSelection.Selected(booksWithCollapsed.mapTo(linkedSetOf()) { it.id }),
+                LedgerMemberScope.EVERYONE
+            ),
+            booksWithCollapsed,
+            members
+        )
+
+        assertFalse(defaultScope.includes(bill("旧账本")))
+        assertEquals("全部账本（不含已收纳）", defaultScope.displayLabel)
+        assertFalse(defaultScope.supportsBudgetSummary)
+        assertTrue(expandedSelection.includes(bill("旧账本")))
+        assertEquals("全部账本（含已收纳）", expandedSelection.displayLabel)
+        assertTrue(expandedSelection.supportsBudgetSummary)
+    }
+
     private fun resolved(
         booksSelection: LedgerBookSelection,
         memberScope: LedgerMemberScope
