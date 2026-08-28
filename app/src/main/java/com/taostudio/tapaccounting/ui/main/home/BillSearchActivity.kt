@@ -3,18 +3,13 @@ package com.taostudio.tapaccounting.ui.main.home
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.LayoutInflater
 import android.view.inputmethod.InputMethodManager
 import android.view.View
 import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.view.ContextThemeWrapper
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -28,11 +23,11 @@ import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
-import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
+import com.taostudio.tapaccounting.logic.BillMoveTargetResolver
+import com.taostudio.tapaccounting.ui.dialog.BillMoveDialog
 import com.taostudio.tapaccounting.viewscope.LedgerMemberScope
 import com.taostudio.tapaccounting.viewscope.LedgerViewScopeStore
 import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
-import kotlin.math.min
 import java.util.Locale
 
 class BillSearchActivity : AppCompatActivity() {
@@ -175,73 +170,40 @@ class BillSearchActivity : AppCompatActivity() {
     }
 
     private fun showMoveToBookDialog(bills: List<Bill>) {
-        val themeCtx = ContextThemeWrapper(this, R.style.Theme_TapAccounting)
-        val panel = LayoutInflater.from(this)
-            .inflate(R.layout.dialog_book_delete_options, null, false)
-        val dialog = AlertDialog.Builder(themeCtx)
-            .setView(panel)
-            .create()
-        panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "移动到账本"
-        panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = "选择目标账本"
-
-        val optionsScroll = panel.findViewById<ScrollView>(R.id.scroll_delete_book_options)
-        val optionsContainer = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
-        val availableBookNames = allBills
-            .map { BookAccountManager.normalizeBookName(it.bookName) }
-            .ifEmpty { listOf(BookAccountManager.normalizeBookName(sourceBookName)) }
-            .distinct()
-            .sorted()
-
-        availableBookNames.forEach { targetBook ->
-            val item = LayoutInflater.from(this)
-                .inflate(R.layout.item_book_delete_option, optionsContainer, false)
-            item.findViewById<TextView>(R.id.tv_delete_option_title).text = targetBook
-            item.findViewById<TextView>(R.id.tv_delete_option_desc).text = "将所选账单迁移到该账本"
-            item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
-            item.setOnClickListener {
-                val normalized = BookAccountManager.normalizeBookName(targetBook)
-                if (bills.all { BookAccountManager.normalizeBookName(it.bookName) == normalized }) {
-                    Toast.makeText(this, "账单已在「$targetBook」中，无需转移", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                dialog.dismiss()
-                lifecycleScope.launch(Dispatchers.IO) {
-                    runCatching {
-                        com.taostudio.tapaccounting.data.sync.SharedMutationHooks.moveBills(db, bills, targetBook)
-                    }.onFailure { error ->
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@BillSearchActivity, error.message ?: "移动失败", Toast.LENGTH_LONG).show()
-                        }
-                        return@launch
-                    }
+        val scope = viewScope
+        if (scope == null) {
+            Toast.makeText(this, "账本列表尚未加载，请稍后重试", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val targets = BillMoveTargetResolver.resolve(
+            viewScope = scope,
+            selectedBillBookNames = bills.map { it.bookName }
+        )
+        BillMoveDialog.show(
+            activity = this,
+            bills = bills,
+            targets = targets
+        ) { targetBook ->
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching {
+                    com.taostudio.tapaccounting.data.sync.SharedMutationHooks.moveBills(db, bills, targetBook)
+                }.onFailure { error ->
                     withContext(Dispatchers.Main) {
-                        adapter.clearSelection()
-                        loadAllBills()
-                        Toast.makeText(
-                            this@BillSearchActivity,
-                            "已将 ${bills.size} 条账单移动到「$targetBook」",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(this@BillSearchActivity, error.message ?: "移动失败", Toast.LENGTH_LONG).show()
                     }
+                    return@launch
+                }
+                withContext(Dispatchers.Main) {
+                    adapter.clearSelection()
+                    loadAllBills()
+                    Toast.makeText(
+                        this@BillSearchActivity,
+                        "已将 ${bills.size} 条账单移动到「$targetBook」",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
-            optionsContainer.addView(item)
         }
-
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
-        val estimatedItemHeight = ((66 + 10) * resources.displayMetrics.density).toInt()
-        val estimatedContentHeight = (availableBookNames.size * estimatedItemHeight).coerceAtLeast(1)
-        optionsScroll.layoutParams = optionsScroll.layoutParams.apply {
-            height = min(maxHeight, estimatedContentHeight)
-        }
-        panel.findViewById<TextView>(R.id.btn_delete_book_cancel).setOnClickListener { dialog.dismiss() }
-        OverlayDialogs.showPageCenterDialog(
-            dialog = dialog,
-            ctx = this,
-            widthRatio = 0.92f,
-            cancelOnTouchOutside = true,
-            useSolidPanelBackground = false
-        )
     }
 
     private fun loadAllBills() {
