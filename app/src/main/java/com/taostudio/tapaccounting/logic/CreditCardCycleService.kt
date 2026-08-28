@@ -54,15 +54,22 @@ class CreditCardCycleService {
         val billedBills = relatedBills.filter { it.time in statementStart..statementEnd }
         val billedSpend = billedBills
             .filter { it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND }
-            .sumOf { it.amount }
+            .sumOf { AssetBillBalanceHistory.amountAtTransactionTime(it) }
         val billedRefund = billedBills
             .filter { it.subType == Bill.SUBTYPE_REFUND }
             .sumOf { it.amount }
 
         // 未出账消费（本次账单日之后到今天）
         val unbilledSpend = relatedBills
-            .filter { it.time > statementEnd && it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND }
-            .sumOf { it.amount }
+            .filter { it.time > statementEnd }
+            .sumOf { bill ->
+                when {
+                    bill.subType == Bill.SUBTYPE_REFUND -> -bill.amount
+                    bill.type == Bill.TYPE_EXPENSE -> AssetBillBalanceHistory.amountAtTransactionTime(bill)
+                    else -> 0.0
+                }
+            }
+            .coerceAtLeast(0.0)
 
         // 还款（本期出账后到现在）。出账后还款才会抵扣本期待还。
         val paymentsInCycle = relatedBills
@@ -181,7 +188,7 @@ class CreditCardCycleService {
     private fun calculateBilledOutstanding(relatedBills: List<Bill>, statementEnd: Long, now: Long): Double {
         val billedSpend = relatedBills
             .filter { it.time <= statementEnd && it.type == Bill.TYPE_EXPENSE && it.subType != Bill.SUBTYPE_REFUND }
-            .sumOf { it.amount }
+            .sumOf { AssetBillBalanceHistory.amountAtTransactionTime(it) }
         val billedRefund = relatedBills
             .filter { it.time <= statementEnd && it.subType == Bill.SUBTYPE_REFUND }
             .sumOf { it.amount }

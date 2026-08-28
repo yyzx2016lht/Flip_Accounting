@@ -35,6 +35,29 @@ class CreditCardCycleServiceTest {
     }
 
     @Test
+    fun calculateSnapshot_doesNotSubtractCanonicalRefundTwice() {
+        val asset = creditCard(balance = -900.0, creditLimit = 5000.0)
+        val now = millis(2026, 7, 20, 12)
+
+        val snapshot = service.calculateSnapshot(
+            asset = asset,
+            bills = listOf(
+                expense(
+                    id = 1L,
+                    amount = 900.0,
+                    originalAmount = 1000.0,
+                    time = millis(2026, 6, 15, 10)
+                ),
+                refund(id = 2L, amount = 100.0, time = millis(2026, 6, 20, 10))
+            ),
+            now = now
+        )!!
+
+        assertEquals(900.0, snapshot.billedSpend, 0.0001)
+        assertEquals(900.0, snapshot.amountDue, 0.0001)
+    }
+
+    @Test
     fun calculateSnapshot_doesNotRollUnpaidStatementToNextDueDateAfterDueDate() {
         val asset = creditCard(balance = -1000.0, creditLimit = 5000.0)
 
@@ -130,10 +153,11 @@ class CreditCardCycleServiceTest {
         dueDay = dueDay
     )
 
-    private fun expense(id: Long, amount: Double, time: Long) = Bill(
+    private fun expense(id: Long, amount: Double, time: Long, originalAmount: Double = amount) = Bill(
         id = id,
         type = Bill.TYPE_EXPENSE,
         amount = amount,
+        originalAmount = originalAmount,
         time = time,
         accountId = 1L,
         accountName = "招行信用卡"

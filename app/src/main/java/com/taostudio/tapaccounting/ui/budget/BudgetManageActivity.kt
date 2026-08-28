@@ -4,6 +4,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -15,6 +16,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -26,11 +29,16 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Budget
+import com.taostudio.tapaccounting.data.local.entity.SharedMember
 import com.taostudio.tapaccounting.data.repository.CategoryRepository
 import com.taostudio.tapaccounting.data.sync.SharedBudgetHooks
+import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
 import com.taostudio.tapaccounting.logic.BudgetService
 import com.taostudio.tapaccounting.logic.BudgetCategoryOptions
+import com.taostudio.tapaccounting.logic.MemberBudgetAllocation
+import com.taostudio.tapaccounting.logic.SharedBudgetDisplayDefaultPolicy
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -86,12 +94,19 @@ class BudgetManageActivity : AppCompatActivity() {
         val btnAdd = findViewById<View>(R.id.btn_add_budget)
         val rowHomeBudgetSummary = findViewById<View>(R.id.row_home_budget_summary)
         val switchHomeBudgetSummary = findViewById<SwitchMaterial>(R.id.switch_home_budget_summary)
+        val rowStatsBudgetMode = findViewById<View>(R.id.row_stats_budget_mode)
+        val switchStatsBudgetMode = findViewById<SwitchMaterial>(R.id.switch_stats_budget_mode)
 
         switchHomeBudgetSummary.isChecked = Prefs.isHomeBudgetSummaryEnabled(this, preferenceBook)
         switchHomeBudgetSummary.setOnCheckedChangeListener { _, enabled ->
             Prefs.setHomeBudgetSummaryEnabled(this, preferenceBook, enabled)
         }
         rowHomeBudgetSummary.setOnClickListener { switchHomeBudgetSummary.performClick() }
+        switchStatsBudgetMode.isChecked = Prefs.isStatsBudgetModeEnabled(this, preferenceBook)
+        switchStatsBudgetMode.setOnCheckedChangeListener { _, enabled ->
+            Prefs.setStatsBudgetModeEnabled(this, preferenceBook, enabled)
+        }
+        rowStatsBudgetMode.setOnClickListener { switchStatsBudgetMode.performClick() }
 
         adapter = BudgetAdapter(
             onItemClick = { budget -> showEditDialog(budget) },
@@ -101,6 +116,46 @@ class BudgetManageActivity : AppCompatActivity() {
 
         btnAdd.setOnClickListener { showAddBudgetDialog() }
         loadBudgets()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                db.budgetDao().observeBudgetsByMonthAndBook(yearMonth, currentBook).collectLatest {
+                    val (isSharedLedger, hasBudget) = withContext(Dispatchers.IO) {
+                        if (currentBook.isBlank()) {
+                            false to false
+                        } else {
+                            db.sharedLedgerDao().getByBookName(currentBook)?.let { ledger ->
+                                true to db.budgetDao().getAllByBookId(ledger.bookId).isNotEmpty()
+                            } ?: (false to false)
+                        }
+                    }
+                    if (SharedBudgetDisplayDefaultPolicy.shouldEnable(
+                            isSharedLedger = isSharedLedger,
+                            hasBudget = hasBudget,
+                            hasExplicitPreference = Prefs.hasHomeBudgetSummaryPreference(
+                                this@BudgetManageActivity,
+                                preferenceBook
+                            )
+                        )
+                    ) {
+                        Prefs.setHomeBudgetSummaryEnabled(this@BudgetManageActivity, preferenceBook, true)
+                        switchHomeBudgetSummary.isChecked = true
+                    }
+                    if (SharedBudgetDisplayDefaultPolicy.shouldEnable(
+                            isSharedLedger = isSharedLedger,
+                            hasBudget = hasBudget,
+                            hasExplicitPreference = Prefs.hasStatsBudgetModePreference(
+                                this@BudgetManageActivity,
+                                preferenceBook
+                            )
+                        )
+                    ) {
+                        Prefs.setStatsBudgetModeEnabled(this@BudgetManageActivity, preferenceBook, true)
+                        switchStatsBudgetMode.isChecked = true
+                    }
+                    loadBudgets()
+                }
+            }
+        }
 
         btnSuggest.setOnClickListener {
             showBudgetSuggestions()
@@ -142,6 +197,11 @@ class BudgetManageActivity : AppCompatActivity() {
         btnAiBudget.setOnClickListener {
             analyzeBudgetWithAi()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SharedSyncScheduler.enqueueFullNow(this)
     }
 
     private fun loadBudgets() {
@@ -501,9 +561,10 @@ ${suggestionLines.ifBlank { "无" }}
         preselectCategoryId: Long? = null
     ) {
         lifecycleScope.launch {
-            val categories = withContext(Dispatchers.IO) {
-                CategoryRepository(AppDatabase.getDatabase(this@BudgetManageActivity).categoryDao())
-                    .getCategoriesListByType(0)
+            val (categories, sharedMembers) = withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(this@BudgetManageActivity)
+                val categories = CategoryRepository(db.categoryDao()).getCategoriesListByType(0)
+                categories to loadSharedBudgetMembers(db)
             }
             val options = BudgetCategoryOptions.build(
                 totalBudgetLabel = getString(R.string.budget_monthly_total),
@@ -534,6 +595,22 @@ ${suggestionLines.ifBlank { "无" }}
                     Toast.LENGTH_SHORT
                 ).show()
             }
+            setupMemberBudgetSplit(dialogView, sharedMembers, existingAllocations = null)
+            fun updateSplitVisibility() {
+                val selected = options.getOrNull(spinner.selectedItemPosition)
+                dialogView.findViewById<View>(R.id.layout_member_budget_split).visibility =
+                    if (sharedMembers.size == 2 && selected?.categoryId == null) View.VISIBLE else View.GONE
+            }
+            spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    updateSplitVisibility()
+                }
+
+                override fun onNothingSelected(parent: AdapterView<*>?) {
+                    updateSplitVisibility()
+                }
+            }
+            updateSplitVisibility()
 
             val dialog = BottomSheetDialog(this@BudgetManageActivity)
             dialog.setContentView(dialogView)
@@ -550,6 +627,17 @@ ${suggestionLines.ifBlank { "无" }}
                     val selectedOption = options.getOrElse(selectedIndex) { options.first() }
                     val categoryId = selectedOption.categoryId
                     val categoryName = selectedOption.label.takeIf { categoryId != null }
+                    val memberAllocations = try {
+                        if (categoryId == null) readMemberBudgetAllocations(dialogView, sharedMembers, amount) else null
+                    } catch (_: IllegalArgumentException) {
+                        Toast.makeText(
+                            this@BudgetManageActivity,
+                            getString(R.string.budget_member_split_invalid),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        saveButton.isEnabled = true
+                        return@setOnClickListener
+                    }
                     lifecycleScope.launch {
                         try {
                             withContext(Dispatchers.IO) {
@@ -564,7 +652,8 @@ ${suggestionLines.ifBlank { "无" }}
                                         yearMonth = yearMonth,
                                         amount = amount,
                                         createdAt = now,
-                                        updatedAt = now
+                                        updatedAt = now,
+                                        memberBudgetAllocations = memberAllocations
                                     )
                                 )
                             }
@@ -586,51 +675,123 @@ ${suggestionLines.ifBlank { "无" }}
     }
 
     private fun showEditDialog(budget: Budget) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_budget, null)
-        val spinner = dialogView.findViewById<Spinner>(R.id.spinner_budget_category)
-        val etAmount = dialogView.findViewById<EditText>(R.id.et_budget_amount)
-        val label = budget.categoryName ?: getString(R.string.budget_monthly_total)
-        dialogView.findViewById<TextView>(R.id.tv_budget_dialog_title).text = getString(R.string.budget_edit)
-        etAmount.setText(String.format(Locale.getDefault(), "%.0f", budget.amount))
-        spinner.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            listOf(label)
-        )
-        spinner.isEnabled = false
-
-        val dialog = BottomSheetDialog(this)
-        dialog.setContentView(dialogView)
-        dialogView.findViewById<View>(R.id.btn_budget_cancel).setOnClickListener { dialog.dismiss() }
-        val saveButton = dialogView.findViewById<View>(R.id.btn_budget_save)
-        saveButton.setOnClickListener {
-            val newAmount = etAmount.text.toString().toDoubleOrNull()
-            if (newAmount == null || newAmount <= 0) {
-                Toast.makeText(this, getString(R.string.budget_amount_invalid), Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+        lifecycleScope.launch {
+            val sharedMembers = withContext(Dispatchers.IO) {
+                loadSharedBudgetMembers(AppDatabase.getDatabase(this@BudgetManageActivity))
             }
-            saveButton.isEnabled = false
-            lifecycleScope.launch {
-                try {
-                    withContext(Dispatchers.IO) {
-                        val db = AppDatabase.getDatabase(this@BudgetManageActivity)
-                        SharedBudgetHooks.save(db, budget.copy(amount = newAmount, updatedAt = System.currentTimeMillis()))
-                    }
-                    loadBudgets()
-                    dialog.dismiss()
-                } catch (_: Exception) {
+            val dialogView = layoutInflater.inflate(R.layout.dialog_add_budget, null)
+            val spinner = dialogView.findViewById<Spinner>(R.id.spinner_budget_category)
+            val etAmount = dialogView.findViewById<EditText>(R.id.et_budget_amount)
+            val label = budget.categoryName ?: getString(R.string.budget_monthly_total)
+            dialogView.findViewById<TextView>(R.id.tv_budget_dialog_title).text = getString(R.string.budget_edit)
+            etAmount.setText(editableAmount(budget.amount))
+            spinner.adapter = ArrayAdapter(
+                this@BudgetManageActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                listOf(label)
+            )
+            spinner.isEnabled = false
+            setupMemberBudgetSplit(dialogView, sharedMembers, budget.memberBudgetAllocations)
+            dialogView.findViewById<View>(R.id.layout_member_budget_split).visibility =
+                if (budget.categoryId == null && sharedMembers.size == 2) View.VISIBLE else View.GONE
+
+            val dialog = BottomSheetDialog(this@BudgetManageActivity)
+            dialog.setContentView(dialogView)
+            dialogView.findViewById<View>(R.id.btn_budget_cancel).setOnClickListener { dialog.dismiss() }
+            val saveButton = dialogView.findViewById<View>(R.id.btn_budget_save)
+            saveButton.setOnClickListener {
+                val newAmount = etAmount.text.toString().toDoubleOrNull()
+                if (newAmount == null || newAmount <= 0) {
+                    Toast.makeText(this@BudgetManageActivity, getString(R.string.budget_amount_invalid), Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val memberAllocations = try {
+                    if (budget.categoryId == null) readMemberBudgetAllocations(dialogView, sharedMembers, newAmount)
+                    else null
+                } catch (_: IllegalArgumentException) {
                     Toast.makeText(
                         this@BudgetManageActivity,
-                        getString(R.string.save_failed),
+                        getString(R.string.budget_member_split_invalid),
                         Toast.LENGTH_SHORT
                     ).show()
-                } finally {
-                    if (dialog.isShowing) saveButton.isEnabled = true
+                    return@setOnClickListener
+                }
+                saveButton.isEnabled = false
+                lifecycleScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            val db = AppDatabase.getDatabase(this@BudgetManageActivity)
+                            SharedBudgetHooks.save(db, budget.copy(
+                                amount = newAmount,
+                                updatedAt = System.currentTimeMillis(),
+                                memberBudgetAllocations = memberAllocations
+                            ))
+                        }
+                        loadBudgets()
+                        dialog.dismiss()
+                    } catch (_: Exception) {
+                        Toast.makeText(
+                            this@BudgetManageActivity,
+                            getString(R.string.save_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } finally {
+                        if (dialog.isShowing) saveButton.isEnabled = true
+                    }
                 }
             }
+            dialog.show()
         }
-        dialog.show()
     }
+
+    private suspend fun loadSharedBudgetMembers(db: AppDatabase): List<SharedMember> {
+        if (currentBook.isBlank()) return emptyList()
+        val ledger = db.sharedLedgerDao().getByBookName(currentBook) ?: return emptyList()
+        return db.sharedMemberDao().getByLedgerId(ledger.id).sortedBy { it.joinOrder }.take(2)
+    }
+
+    private fun setupMemberBudgetSplit(
+        dialogView: View,
+        members: List<SharedMember>,
+        existingAllocations: String?
+    ) {
+        if (members.size != 2) return
+        val allocations = MemberBudgetAllocation.decode(existingAllocations)
+        dialogView.findViewById<TextView>(R.id.tv_budget_member_first).text = members[0].resolvedName()
+        dialogView.findViewById<TextView>(R.id.tv_budget_member_second).text = members[1].resolvedName()
+        allocations[members[0].memberId]?.let {
+            dialogView.findViewById<EditText>(R.id.et_budget_member_first).setText(editableAmount(it))
+        }
+        allocations[members[1].memberId]?.let {
+            dialogView.findViewById<EditText>(R.id.et_budget_member_second).setText(editableAmount(it))
+        }
+    }
+
+    private fun readMemberBudgetAllocations(
+        dialogView: View,
+        members: List<SharedMember>,
+        totalBudget: Double
+    ): String? {
+        if (members.size != 2) return null
+        fun amount(id: Int): Double? {
+            val raw = dialogView.findViewById<EditText>(id).text.toString().trim()
+            if (raw.isEmpty()) return null
+            return raw.toDoubleOrNull() ?: throw IllegalArgumentException("invalid member budget")
+        }
+        return MemberBudgetAllocation.encode(
+            MemberBudgetAllocation.complete(
+                totalBudget = totalBudget,
+                firstMemberId = members[0].memberId,
+                firstAmount = amount(R.id.et_budget_member_first),
+                secondMemberId = members[1].memberId,
+                secondAmount = amount(R.id.et_budget_member_second)
+            )
+        )
+    }
+
+    private fun editableAmount(amount: Double): String =
+        if (amount % 1.0 == 0.0) String.format(Locale.US, "%.0f", amount)
+        else String.format(Locale.US, "%.2f", amount)
 
     private fun showDeleteDialog(budget: Budget) {
         AlertDialog.Builder(ContextThemeWrapper(this, R.style.Theme_TapAccounting))

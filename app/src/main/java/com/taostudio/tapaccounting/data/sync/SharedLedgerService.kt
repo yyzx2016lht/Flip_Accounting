@@ -155,7 +155,8 @@ class SharedLedgerService(private val context: Context, private val db: AppDatab
             val entityId = old.sharedId ?: UUID.nameUUIDFromBytes("$ledgerUuid|${old.yearMonth}|$slot".toByteArray()).toString()
             val budget = old.copy(sharedId = entityId, revision = 1, isShared = true, sharedDeviceId = DeviceIdManager.getDeviceId(context))
             db.budgetDao().update(budget)
-            enqueue(ledgerId, ledgerUuid, "budget", entityId, "create", 1, memberId, gson.toJsonTree(budget).asJsonObject)
+            Prefs.enableSharedBudgetDisplayDefaultsIfUnset(context, bookName)
+            enqueue(ledgerId, ledgerUuid, "budget", entityId, "create", 1, memberId, SharedBudgetPayloadCodec.encode(budget))
         }
     }
 

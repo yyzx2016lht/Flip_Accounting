@@ -238,7 +238,7 @@ object BillMutationService {
                 categoryId = latestOriginal.categoryId,
                 categoryName = "$REFUND_CATEGORY_PREFIX$sourceCategory",
                 currency = latestOriginal.currency,
-                exchangeRate = 1.0,
+                exchangeRate = latestOriginal.exchangeRate,
                 relatedBillId = latestOriginal.id,
                 bookName = latestOriginal.bookName,
                 originalAmount = refundBill.amount
@@ -279,22 +279,41 @@ object BillMutationService {
     }
 
     suspend fun resolveRefundSourceBill(db: AppDatabase, refundBill: Bill): Bill? {
-        refundBill.relatedBillId?.let { id ->
-            db.billDao().getBillById(id)?.let { return it }
+        return db.withTransaction {
+            refundBill.relatedBillId?.let { id ->
+                db.billDao().getBillById(id)?.let { return@withTransaction it }
+            }
+            if (refundBill.subType != Bill.SUBTYPE_REFUND) return@withTransaction null
+            val sourceCategory = stripRefundPrefix(refundBill.categoryName).ifBlank {
+                return@withTransaction null
+            }
+            val source = db.billDao().findLikelyRefundSourceBill(
+                bookName = refundBill.bookName,
+                categoryName = sourceCategory,
+                refundAmount = refundBill.amount,
+                refundAccountName = refundBill.accountName,
+                refundTime = refundBill.time
+            ) ?: return@withTransaction null
+            if (refundBill.id > 0L && refundBill.relatedBillId == null) {
+                val linkedRefundTotal = db.billDao().getRefundTotalBySourceId(source.id)
+                val baseOriginal = baseOriginalAmount(source)
+                val reconciledAmount = RefundReconciliationPolicy.actualExpenseAfterLink(
+                    sourceAmount = source.amount,
+                    sourceOriginalAmount = baseOriginal,
+                    alreadyLinkedRefundTotal = linkedRefundTotal,
+                    refundAmount = refundBill.amount
+                )
+                if (kotlin.math.abs(reconciledAmount - source.amount) > 1e-9) {
+                    db.billDao().updateBill(source.copy(amount = reconciledAmount, originalAmount = baseOriginal))
+                }
+                db.billDao().updateBill(refundBill.copy(
+                    relatedBillId = source.id,
+                    relatedSharedId = source.sharedId
+                ))
+                return@withTransaction source.copy(amount = reconciledAmount, originalAmount = baseOriginal)
+            }
+            source
         }
-        if (refundBill.subType != Bill.SUBTYPE_REFUND) return null
-        val sourceCategory = stripRefundPrefix(refundBill.categoryName).ifBlank { return null }
-        val source = db.billDao().findLikelyRefundSourceBill(
-            bookName = refundBill.bookName,
-            categoryName = sourceCategory,
-            refundAmount = refundBill.amount,
-            refundAccountName = refundBill.accountName,
-            refundTime = refundBill.time
-        ) ?: return null
-        if (refundBill.id > 0L && refundBill.relatedBillId == null) {
-            db.billDao().updateBill(refundBill.copy(relatedBillId = source.id))
-        }
-        return source
     }
 
     suspend fun setExcludeFromStats(db: AppDatabase, bill: Bill, exclude: Boolean) {

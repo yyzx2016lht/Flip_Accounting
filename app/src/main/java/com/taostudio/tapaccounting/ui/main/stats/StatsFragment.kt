@@ -43,6 +43,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.taostudio.tapaccounting.AmountFormatHelper
@@ -52,7 +53,10 @@ import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.RecurringStatus
+import com.taostudio.tapaccounting.data.local.entity.SharedMember
+import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
 import com.taostudio.tapaccounting.logic.BudgetService
+import com.taostudio.tapaccounting.logic.MemberBudgetAllocation
 import com.taostudio.tapaccounting.ui.main.home.InsightCardAdapter
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.ui.common.UiMotion
@@ -104,6 +108,8 @@ class StatsFragment : Fragment() {
     private lateinit var tvTotalIncome: TextView
     private lateinit var tvBalance: TextView
     private lateinit var tvDailyAvg: TextView
+    private lateinit var tvTotalExpenseLabel: TextView
+    private lateinit var tvTotalIncomeLabel: TextView
     private lateinit var tvTotalTransfer: TextView
     private lateinit var tvTotalRepayment: TextView
     private lateinit var tvTotalRefund: TextView
@@ -122,6 +128,9 @@ class StatsFragment : Fragment() {
     private lateinit var rowRepayment: View
     private lateinit var rowRefund: View
     private lateinit var layoutOverviewExtra: View
+    private lateinit var layoutCategoryTypeSwitcher: View
+    private lateinit var tvCategoryReportTitle: TextView
+    private lateinit var rowRecurringEntry: View
     private lateinit var layoutMemberStatsSection: View
     private lateinit var layoutMemberStats: LinearLayout
     private lateinit var ivOverviewExpand: View
@@ -137,6 +146,7 @@ class StatsFragment : Fragment() {
     private var modeSwitcherRevealProgress: Float = 1f
 
     private var isOverviewExpanded = false
+    private var hasAppliedBudgetModeDefaultExpansion = false
     private var hasSharedMembers = false
     private var lastModeIsMonth: Boolean? = null
     private var lastDateLabel: String? = null
@@ -146,6 +156,8 @@ class StatsFragment : Fragment() {
     private var lastChartRenderKey: Long? = null
     private var chartRenderJob: Job? = null
     private var featureEntryStatusJob: Job? = null
+    private var memberStatsJob: Job? = null
+    private var budgetOverviewJob: Job? = null
     private var lastFeatureEntryStatusKey: String? = null
     private var hasPlayedEnterAnimation = false
     private var lastModeSwitchAnimAt = 0L
@@ -194,6 +206,14 @@ class StatsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         syncHostSelectionIfNeeded("onViewCreated")
         applyPendingExternalQueryFilter("onViewCreated")
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AppDatabase.getDatabase(requireContext().applicationContext)
+                    .budgetDao()
+                    .observeAll()
+                    .collectLatest { updateUI(viewModel.uiState.value) }
+            }
+        }
     }
 
     override fun onResume() {
@@ -201,6 +221,9 @@ class StatsFragment : Fragment() {
         syncHostSelectionIfNeeded("onResume")
         applyPendingExternalQueryFilter("onResume")
         refreshFeatureEntryStatus()
+        if (!isHidden) SharedSyncScheduler.enqueueFullNow(requireContext())
+        val state = viewModel.uiState.value
+        updateUI(state)
         playEnterAnimationIfNeeded()
         startJankMonitor("onResume")
     }
@@ -221,6 +244,7 @@ class StatsFragment : Fragment() {
             syncHostSelectionIfNeeded("onHiddenChanged:show")
             applyPendingExternalQueryFilter("onHiddenChanged:show")
             refreshFeatureEntryStatus()
+            SharedSyncScheduler.enqueueFullNow(requireContext())
             startJankMonitor("onHiddenChanged:show")
         } else {
             stopJankMonitor("onHiddenChanged:hidden")
@@ -308,6 +332,8 @@ class StatsFragment : Fragment() {
         tvTotalIncome = root.findViewById(R.id.tv_total_income)
         tvBalance = root.findViewById(R.id.tv_balance)
         tvDailyAvg = root.findViewById(R.id.tv_daily_avg)
+        tvTotalExpenseLabel = root.findViewById(R.id.tv_total_expense_label)
+        tvTotalIncomeLabel = root.findViewById(R.id.tv_total_income_label)
         tvTotalTransfer = root.findViewById(R.id.tv_total_transfer)
         tvTotalRepayment = root.findViewById(R.id.tv_total_repayment)
         tvTotalRefund = root.findViewById(R.id.tv_total_refund)
@@ -326,6 +352,9 @@ class StatsFragment : Fragment() {
         rowRepayment = root.findViewById(R.id.row_total_repayment)
         rowRefund = root.findViewById(R.id.row_total_refund)
         layoutOverviewExtra = root.findViewById(R.id.layout_overview_extra)
+        layoutCategoryTypeSwitcher = root.findViewById(R.id.layout_category_type_switcher)
+        tvCategoryReportTitle = root.findViewById(R.id.tv_category_report_title)
+        rowRecurringEntry = root.findViewById(R.id.row_recurring_entry)
         layoutMemberStatsSection = root.findViewById(R.id.layout_member_stats_section)
         layoutMemberStats = root.findViewById(R.id.layout_member_stats)
         ivOverviewExpand = root.findViewById(R.id.iv_overview_expand)
@@ -507,7 +536,9 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateOverviewExpandState() {
-        layoutOverviewExtra.visibility = if (isOverviewExpanded) View.VISIBLE else View.GONE
+        val budgetMode = isStatsBudgetModeEnabled()
+        layoutOverviewExtra.visibility =
+            if (isOverviewExpanded && !budgetMode) View.VISIBLE else View.GONE
         layoutMemberStatsSection.visibility =
             if (isOverviewExpanded && hasSharedMembers) View.VISIBLE else View.GONE
         if (ivOverviewExpand is android.widget.ImageView) {
@@ -566,12 +597,7 @@ class StatsFragment : Fragment() {
             String.format(Locale.getDefault(), "%04d", state.year)
         }
 
-        tvTotalExpense.text = "$symbol${AmountFormatHelper.formatAmount(state.totalExpense)}"
-        tvTotalIncome.text = "$symbol${AmountFormatHelper.formatAmount(state.totalIncome)}"
-        val avgLabel = if (state.isMonthMode) "日均支出" else "月均支出"
-        val avgValue = state.dailyAvg
-        tvDailyAvgLabel.text = avgLabel
-        tvDailyAvg.text = "$symbol${AmountFormatHelper.formatAmount(avgValue)}"
+        val budgetMode = renderStatsOverview(state, symbol)
         tvTotalTransfer.text = "$symbol${AmountFormatHelper.formatAmount(state.totalTransfer)}"
         tvTotalRepayment.text = "$symbol${AmountFormatHelper.formatAmount(state.totalRepayment)}"
         tvTotalRefund.text = "$symbol${AmountFormatHelper.formatAmount(state.totalRefund)}"
@@ -591,7 +617,8 @@ class StatsFragment : Fragment() {
         lastModeIsMonth = state.isMonthMode
         lastDateLabel = tvDateSelector.text.toString()
 
-        val hasAnyCategoryData = state.categoryStatsExpense.isNotEmpty() || state.categoryStatsIncome.isNotEmpty()
+        val hasAnyCategoryData = state.categoryStatsExpense.isNotEmpty() ||
+            (!budgetMode && state.categoryStatsIncome.isNotEmpty())
         
         emptyStateContainer.visibility = if (!hasAnyCategoryData && !state.isLoading) View.VISIBLE else View.GONE
         statsContentContainer.visibility = if (hasAnyCategoryData) View.VISIBLE else View.GONE
@@ -632,17 +659,185 @@ class StatsFragment : Fragment() {
         perfStage = "idle"
     }
 
+    private fun renderStatsOverview(state: StatsUiState, symbol: String): Boolean {
+        val budgetMode = isStatsBudgetModeEnabled()
+        if (budgetMode && !hasAppliedBudgetModeDefaultExpansion) {
+            isOverviewExpanded = true
+            hasAppliedBudgetModeDefaultExpansion = true
+        } else if (!budgetMode) {
+            hasAppliedBudgetModeDefaultExpansion = false
+        }
+        tvBalance.text = getString(
+            if (budgetMode) R.string.budget_overview_title else R.string.income_expense_overview
+        )
+        layoutCategoryTypeSwitcher.visibility = if (budgetMode) View.GONE else View.VISIBLE
+        tvCategoryReportTitle.text = getString(
+            if (budgetMode) R.string.expense_category_analysis else R.string.proportion_analysis
+        )
+        rowRecurringEntry.visibility = if (budgetMode) View.GONE else View.VISIBLE
+        if (budgetMode) {
+            isCategoryExpense = true
+            tvTotalExpenseLabel.setText(R.string.budget_amount_short)
+            tvTotalIncomeLabel.setText(R.string.budget_spent_short)
+            tvDailyAvgLabel.setText(R.string.budget_remaining_short)
+            tvTotalIncome.text = "$symbol${AmountFormatHelper.formatAmount(state.totalExpense)}"
+            tvTotalExpense.setTextColor(requireContext().getColor(R.color.stats_segmented_text_active))
+            tvTotalIncome.setTextColor(requireContext().getColor(R.color.expense_color))
+            renderBudgetModeAmounts(state, symbol)
+        } else {
+            budgetOverviewJob?.cancel()
+            tvTotalExpenseLabel.setText(R.string.total_expense)
+            tvTotalIncomeLabel.setText(R.string.total_income)
+            tvDailyAvgLabel.text = if (state.isMonthMode) "日均支出" else "月均支出"
+            tvTotalExpense.text = "$symbol${AmountFormatHelper.formatAmount(state.totalExpense)}"
+            tvTotalIncome.text = "$symbol${AmountFormatHelper.formatAmount(state.totalIncome)}"
+            tvDailyAvg.text = "$symbol${AmountFormatHelper.formatAmount(state.dailyAvg)}"
+            tvTotalExpense.setTextColor(requireContext().getColor(R.color.expense_color))
+            tvTotalIncome.setTextColor(requireContext().getColor(R.color.income_color))
+            tvDailyAvg.setTextColor(requireContext().getColor(R.color.stats_segmented_text_active))
+        }
+        updateCategoryTabStyles(isCategoryExpense)
+        updateOverviewExpandState()
+        return budgetMode
+    }
+
+    private fun renderBudgetModeAmounts(state: StatsUiState, symbol: String) {
+        budgetOverviewJob?.cancel()
+        tvTotalExpense.text = "—"
+        tvDailyAvg.text = "—"
+        tvDailyAvg.setTextColor(requireContext().getColor(R.color.stats_segmented_text_active))
+        val range = budgetStatsYearMonthRange(state) ?: return
+        budgetOverviewJob = viewLifecycleOwner.lifecycleScope.launch {
+            val (totalBudget, spentAmount) = withContext(Dispatchers.IO) {
+                val globalBook = BookAccountManager.normalizeBookName(
+                    BookAccountManager.getSelectedBook(requireContext())
+                )
+                val budgetBookName = state.selectedBookName ?: globalBook
+                    .takeUnless { it == BookAccountManager.ALL_BOOK }
+                    .orEmpty()
+                val db = AppDatabase.getDatabase(requireContext())
+                val budgets = db.budgetDao().getTotalBudgetsBetween(
+                        startYearMonth = range.first,
+                        endYearMonth = range.second,
+                        bookName = budgetBookName
+                    )
+                    .filter { state.selectedCurrency == null || state.selectedCurrency == it.currency }
+                val budgetTotal = budgets.takeIf { it.isNotEmpty() }?.sumOf { it.amount }
+                val spent = if (state.selectedCurrency == null) {
+                    val budgetService = BudgetService(db.budgetDao(), db.billDao(), db.categoryDao())
+                    yearMonthsBetween(range).sumOf { yearMonth ->
+                        budgetService.getMonthSpend(budgetBookName, categoryId = null, yearMonth)
+                    }
+                } else {
+                    state.totalExpense
+                }
+                budgetTotal to spent
+            }
+            if (!isStatsBudgetModeEnabled()) return@launch
+            tvTotalIncome.text = "$symbol${AmountFormatHelper.formatAmount(spentAmount)}"
+            if (totalBudget == null) {
+                tvTotalExpense.setText(R.string.budget_not_set_short)
+                tvDailyAvg.text = "—"
+                return@launch
+            }
+            val remaining = totalBudget - spentAmount
+            tvTotalExpense.text = "$symbol${AmountFormatHelper.formatAmount(totalBudget)}"
+            tvDailyAvg.text = "$symbol${AmountFormatHelper.formatAmount(remaining)}"
+            tvDailyAvg.setTextColor(requireContext().getColor(
+                if (remaining < 0.0) R.color.expense_color else R.color.income_color
+            ))
+        }
+    }
+
+    private fun yearMonthsBetween(range: Pair<String, String>): List<String> {
+        val startParts = range.first.split('-')
+        val endParts = range.second.split('-')
+        if (startParts.size != 2 || endParts.size != 2) return emptyList()
+        var year = startParts[0].toIntOrNull() ?: return emptyList()
+        var month = startParts[1].toIntOrNull() ?: return emptyList()
+        val endYear = endParts[0].toIntOrNull() ?: return emptyList()
+        val endMonth = endParts[1].toIntOrNull() ?: return emptyList()
+        if (month !in 1..12 || endMonth !in 1..12 || year > endYear ||
+            (year == endYear && month > endMonth)
+        ) return emptyList()
+        return buildList {
+            while (year < endYear || year == endYear && month <= endMonth) {
+                add(String.format(Locale.US, "%04d-%02d", year, month))
+                month += 1
+                if (month > 12) {
+                    month = 1
+                    year += 1
+                }
+            }
+        }
+    }
+
+    private fun isStatsBudgetModeEnabled(): Boolean = Prefs.isStatsBudgetModeEnabled(
+        requireContext(),
+        BookAccountManager.getSelectedBook(requireContext())
+    )
+
+    private fun budgetStatsYearMonthRange(state: StatsUiState): Pair<String, String>? {
+        if (state.forcedStartTime == null && state.forcedEndTime == null) {
+            return if (state.isMonthMode) {
+                val month = String.format(Locale.US, "%04d-%02d", state.year, state.month + 1)
+                month to month
+            } else {
+                String.format(Locale.US, "%04d-01", state.year) to
+                    String.format(Locale.US, "%04d-12", state.year)
+            }
+        }
+        val start = state.forcedStartTime ?: return null
+        val end = state.forcedEndTime ?: return null
+        if (end < start || end == Long.MAX_VALUE) return null
+        val startCalendar = Calendar.getInstance().apply { timeInMillis = start }
+        val endCalendar = Calendar.getInstance().apply { timeInMillis = end }
+        val startsAtMonthBoundary = startCalendar.get(Calendar.DAY_OF_MONTH) == 1 &&
+            startCalendar.get(Calendar.HOUR_OF_DAY) == 0 &&
+            startCalendar.get(Calendar.MINUTE) == 0 &&
+            startCalendar.get(Calendar.SECOND) == 0 &&
+            startCalendar.get(Calendar.MILLISECOND) == 0
+        val expectedEnd = (endCalendar.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+        if (!startsAtMonthBoundary || end != expectedEnd) return null
+        fun Calendar.yearMonth(): String = String.format(
+            Locale.US,
+            "%04d-%02d",
+            get(Calendar.YEAR),
+            get(Calendar.MONTH) + 1
+        )
+        return startCalendar.yearMonth() to endCalendar.yearMonth()
+    }
+
     private fun renderMemberStats(state: StatsUiState, symbol: String) {
+        memberStatsJob?.cancel()
         val bookName = state.selectedBookName ?: run {
+            layoutMemberStats.removeAllViews()
             hasSharedMembers = false
             updateMemberStatsVisibility()
             return
         }
-        viewLifecycleOwner.lifecycleScope.launch {
-            val members = withContext(Dispatchers.IO) {
+        memberStatsJob = viewLifecycleOwner.lifecycleScope.launch {
+            val budgetYearMonth = memberBudgetYearMonth(state)
+            val supportsMonthlyBudget = budgetYearMonth != null
+            val (members, totalBudget) = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(requireContext())
-                val ledger = db.sharedLedgerDao().getByBookName(bookName) ?: return@withContext emptyList()
-                db.sharedMemberDao().getByLedgerId(ledger.id).sortedBy { it.joinOrder }
+                val ledger = db.sharedLedgerDao().getByBookName(bookName)
+                    ?: return@withContext emptyList<SharedMember>() to null
+                val members = db.sharedMemberDao().getByLedgerId(ledger.id).sortedBy { it.joinOrder }
+                val budget = if (supportsMonthlyBudget) {
+                    db.budgetDao().getTotalBudget(requireNotNull(budgetYearMonth), bookName)?.takeIf {
+                        state.selectedCurrency == null || state.selectedCurrency == it.currency
+                    }
+                } else {
+                    null
+                }
+                members to budget
             }
             layoutMemberStats.removeAllViews()
             hasSharedMembers = members.isNotEmpty()
@@ -665,10 +860,56 @@ class StatsFragment : Fragment() {
                     if (member.isLocal) "我 · 本机成员" else "另一位成员"
                 card.findViewById<TextView>(R.id.tv_member_expense).text =
                     "$symbol${AmountFormatHelper.formatAmount(stat.expense)}"
-                card.findViewById<TextView>(R.id.tv_member_income).text =
-                    "$symbol${AmountFormatHelper.formatAmount(stat.income)}"
+                card.findViewById<TextView>(R.id.tv_member_budget_remaining).apply {
+                    val memberLimit = totalBudget?.let {
+                        MemberBudgetAllocation.amountFor(it.amount, it.memberBudgetAllocations, member.memberId)
+                    }
+                    val remaining = memberLimit?.minus(stat.expense)
+                    text = when {
+                        !supportsMonthlyBudget -> "—"
+                        remaining == null -> getString(R.string.budget_not_set_short)
+                        else -> "$symbol${AmountFormatHelper.formatAmount(remaining)}"
+                    }
+                    setTextColor(requireContext().getColor(
+                        if (remaining != null && remaining < 0.0) R.color.expense_color
+                        else R.color.stats_segmented_text_active
+                    ))
+                }
                 layoutMemberStats.addView(card)
             }
+        }
+    }
+
+    private fun memberBudgetYearMonth(state: StatsUiState): String? {
+        if (state.forcedStartTime == null && state.forcedEndTime == null) {
+            return if (state.isMonthMode) {
+                String.format(Locale.US, "%04d-%02d", state.year, state.month + 1)
+            } else {
+                null
+            }
+        }
+        val start = state.forcedStartTime ?: return null
+        val end = state.forcedEndTime ?: return null
+        val startCalendar = Calendar.getInstance().apply { timeInMillis = start }
+        val isMonthStart = startCalendar.get(Calendar.DAY_OF_MONTH) == 1 &&
+            startCalendar.get(Calendar.HOUR_OF_DAY) == 0 &&
+            startCalendar.get(Calendar.MINUTE) == 0 &&
+            startCalendar.get(Calendar.SECOND) == 0 &&
+            startCalendar.get(Calendar.MILLISECOND) == 0
+        if (!isMonthStart) return null
+        val expectedEnd = (startCalendar.clone() as Calendar).apply {
+            add(Calendar.MONTH, 1)
+            add(Calendar.MILLISECOND, -1)
+        }.timeInMillis
+        return if (end == expectedEnd) {
+            String.format(
+                Locale.US,
+                "%04d-%02d",
+                startCalendar.get(Calendar.YEAR),
+                startCalendar.get(Calendar.MONTH) + 1
+            )
+        } else {
+            null
         }
     }
 

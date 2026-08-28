@@ -49,6 +49,13 @@ class TapApplication : Application() {
         // 启动时在后台协程检查并执行数据迁移
         CoroutineScope(Dispatchers.IO).launch {
             MigrationManager.migrateIfNecessary(this@TapApplication, database)
+            database.sharedLedgerDao().getAll().forEach { ledger ->
+                if (database.budgetDao().getAllByBookId(ledger.bookId).isNotEmpty()) {
+                    database.bookDao().getById(ledger.bookId)?.name?.let { bookName ->
+                        Prefs.enableSharedBudgetDisplayDefaultsIfUnset(this@TapApplication, bookName)
+                    }
+                }
+            }
             SharedMutationHooks.repairMovedSharedBills(database)
             SharedSyncScheduler.enqueueNow(this@TapApplication)
             InvestmentInterestService.settleDueInterest(database)

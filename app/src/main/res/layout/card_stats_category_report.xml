@@ -18,6 +18,7 @@
         android:padding="@dimen/stats_card_padding">
 
         <TextView
+            android:id="@+id/tv_category_report_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -28,6 +29,7 @@
 
         <!-- Expense / Income segmented control -->
         <LinearLayout
+            android:id="@+id/layout_category_type_switcher"
             android:layout_width="match_parent"
             android:layout_height="@dimen/stats_segmented_height"
             android:layout_marginHorizontal="32dp"

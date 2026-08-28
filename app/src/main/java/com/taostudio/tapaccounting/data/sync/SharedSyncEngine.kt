@@ -3,45 +3,72 @@ package com.taostudio.tapaccounting.data.sync
 import android.content.Context
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.Budget
+import com.taostudio.tapaccounting.data.local.entity.SyncedRemoteFile
 import com.taostudio.tapaccounting.data.local.entity.SyncOperation
 import com.taostudio.tapaccounting.data.local.entity.SyncState
 import com.taostudio.tapaccounting.data.sync.protocol.Operation
 import com.taostudio.tapaccounting.data.sync.protocol.ManifestValidator
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.delay
+import java.security.MessageDigest
 import java.util.UUID
 
 class SharedSyncEngine(private val context: Context, private val db: AppDatabase) {
     private val gson = Gson()
     private val webDav = SharedWebDavClient()
 
-    suspend fun syncAll() = db.sharedLedgerDao().getAll().forEach { runCatching { syncLedger(it.id) } }
-
-    suspend fun syncLedger(ledgerId: Long) = lock(ledgerId).withLock {
-        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: return@withLock
-        val current = db.syncStateDao().get(ledgerId) ?: SyncState(ledgerId, com.taostudio.tapaccounting.DeviceIdManager.getDeviceId(context))
-        val cooldownUntil = context.getSharedPreferences("shared_sync", Context.MODE_PRIVATE)
-            .getLong("webdav_cooldown_until", 0L)
-        if (cooldownUntil > System.currentTimeMillis()) {
-            val minutes = ((cooldownUntil - System.currentTimeMillis() + 59_999) / 60_000).coerceAtLeast(1)
-            error("坚果云正在冷却，请 $minutes 分钟后再试")
+    suspend fun syncAll(forceFull: Boolean = false) = SharedSyncGate.global.run {
+        val ledgers = db.sharedLedgerDao().getAll()
+        ledgers.forEachIndexed { index, ledger ->
+            val state = db.syncStateDao().get(ledger.id)
+            val pendingUploadCount = db.syncQueueDao().count(ledger.id)
+            val mode = SharedSyncPolicy.backgroundMode(
+                pendingUploadCount = pendingUploadCount,
+                lastSyncTime = state?.lastSyncTime ?: 0L,
+                now = System.currentTimeMillis(),
+                forceFull = forceFull
+            )
+            if (mode != SharedSyncPolicy.BackgroundMode.SKIP) {
+                runCatching {
+                    syncLedgerSerial(
+                        ledgerId = ledger.id,
+                        fullSync = mode == SharedSyncPolicy.BackgroundMode.FULL
+                    )
+                }
+            }
+            if (index < ledgers.lastIndex) delay(INTER_LEDGER_DELAY_MS)
         }
-        db.syncStateDao().save(current.copy(isSyncing = true, lastError = null))
+    }
+
+    suspend fun syncLedger(ledgerId: Long) = SharedSyncGate.global.run {
+        syncLedgerSerial(ledgerId, fullSync = true)
+    }
+
+    private suspend fun syncLedgerSerial(ledgerId: Long, fullSync: Boolean) {
+        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: return
+        val current = db.syncStateDao().get(ledgerId) ?: SyncState(ledgerId, com.taostudio.tapaccounting.DeviceIdManager.getDeviceId(context))
         try {
             val password = SharedCredentials.load(context, ledger.uuid) ?: error("缺少 WebDAV 应用密码")
             val config = SharedWebDavClient.Config(ledger.webdavUrl, ledger.webdavUser, password)
-            if (webDav.exists(config, "${ledger.remotePath}/closed.json")) {
-                SharedLedgerService(context, db).exitKeepingLocalCopy(ledgerId, syncFirst = false)
-                return@withLock
-            }
+            throwIfCoolingDown(config)
+            db.syncStateDao().save(current.copy(isSyncing = true, lastError = null))
             val localBookName = db.bookDao().getById(ledger.bookId)?.name ?: error("本地账本不存在")
-            refreshMemberNames(ledger.id, ledger.uuid, ledger.remotePath, config)
+            if (fullSync) {
+                if (webDav.exists(config, "${ledger.remotePath}/closed.json")) {
+                    SharedLedgerService(context, db).exitKeepingLocalCopy(ledgerId, syncFirst = false)
+                    return
+                }
+                refreshMemberNames(ledger.id, ledger.uuid, ledger.remotePath, config)
+            }
             enqueueMissingIcons(ledger.id, ledger.uuid, ledger.localMemberId, localBookName)
             webDav.ensureDirectory(config, "${ledger.remotePath}/operations")
             val queuedBatches = db.syncQueueDao().getByLedgerId(ledgerId).chunked(500)
+            val hasQueuedBillChanges = queuedBatches.asSequence().flatten().any { queued ->
+                SharedOperationCodec.decode(queued.operationJson)?.entityType == "bill"
+            }
             if (queuedBatches.isNotEmpty()) webDav.ensureDirectory(config, "${ledger.remotePath}/operations/batches")
             queuedBatches.forEach { batch ->
                 try {
@@ -53,38 +80,175 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
                         webDav.ensureDirectory(config, path.substringBeforeLast('/'))
                         webDav.putGzip(config, path, SharedOperationBundleCodec.encode(batch.map { it.operationJson }))
                     }
+                    val relative = path.removePrefix("${ledger.remotePath}/operations/")
+                    db.syncedRemoteFileDao().markProcessed(
+                        SyncedRemoteFile(ledgerId, relative, System.currentTimeMillis())
+                    )
                     batch.forEach { db.syncQueueDao().delete(it.operationId) }
                 } catch (e: Exception) {
                     batch.forEach { db.syncQueueDao().markFailure(it.operationId, e.message ?: "上传失败") }
                     throw e
                 }
             }
-            val files = webDav.listOperations(config, "${ledger.remotePath}/operations")
-            files.filter { it.substringAfterLast('/').removeSuffix(".json") != "meta" }.forEach { relative ->
-                val path = "${ledger.remotePath}/operations/${relative.removePrefix("operations/")}"
-                if (path.endsWith(".json.gz", true)) {
-                    val bundled = runCatching {
-                        SharedOperationBundleCodec.decode(webDav.getBytes(config, path))
-                    }.getOrNull() ?: return@forEach
-                    bundled.forEach { (op, raw) ->
+            if (hasQueuedBillChanges) {
+                uploadLocalBillSnapshot(ledger.id, ledger.uuid, ledger.remotePath, ledger.localMemberId, localBookName, config)
+            }
+            if (fullSync) {
+                val files = webDav.listOperations(config, "${ledger.remotePath}/operations")
+                val pendingFiles = RemoteOperationPlanner.pendingFiles(
+                    remoteFiles = files.filter { it.substringAfterLast('/').removeSuffix(".json") != "meta" },
+                    knownOperationIds = db.syncOperationDao().getOperationIds(ledgerId).toSet(),
+                    processedBundles = db.syncedRemoteFileDao().getProcessedPaths(ledgerId).toSet()
+                ).take(MAX_REMOTE_FILES_PER_LEDGER_PASS)
+                for (relative in pendingFiles) {
+                    val path = "${ledger.remotePath}/operations/${relative.removePrefix("operations/")}"
+                    if (path.endsWith(".json.gz", true)) {
+                        val bytes = webDav.getBytes(config, path)
+                        val bundled = runCatching { SharedOperationBundleCodec.decode(bytes) }.getOrNull() ?: continue
+                        bundled.forEach { (op, raw) ->
+                            if (!db.syncOperationDao().exists(op.operationId)) applyRemote(ledgerId, ledger.bookId, localBookName, op, raw)
+                        }
+                        db.syncedRemoteFileDao().markProcessed(
+                            SyncedRemoteFile(ledgerId, relative, System.currentTimeMillis())
+                        )
+                    } else {
+                        val raw = webDav.get(config, path)
+                        val op = SharedOperationCodec.decode(raw) ?: continue
                         if (!db.syncOperationDao().exists(op.operationId)) applyRemote(ledgerId, ledger.bookId, localBookName, op, raw)
                     }
-                } else {
-                    val raw = runCatching { webDav.get(config, path) }.getOrNull() ?: return@forEach
-                    val op = SharedOperationCodec.decode(raw) ?: return@forEach
-                    if (!db.syncOperationDao().exists(op.operationId)) applyRemote(ledgerId, ledger.bookId, localBookName, op, raw)
                 }
+                downloadAndApplyBillSnapshots(ledger.id, ledger.uuid, ledger.remotePath, localBookName, config)
             }
-            db.syncStateDao().save(current.copy(lastSyncTime = System.currentTimeMillis(), isSyncing = false, lastError = null))
+            db.syncStateDao().save(current.copy(
+                lastSyncTime = if (fullSync) System.currentTimeMillis() else current.lastSyncTime,
+                isSyncing = false,
+                lastError = null
+            ))
         } catch (e: Exception) {
-            if (e.message?.contains("坚果云暂时繁忙") == true) {
-                context.getSharedPreferences("shared_sync", Context.MODE_PRIVATE).edit()
-                    .putLong("webdav_cooldown_until", System.currentTimeMillis() + 15 * 60_000L)
-                    .apply()
-            }
+            if (e is WebDavHttpException) recordCooldown(e, ledger.webdavUrl, ledger.webdavUser)
             db.syncStateDao().save(current.copy(isSyncing = false, lastError = e.message ?: "同步失败"))
             throw e
         }
+    }
+
+    private fun throwIfCoolingDown(config: SharedWebDavClient.Config) {
+        val now = System.currentTimeMillis()
+        val cooldownUntil = context.getSharedPreferences(SYNC_PREFS, Context.MODE_PRIVATE)
+            .getLong(cooldownKey(config.baseUrl, config.username), 0L)
+        if (cooldownUntil <= now) return
+        val seconds = ((cooldownUntil - now + 999L) / 1_000L).coerceAtLeast(1L)
+        error("坚果云正在冷却，请 $seconds 秒后再试")
+    }
+
+    private fun recordCooldown(error: WebDavHttpException, baseUrl: String, username: String) {
+        val duration = SharedSyncPolicy.cooldownMillis(error.statusCode, error.retryAfterMillis) ?: return
+        context.getSharedPreferences(SYNC_PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(cooldownKey(baseUrl, username), System.currentTimeMillis() + duration)
+            .apply()
+    }
+
+    private fun cooldownKey(baseUrl: String, username: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest("${baseUrl.trim().lowercase()}|${username.trim().lowercase()}".toByteArray())
+        return "webdav_cooldown_until_" + digest.take(8).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    }
+
+    /**
+     * 每个成员只覆盖自己在当前共享账本中的账单快照。这样遗漏的 delete 操作也能在下次同步时被纠正，
+     * 同时不会覆盖另一位成员创建的账单。
+     */
+    private suspend fun uploadLocalBillSnapshot(
+        ledgerId: Long,
+        ledgerUuid: String,
+        remotePath: String,
+        localMemberId: String,
+        bookName: String,
+        config: SharedWebDavClient.Config
+    ) {
+        val bills = db.billDao().getAllByBookName(bookName)
+            .filter { it.isShared && it.memberId == localMemberId && it.sharedId != null }
+            .sortedWith(compareBy<Bill> { it.time }.thenBy { it.sharedId })
+            .map { bill ->
+                bill.copy(
+                    id = 0,
+                    bookName = "",
+                    accountId = null,
+                    toAccountId = null,
+                    accountName = "",
+                    toAccountName = "",
+                    accountBalanceAfter = null,
+                    toAccountBalanceAfter = null
+                )
+            }
+        val snapshot = SharedBillSnapshot(
+            ledgerId = ledgerUuid,
+            memberId = localMemberId,
+            deviceId = com.taostudio.tapaccounting.DeviceIdManager.getDeviceId(context),
+            generatedAt = System.currentTimeMillis(),
+            bills = bills
+        )
+        webDav.ensureDirectory(config, "$remotePath/snapshots/bills")
+        webDav.putGzip(
+            config,
+            "$remotePath/snapshots/bills/$localMemberId.json.gz",
+            SharedBillSnapshotCodec.encode(snapshot)
+        )
+    }
+
+    private suspend fun downloadAndApplyBillSnapshots(
+        ledgerId: Long,
+        ledgerUuid: String,
+        remotePath: String,
+        bookName: String,
+        config: SharedWebDavClient.Config
+    ) {
+        db.sharedMemberDao().getByLedgerId(ledgerId).forEach { member ->
+            val path = "$remotePath/snapshots/bills/${member.memberId}.json.gz"
+            if (!webDav.exists(config, path)) return@forEach
+            val snapshot = SharedBillSnapshotCodec.decode(webDav.getBytes(config, path)) ?: return@forEach
+            if (snapshot.ledgerId != ledgerUuid || snapshot.memberId != member.memberId) return@forEach
+            applyBillSnapshot(ledgerId, bookName, snapshot)
+        }
+    }
+
+    private suspend fun applyBillSnapshot(ledgerId: Long, bookName: String, snapshot: SharedBillSnapshot) {
+        val localMemberId = db.sharedLedgerDao().getById(ledgerId)?.localMemberId ?: return
+        db.withTransaction {
+            val incomingById = snapshot.bills.associateBy { it.sharedId!! }
+            val current = db.billDao().getAllByBookName(bookName)
+                .filter { it.isShared && it.memberId == snapshot.memberId && it.sharedId != null }
+
+            current.filter { it.sharedId !in incomingById }.forEach { existing ->
+                if (snapshotCovers(ledgerId, existing.sharedId!!, snapshot.generatedAt)) {
+                    db.billDao().delete(existing)
+                }
+            }
+
+            incomingById.forEach { (sharedId, remote) ->
+                if (!snapshotCovers(ledgerId, sharedId, snapshot.generatedAt)) return@forEach
+                val existing = db.billDao().getBySharedId(sharedId)
+                val localCategoryId = remote.categoryName.takeIf { it.isNotBlank() }
+                    ?.let { db.categoryDao().getCategoryByNameAndType(it.substringAfterLast(" - "), remote.type)?.id }
+                val incoming = SharedBillAssetBindingPolicy.merge(existing, remote.copy(
+                    id = existing?.id ?: 0,
+                    bookName = bookName,
+                    categoryId = localCategoryId,
+                    relatedBillId = remote.relatedSharedId?.let { db.billDao().getBySharedId(it)?.id }
+                ), ownedByLocalMember = snapshot.memberId == localMemberId)
+                if (existing == null) db.billDao().insertBill(incoming) else db.billDao().updateBill(incoming)
+                db.billDao().linkPendingSharedRefunds(sharedId, existing?.id ?: db.billDao().getBySharedId(sharedId)?.id ?: 0)
+            }
+        }
+    }
+
+    /** 不允许较旧快照覆盖该快照生成后产生的增量操作。 */
+    private suspend fun snapshotCovers(ledgerId: Long, sharedId: String, generatedAt: Long): Boolean {
+        val winner = db.syncOperationDao().getWinner(ledgerId, "bill", sharedId) ?: return true
+        val operationTime = winner.payload
+            ?.let(SharedOperationCodec::decode)
+            ?.timestamp
+            ?: winner.appliedAt
+        return operationTime <= generatedAt
     }
 
     private suspend fun refreshMemberNames(
@@ -108,6 +272,7 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
     }
 
     private suspend fun applyRemote(ledgerId: Long, bookId: Long, bookName: String, op: Operation, raw: String) {
+        val localMemberId = db.sharedLedgerDao().getById(ledgerId)?.localMemberId ?: return
         if (db.sharedMemberDao().get(ledgerId, op.memberId) == null) return
         if (op.entityType == "bill") {
             val current = db.billDao().getBySharedId(op.entityId)
@@ -118,7 +283,7 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
             val tombstoned = op.type != "delete" && db.syncOperationDao().hasDelete(ledgerId, op.entityType, op.entityId)
             val wins = !tombstoned && wins(old, op)
             if (wins) when (op.entityType) {
-                "bill" -> applyBill(bookName, op)
+                "bill" -> applyBill(bookName, op, ownedByLocalMember = op.memberId == localMemberId)
                 "budget" -> applyBudget(bookId, bookName, op)
             }
             db.syncOperationDao().insertIgnore(SyncOperation(op.operationId, ledgerId, op.entityType, op.entityId, op.type, op.revision, op.deviceId, op.memberId, raw, System.currentTimeMillis()))
@@ -145,7 +310,7 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
             }
     }
 
-    private suspend fun applyBill(bookName: String, op: Operation) {
+    private suspend fun applyBill(bookName: String, op: Operation, ownedByLocalMember: Boolean) {
         val existing = db.billDao().getBySharedId(op.entityId)
         if (op.type == "delete") {
             existing?.let { db.billDao().delete(it) }
@@ -154,14 +319,12 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
         val decoded = gson.fromJson(op.payload, Bill::class.java)
         val localCategoryId = decoded.categoryName.takeIf { it.isNotBlank() }
             ?.let { db.categoryDao().getCategoryByNameAndType(it.substringAfterLast(" - "), decoded.type)?.id }
-        val incoming = decoded.copy(
+        val incoming = SharedBillAssetBindingPolicy.merge(existing, decoded.copy(
             id = existing?.id ?: 0, bookName = bookName, sharedId = op.entityId,
             memberId = op.memberId, isShared = true, sharedRevision = op.revision, categoryId = localCategoryId,
             sharedDeviceId = op.deviceId,
-            relatedBillId = decoded.relatedSharedId?.let { db.billDao().getBySharedId(it)?.id },
-            accountId = null, toAccountId = null,
-            accountName = "", toAccountName = "", accountBalanceAfter = null, toAccountBalanceAfter = null
-        )
+            relatedBillId = decoded.relatedSharedId?.let { db.billDao().getBySharedId(it)?.id }
+        ), ownedByLocalMember)
         val savedId = if (existing == null) db.billDao().insertBill(incoming) else {
             db.billDao().updateBill(incoming)
             existing.id
@@ -175,7 +338,7 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
             existing?.let { db.budgetDao().delete(it) }
             return
         }
-        val decoded = gson.fromJson(op.payload, Budget::class.java)
+        val decoded = SharedBudgetPayloadCodec.decode(op.payload) ?: return
         val localCategoryId = decoded.categoryName?.takeIf { it.isNotBlank() }
             ?.let { db.categoryDao().getCategoryByNameAndType(it.substringAfterLast(" - "), Bill.TYPE_EXPENSE)?.id }
         val localCategoryKey = when {
@@ -189,11 +352,14 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
             categoryId = localCategoryId, categoryKey = localCategoryKey
         )
         if (existing == null) db.budgetDao().insert(incoming) else db.budgetDao().update(incoming)
+        Prefs.enableSharedBudgetDisplayDefaultsIfUnset(context, bookName)
     }
 
     companion object {
-        private val locks = mutableMapOf<Long, Mutex>()
-        private fun lock(id: Long) = synchronized(locks) { locks.getOrPut(id) { Mutex() } }
+        private const val SYNC_PREFS = "shared_sync"
+        private const val INTER_LEDGER_DELAY_MS = 750L
+        private const val MAX_REMOTE_FILES_PER_LEDGER_PASS = 50
+
         internal fun wins(old: SyncOperation?, incoming: Operation): Boolean = old == null ||
             (old.action != "delete" || incoming.type == "delete") &&
             (incoming.revision > old.revision || incoming.revision == old.revision && incoming.deviceId > old.deviceId)

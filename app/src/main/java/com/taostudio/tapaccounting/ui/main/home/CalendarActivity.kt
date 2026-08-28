@@ -45,6 +45,7 @@ import com.taostudio.tapaccounting.CategoryIconHelper
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.logic.BillStatsContribution
 import com.taostudio.tapaccounting.logic.BillDisplayFormatter
 import com.taostudio.tapaccounting.logic.CurrencyManager
 import com.taostudio.tapaccounting.ui.activity.EditBillActivity
@@ -1116,16 +1117,11 @@ class CalendarActivity : AppCompatActivity() {
             } else {
                 bill.amount * bill.exchangeRate
             }
-            if (bill.subType == Bill.SUBTYPE_REFUND) {
-                summary.income += convertedAmount
-                totalIncome += convertedAmount
-            } else if (bill.type == Bill.TYPE_EXPENSE) {
-                summary.expense += convertedAmount
-                totalExpense += convertedAmount
-            } else if (bill.type == Bill.TYPE_INCOME) {
-                summary.income += convertedAmount
-                totalIncome += convertedAmount
-            }
+            val contribution = BillStatsContribution.from(bill, convertedAmount)
+            summary.expense += contribution.expense
+            totalExpense += contribution.expense
+            summary.income += contribution.income
+            totalIncome += contribution.income
         }
 
         tvMonthSummary.text = "月收入￥${String.format(Locale.getDefault(), "%,.2f", totalIncome)}, 月支出￥${String.format(Locale.getDefault(), "%,.2f", totalExpense)}, 月结余￥${String.format(Locale.getDefault(), "%,.2f", totalIncome - totalExpense)}"

@@ -25,6 +25,7 @@ object PrefsDisplaySupport {
     private const val KEY_IMPORT_ONBOARDING_SEEN = "import_onboarding_seen_v1"
     private const val KEY_IMPORT_REVIEW_COMPLETED = "import_review_completed_v1"
     private const val KEY_HOME_BUDGET_SUMMARY_PREFIX = "home_budget_summary_v1_"
+    private const val KEY_STATS_BUDGET_MODE_PREFIX = "stats_budget_mode_v1_"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -61,8 +62,33 @@ object PrefsDisplaySupport {
     fun setHomeBudgetSummaryEnabled(ctx: Context, bookName: String, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(homeBudgetSummaryKey(bookName), enabled).apply()
 
+    fun hasHomeBudgetSummaryPreference(ctx: Context, bookName: String): Boolean =
+        prefs(ctx).contains(homeBudgetSummaryKey(bookName))
+
     private fun homeBudgetSummaryKey(bookName: String): String =
         KEY_HOME_BUDGET_SUMMARY_PREFIX + BookAccountManager.normalizeBookName(bookName)
+
+    fun isStatsBudgetModeEnabled(ctx: Context, bookName: String): Boolean =
+        prefs(ctx).getBoolean(statsBudgetModeKey(bookName), false)
+
+    fun setStatsBudgetModeEnabled(ctx: Context, bookName: String, enabled: Boolean) =
+        prefs(ctx).edit().putBoolean(statsBudgetModeKey(bookName), enabled).apply()
+
+    fun hasStatsBudgetModePreference(ctx: Context, bookName: String): Boolean =
+        prefs(ctx).contains(statsBudgetModeKey(bookName))
+
+    fun enableSharedBudgetDisplayDefaultsIfUnset(ctx: Context, bookName: String) {
+        val preferences = prefs(ctx)
+        val homeKey = homeBudgetSummaryKey(bookName)
+        val statsKey = statsBudgetModeKey(bookName)
+        preferences.edit().apply {
+            if (!preferences.contains(homeKey)) putBoolean(homeKey, true)
+            if (!preferences.contains(statsKey)) putBoolean(statsKey, true)
+        }.apply()
+    }
+
+    private fun statsBudgetModeKey(bookName: String): String =
+        KEY_STATS_BUDGET_MODE_PREFIX + BookAccountManager.normalizeBookName(bookName)
 
     fun isMultiBillEnabled(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_MULTI_BILL_ENABLED, false)

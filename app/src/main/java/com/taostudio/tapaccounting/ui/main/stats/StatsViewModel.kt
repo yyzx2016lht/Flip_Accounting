@@ -24,6 +24,7 @@ import com.taostudio.tapaccounting.data.local.dao.BillDao
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.logic.insight.InsightCardModel
 import com.taostudio.tapaccounting.logic.insight.InsightEngine
+import com.taostudio.tapaccounting.logic.BillStatsContribution
 import com.taostudio.tapaccounting.ui.main.stats.StatsExternalQueryFilter
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -708,38 +709,38 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
             val amount = statsAmountOf(bill, state.selectedCurrency)
             val isRefund = bill.subType == Bill.SUBTYPE_REFUND
             val isRepayment = bill.type == Bill.TYPE_TRANSFER && bill.subType == Bill.SUBTYPE_REPAYMENT
+            val contribution = BillStatsContribution.from(bill, amount)
             bill.memberId?.let { memberId ->
                 val totals = memberTotals.getOrPut(memberId) { doubleArrayOf(0.0, 0.0) }
-                when {
-                    isRefund -> totals[0] -= amount
-                    bill.type == Bill.TYPE_EXPENSE -> totals[0] += amount
-                    bill.type == Bill.TYPE_INCOME -> totals[1] += amount
-                }
+                totals[0] += contribution.expense
+                totals[1] += contribution.income
             }
 
             if (isRefund) {
-                totalRefund += amount
-                // 退款抵扣支出
-                totalExpense -= amount
-                if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
+                totalRefund += contribution.refund
+                totalExpense += contribution.expense
+                if (contribution.expense != 0.0 &&
+                    (localMemberId == null || !bill.isShared || bill.memberId == localMemberId)
+                ) {
                     val topLevel = topLevelCached(bill.categoryName)
-                    categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) - amount
+                    categoryExpenseMap[topLevel] =
+                        (categoryExpenseMap[topLevel] ?: 0.0) + contribution.expense
                 }
             } else if (isRepayment) {
                 totalRepayment += amount
             } else if (bill.type == Bill.TYPE_TRANSFER) {
                 totalTransfer += amount
             } else if (bill.type == Bill.TYPE_EXPENSE) {
-                totalExpense += amount
+                totalExpense += contribution.expense
                 if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
                     val topLevel = topLevelCached(bill.categoryName)
-                    categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) + amount
+                    categoryExpenseMap[topLevel] = (categoryExpenseMap[topLevel] ?: 0.0) + contribution.expense
                 }
             } else if (bill.type == Bill.TYPE_INCOME) {
-                totalIncome += amount
+                totalIncome += contribution.income
                 if (localMemberId == null || !bill.isShared || bill.memberId == localMemberId) {
                     val topLevel = topLevelCached(bill.categoryName)
-                    categoryIncomeMap[topLevel] = (categoryIncomeMap[topLevel] ?: 0.0) + amount
+                    categoryIncomeMap[topLevel] = (categoryIncomeMap[topLevel] ?: 0.0) + contribution.income
                 }
             }
 
@@ -748,26 +749,21 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
                 (cal.get(Calendar.MONTH) + 1) * 100 +
                 cal.get(Calendar.DAY_OF_MONTH)
             val dayAggregate = dayMap.getOrPut(dayKey) { DayAggregate() }
-            when {
-                bill.subType == Bill.SUBTYPE_REFUND -> dayAggregate.expense -= amount
-                bill.type == Bill.TYPE_EXPENSE -> dayAggregate.expense += amount
-                bill.type == Bill.TYPE_INCOME -> dayAggregate.income += amount
-            }
+            dayAggregate.expense += contribution.expense
+            dayAggregate.income += contribution.income
             dayAggregate.bills.add(bill)
         }
 
         prevBills.forEach { bill ->
             if (localMemberId != null && bill.isShared && bill.memberId != localMemberId) return@forEach
             val amount = statsAmountOf(bill, state.selectedCurrency)
-            val isRefund = bill.subType == Bill.SUBTYPE_REFUND
+            val contribution = BillStatsContribution.from(bill, amount)
             val topLevel = topLevelCached(bill.categoryName)
-            
-            if (isRefund) {
-                prevCategoryExpenseMap[topLevel] = (prevCategoryExpenseMap[topLevel] ?: 0.0) - amount
-            } else if (bill.type == Bill.TYPE_EXPENSE) {
-                prevCategoryExpenseMap[topLevel] = (prevCategoryExpenseMap[topLevel] ?: 0.0) + amount
-            } else if (bill.type == Bill.TYPE_INCOME) {
-                prevCategoryIncomeMap[topLevel] = (prevCategoryIncomeMap[topLevel] ?: 0.0) + amount
+
+            if (contribution.expense != 0.0) {
+                prevCategoryExpenseMap[topLevel] = (prevCategoryExpenseMap[topLevel] ?: 0.0) + contribution.expense
+            } else if (contribution.income > 0.0) {
+                prevCategoryIncomeMap[topLevel] = (prevCategoryIncomeMap[topLevel] ?: 0.0) + contribution.income
             }
         }
 
@@ -974,11 +970,9 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
         bills.forEach { bill ->
             val amount = statsAmountOf(bill, _uiState.value.selectedCurrency)
             val sub = secondLevelCategory(bill.categoryName)
-            if (bill.subType == Bill.SUBTYPE_REFUND) {
-                map[sub] = (map[sub] ?: 0.0) - amount
-            } else {
-                map[sub] = (map[sub] ?: 0.0) + amount
-            }
+            val contribution = BillStatsContribution.from(bill, amount)
+            val categoryAmount = if (isExpense) contribution.expense else contribution.income
+            if (categoryAmount != 0.0) map[sub] = (map[sub] ?: 0.0) + categoryAmount
         }
         return map.filterValues { it > 0 }
     }

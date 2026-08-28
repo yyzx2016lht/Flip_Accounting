@@ -29,7 +29,9 @@ data class Budget(
     val sharedId: String? = null,
     val revision: Long = 0,
     val isShared: Boolean = false,
-    val sharedDeviceId: String? = null
+    val sharedDeviceId: String? = null,
+    /** 成员 ID 到个人额度的 JSON；仅影响统计页双方展开卡片。 */
+    val memberBudgetAllocations: String? = null
 ) {
     companion object {
         const val TOTAL_CATEGORY_KEY = 0L

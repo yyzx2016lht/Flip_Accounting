@@ -22,6 +22,7 @@ import com.taostudio.tapaccounting.data.local.dao.SharedMemberDao
 import com.taostudio.tapaccounting.data.local.dao.SyncOperationDao
 import com.taostudio.tapaccounting.data.local.dao.SyncQueueDao
 import com.taostudio.tapaccounting.data.local.dao.SyncStateDao
+import com.taostudio.tapaccounting.data.local.dao.SyncedRemoteFileDao
 import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
@@ -37,10 +38,11 @@ import com.taostudio.tapaccounting.data.local.entity.SharedMember
 import com.taostudio.tapaccounting.data.local.entity.SyncOperation
 import com.taostudio.tapaccounting.data.local.entity.SyncQueue
 import com.taostudio.tapaccounting.data.local.entity.SyncState
+import com.taostudio.tapaccounting.data.local.entity.SyncedRemoteFile
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 
 /** 与 backupIfDowngrade 第三个参数保持同步。 */
-private const val DB_VERSION = 35
+private const val DB_VERSION = 37
 
 /**
  * Room 主库。改 schema 前请先读本节，避免误用破坏性迁移或漏改版本号。
@@ -71,7 +73,7 @@ private const val DB_VERSION = 35
         ChatMessage::class, InvestmentLot::class, DeletedBill::class,
         Budget::class, RecurringPattern::class, Book::class,
         SharedLedger::class, SharedMember::class, SyncOperation::class,
-        SyncQueue::class, SyncState::class
+        SyncQueue::class, SyncState::class, SyncedRemoteFile::class
     ],
     version = DB_VERSION,
     exportSchema = false
@@ -93,6 +95,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncOperationDao(): SyncOperationDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun syncedRemoteFileDao(): SyncedRemoteFileDao
 
     companion object {
         /** 对外暴露的数据库版本号（与 [DB_VERSION] 相同）。 */
@@ -689,6 +692,29 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `sync_remote_file` (
+                        `ledgerId` INTEGER NOT NULL,
+                        `remotePath` TEXT NOT NULL,
+                        `processedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`ledgerId`, `remotePath`),
+                        FOREIGN KEY(`ledgerId`) REFERENCES `shared_ledger`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )"""
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_remote_file_ledgerId` ON `sync_remote_file` (`ledgerId`)"
+                )
+            }
+        }
+
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE budgets ADD COLUMN memberBudgetAllocations TEXT")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -734,7 +760,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_31_32,
                         MIGRATION_32_33,
                         MIGRATION_33_34,
-                        MIGRATION_34_35
+                        MIGRATION_34_35,
+                        MIGRATION_35_36,
+                        MIGRATION_36_37
                     )
                     // 仅处理降级：清库并按当前代码 schema 重建。升级缺迁移时仍应抛异常，不要改成 fallbackToDestructiveMigration()。
                     .fallbackToDestructiveMigrationOnDowngrade()

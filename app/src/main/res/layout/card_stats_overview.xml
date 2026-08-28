@@ -43,6 +43,7 @@
                 android:paddingHorizontal="6dp">
 
                 <TextView
+                    android:id="@+id/tv_total_expense_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/total_expense"
@@ -74,6 +75,7 @@
                 android:paddingHorizontal="6dp">
 
                 <TextView
+                    android:id="@+id/tv_total_income_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/total_income"
@@ -369,7 +371,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
-                android:text="双方收支"
+                android:text="@string/member_budget_section_title"
                 android:textColor="@color/stats_segmented_text_active"
                 android:textSize="@dimen/text_size_12"
                 android:textStyle="bold" />

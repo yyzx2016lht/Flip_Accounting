@@ -8,16 +8,25 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
+import java.io.IOException
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Collections
 import java.util.concurrent.TimeUnit
+
+internal class WebDavHttpException(
+    val statusCode: Int,
+    val retryAfterMillis: Long?,
+    message: String
+) : IOException(message)
 
 class SharedWebDavClient {
     private val json = "application/json; charset=utf-8".toMediaType()
     private val gzip = "application/gzip".toMediaType()
     private val xml = "text/xml; charset=utf-8".toMediaType()
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).build()
-    private val ensuredDirectories = mutableSetOf<String>()
 
     data class Config(val baseUrl: String, val username: String, val password: String)
 
@@ -26,8 +35,9 @@ class SharedWebDavClient {
         segments(path).forEach {
             current += "/$it"
             val key = "${config.baseUrl}|${config.username}|$current"
-            if (!ensuredDirectories.add(key)) return@forEach
+            if (ensuredDirectories.contains(key)) return@forEach
             execute(config, Request.Builder().url(url(config, current)).method("MKCOL", ByteArray(0).toRequestBody(null)).build(), setOf(200, 201, 204, 301, 302, 405)).close()
+            ensuredDirectories.add(key)
         }
     }
 
@@ -57,7 +67,7 @@ class SharedWebDavClient {
             when {
                 it.isSuccessful -> true
                 it.code == 404 -> false
-                else -> error(errorMessage(it.code))
+                else -> throw WebDavHttpException(it.code, retryAfterMillis(it.header("Retry-After")), errorMessage(it.code))
             }
         }
     }
@@ -104,8 +114,19 @@ class SharedWebDavClient {
     private fun execute(config: Config, request: Request, ok: Set<Int>) = client.newCall(withAuth(config, request)).execute().also {
         if (it.code !in ok) {
             val message = errorMessage(it.code)
-            it.close(); error(message)
+            val retryAfter = retryAfterMillis(it.header("Retry-After"))
+            it.close()
+            throw WebDavHttpException(it.code, retryAfter, message)
         }
+    }
+
+    private fun retryAfterMillis(raw: String?): Long? {
+        if (raw.isNullOrBlank()) return null
+        raw.trim().toLongOrNull()?.let { seconds -> return seconds.coerceAtLeast(0L) * 1_000L }
+        return runCatching {
+            (ZonedDateTime.parse(raw, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() -
+                System.currentTimeMillis()).coerceAtLeast(0L)
+        }.getOrNull()
     }
 
     private fun errorMessage(code: Int) = when (code) {
@@ -118,4 +139,9 @@ class SharedWebDavClient {
     private fun withAuth(config: Config, request: Request) = request.newBuilder().header("Authorization", Credentials.basic(config.username, config.password, Charsets.UTF_8)).build()
     private fun url(config: Config, path: String): String = config.baseUrl.trim().let { if (it.startsWith("http")) it else "https://$it" }.trimEnd('/') + "/" + segments(path).joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
     private fun segments(path: String) = path.split('/').map { it.trim() }.filter { it.isNotEmpty() }
+
+    companion object {
+        /** 同一进程内只确认一次稳定目录；失败的 MKCOL 不会写入缓存。 */
+        private val ensuredDirectories = Collections.synchronizedSet(mutableSetOf<String>())
+    }
 }

@@ -55,12 +55,24 @@ interface BillDao {
     suspend fun getBillsBetweenTimesList(startTime: Long, endTime: Long): List<Bill>
 
     @Query("""
-        SELECT COALESCE(SUM(amount), 0.0) FROM bills
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN type = :expenseType AND subType != :refundSubtype THEN amount * exchangeRate
+                WHEN subType = :refundSubtype
+                     AND relatedBillId IS NULL
+                     AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = '')
+                    THEN -amount * exchangeRate
+                ELSE 0.0
+            END
+        ), 0.0) FROM bills
         WHERE time BETWEEN :startTime AND :endTime
           AND (:bookName = '' OR bookName = :bookName)
-          AND type = :expenseType
-          AND subType != :refundSubtype
           AND excludeFromStats = 0
+          AND (
+              (type = :expenseType AND subType != :refundSubtype)
+              OR (subType = :refundSubtype AND relatedBillId IS NULL
+                  AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = ''))
+          )
     """)
     suspend fun sumBudgetExpense(
         startTime: Long,
@@ -71,11 +83,27 @@ interface BillDao {
     ): Double
 
     @Query("""
-        SELECT COALESCE(SUM(amount), 0.0) FROM bills
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN type = :expenseType AND subType != :refundSubtype THEN amount * exchangeRate
+                WHEN subType = :refundSubtype
+                     AND relatedBillId IS NULL
+                     AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = '')
+                    THEN -amount * exchangeRate
+                ELSE 0.0
+            END
+        ), 0.0) FROM bills
         WHERE time BETWEEN :startTime AND :endTime
           AND (:bookName = '' OR bookName = :bookName)
-          AND type = :expenseType AND subType != :refundSubtype
-          AND excludeFromStats = 0 AND categoryName = :categoryName
+          AND excludeFromStats = 0
+          AND (
+              (type = :expenseType AND subType != :refundSubtype)
+              OR (subType = :refundSubtype AND relatedBillId IS NULL
+                  AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = ''))
+          )
+          AND (categoryName = :categoryName
+               OR categoryName = '退款：' || :categoryName
+               OR categoryName = '退款·' || :categoryName)
     """)
     suspend fun sumBudgetExpenseByCategoryName(
         startTime: Long, endTime: Long, bookName: String, categoryName: String,
@@ -83,13 +111,25 @@ interface BillDao {
     ): Double
 
     @Query("""
-        SELECT categoryId AS categoryId, NULL AS categoryName, COALESCE(SUM(amount), 0.0) AS total
+        SELECT categoryId AS categoryId, NULL AS categoryName, COALESCE(SUM(
+            CASE
+                WHEN type = :expenseType AND subType != :refundSubtype THEN amount * exchangeRate
+                WHEN subType = :refundSubtype
+                     AND relatedBillId IS NULL
+                     AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = '')
+                    THEN -amount * exchangeRate
+                ELSE 0.0
+            END
+        ), 0.0) AS total
         FROM bills
         WHERE time BETWEEN :startTime AND :endTime
           AND (:bookName = '' OR bookName = :bookName)
-          AND type = :expenseType
-          AND subType != :refundSubtype
           AND excludeFromStats = 0
+          AND (
+              (type = :expenseType AND subType != :refundSubtype)
+              OR (subType = :refundSubtype AND relatedBillId IS NULL
+                  AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = ''))
+          )
           AND categoryId IN (:categoryIds)
         GROUP BY categoryId
     """)
@@ -103,13 +143,25 @@ interface BillDao {
     ): List<CategoryExpenseSum>
 
     @Query("""
-        SELECT categoryId AS categoryId, MAX(categoryName) AS categoryName, COALESCE(SUM(amount), 0.0) AS total
+        SELECT categoryId AS categoryId, MAX(categoryName) AS categoryName, COALESCE(SUM(
+            CASE
+                WHEN type = :expenseType AND subType != :refundSubtype THEN amount * exchangeRate
+                WHEN subType = :refundSubtype
+                     AND relatedBillId IS NULL
+                     AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = '')
+                    THEN -amount * exchangeRate
+                ELSE 0.0
+            END
+        ), 0.0) AS total
         FROM bills
         WHERE time BETWEEN :startTime AND :endTime
           AND (:bookName = '' OR bookName = :bookName)
-          AND type = :expenseType
-          AND subType != :refundSubtype
           AND excludeFromStats = 0
+          AND (
+              (type = :expenseType AND subType != :refundSubtype)
+              OR (subType = :refundSubtype AND relatedBillId IS NULL
+                  AND (relatedSharedId IS NULL OR TRIM(relatedSharedId) = ''))
+          )
           AND categoryId IS NOT NULL
         GROUP BY categoryId
         ORDER BY total DESC

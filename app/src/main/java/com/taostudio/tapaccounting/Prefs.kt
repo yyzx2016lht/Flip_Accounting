@@ -307,6 +307,21 @@ object Prefs {
     fun setHomeBudgetSummaryEnabled(ctx: Context, bookName: String, enabled: Boolean) =
         PrefsDisplaySupport.setHomeBudgetSummaryEnabled(ctx, bookName, enabled)
 
+    fun hasHomeBudgetSummaryPreference(ctx: Context, bookName: String): Boolean =
+        PrefsDisplaySupport.hasHomeBudgetSummaryPreference(ctx, bookName)
+
+    fun isStatsBudgetModeEnabled(ctx: Context, bookName: String): Boolean =
+        PrefsDisplaySupport.isStatsBudgetModeEnabled(ctx, bookName)
+
+    fun setStatsBudgetModeEnabled(ctx: Context, bookName: String, enabled: Boolean) =
+        PrefsDisplaySupport.setStatsBudgetModeEnabled(ctx, bookName, enabled)
+
+    fun hasStatsBudgetModePreference(ctx: Context, bookName: String): Boolean =
+        PrefsDisplaySupport.hasStatsBudgetModePreference(ctx, bookName)
+
+    fun enableSharedBudgetDisplayDefaultsIfUnset(ctx: Context, bookName: String) =
+        PrefsDisplaySupport.enableSharedBudgetDisplayDefaultsIfUnset(ctx, bookName)
+
     fun isMultiBillEnabled(ctx: Context): Boolean = PrefsDisplaySupport.isMultiBillEnabled(ctx)
     fun setMultiBillEnabled(ctx: Context, enabled: Boolean) =
         PrefsDisplaySupport.setMultiBillEnabled(ctx, enabled)

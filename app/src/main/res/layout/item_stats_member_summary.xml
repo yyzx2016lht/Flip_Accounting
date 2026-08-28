@@ -105,17 +105,17 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/income"
+                android:text="@string/member_budget_remaining"
                 android:textColor="@color/stats_header_label"
                 android:textSize="11sp" />
 
             <TextView
-                android:id="@+id/tv_member_income"
+                android:id="@+id/tv_member_budget_remaining"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/income_color"
+                android:textColor="@color/stats_segmented_text_active"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>

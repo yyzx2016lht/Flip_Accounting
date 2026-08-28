@@ -2,6 +2,7 @@ package com.taostudio.tapaccounting.data.local.dao
 
 import androidx.room.*
 import com.taostudio.tapaccounting.data.local.entity.Budget
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BudgetDao {
@@ -31,6 +32,15 @@ interface BudgetDao {
         LEFT JOIN books ON books.id = budgets.bookId
         WHERE budgets.yearMonth = :yearMonth
           AND ((:bookName = '' AND budgets.bookId = 0) OR books.name = :bookName)
+        ORDER BY budgets.categoryKey ASC
+    """)
+    fun observeBudgetsByMonthAndBook(yearMonth: String, bookName: String): Flow<List<Budget>>
+
+    @Query("""
+        SELECT budgets.* FROM budgets
+        LEFT JOIN books ON books.id = budgets.bookId
+        WHERE budgets.yearMonth = :yearMonth
+          AND ((:bookName = '' AND budgets.bookId = 0) OR books.name = :bookName)
           AND budgets.categoryKey = :categoryId
         LIMIT 1
     """)
@@ -45,6 +55,20 @@ interface BudgetDao {
         LIMIT 1
     """)
     suspend fun getTotalBudget(yearMonth: String, bookName: String): Budget?
+
+    @Query("""
+        SELECT budgets.* FROM budgets
+        LEFT JOIN books ON books.id = budgets.bookId
+        WHERE budgets.yearMonth BETWEEN :startYearMonth AND :endYearMonth
+          AND ((:bookName = '' AND budgets.bookId = 0) OR books.name = :bookName)
+          AND budgets.categoryKey = 0
+        ORDER BY budgets.yearMonth ASC
+    """)
+    suspend fun getTotalBudgetsBetween(
+        startYearMonth: String,
+        endYearMonth: String,
+        bookName: String
+    ): List<Budget>
 
     @Query("SELECT * FROM budgets WHERE bookId = :bookId AND yearMonth = :yearMonth AND categoryKey = :categoryKey LIMIT 1")
     suspend fun getBySlot(bookId: Long, yearMonth: String, categoryKey: Long): Budget?
@@ -66,13 +90,16 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets ORDER BY yearMonth DESC, categoryId ASC")
     suspend fun getAll(): List<Budget>
 
+    @Query("SELECT * FROM budgets ORDER BY yearMonth DESC, categoryId ASC")
+    fun observeAll(): Flow<List<Budget>>
+
     @Query("SELECT * FROM budgets WHERE bookId=:bookId")
     suspend fun getAllByBookId(bookId: Long): List<Budget>
 
     @Query("SELECT * FROM budgets WHERE sharedId=:sharedId LIMIT 1")
     suspend fun getBySharedId(sharedId: String): Budget?
 
-    @Query("UPDATE budgets SET sharedId=NULL, revision=0, isShared=0, sharedDeviceId=NULL WHERE bookId=:bookId")
+    @Query("UPDATE budgets SET sharedId=NULL, revision=0, isShared=0, sharedDeviceId=NULL, memberBudgetAllocations=NULL WHERE bookId=:bookId")
     suspend fun clearSharedState(bookId: Long)
 
     @Query("DELETE FROM budgets WHERE bookId=:bookId")
