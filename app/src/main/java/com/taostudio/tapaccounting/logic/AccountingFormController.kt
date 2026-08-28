@@ -2345,13 +2345,15 @@ class AccountingFormController(
         lastAiSuggestOriginalText = remarks ?: remark ?: original
 
         // 根据 AI 返回的 book_name 切换账本
-        val aiBookName = json.optString("book_name", "").trim()
-        if (aiBookName.isNotEmpty() && aiBookName != selectedFormBook) {
-            val books = BookAccountManager.getBookAccounts(ctx)
-            if (books.any { it == aiBookName }) {
-                selectedFormBook = aiBookName
-                tvBook.text = aiBookName
-            }
+        val books = BookAccountManager.getBookAccounts(ctx)
+        val aiBookName = resolveAccountingBookSelection(
+            bookId = "",
+            bookName = json.optString("book_name", ""),
+            availableBooks = books
+        )
+        if (aiBookName != null && aiBookName != selectedFormBook) {
+            selectedFormBook = aiBookName
+            tvBook.text = aiBookName
         }
 
         val isFromAi = json.has("original_text_from_user")
@@ -2373,6 +2375,19 @@ class AccountingFormController(
         if (isMulti && json.has("bills")) {
             val billsArray = json.getJSONArray("bills")
             if (billsArray.length() == 0) return
+
+            val batchBookName = json.optString("book_name", "")
+            val fallbackBookName = BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
+            for (i in 0 until billsArray.length()) {
+                val billJson = billsArray.getJSONObject(i)
+                val resolvedBookName = resolveAccountingBookForSave(
+                    billBookName = billJson.optString("book_name", ""),
+                    batchBookName = batchBookName,
+                    availableBooks = books,
+                    fallbackBookName = fallbackBookName
+                )
+                billJson.put("book_name", resolvedBookName)
+            }
             
             val sourceKind = json.optString("source_kind", "")
             val isVisualReviewDraft = sourceKind == "screen_capture" || sourceKind == "receipt_image"
@@ -2380,13 +2395,9 @@ class AccountingFormController(
             if (isNotSync) {
                 scope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(ctx)
-                    val aiBookName = json.optString("book_name", "").trim()
-                    val books = BookAccountManager.getBookAccounts(ctx)
-                    val resolvedBook = aiBookName.takeIf { name ->
-                        name.isNotEmpty() && books.any { it == name }
-                    } ?: BookAccountManager.resolveWritableBook(ctx, selectedFormBook)
                     for (i in 0 until billsArray.length()) {
                         val obj = billsArray.getJSONObject(i)
+                        val resolvedBook = obj.optString("book_name", fallbackBookName)
                         
                         var typeIndex = obj.optInt("type", 0)
                         if (!isAssetFeatureEnabled) {

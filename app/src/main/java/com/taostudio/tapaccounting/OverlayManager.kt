@@ -847,6 +847,17 @@ class OverlayManager(private val ctx: Context) {
 
         CoroutineScope(Dispatchers.IO).launch {
             val db = AppDatabase.getDatabase(ctx)
+            val availableBooks = BookAccountManager.getBookAccounts(ctx)
+            val fallbackBookName = BookAccountManager.resolveWritableBook(
+                ctx,
+                BookAccountManager.getSelectedBook(ctx, availableBooks)
+            )
+            val resolvedBookName = resolveAccountingBookForSave(
+                billBookName = obj.optString("book_name", ""),
+                batchBookName = aiBookName,
+                availableBooks = availableBooks,
+                fallbackBookName = fallbackBookName
+            )
             val asset1Obj = db.assetDao().getAssetByName(asset1)
             var toAssetObj: com.taostudio.tapaccounting.data.local.entity.Asset? = null
             if (typeIndex == 2 || typeIndex == 3) {
@@ -883,9 +894,7 @@ class OverlayManager(private val ctx: Context) {
                 categoryName = categoryName,
                 time = parsedTime,
                 remark = remark,
-                bookName = aiBookName.takeIf { name ->
-                    name.isNotEmpty() && BookAccountManager.getBookAccounts(ctx).any { it == name }
-                } ?: BookAccountManager.getSelectedBook(ctx)
+                bookName = resolvedBookName
             )
             com.taostudio.tapaccounting.logic.BillMutationService.insertBillAndApplyImpact(db, bill)
         }
@@ -991,4 +1000,3 @@ class OverlayManager(private val ctx: Context) {
         }
     }
 }
-

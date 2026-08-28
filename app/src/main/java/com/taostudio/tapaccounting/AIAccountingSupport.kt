@@ -64,13 +64,7 @@ internal suspend fun buildAccountingPromptContext(ctx: Context): AIAccountingPro
     val currentTimeStr = "${timeFormat.format(now)} (${weekFormat.format(now)})"
     val availableBooks = withContext(Dispatchers.IO) {
         val dbBookNames = db.billDao().getAllBookNames()
-        val allBooks = BookAccountManager.getBookAccounts(ctx, dbBookNames)
-        BookAccountManager.getDisplayBookAccounts(
-            context = ctx,
-            books = allBooks,
-            includeAllBook = false,
-            collapsedGroupExpanded = false
-        )
+        BookAccountManager.getBookAccounts(ctx, dbBookNames)
             .map { BookAccountManager.normalizeBookName(it) }
             .filter {
                 it.isNotBlank() &&
@@ -111,9 +105,21 @@ internal fun normalizeAccountingResult(
     assetFeatureEnabled: Boolean,
     referenceText: String = "",
     nowMillis: Long = System.currentTimeMillis(),
-    assetCurrencyMap: Map<String, String> = emptyMap()
+    assetCurrencyMap: Map<String, String> = emptyMap(),
+    availableBooks: List<String> = emptyList()
 ) {
+    val batchBookName = if (root.has("bills")) {
+        normalizeAccountingBookFields(root, availableBooks)
+    } else {
+        null
+    }
+
     fun normalizeBillJson(bill: JSONObject, index: Int) {
+        val billBookName = normalizeAccountingBookFields(bill, availableBooks)
+        if (billBookName == null && batchBookName != null) {
+            bill.put("book_name", batchBookName)
+        }
+
         val rawType = bill.optInt("type", 0)
         val type = normalizeBillType(rawType)
         bill.put("type", type)
@@ -190,6 +196,61 @@ internal fun resolvePromptCategoryId(
     val index = categoryId.removePrefix(prefix).toIntOrNull() ?: return null
     val candidates = if (isIncome) incomeCats else expenseCats
     return candidates.getOrNull(index)
+}
+
+internal fun resolvePromptBookId(bookId: String, availableBooks: List<String>): String? {
+    if (!bookId.startsWith(BOOK_ID_PREFIX)) return null
+    val index = bookId.removePrefix(BOOK_ID_PREFIX).toIntOrNull() ?: return null
+    return availableBooks.getOrNull(index)
+}
+
+internal fun resolveAccountingBookSelection(
+    bookId: String,
+    bookName: String,
+    availableBooks: List<String>
+): String? {
+    val normalizedBooks = availableBooks
+        .map { BookAccountManager.normalizeBookName(it) }
+        .filter {
+            it.isNotBlank() &&
+                it != BookAccountManager.ALL_BOOK &&
+                it != BookAccountManager.COLLAPSED_BOOK_GROUP
+        }
+        .distinct()
+    if (normalizedBooks.isEmpty()) return null
+
+    resolvePromptBookId(bookId.trim(), normalizedBooks)?.let { return it }
+    val rawName = bookName.trim()
+    if (rawName.isEmpty() || rawName.equals("null", ignoreCase = true)) return null
+    val normalizedName = BookAccountManager.normalizeBookName(rawName)
+    return normalizedBooks.firstOrNull { it == normalizedName }
+}
+
+internal fun resolveAccountingBookForSave(
+    billBookName: String,
+    batchBookName: String,
+    availableBooks: List<String>,
+    fallbackBookName: String
+): String = resolveAccountingBookSelection("", billBookName, availableBooks)
+    ?: resolveAccountingBookSelection("", batchBookName, availableBooks)
+    ?: fallbackBookName
+
+private fun normalizeAccountingBookFields(
+    json: JSONObject,
+    availableBooks: List<String>
+): String? {
+    val resolved = resolveAccountingBookSelection(
+        bookId = json.optString("book_id", ""),
+        bookName = json.optString("book_name", ""),
+        availableBooks = availableBooks
+    )
+    json.remove("book_id")
+    if (resolved == null) {
+        json.remove("book_name")
+    } else {
+        json.put("book_name", resolved)
+    }
+    return resolved
 }
 
 /**
@@ -458,4 +519,3 @@ internal fun categoryCompactToken(value: String): String =
 
 internal fun categoryToken(value: String): String =
     value.lowercase(Locale.ROOT).replace(" ", "")
-

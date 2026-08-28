@@ -1546,7 +1546,8 @@ object AIService {
             assetNames = promptContext.assetNames,
             assetFeatureEnabled = promptContext.assetFeatureEnabled,
             referenceText = referenceText,
-            assetCurrencyMap = promptContext.assetCurrencyMap
+            assetCurrencyMap = promptContext.assetCurrencyMap,
+            availableBooks = promptContext.availableBooks
         )
         if (!Prefs.isLocalRuleOverrideEnabled(ctx)) return
 
@@ -1559,7 +1560,8 @@ object AIService {
             assetNames = promptContext.assetNames,
             assetFeatureEnabled = promptContext.assetFeatureEnabled,
             referenceText = referenceText,
-            assetCurrencyMap = promptContext.assetCurrencyMap
+            assetCurrencyMap = promptContext.assetCurrencyMap,
+            availableBooks = promptContext.availableBooks
         )
     }
 

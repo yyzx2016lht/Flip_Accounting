@@ -5,7 +5,7 @@ object AIPrompts {
 你是"截图/图片记账视觉助手"。
 你会收到一张截图或图片。你的任务是从画面中只提取真实可记账的交易信息，输出"待用户核对"的账单草稿 JSON。
 
-【数据说明】资产库、支出分类、收入分类、当前时间、可用货币等数据在用户消息的【数据上下文】中提供，请参照其中的数据进行匹配和判断。
+【数据说明】资产库、支出分类、收入分类、账本候选、当前时间、可用货币等数据在用户消息的【数据上下文】中提供，请参照其中的数据进行匹配和判断。
 
 【核心识别原则】
 1. 输入可能是支付/订单/账单截图，也可能是小票、票据、转账或收款凭证图片；先判断画面类型，再按真实交易提取。
@@ -57,8 +57,8 @@ object AIPrompts {
 
 【输出格式】
 1. 必须只返回一个合法 JSON 对象，不要输出 Markdown、解释、代码块或额外文本。
-2. 每条 bill 字段固定为：
-amount,type,asset_name,category_id,time,remarks,currency,to_asset_name,fee
+2. 每条 bill 字段为：
+amount,type,asset_name,category_id,time,remarks,currency,to_asset_name,fee；用户明确指定账本时可额外输出 book_id。
 3. 字段无法确认时使用空字符串或 0，不要臆造。
 4. fee 没有手续费时填 0。
 """
@@ -90,7 +90,7 @@ amount,type,asset_name,category_id,time,remarks,currency,to_asset_name,fee
                     "这是截屏记账。读懂 App 内的支付/订单/账单截图，直接返回 JSON。"
                 }
             )
-            append("\n成功时返回：{\"bills\":[{\"amount\":0.0,\"type\":0,\"asset_name\":\"\",\"category_id\":\"<候选id>\",\"time\":\"yyyy-MM-dd HH:mm:ss\",\"remarks\":\"\",\"currency\":\"CNY\",\"to_asset_name\":\"\",\"fee\":0.0},...]}。")
+            append("\n成功时返回：{\"bills\":[{\"amount\":0.0,\"type\":0,\"asset_name\":\"\",\"category_id\":\"<候选id>\",\"book_id\":\"<明确指定账本时的候选id>\",\"time\":\"yyyy-MM-dd HH:mm:ss\",\"remarks\":\"\",\"currency\":\"CNY\",\"to_asset_name\":\"\",\"fee\":0.0},...]}。")
             append("\n无法识别时返回：{\"no_bill\":true,\"reply\":\"未识别到可记账内容\"}。")
             append("\n只输出 JSON，不要 Markdown、代码块、自然语言解释或额外文字。")
         } else if (isFromChat) {
@@ -430,7 +430,7 @@ ${buildRemarksChineseRule().trim()}
 只有在你确实无法提取出任何明确账单时，才输出：
 {"no_bill":true,"reply":"<简短自然回复>"}
 
-【数据说明】资产库、支出分类、收入分类、当前时间、币种列表等数据在用户消息的【数据上下文】中提供，请参照其中的数据进行匹配和判断。
+【数据说明】资产库、支出分类、收入分类、账本候选、当前时间、币种列表等数据在用户消息的【数据上下文】中提供，请参照其中的数据进行匹配和判断。
 
 【核心规则】
 1. 同一句中出现多个金额、多个动作、多个对象时，必须拆分成多条账单。
@@ -449,7 +449,7 @@ ${buildRemarksChineseRule().trim()}
    若未明确给出到账金额，不要臆造这两个字段。
 【输出格式】
 
-{"bills":[{"amount":0.0,"type":0,"asset_name":"","category_id":"<候选id>","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY","to_asset_name":"","fee":0.0}]}
+{"bills":[{"amount":0.0,"type":0,"asset_name":"","category_id":"<候选id>","book_id":"<明确指定账本时的候选id>","time":"yyyy-MM-dd HH:mm:ss","remarks":"","currency":"CNY","to_asset_name":"","fee":0.0}]}
 """
 
     const val CHAT_ASSISTANT_PROMPT_DEFAULT = """
@@ -488,7 +488,16 @@ ${buildRemarksChineseRule().trim()}
 
     fun buildBookFieldRule(availableBooks: List<String>): String {
         if (availableBooks.isEmpty()) return ""
-        return "\n【账本字段（可选）】当且仅当用户明确提到记入某账本时，才可输出 `book_name` 字段；可选账本：${availableBooks.joinToString("、")}。未明确提及时不要猜测，也可以不输出该字段。\n"
+        return """
+
+【账本选择规则】
+1. 账本候选在本次用户消息的【数据上下文】中，每项包含 id 和 name。
+2. 当且仅当用户明确指定某条账单记入哪个账本时，在该条 bill 内输出候选的 `book_id`。
+3. 用户说整段或“都/全部”记入同一账本时，每条 bill 都必须重复输出同一 `book_id`。
+4. 不同账单可以输出不同 `book_id`，按用户语句的指定范围分别选择。
+5. 用户未明确指定账本时，不得根据分类、资产或过往习惯猜测，并且不要输出 `book_id`。
+6. 只能输出账本候选中存在的 id；无法匹配时不要输出。禁止输出 `book_name`、自造 id 或新建账本。
+"""
     }
 
     fun buildRepaymentRule(creditCardNames: List<String>, assetFeatureEnabled: Boolean): String {
@@ -521,7 +530,6 @@ ${buildRemarksChineseRule().trim()}
             "- category_id 必须从【数据上下文】对应候选中选择；若无法确定，选择 name 为\"其他/其它\"的候选 id，没有兜底候选时才留空。\n"
 
     fun buildOutputJsonRuleWithTargetFields(): String =
-        "\n【输出格式】You must return one valid JSON object only. 可选字段：book_name、target_amount、target_currency（仅在用户明确提到到账金额时输出）。Do not return markdown or extra explanation.\n"
+        "\n【输出格式】You must return one valid JSON object only. 每条 bill 的可选字段：book_id（仅在用户明确指定账本时输出）、target_amount、target_currency（仅在用户明确提到到账金额时输出）。Do not return markdown or extra explanation.\n"
 
 }
-

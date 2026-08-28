@@ -69,5 +69,66 @@ class AIAccountingSupportTest {
 
         assertEquals(null, resolved)
     }
+
+    @Test
+    fun resolvePromptBookIdMapsToRealBook() {
+        val resolved = resolvePromptBookId(
+            bookId = "b1",
+            availableBooks = listOf("默认账本", "伙食账本", "日用账本")
+        )
+
+        assertEquals("伙食账本", resolved)
+    }
+
+    @Test
+    fun resolveAccountingBookSelectionPrefersCandidateIdOverLegacyName() {
+        val resolved = resolveAccountingBookSelection(
+            bookId = "b2",
+            bookName = "伙食账本",
+            availableBooks = listOf("默认账本", "伙食账本", "日用账本")
+        )
+
+        assertEquals("日用账本", resolved)
+    }
+
+    @Test
+    fun resolveAccountingBookSelectionAcceptsKnownLegacyName() {
+        val resolved = resolveAccountingBookSelection(
+            bookId = "",
+            bookName = "  伙食账本  ",
+            availableBooks = listOf("默认账本", "伙食账本")
+        )
+
+        assertEquals("伙食账本", resolved)
+    }
+
+    @Test
+    fun resolveAccountingBookSelectionRejectsInventedBook() {
+        val resolved = resolveAccountingBookSelection(
+            bookId = "b99",
+            bookName = "AI 自造账本",
+            availableBooks = listOf("默认账本", "伙食账本")
+        )
+
+        assertEquals(null, resolved)
+    }
+
+    @Test
+    fun resolveAccountingBookForSaveUsesPerBillThenBatchThenFallback() {
+        val availableBooks = listOf("默认账本", "伙食账本", "日用账本")
+
+        assertEquals(
+            "日用账本",
+            resolveAccountingBookForSave("日用账本", "伙食账本", availableBooks, "默认账本")
+        )
+        assertEquals(
+            "伙食账本",
+            resolveAccountingBookForSave("", "伙食账本", availableBooks, "默认账本")
+        )
+        assertEquals(
+            "默认账本",
+            resolveAccountingBookForSave("", "", availableBooks, "默认账本")
+        )
+    }
 }
 

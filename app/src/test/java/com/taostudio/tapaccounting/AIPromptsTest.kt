@@ -31,6 +31,8 @@ class AIPromptsTest {
         assertTrue(dataBlock.contains("""{"id":"e0","name":"网费"}"""))
         assertTrue(dataBlock.contains("""{"id":"e1","name":"其它"}"""))
         assertTrue(dataBlock.contains("""{"id":"i0","name":"工资"}"""))
+        assertTrue(dataBlock.contains("""{"id":"b0","name":"默认账本"}"""))
+        assertTrue(dataBlock.contains("""{"id":"b1","name":"伙食账本"}"""))
     }
 
     @Test
@@ -55,7 +57,19 @@ class AIPromptsTest {
         )
 
         assertTrue(prompt.contains("""{"id":"e0","name":"网费"}"""))
+        assertTrue(prompt.contains("""{"id":"b0","name":"默认账本"}"""))
         assertTrue(prompt.contains("识别图片中的账单"))
+    }
+
+    @Test
+    fun bookRuleRequiresCandidateIdOnEachExplicitlyTargetedBill() {
+        val rule = AIPrompts.buildBookFieldRule(listOf("默认账本", "伙食账本"))
+
+        assertTrue(rule.contains("`book_id`"))
+        assertTrue(rule.contains("每条 bill"))
+        assertTrue(rule.contains("未明确指定账本时"))
+        assertTrue(rule.contains("禁止输出 `book_name`"))
+        assertFalse(rule.contains("默认账本、伙食账本"))
     }
 
     private fun promptContext() = AIAccountingPromptContext(
@@ -68,7 +82,6 @@ class AIPromptsTest {
         currencies = listOf("CNY"),
         currentTimeStr = "2026-07-20 10:55:00",
         assetFeatureEnabled = false,
-        availableBooks = emptyList()
+        availableBooks = listOf("默认账本", "伙食账本")
     )
 }
-

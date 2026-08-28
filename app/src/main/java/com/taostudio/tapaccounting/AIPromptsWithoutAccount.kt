@@ -23,7 +23,6 @@ object AIPromptsWithoutAccount {
 7. 不要输出 Markdown、解释、代码块。
 
 【输出格式】
-{"bills":[{"amount":12.34,"type":0,"category_id":"<候选id>","time":"2026-06-15 12:30:00","remarks":"黄焖鸡米饭","currency":"CNY"}]}
+{"bills":[{"amount":12.34,"type":0,"category_id":"<候选id>","book_id":"<明确指定账本时的候选id>","time":"2026-06-15 12:30:00","remarks":"黄焖鸡米饭","currency":"CNY"}]}
 """
 }
-

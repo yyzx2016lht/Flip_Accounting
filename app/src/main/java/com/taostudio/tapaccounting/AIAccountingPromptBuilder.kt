@@ -49,6 +49,7 @@ internal fun buildScreenAccountingSystemPrompt(
     prompt += AIPrompts.buildTypeRule(promptContext.assetFeatureEnabled)
     val hasSecondLevel = hasSecondLevelCategories(promptContext.expenseCats, promptContext.incomeCats)
     prompt += AIPrompts.buildCategoryRulesCompact(hasSecondLevel)
+    prompt += AIPrompts.buildBookFieldRule(promptContext.availableBooks)
     prompt += AIPrompts.buildExampleAntiLeakRule()
     prompt += AIPrompts.buildAccountingDateRule()
     prompt += AIPrompts.buildVisualPaymentMethodRule(
@@ -130,7 +131,7 @@ private fun creditCardNames(promptContext: AIAccountingPromptContext): List<Stri
 
 /**
  * 构建动态数据块，注入到 user message 开头。
- * 包含资产、分类、币种、时间等每次请求可能变化的数据。
+ * 包含资产、分类、账本、币种、时间等每次请求可能变化的数据。
  */
 internal fun buildDataBlock(promptContext: AIAccountingPromptContext): String = buildString {
     appendLine("【数据上下文】")
@@ -139,20 +140,32 @@ internal fun buildDataBlock(promptContext: AIAccountingPromptContext): String = 
     }
     appendLine("支出分类候选：${Gson().toJson(buildPromptCategoryOptions(promptContext.expenseCats, EXPENSE_CATEGORY_ID_PREFIX))}")
     appendLine("收入分类候选：${Gson().toJson(buildPromptCategoryOptions(promptContext.incomeCats, INCOME_CATEGORY_ID_PREFIX))}")
+    if (promptContext.availableBooks.isNotEmpty()) {
+        appendLine("账本候选：${Gson().toJson(buildPromptBookOptions(promptContext.availableBooks))}")
+    }
     appendLine("币种列表：${Gson().toJson(promptContext.currencies)}")
     appendLine("当前时间：${promptContext.currentTimeStr}")
 }
 
 internal const val EXPENSE_CATEGORY_ID_PREFIX = "e"
 internal const val INCOME_CATEGORY_ID_PREFIX = "i"
+internal const val BOOK_ID_PREFIX = "b"
 
 internal data class PromptCategoryOption(
     val id: String,
     val name: String
 )
 
+internal data class PromptBookOption(
+    val id: String,
+    val name: String
+)
+
 internal fun buildPromptCategoryOptions(categories: List<String>, prefix: String): List<PromptCategoryOption> =
     categories.mapIndexed { index, name -> PromptCategoryOption(id = "$prefix$index", name = name) }
+
+internal fun buildPromptBookOptions(books: List<String>): List<PromptBookOption> =
+    books.mapIndexed { index, name -> PromptBookOption(id = "$BOOK_ID_PREFIX$index", name = name) }
 
 internal fun buildAccountingUserPrompt(
     userInput: String,
@@ -205,4 +218,3 @@ internal fun buildScreenAccountingUserText(
     appendLine()
     append(taskInstruction)
 }
-
