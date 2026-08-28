@@ -1,5 +1,6 @@
 # ===== Android / IDE =====
 *.iml
+local.properties
 .gradle
 .gradle-user/
 .kotlin/
@@ -39,7 +40,7 @@ app/release/
 release/
 app/build/
 build/
-server/build/
+archive/legacy-server/build/
 *.apk
 *.aab
 
@@ -50,7 +51,11 @@ server/build/
 # ===== 临时文件 =====
 .tmp_adb/
 .tmp_adb_db/
+.tmp_adb_stats/
 .mode line
+
+# ===== 本地备份 =====
+*.bak
 
 # ===== 配置文件（含API密钥）=====
 config.json
