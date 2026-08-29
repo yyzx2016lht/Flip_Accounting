@@ -419,7 +419,6 @@ class AiConfigActivity : AppCompatActivity() {
                 Prefs.setAiModifyModel(this, textModel)
                 Prefs.setAiCategoryRefineModel(this, textModel)
                 Prefs.setAiRouterModel(this, textModel)
-                Prefs.setAiQueryModel(this, textModel)
                 Prefs.setAiRuleModel(this, textModel)
                 Prefs.setAiReceiptModel(this, textModel)
                 Prefs.setAiReceiptOcrRefineModel(this, textModel)

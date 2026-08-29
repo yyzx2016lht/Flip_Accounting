@@ -102,7 +102,6 @@ object RemoteConfigManager {
             Prefs.setAiModifyModel(context, textModel)
             Prefs.setAiCategoryRefineModel(context, textModel)
             Prefs.setAiRouterModel(context, textModel)
-            Prefs.setAiQueryModel(context, textModel)
             Prefs.setAiRuleModel(context, textModel)
             Prefs.setAiReceiptModel(context, textModel)
             Prefs.setAiReceiptOcrRefineModel(context, textModel)

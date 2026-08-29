@@ -16,7 +16,6 @@ object PrefsAiSupport {
     private const val KEY_AI_CATEGORY_REFINE_MODEL = "ai_category_refine_model_id"
     private const val KEY_AI_ROUTER_MODEL = "ai_router_model_id"
     private const val KEY_AI_LLM_ROUTER_ENABLED = "ai_llm_router_enabled"
-    private const val KEY_AI_QUERY_MODEL = "ai_query_model_id"
     private const val KEY_AI_RULE_MODEL = "ai_rule_model_id"
     private const val KEY_AI_MODELS_CACHE = "ai_models_cache"
     private const val KEY_AI_PROVIDER = "ai_provider"
@@ -37,7 +36,6 @@ object PrefsAiSupport {
     private const val KEY_AI_THINKING_MODIFY_BILL = "ai_thinking_modify_bill"
     private const val KEY_AI_THINKING_VISION = "ai_thinking_vision"
     private const val KEY_AI_THINKING_CATEGORY_REFINE = "ai_thinking_category_refine"
-    private const val KEY_AI_QUERY_ENABLED = "ai_query_enabled"
     private const val KEY_AI_RULES = "ai_rules_v1"
     private const val KEY_OCR_DEBUG_RECORDS = "ocr_debug_records_v1"
     private const val OCR_DEBUG_MAX_RECORDS = 20
@@ -177,12 +175,6 @@ object PrefsAiSupport {
     fun setAiLlmRouterEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_LLM_ROUTER_ENABLED, enabled).apply()
 
-    // Hidden legacy field. Current product flow no longer exposes query planning configuration.
-    fun getAiQueryModel(ctx: Context): String =
-        (prefs(ctx).getString(KEY_AI_QUERY_MODEL, "") ?: "").ifBlank { getAiRouterModel(ctx) }
-    fun setAiQueryModel(ctx: Context, value: String) =
-        prefs(ctx).edit().putString(KEY_AI_QUERY_MODEL, value).apply()
-
     fun getAiRuleModel(ctx: Context): String =
         prefs(ctx).getString(KEY_AI_RULE_MODEL, "") ?: getAiModel(ctx)
     fun setAiRuleModel(ctx: Context, value: String) =
@@ -271,12 +263,6 @@ object PrefsAiSupport {
     fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
         prefs(ctx).edit().putBoolean(KEY_AI_THINKING_CATEGORY_REFINE, enabled).apply()
 
-    // Hidden legacy flag kept for backward-compatible restore only.
-    fun isAiQueryEnabled(ctx: Context): Boolean =
-        prefs(ctx).getBoolean(KEY_AI_QUERY_ENABLED, false)
-    fun setAiQueryEnabled(ctx: Context, enabled: Boolean) =
-        prefs(ctx).edit().putBoolean(KEY_AI_QUERY_ENABLED, enabled).apply()
-
     fun getAiModelsCache(ctx: Context): List<String> =
         (prefs(ctx).getStringSet(KEY_AI_MODELS_CACHE, null) ?: emptySet()).toList()
     fun setAiModelsCache(ctx: Context, models: List<String>) =
@@ -316,7 +302,6 @@ object PrefsAiSupport {
             .putString(KEY_AI_RECEIPT_MODEL, textModel)
             .putString(KEY_AI_RECEIPT_OCR_REFINE_MODEL, textModel)
             .putString(KEY_AI_ROUTER_MODEL, textModel)
-            .putString(KEY_AI_QUERY_MODEL, textModel)
             .putString(KEY_AI_RECEIPT_VISION_MODEL, visionModel)
             .putString(KEY_AI_SCREEN_MODEL, visionModel)
             .putString(KEY_AI_SPEECH_MODEL, speechModel)

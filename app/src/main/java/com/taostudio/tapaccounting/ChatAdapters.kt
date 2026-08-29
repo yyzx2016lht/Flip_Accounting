@@ -79,15 +79,6 @@ class ChatAdapter(
     private val onInteractiveBillAction: (ChatDisplayItem, Bill, Int) -> Unit,
     private val onOpenImagePreview: (ChatDisplayItem) -> Unit,
     private val onInterruptAiLoading: () -> Unit,
-    private val onQueryDraftStats: (ChatDisplayItem) -> Unit = {},
-    private val onQueryDraftSearch: (ChatDisplayItem) -> Unit = {},
-    private val onQueryDraftCancel: (ChatDisplayItem) -> Unit = {},
-    private val onQueryResultViewDetails: (ChatDisplayItem) -> Unit = {},
-    private val onQueryResultEditConditions: (ChatDisplayItem) -> Unit = {},
-    private val onQueryDraftEditKeyword: (ChatDisplayItem) -> Unit = {},
-    private val onQueryDraftEditDate: (ChatDisplayItem) -> Unit = {},
-    private val onQueryDraftEditBillType: (ChatDisplayItem) -> Unit = {},
-    private val onQueryDraftEditBookScope: (ChatDisplayItem) -> Unit = {},
     private val isBillMessageExpanded: (ChatDisplayItem) -> Boolean,
     private val onToggleBillExpand: (ChatDisplayItem) -> Unit,
     private val onShowBillMessageMenu: (View, ChatDisplayItem) -> Unit,
@@ -161,12 +152,6 @@ class ChatAdapter(
             ChatActivity.MSG_TYPE_AI_BILL ->
                 AiBillVH(inflater.inflate(R.layout.item_chat_bill, parent, false))
 
-            ChatActivity.MSG_TYPE_QUERY_DRAFT ->
-                QueryDraftVH(inflater.inflate(R.layout.item_chat_query_draft, parent, false))
-
-            ChatActivity.MSG_TYPE_QUERY_RESULT ->
-                QueryResultVH(inflater.inflate(R.layout.item_chat_query_result, parent, false))
-
             else ->
                 AiTextVH(inflater.inflate(R.layout.item_chat_ai, parent, false))
         }
@@ -178,8 +163,6 @@ class ChatAdapter(
             is UserVH -> holder.bind(item)
             is AiTextVH -> holder.bind(item)
             is AiBillVH -> holder.bind(item)
-            is QueryDraftVH -> holder.bind(item)
-            is QueryResultVH -> holder.bind(item)
         }
     }
 
@@ -1112,148 +1095,6 @@ class ChatAdapter(
         }
     }
 
-    /** 查询草稿卡片 ViewHolder */
-    inner class QueryDraftVH(v: View) : RecyclerView.ViewHolder(v) {
-        private val tvTime: TextView = v.findViewById(R.id.tv_query_draft_time)
-        private val ivAvatar: ImageView = v.findViewById(R.id.iv_query_draft_avatar)
-        private val tvKeyword: TextView = v.findViewById(R.id.tv_query_keyword)
-        private val rowKeyword: View = v.findViewById(R.id.row_keyword)
-        private val tvCategory: TextView = v.findViewById(R.id.tv_query_category)
-        private val rowCategory: View = v.findViewById(R.id.row_category)
-        private val tvAsset: TextView = v.findViewById(R.id.tv_query_asset)
-        private val rowAsset: View = v.findViewById(R.id.row_asset)
-        private val tvTimeRange: TextView = v.findViewById(R.id.tv_query_time)
-        private val tvBillType: TextView = v.findViewById(R.id.tv_query_bill_type)
-        private val tvBook: TextView = v.findViewById(R.id.tv_query_book)
-        private val btnStats: TextView = v.findViewById(R.id.btn_query_stats)
-        private val btnSearch: TextView = v.findViewById(R.id.btn_query_search)
-        private val btnCancel: TextView = v.findViewById(R.id.btn_query_cancel)
-
-        fun bind(item: ChatDisplayItem) {
-            tvTime.text = formatChatMessageTime(item.timestamp)
-            tvTime.visibility = if (shouldShowTimestamp(adapterPosition, item.timestamp)) View.VISIBLE else View.GONE
-            loadAiAvatar(ivAvatar)
-
-            val draft = item.queryDraft ?: return
-
-            // 关键词
-            if (draft.keyword.isNullOrBlank()) {
-                rowKeyword.visibility = View.GONE
-            } else {
-                rowKeyword.visibility = View.VISIBLE
-                tvKeyword.text = draft.keyword
-            }
-
-            // 分类
-            if (draft.categoryName.isNullOrBlank()) {
-                rowCategory.visibility = View.GONE
-            } else {
-                rowCategory.visibility = View.VISIBLE
-                tvCategory.text = draft.categoryName
-            }
-
-            // 资产
-            if (draft.assetName.isNullOrBlank()) {
-                rowAsset.visibility = View.GONE
-            } else {
-                rowAsset.visibility = View.VISIBLE
-                tvAsset.text = draft.assetName
-            }
-
-            // 时间
-            tvTimeRange.text = draft.timeRange?.label
-                ?: context.getString(R.string.query_not_specified)
-
-            // 类型
-            tvBillType.text = when (draft.billType) {
-                com.taostudio.tapaccounting.chat.query.QueryBillType.EXPENSE -> context.getString(R.string.query_type_expense)
-                com.taostudio.tapaccounting.chat.query.QueryBillType.INCOME -> context.getString(R.string.query_type_income)
-                com.taostudio.tapaccounting.chat.query.QueryBillType.TRANSFER -> context.getString(R.string.query_type_transfer)
-                com.taostudio.tapaccounting.chat.query.QueryBillType.REPAYMENT -> context.getString(R.string.query_type_repayment)
-                com.taostudio.tapaccounting.chat.query.QueryBillType.REFUND -> context.getString(R.string.query_type_refund)
-                com.taostudio.tapaccounting.chat.query.QueryBillType.ANY -> context.getString(R.string.query_type_any)
-            }
-
-            // 账本
-            tvBook.text = when (draft.bookScope) {
-                com.taostudio.tapaccounting.chat.query.BookScope.ALL -> context.getString(R.string.query_all_books)
-                else -> context.getString(R.string.query_current_book)
-            }
-
-            // 行点击编辑
-            rowKeyword.setOnClickListener { onQueryDraftEditKeyword(item) }
-            val rowTime = itemView.findViewById<View>(R.id.row_time)
-            rowTime?.setOnClickListener { onQueryDraftEditDate(item) }
-            val rowBillType = itemView.findViewById<View>(R.id.row_bill_type)
-            rowBillType?.setOnClickListener { onQueryDraftEditBillType(item) }
-            val rowBook = itemView.findViewById<View>(R.id.row_book)
-            rowBook?.setOnClickListener { onQueryDraftEditBookScope(item) }
-
-            // 按钮
-            btnStats.setOnClickListener { onQueryDraftStats(item) }
-            btnSearch.setOnClickListener { onQueryDraftSearch(item) }
-            btnCancel.setOnClickListener { onQueryDraftCancel(item) }
-        }
-    }
-
-    /** 查询结果卡片 ViewHolder */
-    inner class QueryResultVH(v: View) : RecyclerView.ViewHolder(v) {
-        private val tvTime: TextView = v.findViewById(R.id.tv_query_result_time)
-        private val ivAvatar: ImageView = v.findViewById(R.id.iv_query_result_avatar)
-        private val tvConditions: TextView = v.findViewById(R.id.tv_query_result_conditions)
-        private val tvAmount: TextView = v.findViewById(R.id.tv_query_result_amount)
-        private val containerPreview: LinearLayout = v.findViewById(R.id.container_bill_preview)
-        private val btnViewDetails: TextView = v.findViewById(R.id.btn_query_view_details)
-        private val btnEditConditions: TextView = v.findViewById(R.id.btn_query_edit_conditions)
-
-        fun bind(item: ChatDisplayItem) {
-            tvTime.text = formatChatMessageTime(item.timestamp)
-            tvTime.visibility = if (shouldShowTimestamp(adapterPosition, item.timestamp)) View.VISIBLE else View.GONE
-            loadAiAvatar(ivAvatar)
-
-            val result = item.queryResult ?: return
-
-            // 查询条件摘要
-            val draft = result.draft
-            val conditionsParts = mutableListOf<String>()
-            draft.keyword?.let { conditionsParts.add("关键词：$it") }
-            draft.timeRange?.let { conditionsParts.add("时间：${it.label ?: "未指定"}") }
-            tvConditions.text = conditionsParts.joinToString("\n")
-
-            // 结果金额
-            if (result.billCount == 0) {
-                tvAmount.text = context.getString(R.string.query_result_no_match)
-            } else {
-                tvAmount.text = context.getString(
-                    R.string.query_result_count_fmt,
-                    result.billCount,
-                    String.format(Locale.getDefault(), "%.2f", result.totalAmount ?: 0.0)
-                )
-            }
-
-            // 代表账单预览
-            containerPreview.removeAllViews()
-            val inflater = LayoutInflater.from(context)
-            for (bill in result.billsPreview) {
-                val previewView = inflater.inflate(R.layout.item_chat_bill_card, containerPreview, false)
-                val tvCategory = previewView.findViewById<TextView>(R.id.tv_chat_bill_category)
-                val tvAmountPreview = previewView.findViewById<TextView>(R.id.tv_chat_bill_amount)
-                val tvTimePreview = previewView.findViewById<TextView>(R.id.tv_chat_bill_time)
-                val tvDetail = previewView.findViewById<TextView>(R.id.tv_chat_bill_detail)
-
-                tvCategory?.text = bill.categoryName.ifBlank { "未分类" }
-                tvAmountPreview?.text = String.format(Locale.getDefault(), "%.2f", bill.amount)
-                tvTimePreview?.text = formatChatMessageTime(bill.time)
-                tvDetail?.text = bill.remark.ifBlank { bill.accountName }
-
-                containerPreview.addView(previewView)
-            }
-
-            // 按钮
-            btnViewDetails.setOnClickListener { onQueryResultViewDetails(item) }
-            btnEditConditions.setOnClickListener { onQueryResultEditConditions(item) }
-        }
-    }
 }
 
 class ModelOptionAdapter(

@@ -3,6 +3,7 @@ package com.taostudio.tapaccounting.ui.budget
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.text.InputType
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -599,7 +600,7 @@ ${suggestionLines.ifBlank { "无" }}
             fun updateSplitVisibility() {
                 val selected = options.getOrNull(spinner.selectedItemPosition)
                 dialogView.findViewById<View>(R.id.layout_member_budget_split).visibility =
-                    if (sharedMembers.size == 2 && selected?.categoryId == null) View.VISIBLE else View.GONE
+                    if (sharedMembers.size >= 2 && selected?.categoryId == null) View.VISIBLE else View.GONE
             }
             spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -693,7 +694,7 @@ ${suggestionLines.ifBlank { "无" }}
             spinner.isEnabled = false
             setupMemberBudgetSplit(dialogView, sharedMembers, budget.memberBudgetAllocations)
             dialogView.findViewById<View>(R.id.layout_member_budget_split).visibility =
-                if (budget.categoryId == null && sharedMembers.size == 2) View.VISIBLE else View.GONE
+                if (budget.categoryId == null && sharedMembers.size >= 2) View.VISIBLE else View.GONE
 
             val dialog = BottomSheetDialog(this@BudgetManageActivity)
             dialog.setContentView(dialogView)
@@ -747,7 +748,9 @@ ${suggestionLines.ifBlank { "无" }}
     private suspend fun loadSharedBudgetMembers(db: AppDatabase): List<SharedMember> {
         if (currentBook.isBlank()) return emptyList()
         val ledger = db.sharedLedgerDao().getByBookName(currentBook) ?: return emptyList()
-        return db.sharedMemberDao().getByLedgerId(ledger.id).sortedBy { it.joinOrder }.take(2)
+        return db.sharedMemberDao().getByLedgerId(ledger.id)
+            .filter { it.displayName.isNotBlank() }
+            .sortedBy { it.joinOrder }
     }
 
     private fun setupMemberBudgetSplit(
@@ -755,15 +758,35 @@ ${suggestionLines.ifBlank { "无" }}
         members: List<SharedMember>,
         existingAllocations: String?
     ) {
-        if (members.size != 2) return
+        val container = dialogView.findViewById<LinearLayout>(R.id.layout_budget_member_rows)
+        container.removeAllViews()
+        if (members.size < 2) return
         val allocations = MemberBudgetAllocation.decode(existingAllocations)
-        dialogView.findViewById<TextView>(R.id.tv_budget_member_first).text = members[0].resolvedName()
-        dialogView.findViewById<TextView>(R.id.tv_budget_member_second).text = members[1].resolvedName()
-        allocations[members[0].memberId]?.let {
-            dialogView.findViewById<EditText>(R.id.et_budget_member_first).setText(editableAmount(it))
-        }
-        allocations[members[1].memberId]?.let {
-            dialogView.findViewById<EditText>(R.id.et_budget_member_second).setText(editableAmount(it))
+        members.forEachIndexed { index, member ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                if (index > 0) setPadding(0, dp(8), 0, 0)
+            }
+            row.addView(TextView(this).apply {
+                text = member.resolvedName()
+                setTextColor(Color.parseColor("#4B5563"))
+                textSize = 13f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            row.addView(EditText(this).apply {
+                tag = memberBudgetInputTag(member.memberId)
+                layoutParams = LinearLayout.LayoutParams(dp(132), dp(44))
+                setBackgroundColor(Color.WHITE)
+                hint = getString(R.string.budget_member_amount_hint)
+                inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                setPadding(dp(10), 0, dp(10), 0)
+                setTextColor(Color.parseColor("#111827"))
+                textSize = 15f
+                allocations[member.memberId]?.let { setText(editableAmount(it)) }
+            })
+            container.addView(row)
         }
     }
 
@@ -772,22 +795,23 @@ ${suggestionLines.ifBlank { "无" }}
         members: List<SharedMember>,
         totalBudget: Double
     ): String? {
-        if (members.size != 2) return null
-        fun amount(id: Int): Double? {
-            val raw = dialogView.findViewById<EditText>(id).text.toString().trim()
-            if (raw.isEmpty()) return null
-            return raw.toDoubleOrNull() ?: throw IllegalArgumentException("invalid member budget")
+        if (members.size < 2) return null
+        val container = dialogView.findViewById<LinearLayout>(R.id.layout_budget_member_rows)
+        val memberAmounts = members.associateTo(linkedMapOf()) { member ->
+            val raw = container.findViewWithTag<EditText>(memberBudgetInputTag(member.memberId))
+                ?.text?.toString()?.trim().orEmpty()
+            member.memberId to if (raw.isEmpty()) null else (raw.toDoubleOrNull()
+                ?: throw IllegalArgumentException("invalid member budget"))
         }
         return MemberBudgetAllocation.encode(
             MemberBudgetAllocation.complete(
                 totalBudget = totalBudget,
-                firstMemberId = members[0].memberId,
-                firstAmount = amount(R.id.et_budget_member_first),
-                secondMemberId = members[1].memberId,
-                secondAmount = amount(R.id.et_budget_member_second)
+                memberAmounts = memberAmounts
             )
         )
     }
+
+    private fun memberBudgetInputTag(memberId: String): String = "member-budget:$memberId"
 
     private fun editableAmount(amount: Double): String =
         if (amount % 1.0 == 0.0) String.format(Locale.US, "%.0f", amount)

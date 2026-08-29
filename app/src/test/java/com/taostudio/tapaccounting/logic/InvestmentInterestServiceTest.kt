@@ -68,6 +68,98 @@ class InvestmentInterestServiceTest {
     }
 
     @Test
+    fun compoundDailyInterestTotal_smallPrincipal_doesNotLoseSubCentInterest() {
+        val total = InvestmentInterestService.compoundDailyInterestTotal(
+            initialPrincipal = 100.0,
+            annualInterestRatePercent = 1.8,
+            days = 365
+        )
+
+        assertEquals(1.82, total, 0.01)
+    }
+
+    @Test
+    fun projectDueSettlement_dailyCarriesFractionsUntilTheyCanBePosted() {
+        val start = dayMillis(2024, 1, 1)
+        val projection = InvestmentInterestService.projectDueSettlement(
+            lot = lot(
+                id = 1L,
+                startEarningAt = start,
+                remainingPrincipal = 100.0,
+                annualInterestRate = 1.8
+            ),
+            todayStart = dayMillis(2024, 12, 31)
+        )
+
+        assertEquals(1.82, projection.postedInterest, 0.01)
+        assertEquals(101.82, projection.remainingPrincipal, 0.01)
+        assertEquals(365, projection.settledPeriods)
+        assertEquals(dayMillis(2025, 1, 1), projection.nextPayoutAt)
+    }
+
+    @Test
+    fun projectDueSettlement_monthlyUsesConfiguredCycleAndReturnsNextPayout() {
+        val start = dayMillis(2024, 1, 15)
+        val lot = lot(
+            id = 1L,
+            startEarningAt = start,
+            remainingPrincipal = 10_000.0,
+            annualInterestRate = 3.65
+        ).copy(
+            settlementCycle = InvestmentLot.CYCLE_MONTHLY,
+            firstPayoutAt = InvestmentInterestService.firstPayoutFor(
+                start,
+                InvestmentLot.CYCLE_MONTHLY
+            )
+        )
+
+        val projection = InvestmentInterestService.projectDueSettlement(
+            lot,
+            dayMillis(2024, 4, 20)
+        )
+
+        assertEquals(3, projection.settledPeriods)
+        assertEquals(dayMillis(2024, 4, 15), projection.lastSettledAt)
+        assertEquals(dayMillis(2024, 5, 15), projection.nextPayoutAt)
+        assertTrue(projection.postedInterest > 90.0)
+    }
+
+    @Test
+    fun projectDueSettlement_monthEndScheduleDoesNotDriftAfterFebruary() {
+        val start = dayMillis(2024, 1, 31)
+        val lot = lot(
+            id = 1L,
+            startEarningAt = start,
+            remainingPrincipal = 10_000.0
+        ).copy(
+            settlementCycle = InvestmentLot.CYCLE_MONTHLY,
+            firstPayoutAt = InvestmentInterestService.firstPayoutFor(start, InvestmentLot.CYCLE_MONTHLY)
+        )
+
+        val projection = InvestmentInterestService.projectDueSettlement(lot, dayMillis(2024, 4, 1))
+
+        assertEquals(2, projection.settledPeriods)
+        assertEquals(dayMillis(2024, 3, 31), projection.lastSettledAt)
+        assertEquals(dayMillis(2024, 4, 30), projection.nextPayoutAt)
+    }
+
+    @Test
+    fun projectDueSettlement_sameDaySecondRunIsIdempotent() {
+        val start = dayMillis(2024, 1, 1)
+        val first = InvestmentInterestService.projectDueSettlement(
+            lot(id = 1L, startEarningAt = start, remainingPrincipal = 100.0),
+            dayMillis(2024, 2, 1)
+        )
+        val settledLot = lot(id = 1L, startEarningAt = start, remainingPrincipal = first.remainingPrincipal)
+            .copy(lastSettledAt = first.lastSettledAt, interestCarry = first.interestCarry)
+
+        val second = InvestmentInterestService.projectDueSettlement(settledLot, dayMillis(2024, 2, 1))
+
+        assertEquals(0, second.settledPeriods)
+        assertEquals(0.0, second.postedInterest, 0.0)
+    }
+
+    @Test
     fun applyFifoPrincipalReduction_reducesEarlierLotFirst() {
         val earlyLot = lot(id = 1L, startEarningAt = dayMillis(2024, 1, 1), remainingPrincipal = 80.0)
         val lateLot = lot(id = 2L, startEarningAt = dayMillis(2024, 2, 1), remainingPrincipal = 80.0)

@@ -6,16 +6,28 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.ChatBillMessageParser
+import com.taostudio.tapaccounting.data.backup.SharedRestoreData
+import com.taostudio.tapaccounting.data.backup.SharedRestoreMode
+import com.taostudio.tapaccounting.data.backup.buildSharedRestoreData
+import com.taostudio.tapaccounting.data.backup.materializePendingOperation
+import com.taostudio.tapaccounting.data.backup.requireSharedRestoreGuard
+import com.taostudio.tapaccounting.data.backup.sanitizeBillForRestore
+import com.taostudio.tapaccounting.data.backup.sanitizeBudgetForRestore
+import com.taostudio.tapaccounting.data.backup.validateSharedReconnect
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.AiRule
 import com.taostudio.tapaccounting.data.local.entity.Asset
 import com.taostudio.tapaccounting.data.local.entity.Bill
+import com.taostudio.tapaccounting.data.local.entity.Book
 import com.taostudio.tapaccounting.data.local.entity.Category
 import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.local.entity.Budget
 import com.taostudio.tapaccounting.data.local.entity.DeletedBill
 import com.taostudio.tapaccounting.data.local.entity.InvestmentLot
 import com.taostudio.tapaccounting.data.local.entity.RecurringPattern
+import com.taostudio.tapaccounting.data.local.entity.SharedLedger
+import com.taostudio.tapaccounting.data.local.entity.SharedMember
+import com.taostudio.tapaccounting.data.sync.protocol.Operation
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
 
 internal data class RestoredBudgetCategory(
@@ -28,6 +40,19 @@ internal fun normalizeBudgetBookName(bookName: String): String {
         bookName.isBlank() || bookName == BookAccountManager.ALL_BOOK -> ""
         else -> BookAccountManager.normalizeBookName(bookName)
     }
+}
+
+internal fun normalizeInvestmentLotForRestore(lot: InvestmentLot): InvestmentLot {
+    return lot.copy(
+        settlementCycle = lot.settlementCycle.takeIf {
+            it in InvestmentLot.CYCLE_DAILY..InvestmentLot.CYCLE_YEARLY
+        } ?: InvestmentLot.CYCLE_DAILY,
+        settlementInterval = lot.settlementInterval.coerceAtLeast(1),
+        interestCarry = lot.interestCarry.takeIf { it.isFinite() } ?: 0.0,
+        status = lot.status.takeIf {
+            it in InvestmentLot.STATUS_ACTIVE..InvestmentLot.STATUS_CLOSED
+        } ?: InvestmentLot.STATUS_ACTIVE
+    )
 }
 
 internal fun resolveBudgetCategoryForRestore(
@@ -74,17 +99,32 @@ internal fun resolveBudgetCategoryForRestore(
 class BackupRepository(private val db: AppDatabase) {
 
     suspend fun getFullData(): Map<String, Any> {
-        return mapOf(
-            "assets" to db.assetDao().getAllAssetsList(),
-            "bills" to db.billDao().getAllBillsList(),
-            "deleted_bills" to db.deletedBillDao().getAllDeletedBills(),
-            "investment_lots" to db.investmentLotDao().getAllLots(),
-            "categories" to db.categoryDao().getAllCategoriesList(),
-            "rules" to db.aiRuleDao().getAllRulesList(),
-            "chat_messages" to db.chatMessageDao().getAll(),
-            "budgets" to db.budgetDao().getAll(),
-            "recurring_patterns" to db.recurringPatternDao().getAll()
-        )
+        return db.withTransaction {
+            val books = db.bookDao().getAll()
+            val sharedData = buildSharedRestoreData(
+                books = books,
+                ledgers = db.sharedLedgerDao().getAll(),
+                members = db.sharedMemberDao().getAll(),
+                queue = db.syncQueueDao().getAll(),
+                pendingOperations = db.syncOperationDao().getPending()
+            )
+            mapOf(
+                "assets" to db.assetDao().getAllAssetsList(),
+                "bills" to db.billDao().getAllBillsList(),
+                "deleted_bills" to db.deletedBillDao().getAllDeletedBills(),
+                "investment_lots" to db.investmentLotDao().getAllLots(),
+                "categories" to db.categoryDao().getAllCategoriesList(),
+                "rules" to db.aiRuleDao().getAllRulesList(),
+                "chat_messages" to db.chatMessageDao().getAll(),
+                "budgets" to db.budgetDao().getAll(),
+                "recurring_patterns" to db.recurringPatternDao().getAll(),
+                "books" to books,
+                "shared_ledgers" to sharedData.ledgers,
+                "shared_members" to sharedData.members,
+                "sync_queue" to sharedData.pendingQueue,
+                "sync_operations" to sharedData.pendingOperations
+            )
+        }
     }
 
     suspend fun restoreFullData(
@@ -96,12 +136,43 @@ class BackupRepository(private val db: AppDatabase) {
         rules: List<AiRule>?,
         chatMessages: List<ChatMessage>?,
         budgets: List<Budget>?,
-        recurringPatterns: List<RecurringPattern>?
+        recurringPatterns: List<RecurringPattern>?,
+        books: List<Book>? = null,
+        sharedRestoreData: SharedRestoreData? = null,
+        sharedRestoreMode: SharedRestoreMode = SharedRestoreMode.LOCAL_COPY,
+        newDeviceId: String? = null,
+        beforeCommit: suspend () -> Unit = {}
     ) {
         db.withTransaction {
+            requireOverwriteRestoreDependenciesAreComplete(
+                assets = assets,
+                bills = bills,
+                deletedBills = deletedBills,
+                investmentLots = investmentLots,
+                categories = categories,
+                chatMessages = chatMessages,
+                budgets = budgets,
+                recurringPatterns = recurringPatterns
+            )
+            requireInvestmentRestoreIsComplete(assets, investmentLots)
+            validateRestoreBeforeMutation(
+                hasSelectedDatabaseModule = listOf(
+                    assets, bills, deletedBills, investmentLots, categories, rules, chatMessages,
+                    budgets, recurringPatterns, books, sharedRestoreData
+                ).any { it != null },
+                bills = bills,
+                budgets = budgets,
+                sharedRestoreData = sharedRestoreData,
+                sharedRestoreMode = sharedRestoreMode,
+                newDeviceId = newDeviceId
+            )
             val categoryIdMap = mutableMapOf<Long, Long>()
             val assetIdMap = mutableMapOf<Long, Long>()
             val billIdMap = mutableMapOf<Long, Long>()
+
+            books.orEmpty().forEach { book ->
+                if (book.name.isNotBlank()) db.bookDao().resolveOrCreateId(book.name)
+            }
 
             if (categories != null) {
                 Log.d("BackupRepo", "开始恢复分类，共 ${categories.size} 条")
@@ -136,13 +207,14 @@ class BackupRepository(private val db: AppDatabase) {
                 val pendingRelated = mutableListOf<Pair<Long, Long>>()
 
                 bills.forEach { bill ->
+                    val restoredBill = sanitizeBillForRestore(bill, sharedRestoreMode)
                     val remappedCategoryId = resolveCategoryId(bill, categoryIdMap, existingCategoriesByName)
                     val remappedAccountId = resolveAssetId(bill.accountId, bill.accountName, assetIdMap, existingAssetsByName)
                     val remappedToAccountId = resolveAssetId(bill.toAccountId, bill.toAccountName, assetIdMap, existingAssetsByName)
 
                     val insertedId = try {
                         db.billDao().insertBill(
-                            bill.copy(
+                            restoredBill.copy(
                                 id = 0,
                                 categoryId = remappedCategoryId,
                                 accountId = remappedAccountId,
@@ -169,16 +241,18 @@ class BackupRepository(private val db: AppDatabase) {
                     db.billDao().updateBill(current.copy(relatedBillId = newRelatedId))
                 }
 
+                val deletedOriginalIds = deletedBills.orEmpty()
+                    .mapTo(hashSetOf(), DeletedBill::originalBillId)
                 deletedBills.orEmpty().forEach { deletedBill ->
                     db.deletedBillDao().insert(
-                        deletedBill.copy(
-                            id = 0L,
-                            originalBillId = 0L,
-                            categoryId = deletedBill.categoryId?.let { categoryIdMap[it] },
-                            accountId = resolveAssetId(deletedBill.accountId, deletedBill.accountName, assetIdMap, existingAssetsByName),
-                            toAccountId = resolveAssetId(deletedBill.toAccountId, deletedBill.toAccountName, assetIdMap, existingAssetsByName),
-                            categoryName = CategoryNameNormalizer.normalizeForStorage(deletedBill.categoryName),
-                            relatedBillId = deletedBill.relatedBillId?.let { billIdMap[it] }
+                        prepareDeletedBillForRestore(
+                            deletedBill,
+                            categoryIdMap,
+                            existingCategoriesByName,
+                            assetIdMap,
+                            existingAssetsByName,
+                            billIdMap,
+                            deletedOriginalIds
                         )
                     )
                 }
@@ -186,7 +260,7 @@ class BackupRepository(private val db: AppDatabase) {
                 investmentLots.orEmpty().forEach { lot ->
                     val newAssetId = assetIdMap[lot.assetId] ?: lot.assetId
                     db.investmentLotDao().insertLot(
-                        lot.copy(
+                        normalizeInvestmentLotForRestore(lot).copy(
                             id = 0L,
                             assetId = newAssetId,
                             sourceBillId = lot.sourceBillId?.let { billIdMap[it] }
@@ -214,15 +288,25 @@ class BackupRepository(private val db: AppDatabase) {
                 db.budgetDao().deleteAll()
                 val currentCategories = db.categoryDao().getAllCategoriesList()
                 budgets.forEach { budget ->
-                    prepareBudgetForRestore(budget, categoryIdMap, currentCategories)
+                    prepareBudgetForRestore(budget, categoryIdMap, currentCategories, sharedRestoreMode)
                         ?.let { db.budgetDao().saveForSlot(it) }
                 }
             }
 
             if (recurringPatterns != null) {
                 db.recurringPatternDao().deleteAll()
-                recurringPatterns.forEach { db.recurringPatternDao().insert(it.copy(id = 0)) }
+                val currentCategories = db.categoryDao().getAllCategoriesList()
+                recurringPatterns.forEach { pattern ->
+                    db.recurringPatternDao().insert(
+                        prepareRecurringPatternForRestore(pattern, categoryIdMap, currentCategories)
+                    )
+                }
             }
+
+            if (sharedRestoreMode == SharedRestoreMode.RECONNECT && sharedRestoreData != null) {
+                restoreSharedSnapshot(sharedRestoreData, requireNotNull(newDeviceId))
+            }
+            beforeCommit()
         }
     }
 
@@ -235,12 +319,18 @@ class BackupRepository(private val db: AppDatabase) {
     suspend fun mergeRestoreFullData(
         assets: List<Asset>?,
         bills: List<Bill>?,
+        deletedBills: List<DeletedBill>? = null,
         investmentLots: List<InvestmentLot>?,
         categories: List<Category>?,
         rules: List<AiRule>?,
         chatMessages: List<ChatMessage>?,
         budgets: List<Budget>?,
-        recurringPatterns: List<RecurringPattern>?
+        recurringPatterns: List<RecurringPattern>?,
+        books: List<Book>? = null,
+        sharedRestoreData: SharedRestoreData? = null,
+        sharedRestoreMode: SharedRestoreMode = SharedRestoreMode.LOCAL_COPY,
+        newDeviceId: String? = null,
+        beforeCommit: suspend () -> Unit = {}
     ): MergeRestoreResult {
         var insertedAssets = 0
         var skippedAssets = 0
@@ -256,9 +346,25 @@ class BackupRepository(private val db: AppDatabase) {
         var insertedRecurringPatterns = 0
 
         db.withTransaction {
+            requireInvestmentRestoreIsComplete(assets, investmentLots)
+            validateRestoreBeforeMutation(
+                hasSelectedDatabaseModule = listOf(
+                    assets, bills, deletedBills, investmentLots, categories, rules, chatMessages, budgets,
+                    recurringPatterns, books, sharedRestoreData
+                ).any { it != null },
+                bills = bills,
+                budgets = budgets,
+                sharedRestoreData = sharedRestoreData,
+                sharedRestoreMode = sharedRestoreMode,
+                newDeviceId = newDeviceId
+            )
             val categoryIdMap = mutableMapOf<Long, Long>()
             val assetIdMap = mutableMapOf<Long, Long>()
             val billIdMap = mutableMapOf<Long, Long>()
+
+            books.orEmpty().forEach { book ->
+                if (book.name.isNotBlank()) db.bookDao().resolveOrCreateId(book.name)
+            }
 
             // ── 分类：按名称去重 ──
             if (categories != null) {
@@ -314,14 +420,21 @@ class BackupRepository(private val db: AppDatabase) {
                 val pendingRelated = mutableListOf<Pair<Long, Long>>()
 
                 bills.forEach { bill ->
-                    val isDuplicate = db.billDao().countDuplicateBills(
-                        time = bill.time,
-                        amount = bill.amount,
-                        type = bill.type,
-                        accountName = bill.accountName
-                    ) > 0
+                    val restoredBill = sanitizeBillForRestore(bill, sharedRestoreMode)
+                    val isReconnectingSharedBill =
+                        sharedRestoreMode == SharedRestoreMode.RECONNECT && restoredBill.isShared
+                    val existingBill = if (isReconnectingSharedBill) {
+                        restoredBill.sharedId?.let { db.billDao().getBySharedId(it) }
+                    } else {
+                        db.billDao().getBillsBetweenTimesList(bill.time, bill.time).firstOrNull {
+                            it.amount == bill.amount &&
+                                it.type == bill.type &&
+                                it.accountName == bill.accountName
+                        }
+                    }
 
-                    if (isDuplicate) {
+                    if (existingBill != null) {
+                        billIdMap[bill.id] = existingBill.id
                         skippedBills++
                         return@forEach
                     }
@@ -331,7 +444,7 @@ class BackupRepository(private val db: AppDatabase) {
                     val remappedToAccountId = resolveAssetId(bill.toAccountId, bill.toAccountName, assetIdMap, existingAssetsByName)
 
                     val insertedId = db.billDao().insertBill(
-                        bill.copy(
+                        restoredBill.copy(
                             id = 0,
                             categoryId = remappedCategoryId,
                             accountId = remappedAccountId,
@@ -380,13 +493,35 @@ class BackupRepository(private val db: AppDatabase) {
                         return@forEach
                     }
                     db.investmentLotDao().insertLot(
-                        lot.copy(
+                        normalizeInvestmentLotForRestore(lot).copy(
                             id = 0L,
                             assetId = newAssetId,
                             sourceBillId = mappedSourceBillId
                         )
                     )
                     insertedInvestmentLots++
+                }
+            }
+
+            if (deletedBills != null) {
+                val existingSignatures = db.deletedBillDao().getAllDeletedBills()
+                    .mapTo(hashSetOf(), ::deletedBillSignature)
+                val currentCategories = db.categoryDao().getAllCategoriesList().associateBy(Category::name)
+                val currentAssets = db.assetDao().getAllAssetsList().associateBy(Asset::name)
+                val deletedOriginalIds = deletedBills.mapTo(hashSetOf(), DeletedBill::originalBillId)
+                deletedBills.forEach { deletedBill ->
+                    if (deletedBillSignature(deletedBill) in existingSignatures) return@forEach
+                    val restored = prepareDeletedBillForRestore(
+                        deletedBill,
+                        categoryIdMap,
+                        currentCategories,
+                        assetIdMap,
+                        currentAssets,
+                        billIdMap,
+                        deletedOriginalIds
+                    )
+                    db.deletedBillDao().insert(restored)
+                    existingSignatures += deletedBillSignature(deletedBill)
                 }
             }
 
@@ -410,7 +545,12 @@ class BackupRepository(private val db: AppDatabase) {
             if (budgets != null) {
                 val currentCategories = db.categoryDao().getAllCategoriesList()
                 budgets.forEach { budget ->
-                    val restored = prepareBudgetForRestore(budget, categoryIdMap, currentCategories)
+                    val restored = prepareBudgetForRestore(
+                        budget,
+                        categoryIdMap,
+                        currentCategories,
+                        sharedRestoreMode
+                    )
                     if (restored != null) {
                         db.budgetDao().saveForSlot(restored)
                         insertedBudgets++
@@ -420,11 +560,19 @@ class BackupRepository(private val db: AppDatabase) {
 
             // ── 周期记账模式：追加 ──
             if (recurringPatterns != null) {
+                val currentCategories = db.categoryDao().getAllCategoriesList()
                 recurringPatterns.forEach { pattern ->
-                    db.recurringPatternDao().insert(pattern.copy(id = 0))
+                    db.recurringPatternDao().insert(
+                        prepareRecurringPatternForRestore(pattern, categoryIdMap, currentCategories)
+                    )
                     insertedRecurringPatterns++
                 }
             }
+
+            if (sharedRestoreMode == SharedRestoreMode.RECONNECT && sharedRestoreData != null) {
+                restoreSharedSnapshot(sharedRestoreData, requireNotNull(newDeviceId))
+            }
+            beforeCommit()
         }
 
         return MergeRestoreResult(
@@ -438,15 +586,140 @@ class BackupRepository(private val db: AppDatabase) {
         )
     }
 
+    private suspend fun validateRestoreBeforeMutation(
+        hasSelectedDatabaseModule: Boolean,
+        bills: List<Bill>?,
+        budgets: List<Budget>?,
+        sharedRestoreData: SharedRestoreData?,
+        sharedRestoreMode: SharedRestoreMode,
+        newDeviceId: String?
+    ) {
+        requireSharedRestoreGuard(
+            hasActiveSharedLedgers = db.sharedLedgerDao().getAll().isNotEmpty(),
+            hasSelectedDatabaseModule = hasSelectedDatabaseModule
+        )
+        if (!hasSelectedDatabaseModule || sharedRestoreMode == SharedRestoreMode.LOCAL_COPY) return
+
+        val reconnectData = requireNotNull(sharedRestoreData) {
+            "重新连接共享账本需要完整的共享恢复数据"
+        }
+        val deviceId = requireNotNull(newDeviceId) {
+            "重新连接共享账本需要由上层生成新的设备 ID"
+        }
+        val sharedBookNames = mutableSetOf<String>()
+        val ledgersByBook = reconnectData.ledgers.associateBy { it.bookName }
+        val membersByLedger = reconnectData.members.groupBy { it.ledgerUuid }
+
+        bills.orEmpty().forEach { bill ->
+            val hasSharedMarker = bill.isShared || bill.sharedId != null || bill.memberId != null ||
+                bill.sharedRevision != 0L || bill.sharedDeviceId != null || bill.relatedSharedId != null
+            if (!hasSharedMarker) return@forEach
+            require(bill.isShared && Operation.UUID_PATTERN.matches(bill.sharedId.orEmpty())) {
+                "共享账单缺少有效的共享 ID"
+            }
+            require(Operation.UUID_PATTERN.matches(bill.memberId.orEmpty()) && bill.sharedRevision > 0) {
+                "共享账单缺少有效的成员或版本信息"
+            }
+            bill.relatedSharedId?.let { relatedId ->
+                require(Operation.UUID_PATTERN.matches(relatedId)) { "共享账单关联 ID 无效" }
+            }
+            val ledger = requireNotNull(ledgersByBook[bill.bookName]) {
+                "共享账单 ${bill.sharedId} 缺少对应共享账本"
+            }
+            require(membersByLedger[ledger.uuid].orEmpty().any { it.memberId == bill.memberId }) {
+                "共享账单 ${bill.sharedId} 的成员不在共享账本中"
+            }
+            sharedBookNames += bill.bookName
+        }
+        budgets.orEmpty().forEach { budget ->
+            val hasSharedMarker = budget.isShared || budget.sharedId != null || budget.revision != 0L ||
+                budget.sharedDeviceId != null || budget.memberBudgetAllocations != null
+            if (!hasSharedMarker) return@forEach
+            require(budget.isShared && Operation.UUID_PATTERN.matches(budget.sharedId.orEmpty()) && budget.revision > 0) {
+                "共享预算缺少有效的共享 ID 或版本信息"
+            }
+            require(budget.bookName in ledgersByBook) {
+                "共享预算 ${budget.sharedId} 缺少对应共享账本"
+            }
+            sharedBookNames += budget.bookName
+        }
+
+        validateSharedReconnect(reconnectData, deviceId, sharedBookNames)
+    }
+
+    private fun requireInvestmentRestoreIsComplete(
+        assets: List<Asset>?,
+        investmentLots: List<InvestmentLot>?
+    ) {
+        if (investmentLots == null) return
+        val backupAssetIds = requireNotNull(assets) {
+            "恢复投资批次时必须同时恢复对应资产"
+        }.mapTo(hashSetOf(), Asset::id)
+        require(investmentLots.all { it.assetId in backupAssetIds }) {
+            "投资批次缺少对应的备份资产"
+        }
+    }
+
+    private suspend fun restoreSharedSnapshot(data: SharedRestoreData, newDeviceId: String) {
+        val ledgerIdByUuid = mutableMapOf<String, Long>()
+        data.ledgers.forEach { restored ->
+            val bookId = db.bookDao().resolveOrCreateId(restored.bookName)
+            val ledgerId = db.sharedLedgerDao().insert(
+                SharedLedger(
+                    uuid = restored.uuid,
+                    bookId = bookId,
+                    name = restored.name,
+                    webdavUrl = restored.webdavUrl,
+                    webdavUser = restored.webdavUser,
+                    remotePath = restored.remotePath,
+                    localMemberId = restored.localMemberId,
+                    createdAt = restored.createdAt
+                )
+            )
+            ledgerIdByUuid[restored.uuid] = ledgerId
+        }
+
+        val restoredMembers = data.members.map { restored ->
+            SharedMember(
+                ledgerId = ledgerIdByUuid.getValue(restored.ledgerUuid),
+                memberId = restored.memberId,
+                displayName = restored.displayName,
+                joinOrder = restored.joinOrder,
+                isLocal = restored.isLocal
+            )
+        }
+        if (restoredMembers.isNotEmpty()) db.sharedMemberDao().insertAll(restoredMembers)
+
+        val operationById = data.pendingOperations.associateBy { it.operationId }
+        data.pendingQueue.sortedBy { it.createdAt }.forEach { queued ->
+            val operation = operationById.getValue(queued.operationId)
+            val ledger = data.ledgers.single { it.uuid == queued.ledgerUuid }
+            val (restoredOperation, restoredQueue) = materializePendingOperation(
+                operation = operation,
+                queue = queued,
+                ledgerId = ledgerIdByUuid.getValue(queued.ledgerUuid),
+                ledgerRemotePath = ledger.remotePath,
+                newDeviceId = newDeviceId
+            )
+            require(db.syncOperationDao().insertIgnore(restoredOperation) != -1L) {
+                "待上传操作 ${queued.operationId} 已存在"
+            }
+            require(db.syncQueueDao().insertIgnore(restoredQueue) != -1L) {
+                "待上传队列 ${queued.operationId} 已存在"
+            }
+        }
+    }
+
     private suspend fun prepareBudgetForRestore(
         budget: Budget,
         categoryIdMap: Map<Long, Long>,
-        currentCategories: List<Category>
+        currentCategories: List<Category>,
+        sharedRestoreMode: SharedRestoreMode
     ): Budget? {
         val category = resolveBudgetCategoryForRestore(budget, categoryIdMap, currentCategories)
             ?: return null
         val bookName = normalizeBudgetBookName(budget.bookName)
-        return budget.copy(
+        return sanitizeBudgetForRestore(budget, sharedRestoreMode).copy(
             id = 0,
             bookId = db.bookDao().resolveOrCreateId(bookName),
             bookName = bookName,
@@ -456,11 +729,96 @@ class BackupRepository(private val db: AppDatabase) {
         )
     }
 
+    private fun requireOverwriteRestoreDependenciesAreComplete(
+        assets: List<Asset>?,
+        bills: List<Bill>?,
+        deletedBills: List<DeletedBill>?,
+        investmentLots: List<InvestmentLot>?,
+        categories: List<Category>?,
+        chatMessages: List<ChatMessage>?,
+        budgets: List<Budget>?,
+        recurringPatterns: List<RecurringPattern>?
+    ) {
+        val modules = listOf(
+            assets,
+            bills,
+            deletedBills,
+            investmentLots,
+            categories,
+            chatMessages,
+            budgets,
+            recurringPatterns
+        )
+        require(modules.none { it != null } || modules.all { it != null }) {
+            "覆盖恢复必须整组恢复资产、分类、账单及其关联数据"
+        }
+    }
+
+    private fun prepareRecurringPatternForRestore(
+        pattern: RecurringPattern,
+        categoryIdMap: Map<Long, Long>,
+        currentCategories: List<Category>
+    ): RecurringPattern {
+        val categoriesByName = currentCategories.associateBy(Category::name)
+        val mappedCategoryId = pattern.categoryId?.let { oldId ->
+            categoryIdMap[oldId] ?: pattern.categoryName
+                ?.let(::categoryNameCandidates)
+                ?.firstNotNullOfOrNull { categoriesByName[it]?.id }
+        }
+        return pattern.copy(
+            id = 0,
+            categoryId = mappedCategoryId,
+            categoryName = pattern.categoryName?.let(CategoryNameNormalizer::normalizeForStorage)
+        )
+    }
+
+    private fun prepareDeletedBillForRestore(
+        deletedBill: DeletedBill,
+        categoryIdMap: Map<Long, Long>,
+        categoriesByName: Map<String, Category>,
+        assetIdMap: Map<Long, Long>,
+        assetsByName: Map<String, Asset>,
+        liveBillIdMap: Map<Long, Long>,
+        deletedOriginalIds: Set<Long>
+    ): DeletedBill {
+        val categoryId = deletedBill.categoryId?.let { oldId ->
+            categoryIdMap[oldId] ?: categoryNameCandidates(deletedBill.categoryName)
+                .firstNotNullOfOrNull { categoriesByName[it]?.id }
+        }
+        val relatedId = deletedBill.relatedBillId?.let { oldRelatedId ->
+            liveBillIdMap[oldRelatedId] ?: oldRelatedId.takeIf { it in deletedOriginalIds }
+        }
+        return deletedBill.copy(
+            id = 0L,
+            originalBillId = deletedBill.originalBillId,
+            categoryId = categoryId,
+            accountId = resolveAssetId(
+                deletedBill.accountId, deletedBill.accountName, assetIdMap, assetsByName
+            ),
+            toAccountId = resolveAssetId(
+                deletedBill.toAccountId, deletedBill.toAccountName, assetIdMap, assetsByName
+            ),
+            categoryName = CategoryNameNormalizer.normalizeForStorage(deletedBill.categoryName),
+            relatedBillId = relatedId
+        )
+    }
+
+    private fun deletedBillSignature(bill: DeletedBill): String =
+        listOf(
+            bill.originalBillId,
+            bill.type,
+            bill.subType,
+            bill.amount.toBits(),
+            bill.time,
+            bill.bookName,
+            bill.deletedAt
+        ).joinToString("\u0000")
+
     private fun remapChatBillReferences(msg: ChatMessage, billIdMap: Map<Long, Long>): ChatMessage {
-        if (msg.msgType != 4 || billIdMap.isEmpty()) return msg
+        if (msg.msgType != 4) return msg
 
         val oldBillIds = ChatBillMessageParser.parseBillIds(msg.billIds)
-        val newBillIds = oldBillIds.map { billIdMap[it] ?: it }
+        val newBillIds = oldBillIds.mapNotNull(billIdMap::get)
         val baseBillIdsJson = JSONArray(newBillIds.map { it.toString() }).toString()
         val newBillIdsText = if (ChatBillMessageParser.isDeprecatedBillMessage(msg.billIds)) {
             ChatBillMessageParser.markBillIdsAsDeprecated(baseBillIdsJson)
@@ -475,14 +833,16 @@ class BackupRepository(private val db: AppDatabase) {
     }
 
     private fun remapChatBillContentIds(content: String, billIdMap: Map<Long, Long>): String {
-        if (content.isBlank() || billIdMap.isEmpty()) return content
+        if (content.isBlank()) return content
         return runCatching {
             val root = JSONObject(content)
             root.optJSONArray("bills")?.let { bills ->
                 for (i in 0 until bills.length()) {
                     val billJson = bills.optJSONObject(i) ?: continue
                     val oldId = billJson.optLong("id", 0L)
-                    billIdMap[oldId]?.let { billJson.put("id", it) }
+                    billIdMap[oldId]?.let { mapped ->
+                        billJson.put("id", mapped)
+                    } ?: billJson.remove("id")
                 }
             }
             remapIdArray(root, "deprecatedBillIds", billIdMap)
@@ -496,7 +856,7 @@ class BackupRepository(private val db: AppDatabase) {
         val remapped = JSONArray()
         for (i in 0 until source.length()) {
             val oldId = source.optLong(i, 0L)
-            remapped.put(billIdMap[oldId] ?: oldId)
+            billIdMap[oldId]?.let(remapped::put)
         }
         root.put(key, remapped)
     }

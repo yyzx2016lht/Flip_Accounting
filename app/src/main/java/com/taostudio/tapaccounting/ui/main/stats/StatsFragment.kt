@@ -252,12 +252,6 @@ class StatsFragment : Fragment() {
         }
     }
 
-    private fun applyPendingExternalQueryFilter(reason: String) {
-        val filter = StatsExternalQueryBridge.consume() ?: return
-        Log.d(TAG, "applyPendingExternalQueryFilter: reason=$reason, label=${filter.label.orEmpty()}")
-        viewModel.applyExternalQueryFilter(filter)
-    }
-
     /**
      * 将统计页日期对齐到首页账单页正在查看的年月：
      * - 月模式时：显示同年同月（如 2025-03）
@@ -298,7 +292,6 @@ class StatsFragment : Fragment() {
                 Log.d(TAG, "syncHostSelectionIfNeeded: reason=$reason, signature=$signature")
                 viewModel.syncHostSelection(targetYear, targetMonth, targetBookFilter, scope)
             }
-            applyPendingExternalQueryFilter(reason)
         }
     }
 

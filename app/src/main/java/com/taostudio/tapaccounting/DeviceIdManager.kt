@@ -26,4 +26,26 @@ object DeviceIdManager {
 
         return deviceId
     }
+
+    /**
+     * Assigns a fresh identity before reconnecting a restored shared-ledger outbox. Old device IDs
+     * are runtime state and must never be cloned from a backup.
+     */
+    fun rotateDeviceId(context: Context): String {
+        val deviceId = UUID.randomUUID().toString()
+        replaceDeviceId(context, deviceId)
+        return deviceId
+    }
+
+    fun replaceDeviceId(context: Context, deviceId: String) {
+        require(runCatching { UUID.fromString(deviceId).toString() == deviceId }.getOrDefault(false)) {
+            "设备身份格式无效"
+        }
+        check(
+            context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_DEVICE_ID, deviceId)
+                .commit()
+        ) { "无法保存新的设备身份" }
+    }
 }

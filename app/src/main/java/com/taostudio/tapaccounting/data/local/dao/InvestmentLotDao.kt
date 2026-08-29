@@ -15,14 +15,20 @@ interface InvestmentLotDao {
     @Update
     suspend fun updateLot(lot: InvestmentLot)
 
-    @Query("SELECT * FROM investment_lots WHERE remainingPrincipal > 0.0 ORDER BY startEarningAt ASC, id ASC")
+    @Query("SELECT * FROM investment_lots WHERE remainingPrincipal > 0.0 AND status = 0 ORDER BY startEarningAt ASC, id ASC")
     suspend fun getOpenLots(): List<InvestmentLot>
 
-    @Query("SELECT * FROM investment_lots WHERE assetId = :assetId AND remainingPrincipal > 0.0 ORDER BY startEarningAt ASC, id ASC")
+    @Query("SELECT * FROM investment_lots WHERE assetId = :assetId AND remainingPrincipal > 0.0 AND status != 2 ORDER BY startEarningAt ASC, id ASC")
     suspend fun getOpenLotsByAssetId(assetId: Long): List<InvestmentLot>
 
-    @Query("SELECT * FROM investment_lots WHERE assetId = :assetId AND remainingPrincipal > 0.0 AND annualInterestRate != 0.0 ORDER BY createTime DESC, id DESC LIMIT 1")
+    @Query("SELECT * FROM investment_lots WHERE assetId = :assetId AND remainingPrincipal > 0.0 AND status != 2 AND annualInterestRate != 0.0 ORDER BY createTime DESC, id DESC LIMIT 1")
     suspend fun getLatestOpenLotWithRateByAssetId(assetId: Long): InvestmentLot?
+
+    @Query("SELECT * FROM investment_lots WHERE assetId = :assetId ORDER BY startEarningAt ASC, id ASC")
+    suspend fun getLotsByAssetId(assetId: Long): List<InvestmentLot>
+
+    @Query("SELECT * FROM investment_lots WHERE id = :lotId LIMIT 1")
+    suspend fun getLotById(lotId: Long): InvestmentLot?
 
     @Query("SELECT * FROM investment_lots ORDER BY startEarningAt ASC, id ASC")
     suspend fun getAllLots(): List<InvestmentLot>

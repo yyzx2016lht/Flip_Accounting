@@ -32,7 +32,11 @@ object InvestmentLotDraftStorage {
                             "firstPayoutAt",
                             InvestmentInterestService.plusDays(startEarningAt, 1)
                         ),
-                        annualInterestRate = item.optDouble("annualInterestRate", 0.0)
+                        annualInterestRate = item.optDouble("annualInterestRate", 0.0),
+                        settlementCycle = item.optInt(
+                            "settlementCycle",
+                            com.taostudio.tapaccounting.data.local.entity.InvestmentLot.CYCLE_DAILY
+                        )
                     )
                 )
             }
@@ -47,12 +51,13 @@ object InvestmentLotDraftStorage {
                 put("startEarningAt", draft.schedule.startEarningAt)
                 put("firstPayoutAt", draft.schedule.firstPayoutAt)
                 put("annualInterestRate", draft.schedule.annualInterestRate)
+                put("settlementCycle", draft.schedule.settlementCycle)
             })
         }
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        check(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(draftKey(assetId), array.toString())
-            .apply()
+            .commit()) { "无法保存投资批次草稿" }
     }
 
     fun clear(context: Context, assetId: Long) {
@@ -60,5 +65,12 @@ object InvestmentLotDraftStorage {
             .edit()
             .remove(draftKey(assetId))
             .apply()
+    }
+
+    fun clearAll(context: Context) {
+        check(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()) { "无法清理投资批次草稿" }
     }
 }

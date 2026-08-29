@@ -1,6 +1,7 @@
 package com.taostudio.tapaccounting.logic
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Asset
 
@@ -11,16 +12,18 @@ object InvestmentLotEntryHelper {
         asset: Asset,
         lots: List<InvestmentLotDraft>
     ) {
-        InvestmentInterestService.ensureInvestmentCategories(db)
-        lots.forEach { lot ->
-            InvestmentInterestService.createLotForAssetBalance(
-                db = db,
-                asset = asset.copy(balance = lot.amount),
-                schedule = lot.schedule
-            )
-        }
-        db.assetDao().getAssetById(asset.id)?.let { latestAsset ->
-            InvestmentInterestService.reconcileAssetLotsToBalance(db, latestAsset)
+        db.withTransaction {
+            InvestmentInterestService.ensureInvestmentCategories(db)
+            lots.forEach { lot ->
+                InvestmentInterestService.createLotForAssetBalance(
+                    db = db,
+                    asset = asset.copy(balance = lot.amount),
+                    schedule = lot.schedule
+                )
+            }
+            db.assetDao().getAssetById(asset.id)?.let { latestAsset ->
+                InvestmentInterestService.reconcileAssetLotsToBalance(db, latestAsset)
+            }
         }
         InvestmentLotDraftStorage.clear(context, asset.id)
     }

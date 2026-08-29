@@ -50,6 +50,27 @@ object SharedMutationHooks {
         SharedSyncScheduler.enqueueNow(TapApplication.app())
     }
 
+    /**
+     * 备份页的“永久清理”不进入回收站、也不回退私人资产余额，但共享账单仍必须先写
+     * tombstone。整批先做所有者校验，再在一个事务内提交，避免清理到一半才失败。
+     */
+    suspend fun deleteBillsPermanently(db: AppDatabase, bills: List<Bill>) {
+        val latest = bills.distinctBy { it.id }.mapNotNull { bill ->
+            if (bill.id > 0L) db.billDao().getBillById(bill.id) else null
+        }
+        val sharedTargets = latest.filter { it.isShared }.map { bill ->
+            val ledger = db.sharedLedgerDao().getByBookName(bill.bookName)
+                ?: error("该账单的共享来源已失效，请先退出或修复共享账本")
+            require(bill.memberId == ledger.localMemberId) { "只能清理自己创建的共享账单" }
+            ledger to bill
+        }
+        db.withTransaction {
+            sharedTargets.forEach { (ledger, bill) -> enqueueDeleteFromLedger(db, ledger, bill) }
+            if (latest.isNotEmpty()) db.billDao().delete(latest)
+        }
+        if (sharedTargets.isNotEmpty()) SharedSyncScheduler.enqueueNow(TapApplication.app())
+    }
+
     private suspend fun enqueueDeleteFromLedger(db: AppDatabase, ledger: SharedLedger, bill: Bill) {
         val sharedId = bill.sharedId ?: return
         val memberId = bill.memberId ?: return

@@ -182,14 +182,6 @@ interface BillDao {
     """)
     fun getBillsByBookNamesBetweenTimes(bookNames: List<String>, startTime: Long, endTime: Long): Flow<List<Bill>>
 
-    @Query("""
-        SELECT * FROM bills
-        WHERE bookName IN (:bookNames)
-          AND time BETWEEN :startTime AND :endTime
-        ORDER BY time DESC
-    """)
-    suspend fun getBillsByBookNamesBetweenTimesList(bookNames: List<String>, startTime: Long, endTime: Long): List<Bill>
-
     @Query("SELECT * FROM bills WHERE accountId = :assetId OR toAccountId = :assetId ORDER BY time DESC")
     fun getBillsByAssetId(assetId: Long): Flow<List<Bill>>
 
@@ -530,37 +522,6 @@ interface BillDao {
     /** 删除指定账本下的所有账单 */
     @Query("DELETE FROM bills WHERE bookName = :bookName")
     suspend fun deleteAllByBookName(bookName: String)
-
-    @Query("""
-        SELECT * FROM bills
-        WHERE bookName = :bookName
-        ORDER BY time DESC, id DESC
-        LIMIT :limit
-    """)
-    suspend fun getRecentBillsByBookName(
-        bookName: String,
-        limit: Int
-    ): List<Bill>
-
-    @Query("""
-        SELECT * FROM bills
-        WHERE bookName IN (:bookNames)
-        ORDER BY time DESC, id DESC
-        LIMIT :limit
-    """)
-    suspend fun getRecentBillsByBookNames(
-        bookNames: List<String>,
-        limit: Int
-    ): List<Bill>
-
-    @Query("""
-        SELECT * FROM bills
-        ORDER BY time DESC, id DESC
-        LIMIT :limit
-    """)
-    suspend fun getRecentBills(
-        limit: Int
-    ): List<Bill>
 
     @Query("""
         SELECT * FROM bills

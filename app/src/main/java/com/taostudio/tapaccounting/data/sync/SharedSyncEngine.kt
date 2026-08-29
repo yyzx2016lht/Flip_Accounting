@@ -7,6 +7,7 @@ import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.Budget
+import com.taostudio.tapaccounting.data.local.entity.SharedMember
 import com.taostudio.tapaccounting.data.local.entity.SyncedRemoteFile
 import com.taostudio.tapaccounting.data.local.entity.SyncOperation
 import com.taostudio.tapaccounting.data.local.entity.SyncState
@@ -16,12 +17,19 @@ import kotlinx.coroutines.delay
 import java.security.MessageDigest
 import java.util.UUID
 
+data class SharedSyncRunResult(
+    val attemptedLedgerCount: Int,
+    val failedLedgerCount: Int
+)
+
 class SharedSyncEngine(private val context: Context, private val db: AppDatabase) {
     private val gson = Gson()
     private val webDav = SharedWebDavClient()
 
     suspend fun syncAll(forceFull: Boolean = false) = SharedSyncGate.global.run {
         val ledgers = db.sharedLedgerDao().getAll()
+        var attemptedLedgerCount = 0
+        var failedLedgerCount = 0
         ledgers.forEachIndexed { index, ledger ->
             val state = db.syncStateDao().get(ledger.id)
             val pendingUploadCount = db.syncQueueDao().count(ledger.id)
@@ -29,18 +37,21 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
                 pendingUploadCount = pendingUploadCount,
                 lastSyncTime = state?.lastSyncTime ?: 0L,
                 now = System.currentTimeMillis(),
-                forceFull = forceFull
+                forceFull = forceFull,
+                hasLastError = !state?.lastError.isNullOrBlank()
             )
             if (mode != SharedSyncPolicy.BackgroundMode.SKIP) {
+                attemptedLedgerCount++
                 runCatching {
                     syncLedgerSerial(
                         ledgerId = ledger.id,
                         fullSync = mode == SharedSyncPolicy.BackgroundMode.FULL
                     )
-                }
+                }.onFailure { failedLedgerCount++ }
             }
             if (index < ledgers.lastIndex) delay(INTER_LEDGER_DELAY_MS)
         }
+        SharedSyncRunResult(attemptedLedgerCount, failedLedgerCount)
     }
 
     suspend fun syncLedger(ledgerId: Long) = SharedSyncGate.global.run {
@@ -56,13 +67,12 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
             throwIfCoolingDown(config)
             db.syncStateDao().save(current.copy(isSyncing = true, lastError = null))
             val localBookName = db.bookDao().getById(ledger.bookId)?.name ?: error("本地账本不存在")
-            if (fullSync) {
-                if (webDav.exists(config, "${ledger.remotePath}/closed.json")) {
-                    SharedLedgerService(context, db).exitKeepingLocalCopy(ledgerId, syncFirst = false)
-                    return
-                }
-                refreshMemberNames(ledger.id, ledger.uuid, ledger.remotePath, config)
+            // Authorization is checked before every upload, not only during periodic full pulls.
+            if (webDav.exists(config, "${ledger.remotePath}/closed.json")) {
+                SharedLedgerService(context, db).exitKeepingLocalCopy(ledgerId, syncFirst = false)
+                return
             }
+            refreshMemberNames(ledger.id, ledger.uuid, ledger.remotePath, config)
             enqueueMissingIcons(ledger.id, ledger.uuid, ledger.localMemberId, localBookName)
             webDav.ensureDirectory(config, "${ledger.remotePath}/operations")
             val queuedBatches = db.syncQueueDao().getByLedgerId(ledgerId).chunked(500)
@@ -99,7 +109,7 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
                     remoteFiles = files.filter { it.substringAfterLast('/').removeSuffix(".json") != "meta" },
                     knownOperationIds = db.syncOperationDao().getOperationIds(ledgerId).toSet(),
                     processedBundles = db.syncedRemoteFileDao().getProcessedPaths(ledgerId).toSet()
-                ).take(MAX_REMOTE_FILES_PER_LEDGER_PASS)
+                )
                 for (relative in pendingFiles) {
                     val path = "${ledger.remotePath}/operations/${relative.removePrefix("operations/")}"
                     if (path.endsWith(".json.gz", true)) {
@@ -117,6 +127,7 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
                         if (!db.syncOperationDao().exists(op.operationId)) applyRemote(ledgerId, ledger.bookId, localBookName, op, raw)
                     }
                 }
+                reconcileTombstones(ledgerId)
                 downloadAndApplyBillSnapshots(ledger.id, ledger.uuid, ledger.remotePath, localBookName, config)
             }
             db.syncStateDao().save(current.copy(
@@ -243,12 +254,27 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
 
     /** 不允许较旧快照覆盖该快照生成后产生的增量操作。 */
     private suspend fun snapshotCovers(ledgerId: Long, sharedId: String, generatedAt: Long): Boolean {
+        if (db.syncOperationDao().hasDelete(ledgerId, "bill", sharedId)) return false
         val winner = db.syncOperationDao().getWinner(ledgerId, "bill", sharedId) ?: return true
         val operationTime = winner.payload
             ?.let(SharedOperationCodec::decode)
             ?.timestamp
             ?: winner.appliedAt
         return operationTime <= generatedAt
+    }
+
+    /**
+     * Older clients could persist a delete operation without materialising it
+     * when a same-entity update had already won locally. Re-applying known
+     * tombstones is idempotent and repairs those existing ledgers.
+     */
+    private suspend fun reconcileTombstones(ledgerId: Long) = db.withTransaction {
+        db.syncOperationDao().getDeletedEntityIds(ledgerId, "bill").forEach { sharedId ->
+            db.billDao().getBySharedId(sharedId)?.let { db.billDao().delete(it) }
+        }
+        db.syncOperationDao().getDeletedEntityIds(ledgerId, "budget").forEach { sharedId ->
+            db.budgetDao().getBySharedId(sharedId)?.let { db.budgetDao().delete(it) }
+        }
     }
 
     private suspend fun refreshMemberNames(
@@ -262,11 +288,27 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
         require(manifest.sharedBookId == ledgerUuid && ManifestValidator.validate(manifest).isValid) {
             "远端共享账本信息无效"
         }
-        manifest.members.forEach { remote ->
-            db.sharedMemberDao().get(ledgerId, remote.memberId)?.let { local ->
-                if (local.displayName != remote.displayName) {
-                    db.sharedMemberDao().updateDisplayName(ledgerId, remote.memberId, remote.displayName)
-                }
+        val localMemberId = db.sharedLedgerDao().getById(ledgerId)?.localMemberId ?: return
+        require(manifest.members.any { it.memberId == localMemberId }) {
+            "本机成员身份已不在远端共享账本中"
+        }
+        db.withTransaction {
+            val remoteIds = manifest.members.mapTo(hashSetOf()) { it.memberId }
+            db.sharedMemberDao().getByLedgerId(ledgerId)
+                .filterNot { it.memberId in remoteIds }
+                .forEach { db.sharedMemberDao().delete(ledgerId, it.memberId) }
+            manifest.members.forEach { remote ->
+                val local = db.sharedMemberDao().get(ledgerId, remote.memberId)
+                db.sharedMemberDao().insert(
+                    SharedMember(
+                        id = local?.id ?: 0L,
+                        ledgerId = ledgerId,
+                        memberId = remote.memberId,
+                        displayName = remote.displayName,
+                        joinOrder = remote.joinOrder,
+                        isLocal = remote.memberId == localMemberId
+                    )
+                )
             }
         }
     }
@@ -358,11 +400,17 @@ class SharedSyncEngine(private val context: Context, private val db: AppDatabase
     companion object {
         private const val SYNC_PREFS = "shared_sync"
         private const val INTER_LEDGER_DELAY_MS = 750L
-        private const val MAX_REMOTE_FILES_PER_LEDGER_PASS = 50
 
-        internal fun wins(old: SyncOperation?, incoming: Operation): Boolean = old == null ||
-            (old.action != "delete" || incoming.type == "delete") &&
-            (incoming.revision > old.revision || incoming.revision == old.revision && incoming.deviceId > old.deviceId)
+        internal fun wins(old: SyncOperation?, incoming: Operation): Boolean = when {
+            old == null -> true
+            old.action == "delete" -> incoming.type == "delete" && isLaterThan(old, incoming)
+            incoming.type == "delete" -> true
+            else -> isLaterThan(old, incoming)
+        }
+
+        private fun isLaterThan(old: SyncOperation, incoming: Operation): Boolean =
+            incoming.revision > old.revision ||
+                incoming.revision == old.revision && incoming.deviceId > old.deviceId
         private fun stableNegativeKey(id: String): Long {
             val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(id.toByteArray())
             var value = 0L

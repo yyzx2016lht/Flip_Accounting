@@ -78,10 +78,6 @@ import kotlin.math.sin
 class AssetStatsActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_ASSET_ID = "ASSET_ID"
-        const val EXTRA_FILTER_START_TIME = "EXTRA_FILTER_START_TIME"
-        const val EXTRA_FILTER_END_TIME = "EXTRA_FILTER_END_TIME"
-        const val EXTRA_FILTER_LABEL = "EXTRA_FILTER_LABEL"
-        const val EXTRA_BILL_TYPE = "EXTRA_BILL_TYPE"
 
         private const val TAG_BAR = "AssetStatsBar"
         private const val INITIAL_BILL_LIST_SIZE = 50
@@ -248,8 +244,6 @@ class AssetStatsActivity : AppCompatActivity() {
             finish()
             return
         }
-        applyExternalIntentFilter(intent)
-
         initViews()
         initListeners()
         initCharts()
@@ -1228,24 +1222,6 @@ class AssetStatsActivity : AppCompatActivity() {
                 target.get(Calendar.DAY_OF_MONTH)
             )
         }
-    }
-
-    private fun applyExternalIntentFilter(intent: android.content.Intent?) {
-        if (intent == null) return
-        val start = intent.getLongExtra(EXTRA_FILTER_START_TIME, Long.MIN_VALUE)
-        val end = intent.getLongExtra(EXTRA_FILTER_END_TIME, Long.MIN_VALUE)
-        if (start != Long.MIN_VALUE && end != Long.MIN_VALUE) {
-            forcedStartTime = minOf(start, end)
-            forcedEndTime = maxOf(start, end)
-            if (forcedLabel.isNullOrBlank()) {
-                forcedLabel = getString(R.string.filter_custom)
-            }
-        }
-        intent.getStringExtra(EXTRA_FILTER_LABEL)?.trim()?.takeIf { it.isNotBlank() }?.let {
-            forcedLabel = it
-        }
-        val billTypeRaw = intent.getStringExtra(EXTRA_BILL_TYPE).orEmpty().trim().uppercase(Locale.ROOT)
-        forcedBillType = runCatching { FilterBillType.valueOf(billTypeRaw) }.getOrDefault(FilterBillType.ANY)
     }
 
     private fun renderBillSectionsProgressively(filterKey: String, bills: List<Bill>) {
@@ -2628,4 +2604,3 @@ class AssetStatsActivity : AppCompatActivity() {
         }
     }
 }
-

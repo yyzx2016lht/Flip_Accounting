@@ -20,7 +20,12 @@ object SharedCredentials {
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val encrypted = cipher.doFinal(password.toByteArray(Charsets.UTF_8))
         val value = Base64.encodeToString(cipher.iv + encrypted, Base64.NO_WRAP)
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(ledgerUuid, value).apply()
+        check(
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(ledgerUuid, value)
+                .commit()
+        ) { "无法保存共享账本凭据" }
     }
 
     fun load(context: Context, ledgerUuid: String): String? = runCatching {

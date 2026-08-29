@@ -11,6 +11,7 @@ import java.io.StringReader
 import java.io.IOException
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.net.URI
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Collections
@@ -29,6 +30,7 @@ class SharedWebDavClient {
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).build()
 
     data class Config(val baseUrl: String, val username: String, val password: String)
+    data class TextResource(val content: String, val etag: String?)
 
     fun ensureDirectory(config: Config, path: String) {
         var current = ""
@@ -41,8 +43,10 @@ class SharedWebDavClient {
         }
     }
 
-    fun put(config: Config, path: String, content: String) {
-        val request = Request.Builder().url(url(config, path)).put(content.toRequestBody(json)).build()
+    fun put(config: Config, path: String, content: String, ifMatch: String? = null) {
+        val request = Request.Builder().url(url(config, path)).put(content.toRequestBody(json)).apply {
+            if (!ifMatch.isNullOrBlank()) header("If-Match", ifMatch)
+        }.build()
         execute(config, request, setOf(200, 201, 204)).close()
     }
 
@@ -52,8 +56,17 @@ class SharedWebDavClient {
     }
 
     fun get(config: Config, path: String): String {
+        return getTextResource(config, path).content
+    }
+
+    fun getTextResource(config: Config, path: String): TextResource {
         val response = execute(config, Request.Builder().url(url(config, path)).get().build(), setOf(200))
-        return response.use { it.body?.string() ?: error("云端文件为空") }
+        return response.use {
+            TextResource(
+                content = it.body?.string() ?: error("云端文件为空"),
+                etag = it.header("ETag")
+            )
+        }
     }
 
     fun getBytes(config: Config, path: String): ByteArray {
@@ -132,12 +145,24 @@ class SharedWebDavClient {
     private fun errorMessage(code: Int) = when (code) {
         401, 403 -> "账号或应用密码错误"
         429 -> "同步请求过于频繁"
+        412 -> "共享成员信息已被其他设备更新"
         503 -> "坚果云暂时繁忙，请稍后再试"
         else -> "WebDAV HTTP $code"
     }
 
     private fun withAuth(config: Config, request: Request) = request.newBuilder().header("Authorization", Credentials.basic(config.username, config.password, Charsets.UTF_8)).build()
-    private fun url(config: Config, path: String): String = config.baseUrl.trim().let { if (it.startsWith("http")) it else "https://$it" }.trimEnd('/') + "/" + segments(path).joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
+    private fun url(config: Config, path: String): String {
+        val base = config.baseUrl.trim()
+            .let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
+            .trimEnd('/')
+        val uri = runCatching { URI(base) }.getOrNull()
+        require(uri?.scheme.equals("https", ignoreCase = true) && !uri?.host.isNullOrBlank()) {
+            "共享账本 WebDAV 必须使用有效的 HTTPS 地址"
+        }
+        return base + "/" + segments(path).joinToString("/") {
+            URLEncoder.encode(it, "UTF-8").replace("+", "%20")
+        }
+    }
     private fun segments(path: String) = path.split('/').map { it.trim() }.filter { it.isNotEmpty() }
 
     companion object {

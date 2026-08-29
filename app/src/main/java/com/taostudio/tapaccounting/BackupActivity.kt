@@ -1,6 +1,9 @@
 package com.taostudio.tapaccounting
 
+import android.content.Context
+import android.content.res.ColorStateList
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputFilter
@@ -17,23 +20,53 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.checkbox.MaterialCheckBox
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONTokener
 import com.taostudio.tapaccounting.data.backup.AutoBackupWorker
 import com.taostudio.tapaccounting.data.backup.BackupDefaultDirHelper
-import com.taostudio.tapaccounting.data.backup.BackupInitHelper
+import com.taostudio.tapaccounting.data.backup.BackupAuthenticationException
+import com.taostudio.tapaccounting.data.backup.BackupArtifactNames
+import com.taostudio.tapaccounting.data.backup.BackupContentPolicy
+import com.taostudio.tapaccounting.data.backup.BackupFileFormat
+import com.taostudio.tapaccounting.data.backup.BackupFileFormatDetector
 import com.taostudio.tapaccounting.data.backup.BackupManager
+import com.taostudio.tapaccounting.data.backup.BackupModuleId
 import com.taostudio.tapaccounting.data.backup.BackupPinCrypto
+import com.taostudio.tapaccounting.data.backup.BackupPasswordCrypto
+import com.taostudio.tapaccounting.data.backup.BackupPasswordEnvelope
+import com.taostudio.tapaccounting.data.backup.BackupPasswordKdfParameters
+import com.taostudio.tapaccounting.data.backup.BackupPasswordKeyMaterial
+import com.taostudio.tapaccounting.data.backup.BackupPasswordKeyStore
+import com.taostudio.tapaccounting.data.backup.BackupRecoveryCode
 import com.taostudio.tapaccounting.data.backup.CloudBackupConfig
+import com.taostudio.tapaccounting.data.backup.CloudBackupEntry
 import com.taostudio.tapaccounting.data.backup.CsvManager
 import com.taostudio.tapaccounting.data.backup.DataExportManager
+import com.taostudio.tapaccounting.data.backup.InvestmentDraftBackupSupport
+import com.taostudio.tapaccounting.data.backup.InvestmentDraftRecordBackup
+import com.taostudio.tapaccounting.data.backup.RecoverySnapshotService
+import com.taostudio.tapaccounting.data.backup.LocalBackupHistory
+import com.taostudio.tapaccounting.data.backup.RestoreMediaSelection
+import com.taostudio.tapaccounting.data.backup.RestoreMediaTransaction
+import com.taostudio.tapaccounting.data.backup.RestorePreferencesTransaction
+import com.taostudio.tapaccounting.data.backup.SharedRecoverySecret
+import com.taostudio.tapaccounting.data.backup.SharedRecoveryReadiness
+import com.taostudio.tapaccounting.data.backup.SharedRecoverySecrets
+import com.taostudio.tapaccounting.data.backup.SharedReconnectPreflight
+import com.taostudio.tapaccounting.data.backup.SharedLedgerBackup
+import com.taostudio.tapaccounting.data.backup.SharedRestoreData
+import com.taostudio.tapaccounting.data.backup.SharedRestoreMode
+import com.taostudio.tapaccounting.data.backup.assessSharedRecoveryReadiness
+import com.taostudio.tapaccounting.data.backup.sharedRecoveryReadiness
 import com.taostudio.tapaccounting.data.backup.WebDavClient
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.taostudio.tapaccounting.data.local.AppDatabase
@@ -43,14 +76,19 @@ import com.taostudio.tapaccounting.data.local.entity.ChatMessage
 import com.taostudio.tapaccounting.data.repository.BackupRepository
 import com.taostudio.tapaccounting.data.repository.MergeRestoreResult
 import com.taostudio.tapaccounting.logic.CategoryNameNormalizer
+import com.taostudio.tapaccounting.data.sync.SharedMutationHooks
+import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
 import com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 /**
  * 备份与恢复 UI 入口。导出/导入的是 [BackupManager] 的 `.bak` 文件。
@@ -61,7 +99,7 @@ import java.util.Locale
  */
 class BackupActivity : AppCompatActivity() {
     private enum class BackupPreset { LITE, FULL, CUSTOM }
-    private enum class BackupPinMode { AUTO, FORCE, PLAIN }
+    private enum class PendingStorageAction { BACKUP, RESTORE }
 
     companion object {
         const val EXTRA_OPEN_SECTION = "backup_open_section"
@@ -73,37 +111,29 @@ class BackupActivity : AppCompatActivity() {
         const val SECTION_CLOUD = "cloud"
 
         private const val BACKUP_PREFS = "tap_backup_prefs"
-        private const val KEY_BACKUP_TREE_URI = "backup_tree_uri_v1"
-        private const val KEY_LAST_BACKUP_PIN = "backup_last_pin_v1"
-        private const val LATEST_BACKUP_FILE_NAME = "TapAccount_Backup_Latest.bak"
-
         private const val CLOUD_PREFS = "tap_cloud_backup_prefs"
         private const val KEY_WEBDAV_URL = "webdav_url"
         private const val KEY_WEBDAV_USER = "webdav_user"
         private const val KEY_WEBDAV_PASS = "webdav_pass"
         private const val KEY_WEBDAV_DIR = "webdav_dir"
         private const val KEY_DEVICE_NAME = "webdav_device_name"
+        private val RESTORE_MUTEX = Mutex()
     }
 
-    private val backupRepository = BackupRepository(AppDatabase.getDatabase(this))
-
-    private val pickBackupFolderLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode != RESULT_OK) return@registerForActivityResult
-        val uri = result.data?.data ?: return@registerForActivityResult
-        val grantedFlags = result.data?.flags ?: 0
-        val persistFlags = grantedFlags and
-            (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        runCatching { contentResolver.takePersistableUriPermission(uri, persistFlags) }
-            .onFailure { Log.w("BackupActivity", "持久化备份目录权限失败", it) }
-        saveBackupTreeUri(uri)
-        updateBackupModeHint()
-        Utils.toast(this, getString(R.string.backup_dir_updated))
-    }
+    private val backupRepository by lazy { BackupRepository(AppDatabase.getDatabase(this)) }
+    private val recoverySnapshotService by lazy { RecoverySnapshotService(this) }
+    private var pendingSaveAsKey: BackupPasswordKeyMaterial? = null
+    private var pendingStorageAction: PendingStorageAction? = null
 
     private val saveBackupAsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            result.data?.data?.let(::performBackup)
-        } else if (isQuickOneShot()) {
+        val passwordKey = pendingSaveAsKey.also { pendingSaveAsKey = null }
+        val targetUri = result.data?.data
+        if (result.resultCode == RESULT_OK && targetUri != null && passwordKey != null) {
+            performBackup(targetUri, passwordKey)
+        } else {
+            passwordKey?.keyBytes?.fill(0)
+        }
+        if (result.resultCode != RESULT_OK && isQuickOneShot()) {
             finish()
         }
     }
@@ -138,41 +168,33 @@ class BackupActivity : AppCompatActivity() {
 
         findViewById<ImageView>(R.id.btn_back).setOnClickListener { finish() }
         setupBackupPresetUi()
-        setupPinModeUi()
         setupAutoBackupUi()
         setupCloudSettingsUi()
+        // Do not retain the insecure convenience PIN used by very old backup builds.
+        getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE).edit().remove("backup_last_pin_v1").apply()
 
         findViewById<MaterialButton>(R.id.btn_do_backup).setOnClickListener {
-            // 另存为：带时间戳的新文件名，用户选择保存位置
-            val fileName = BackupDefaultDirHelper.generateManualBackupFileName()
-            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                putExtra(Intent.EXTRA_TITLE, fileName)
+            ensureBackupPasswordReady {
+                // 主操作：直接向默认目录发布一个独立加密版本。
+                performBackupToDefaultDir()
             }
-            saveBackupAsLauncher.launch(intent)
         }
         findViewById<MaterialButton>(R.id.btn_backup_save_as).setOnClickListener {
-            // 覆盖备份：直接备份到默认目录的 TapAccount_Backup_Latest.bak
-            performBackupToDefaultDir()
-        }
-        findViewById<MaterialButton>(R.id.btn_change_backup_dir).setOnClickListener {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-                addFlags(
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-                )
+            promptBackupPasswordSetup(persistForDirectBackup = false) { passwordKey ->
+                pendingSaveAsKey?.keyBytes?.fill(0)
+                pendingSaveAsKey = passwordKey
+                // 另存为：带时间戳的新文件名，用户选择保存位置
+                val fileName = BackupDefaultDirHelper.generateManualBackupFileName()
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                    putExtra(Intent.EXTRA_TITLE, fileName)
+                }
+                saveBackupAsLauncher.launch(intent)
             }
-            pickBackupFolderLauncher.launch(intent)
         }
-
         findViewById<MaterialButton>(R.id.btn_do_restore).setOnClickListener {
-            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-            }
-            openDocumentLauncher.launch(intent)
+            showPrivateBackupBrowser()
         }
 
         findViewById<MaterialButton>(R.id.btn_export_csv).setOnClickListener {
@@ -196,20 +218,21 @@ class BackupActivity : AppCompatActivity() {
             repairMissingCsvAssetBindings()
         }
         setupCleanupButtons()
+        updateBackupProtectionHint()
         updateBackupModeHint()
         handleOpenSectionIntent()
+    }
+
+    override fun onDestroy() {
+        pendingSaveAsKey?.keyBytes?.fill(0)
+        pendingSaveAsKey = null
+        super.onDestroy()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == BackupDefaultDirHelper.REQUEST_CODE_STORAGE_PERMISSION) {
-            updateBackupModeHint()
-            if (BackupDefaultDirHelper.hasStoragePermission()) {
-                // 权限授予后，自动执行覆盖备份
-                performBackupToDefaultDir()
-            } else {
-                Utils.toast(this, getString(R.string.backup_permission_denied))
-            }
+            resumePendingStorageAction()
         }
     }
 
@@ -220,12 +243,20 @@ class BackupActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == BackupDefaultDirHelper.REQUEST_CODE_STORAGE_PERMISSION) {
-            updateBackupModeHint()
-            if (BackupDefaultDirHelper.hasStoragePermission()) {
-                performBackupToDefaultDir()
-            } else {
-                Utils.toast(this, getString(R.string.backup_permission_denied))
-            }
+            resumePendingStorageAction()
+        }
+    }
+
+    private fun resumePendingStorageAction() {
+        val action = pendingStorageAction.also { pendingStorageAction = null }
+        if (!BackupDefaultDirHelper.hasStoragePermission(this)) {
+            Utils.toast(this, getString(R.string.backup_permission_denied))
+            return
+        }
+        when (action) {
+            PendingStorageAction.BACKUP -> performBackupToDefaultDir()
+            PendingStorageAction.RESTORE -> showPrivateBackupBrowser()
+            null -> updateBackupModeHint()
         }
     }
 
@@ -240,12 +271,254 @@ class BackupActivity : AppCompatActivity() {
             applyBackupPreset(preset)
         }
         applyBackupPreset(BackupPreset.LITE)
+        val assets = findViewById<MaterialCheckBox>(R.id.cb_assets)
+        val bills = findViewById<MaterialCheckBox>(R.id.cb_bills)
+        bills.setOnCheckedChangeListener { _, checked ->
+            if (checked) assets.isChecked = true
+        }
+        assets.setOnCheckedChangeListener { _, checked ->
+            if (!checked && bills.isChecked) bills.isChecked = false
+        }
     }
 
-    private fun setupPinModeUi() {
-        val rgPinMode = findViewById<RadioGroup>(R.id.rg_backup_pin_mode)
-        rgPinMode.setOnCheckedChangeListener { _, _ -> updatePinModeHint() }
-        updatePinModeHint()
+    private fun promptRecoveryCode(
+        message: String = getString(R.string.recovery_code_restore_message),
+        onCancelled: () -> Unit = {},
+        onConfirmed: (BackupRecoveryCode) -> Unit
+    ) {
+        val input = EditText(this).apply {
+            hint = getString(R.string.input_recovery_code)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            setSingleLine(false)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.recovery_code_title)
+            .setMessage(message)
+            .setView(input)
+            .setPositiveButton(R.string.continue_restore, null)
+            .setNegativeButton(R.string.cancel) { _, _ -> onCancelled() }
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.95f,
+            cancelOnTouchOutside = false,
+            useSolidPanelBackground = true
+        )
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val canonical = input.text?.toString().orEmpty().trim().uppercase(Locale.US)
+            val code = runCatching { BackupRecoveryCode.parse(canonical) }.getOrNull()
+            if (code == null) {
+                input.error = getString(R.string.recovery_code_invalid)
+            } else {
+                dialog.dismiss()
+                onConfirmed(code)
+            }
+        }
+    }
+
+    private fun hasUsableBackupPasswordKey(): Boolean {
+        val material = runCatching { BackupPasswordKeyStore.load(this) }.getOrNull() ?: return false
+        material.keyBytes.fill(0)
+        return true
+    }
+
+    private fun ensureBackupPasswordReady(onReady: () -> Unit) {
+        if (hasUsableBackupPasswordKey()) {
+            onReady()
+            return
+        }
+        promptBackupPasswordSetup(persistForDirectBackup = true) { material ->
+            material.keyBytes.fill(0)
+            onReady()
+        }
+    }
+
+    /** Direct backups remember a derived key; Save As keeps its independently derived key in memory. */
+    private fun promptBackupPasswordSetup(
+        persistForDirectBackup: Boolean,
+        onReady: (BackupPasswordKeyMaterial) -> Unit
+    ) {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int): Int = (value * density).toInt()
+        val first = EditText(this).apply {
+            hint = getString(R.string.backup_password_input_hint)
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            filters = arrayOf(InputFilter.LengthFilter(BackupPasswordCrypto.MAX_PIN_DIGITS))
+        }
+        val confirmation = EditText(this).apply {
+            hint = getString(R.string.backup_password_confirm_hint)
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            filters = arrayOf(InputFilter.LengthFilter(BackupPasswordCrypto.MAX_PIN_DIGITS))
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(4), dp(24), 0)
+            addView(first, LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            addView(confirmation, LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(
+                if (persistForDirectBackup) {
+                    R.string.backup_password_setup_title
+                } else {
+                    R.string.backup_save_as_password_title
+                }
+            )
+            .setMessage(
+                if (persistForDirectBackup) {
+                    R.string.backup_password_setup_message
+                } else {
+                    R.string.backup_save_as_password_message
+                }
+            )
+            .setView(content)
+            .setPositiveButton(R.string.confirm, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.92f,
+            cancelOnTouchOutside = false,
+            useSolidPanelBackground = true
+        )
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { button ->
+            val pin = first.text?.toString().orEmpty().trim()
+            val repeated = confirmation.text?.toString().orEmpty().trim()
+            if (runCatching { BackupPasswordCrypto.requireValidPin(pin) }.isFailure) {
+                first.error = getString(R.string.backup_password_invalid)
+                return@setOnClickListener
+            }
+            if (pin != repeated) {
+                confirmation.error = getString(R.string.backup_password_mismatch)
+                return@setOnClickListener
+            }
+            button.isEnabled = false
+            lifecycleScope.launch(Dispatchers.Default) {
+                val result = runCatching {
+                    if (persistForDirectBackup) {
+                        BackupPasswordKeyStore.configure(this@BackupActivity, pin)
+                    } else {
+                        BackupPasswordCrypto.create(pin)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    button.isEnabled = true
+                    result.fold(
+                        onSuccess = { material ->
+                            dialog.dismiss()
+                            if (persistForDirectBackup) {
+                                updateBackupProtectionHint()
+                                updateAutoBackupStatus()
+                                Utils.toast(this@BackupActivity, getString(R.string.backup_password_saved))
+                            }
+                            onReady(material)
+                        },
+                        onFailure = { error ->
+                            Log.e("BackupActivity", "保存备份密码失败", error)
+                            Utils.toast(this@BackupActivity, rootCauseMessage(error))
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    private fun updateBackupProtectionHint() {
+        findViewById<TextView>(R.id.tv_backup_portable_hint).text = getString(
+            if (hasUsableBackupPasswordKey()) {
+                R.string.backup_password_configured_desc
+            } else {
+                R.string.backup_password_unconfigured_desc
+            }
+        )
+    }
+
+    private fun promptBackupPasswordForRestore(
+        onCancelled: () -> Unit,
+        onConfirmed: (String) -> Unit
+    ) {
+        val input = EditText(this).apply {
+            hint = getString(R.string.backup_password_input_hint)
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            filters = arrayOf(InputFilter.LengthFilter(BackupPasswordCrypto.MAX_PIN_DIGITS))
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.backup_password_restore_title)
+            .setMessage(R.string.backup_password_restore_message)
+            .setView(input)
+            .setPositiveButton(R.string.continue_restore, null)
+            .setNegativeButton(R.string.cancel) { _, _ -> onCancelled() }
+            .create()
+        dialog.setOnCancelListener { onCancelled() }
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.9f,
+            cancelOnTouchOutside = false,
+            useSolidPanelBackground = true
+        )
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val pin = input.text?.toString().orEmpty().trim()
+            if (runCatching { BackupPasswordCrypto.requireValidPin(pin) }.isFailure) {
+                input.error = getString(R.string.backup_password_invalid)
+            } else {
+                dialog.setOnCancelListener(null)
+                dialog.dismiss()
+                onConfirmed(pin)
+            }
+        }
+    }
+
+    private fun promptSharedRestoreMode(
+        onCancelled: () -> Unit = {},
+        onSelected: (SharedRestoreMode) -> Unit
+    ) {
+        val labels = arrayOf(
+            "${getString(R.string.shared_restore_reconnect)}\n${getString(R.string.shared_restore_reconnect_desc)}",
+            "${getString(R.string.shared_restore_local_copy)}\n${getString(R.string.shared_restore_local_copy_desc)}"
+        )
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.shared_restore_title)
+            .setMessage(R.string.shared_restore_message)
+            .setItems(labels) { _, which ->
+                onSelected(
+                    if (which == 0) SharedRestoreMode.RECONNECT else SharedRestoreMode.LOCAL_COPY
+                )
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> onCancelled() }
+            .create()
+        dialog.setOnCancelListener { onCancelled() }
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.95f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun promptIncompleteSharedRestore(
+        onCancelled: () -> Unit = {},
+        onContinueAsLocalCopy: () -> Unit
+    ) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.shared_restore_incomplete_title)
+            .setMessage(R.string.shared_restore_incomplete_message)
+            .setPositiveButton(R.string.shared_restore_continue_local) { _, _ ->
+                onContinueAsLocalCopy()
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> onCancelled() }
+            .create()
+        dialog.setOnCancelListener { onCancelled() }
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.92f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun setupAutoBackupUi() {
@@ -273,6 +546,11 @@ class BackupActivity : AppCompatActivity() {
         rgMode.check(if (mode == "full") R.id.rb_auto_mode_full else R.id.rb_auto_mode_lite)
 
         switchEnabled.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && !hasUsableBackupPasswordKey()) {
+                switchEnabled.isChecked = false
+                ensureBackupPasswordReady { switchEnabled.isChecked = true }
+                return@setOnCheckedChangeListener
+            }
             groupOptions.visibility = if (isChecked) View.VISIBLE else View.GONE
             saveAutoBackupSettings()
         }
@@ -303,6 +581,10 @@ class BackupActivity : AppCompatActivity() {
         val tv = findViewById<TextView>(R.id.tv_auto_backup_status)
         if (!AutoBackupWorker.isEnabled(this)) {
             tv.text = getString(R.string.auto_backup_disabled)
+            return
+        }
+        if (!hasUsableBackupPasswordKey()) {
+            tv.text = getString(R.string.auto_backup_waiting_for_password)
             return
         }
         val lastTime = AutoBackupWorker.getLastBackupTime(this)
@@ -365,7 +647,8 @@ class BackupActivity : AppCompatActivity() {
                             message = getString(R.string.cleanup_date_range_message_fmt, sdf.format(Date(startMs)), sdf.format(Date(endMs)), count, String.format("%.2f", sum)),
                             onConfirm = {
                                 lifecycleScope.launch(Dispatchers.IO) {
-                                    db.billDao().deleteBillsBetweenTimes(startMs, endOfDay)
+                                    val bills = db.billDao().getBillsBetweenTimesList(startMs, endOfDay)
+                                    SharedMutationHooks.deleteBillsPermanently(db, bills)
                                     withContext(Dispatchers.Main) {
                                         Utils.toast(this@BackupActivity, getString(R.string.cleaned_count_fmt, count))
                                     }
@@ -405,7 +688,8 @@ class BackupActivity : AppCompatActivity() {
                                     message = getString(R.string.clear_book_message_fmt, count),
                                     onConfirm = {
                                         lifecycleScope.launch(Dispatchers.IO) {
-                                            db.billDao().deleteAllByBookName(book)
+                                            val bills = db.billDao().getAllByBookName(book)
+                                            SharedMutationHooks.deleteBillsPermanently(db, bills)
                                             withContext(Dispatchers.Main) {
                                                 Utils.toast(this@BackupActivity, getString(R.string.book_cleared_fmt, book, count))
                                             }
@@ -436,7 +720,8 @@ class BackupActivity : AppCompatActivity() {
                     message = getString(R.string.clear_all_bills_message_fmt, count),
                     onConfirm = {
                         lifecycleScope.launch(Dispatchers.IO) {
-                            db.billDao().deleteAll()
+                            val bills = db.billDao().getAllBillsList()
+                            SharedMutationHooks.deleteBillsPermanently(db, bills)
                             withContext(Dispatchers.Main) {
                                 Utils.toast(this@BackupActivity, getString(R.string.all_cleared_fmt, count))
                             }
@@ -464,13 +749,6 @@ class BackupActivity : AppCompatActivity() {
             .create()
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
-
-    private fun currentPinMode(): BackupPinMode =
-        when (findViewById<RadioGroup>(R.id.rg_backup_pin_mode).checkedRadioButtonId) {
-            R.id.rb_pin_force -> BackupPinMode.FORCE
-            R.id.rb_pin_plain -> BackupPinMode.PLAIN
-            else -> BackupPinMode.AUTO
-        }
 
     private fun applyBackupPreset(preset: BackupPreset) {
         val showCustom = preset == BackupPreset.CUSTOM
@@ -516,14 +794,6 @@ class BackupActivity : AppCompatActivity() {
         }
     }
 
-    private fun updatePinModeHint() {
-        findViewById<TextView>(R.id.tv_backup_pin_hint).text = when (currentPinMode()) {
-            BackupPinMode.AUTO -> getString(R.string.backup_pin_auto_desc)
-            BackupPinMode.FORCE -> getString(R.string.backup_pin_force_desc)
-            BackupPinMode.PLAIN -> getString(R.string.backup_pin_none_desc)
-        }
-    }
-
     private fun handleOpenSectionIntent() {
         when (intent?.getStringExtra(EXTRA_OPEN_SECTION)) {
             SECTION_DO_BACKUP -> {
@@ -533,7 +803,7 @@ class BackupActivity : AppCompatActivity() {
                 findViewById<MaterialButton>(R.id.btn_do_restore).performClick()
             }
             SECTION_SAVE_AS -> {
-                findViewById<MaterialButton>(R.id.btn_do_backup).performClick()
+                findViewById<MaterialButton>(R.id.btn_backup_save_as).performClick()
             }
             SECTION_CSV -> {
                 if (isQuickOneShot()) {
@@ -582,10 +852,7 @@ class BackupActivity : AppCompatActivity() {
                 Utils.toast(this, getString(R.string.select_module))
                 return@setOnClickListener
             }
-            resolvePinForBackup(options, existingBackupEncryptedApi = false, existingBackupUri = null) { pin ->
-                if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
-                performCloudUpload(config, options, pin, modeTag)
-            }
+            performCloudUpload(config, options, modeTag)
         }
         findViewById<MaterialButton>(R.id.btn_manual_download).setOnClickListener {
             saveCloudSettings()
@@ -658,15 +925,24 @@ class BackupActivity : AppCompatActivity() {
             else -> "lite"
         }
 
-    private fun performCloudUpload(config: CloudBackupConfig, options: BackupOptions, settingsPin: String?, modeTag: String) {
+    private fun performCloudUpload(
+        config: CloudBackupConfig,
+        options: BackupOptions,
+        modeTag: String
+    ) {
         lifecycleScope.launch(Dispatchers.IO) {
             val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "backup_${config.deviceName}_${modeTag}_$ts.bak".replace(Regex("\\s+"), "_")
             val tempFile = File(cacheDir, "temp_cloud_upload_$ts.bak")
             try {
-                buildBackupArchiveFile(tempFile, options, settingsPin)
-                WebDavClient.uploadBackup(config, fileName, tempFile.readBytes())
-                runCatching { WebDavClient.cleanupBackups(config) }
+                val created = buildBackupArchiveFile(tempFile, options)
+                val fileName = BackupArtifactNames.create(
+                    deviceName = config.deviceName,
+                    mode = modeTag,
+                    createdAt = Instant.ofEpochMilli(created.manifest.createdAt),
+                    backupId = created.manifest.backupId
+                )
+                WebDavClient.uploadBackup(config, fileName, tempFile)
+                runCatching { WebDavClient.cleanupBackupHistory(config) }
                 withContext(Dispatchers.Main) {
                     Utils.toast(this@BackupActivity, getString(R.string.uploaded_fmt, fileName))
                 }
@@ -681,18 +957,54 @@ class BackupActivity : AppCompatActivity() {
     }
 
     private fun performCloudDownload(config: CloudBackupConfig) {
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch {
             try {
-                val latest = WebDavClient.findLatestBackup(config)
-                    ?: throw IllegalStateException("云端目录中未找到可用备份")
-                val bytes = WebDavClient.downloadBackup(config, latest)
-                val tempFile = File(cacheDir, "temp_cloud_restore_${latest.timestamp}.bak")
-                FileOutputStream(tempFile).use { it.write(bytes) }
+                val entries = withContext(Dispatchers.IO) { WebDavClient.listAllBackups(config) }
+                if (entries.isEmpty()) {
+                    Utils.toast(this@BackupActivity, getString(R.string.cloud_no_backup))
+                    return@launch
+                }
+                val labels = entries.map(::cloudBackupLabel).toTypedArray()
+                val dialog = AlertDialog.Builder(this@BackupActivity)
+                    .setTitle(R.string.choose_cloud_backup)
+                    .setItems(labels) { _, which -> downloadCloudBackup(config, entries[which]) }
+                    .setNegativeButton(R.string.cancel, null)
+                    .create()
+                OverlayDialogs.showPageCenterDialog(
+                    dialog = dialog,
+                    ctx = this@BackupActivity,
+                    widthRatio = 0.95f,
+                    cancelOnTouchOutside = true,
+                    useSolidPanelBackground = true
+                )
+            } catch (e: Exception) {
+                Log.e("BackupActivity", "读取云端备份历史失败", e)
+                Utils.toast(this@BackupActivity, getString(R.string.download_failed))
+            }
+        }
+    }
+
+    private fun cloudBackupLabel(entry: CloudBackupEntry): String {
+        val device = entry.deviceName?.takeIf(String::isNotBlank)
+            ?: getString(R.string.cloud_legacy_root)
+        val size = entry.contentLength?.takeIf { it > 0L }?.let {
+            String.format(Locale.getDefault(), " · %.1f MB", it / (1024.0 * 1024.0))
+        }.orEmpty()
+        return "$device · ${entry.timestamp}\n${entry.mode.uppercase(Locale.getDefault())}$size"
+    }
+
+    private fun downloadCloudBackup(config: CloudBackupConfig, entry: CloudBackupEntry) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val tempFile = File(cacheDir, "temp_cloud_restore_${UUID.randomUUID()}.bak")
+            try {
+                WebDavClient.downloadBackup(config, entry, tempFile)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, getString(R.string.downloaded_fmt, latest.name))
+                    Utils.toast(this@BackupActivity, getString(R.string.downloaded_fmt, entry.name))
                 }
                 showRestoreDialogFromFile(tempFile)
             } catch (e: Exception) {
+                tempFile.delete()
+                Log.e("BackupActivity", "下载云端备份失败", e)
                 withContext(Dispatchers.Main) {
                     Utils.toast(this@BackupActivity, getString(R.string.download_failed))
                 }
@@ -714,136 +1026,32 @@ class BackupActivity : AppCompatActivity() {
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
-    private fun performBackup(uri: Uri) {
+    private fun performBackup(
+        uri: Uri,
+        passwordKey: BackupPasswordKeyMaterial? = null
+    ) {
         val options = collectBackupOptions()
         if (!options.hasAnyModuleSelected()) {
+            passwordKey?.keyBytes?.fill(0)
             Utils.toast(this, getString(R.string.select_module))
             return
         }
-        resolvePinForBackup(options, existingBackupEncryptedApi = false, existingBackupUri = null) { pin ->
-            if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
-            performBackupInternal(uri, options, pin)
-        }
+        performBackupInternal(uri, options, passwordKey)
     }
 
-    private fun resolvePinForBackup(
-        options: BackupOptions,
-        existingBackupEncryptedApi: Boolean,
-        existingBackupUri: Uri?,
-        onResolved: (String?) -> Unit
-    ) {
-        val hasApiKey = Prefs.getAiKey(this).isNotBlank()
-        val sensitiveSelected = options.backupSettingsAiCore && hasApiKey
-        val mode = currentPinMode()
-        val lastPin = getLastBackupPin()
-
-        when {
-            mode == BackupPinMode.PLAIN || !sensitiveSelected -> onResolved(null)
-            mode == BackupPinMode.FORCE -> {
-                if (!lastPin.isNullOrBlank()) {
-                    showPinChoiceDialog(
-                        allowPlain = false,
-                        hasLastPin = true,
-                        onUseLastPin = { onResolved(lastPin) },
-                        onSetNewPin = { promptPinSetupForBackup(onResolved) },
-                        onSkipEncryption = {}
-                    )
-                } else {
-                    promptPinSetupForBackup(onResolved)
-                }
-            }
-            else -> {
-                if (existingBackupEncryptedApi && existingBackupUri != null) {
-                    promptPinVerifyForOverwrite(existingBackupUri) { pin -> onResolved(pin) }
-                } else {
-                    promptPinSetupForBackup(onResolved)
-                }
-            }
-        }
-    }
-
-    private fun showPinChoiceDialog(
-        allowPlain: Boolean,
-        hasLastPin: Boolean,
-        onUseLastPin: () -> Unit,
-        onSetNewPin: () -> Unit,
-        onSkipEncryption: () -> Unit
-    ) {
-        val labels = mutableListOf<String>()
-        val actions = mutableListOf<() -> Unit>()
-        if (hasLastPin) {
-            labels += getString(R.string.backup_pin_reuse)
-            actions += onUseLastPin
-        }
-        labels += getString(R.string.backup_pin_set_new)
-        actions += onSetNewPin
-        if (allowPlain) {
-            labels += getString(R.string.backup_pin_skip)
-            actions += onSkipEncryption
-        }
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.backup_encryption_title)
-            .setMessage(R.string.backup_encryption_message)
-            .setItems(labels.toTypedArray()) { _, which -> actions[which].invoke() }
-            .setNegativeButton(R.string.cancel, null)
-            .create()
-        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, cancelOnTouchOutside = true, useSolidPanelBackground = true)
-    }
-
-    private fun getLastBackupPin(): String? =
-        getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE).getString(KEY_LAST_BACKUP_PIN, null)
-
-    private fun saveLastBackupPin(pin: String) {
-        getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE).edit().putString(KEY_LAST_BACKUP_PIN, pin).apply()
-    }
-
-    private fun performBackupToDefaultTree(treeUri: Uri) {
-        val targetFolder = DocumentFile.fromTreeUri(this, treeUri)
-        if (targetFolder == null || !targetFolder.exists() || !targetFolder.canWrite()) {
-            clearBackupTreeUri()
-            updateBackupModeHint()
-            Utils.toast(this, getString(R.string.dir_not_writable))
-            return
-        }
-        val options = collectBackupOptions()
-        if (!options.hasAnyModuleSelected()) {
-            Utils.toast(this, getString(R.string.select_module))
-            return
-        }
-        val existingDoc = targetFolder.findFile(LATEST_BACKUP_FILE_NAME)
-        val backupDoc = existingDoc ?: targetFolder.createFile("application/octet-stream", LATEST_BACKUP_FILE_NAME)
-        if (backupDoc == null) {
-            Utils.toast(this, getString(R.string.create_file_failed))
-            return
-        }
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val existingEncrypted = if (existingDoc != null) hasEncryptedApiInBackupUri(existingDoc.uri) else false
-            withContext(Dispatchers.Main) {
-                resolvePinForBackup(
-                    options = options,
-                    existingBackupEncryptedApi = existingEncrypted,
-                    existingBackupUri = existingDoc?.uri
-                ) { pin ->
-                    if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
-                    performBackupInternal(backupDoc.uri, options, pin)
-                }
-            }
-        }
-    }
-
-    /**
-     * 覆盖备份到默认目录 /storage/emulated/0/TapAccounting/TapAccount_Backup_Latest.bak
-     * 如果没有存储权限，先请求权限。
-     */
+    /** 向唯一、用户可见的根目录位置发布一份不可变加密备份。 */
     private fun performBackupToDefaultDir() {
-        if (!BackupDefaultDirHelper.hasStoragePermission()) {
+        if (!BackupDefaultDirHelper.hasStoragePermission(this)) {
+            pendingStorageAction = PendingStorageAction.BACKUP
             BackupDefaultDirHelper.requestStoragePermissionIfNeeded(this)
             return
         }
-
-        val dir = BackupDefaultDirHelper.getDefaultBackupDir()
+        val dir = try {
+            BackupDefaultDirHelper.getDefaultBackupDir(this)
+        } catch (error: Exception) {
+            Utils.toast(this, rootCauseMessage(error))
+            return
+        }
         if (!dir.exists() && !dir.mkdirs()) {
             Utils.toast(this, getString(R.string.create_file_failed))
             return
@@ -855,35 +1063,7 @@ class BackupActivity : AppCompatActivity() {
             return
         }
 
-        val targetFile = BackupDefaultDirHelper.getDefaultBackupFile()
-        val existingFile = targetFile.exists()
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val existingEncrypted = if (existingFile) hasEncryptedApiInFile(targetFile) else false
-            withContext(Dispatchers.Main) {
-                resolvePinForBackup(
-                    options = options,
-                    existingBackupEncryptedApi = existingEncrypted,
-                    existingBackupUri = Uri.fromFile(targetFile)
-                ) { pin ->
-                    if (!pin.isNullOrBlank()) saveLastBackupPin(pin)
-                    performBackupInternal(Uri.fromFile(targetFile), options, pin)
-                }
-            }
-        }
-    }
-
-    /** 检查本地文件是否包含加密的 API key */
-    private suspend fun hasEncryptedApiInFile(file: File): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                if (!file.exists()) return@withContext false
-                val dataMap = BackupManager.restore(file)
-                val raw = dataMap["settings_ai_core"] ?: return@withContext false
-                val root = runCatching { parseSettingsRoot(raw) }.getOrNull() ?: return@withContext false
-                runCatching { BackupPinCrypto.hasEncryptedApi(root) }.getOrDefault(false)
-            } catch (_: Exception) { false }
-        }
+        performBackupToDirectory(dir, options)
     }
 
     private fun collectBackupOptions(): BackupOptions {
@@ -917,18 +1097,21 @@ class BackupActivity : AppCompatActivity() {
             backupBanners
     }
 
-    private fun performBackupInternal(uri: Uri, options: BackupOptions, settingsPin: String?) {
+    private fun performBackupInternal(
+        uri: Uri,
+        options: BackupOptions,
+        passwordKey: BackupPasswordKeyMaterial? = null
+    ) {
         lifecycleScope.launch(Dispatchers.IO) {
-            val tempFile = File(cacheDir, "temp_backup.bak")
+            val tempFile = File(cacheDir, "temp_backup_${System.currentTimeMillis()}.bak")
             try {
-                buildBackupArchiveFile(tempFile, options, settingsPin)
-                contentResolver.openOutputStream(uri)?.use { output -> tempFile.inputStream().use { it.copyTo(output) } }
+                val created = buildBackupArchiveFile(tempFile, options, passwordKey)
+                val output = contentResolver.openOutputStream(uri)
+                    ?: throw java.io.IOException("无法打开备份目标")
+                output.use { target -> tempFile.inputStream().buffered().use { it.copyTo(target) } }
 
                 withContext(Dispatchers.Main) {
-                    Utils.toast(
-                        this@BackupActivity,
-                        if (settingsPin.isNullOrBlank()) getString(R.string.backup_saved) else getString(R.string.backup_saved_encrypted)
-                    )
+                    Utils.toast(this@BackupActivity, backupSavedMessage(created.manifest.sharedRecoveryReadiness()))
                     if (isQuickOneShot()) finish()
                 }
             } catch (e: Exception) {
@@ -936,105 +1119,288 @@ class BackupActivity : AppCompatActivity() {
                     Utils.toast(this@BackupActivity, getString(R.string.backup_failed))
                 }
             } finally {
+                passwordKey?.keyBytes?.fill(0)
                 runCatching { tempFile.delete() }
             }
         }
     }
 
-    private suspend fun buildBackupArchiveFile(outputFile: File, options: BackupOptions, settingsPin: String?) {
-        val fullData = backupRepository.getFullData()
-        val toBackup = linkedMapOf<String, Any>()
-        if (options.backupAssets) fullData["assets"]?.let { toBackup["assets"] = it }
-        if (options.backupCategories) fullData["categories"]?.let { toBackup["categories"] = it }
-        if (options.backupBills) {
-            fullData["bills"]?.let { toBackup["bills"] = it }
-            fullData["deleted_bills"]?.let { toBackup["deleted_bills"] = it }
-            fullData["investment_lots"]?.let { toBackup["investment_lots"] = it }
+    private fun performBackupToDirectory(
+        directory: File,
+        options: BackupOptions
+    ) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val tempFile = File(cacheDir, "temp_local_publish_${System.currentTimeMillis()}.bak")
+            try {
+                val created = buildBackupArchiveFile(tempFile, options)
+                com.taostudio.tapaccounting.data.backup.LocalBackupPublisher.publish(
+                    sourceFile = tempFile,
+                    targetDirectory = directory,
+                    deviceName = android.os.Build.MODEL ?: "android",
+                    mode = currentBackupModeTag(),
+                    backupId = created.manifest.backupId,
+                    validate = { file ->
+                        check(BackupFileFormatDetector.detect(file) == BackupFileFormat.V3_PASSWORD) {
+                            "备份发布校验失败"
+                        }
+                    }
+                )
+                runCatching { LocalBackupHistory.cleanup(directory) }
+                    .onFailure { Log.w("BackupActivity", "清理旧本地备份失败", it) }
+                withContext(Dispatchers.Main) {
+                    Utils.toast(this@BackupActivity, backupSavedMessage(created.manifest.sharedRecoveryReadiness()))
+                    if (isQuickOneShot()) finish()
+                }
+            } catch (e: Exception) {
+                Log.e("BackupActivity", "本地备份失败", e)
+                withContext(Dispatchers.Main) {
+                    Utils.toast(this@BackupActivity, rootCauseMessage(e))
+                }
+            } finally {
+                tempFile.delete()
+            }
         }
-        if (options.backupRules) fullData["rules"]?.let { toBackup["rules"] = it }
-        if (options.backupChatMessages) fullData["chat_messages"]?.let { toBackup["chat_messages"] = it }
-        fullData["budgets"]?.let { toBackup["budgets"] = it }
-        fullData["recurring_patterns"]?.let { toBackup["recurring_patterns"] = it }
+    }
 
-        val settingsModules = Prefs.serializeSettingsModules(this@BackupActivity)
-        if (options.backupSettingsGeneralBasic) settingsModules["settings_general_basic"]?.let { toBackup["settings_general_basic"] = it }
-        if (options.backupSettingsGeneralAssets) settingsModules["settings_general_assets"]?.let { toBackup["settings_general_assets"] = it }
-        if (options.backupSettingsGeneralCloud) settingsModules["settings_general_cloud"]?.let { toBackup["settings_general_cloud"] = it }
-        if (options.backupSettingsDisplayEntries) settingsModules["settings_display_entries"]?.let { toBackup["settings_display_entries"] = it }
-        if (options.backupSettingsDisplayBills) settingsModules["settings_display_bills"]?.let { toBackup["settings_display_bills"] = it }
-        if (options.backupSettingsDisplayMultiBill) settingsModules["settings_display_multibill"]?.let { toBackup["settings_display_multibill"] = it }
-        if (options.backupSettingsAiCore) {
-            val raw = settingsModules["settings_ai_core"] ?: "{}"
-            val protected = if (!settingsPin.isNullOrBlank()) {
-                BackupPinCrypto.encryptApiKeyInSettings(parseSettingsRoot(raw), settingsPin).toString()
-            } else raw
-            toBackup["settings_ai_core"] = protected
+    private suspend fun buildBackupArchiveFile(
+        outputFile: File,
+        options: BackupOptions,
+        passwordKey: BackupPasswordKeyMaterial? = null
+    ) = recoverySnapshotService.create(
+        outputFile = outputFile,
+        policy = options.toContentPolicy(),
+        suppliedPasswordKey = passwordKey
+    )
+
+    private fun backupSavedMessage(readiness: SharedRecoveryReadiness): String = getString(
+        when (readiness) {
+            SharedRecoveryReadiness.NOT_PRESENT -> R.string.backup_saved_v2
+            SharedRecoveryReadiness.READY -> R.string.backup_saved_shared_recovery_ready
+            SharedRecoveryReadiness.INCOMPLETE -> R.string.backup_saved_shared_recovery_incomplete
         }
-        if (options.backupSettingsAiChat) settingsModules["settings_ai_chat"]?.let { toBackup["settings_ai_chat"] = it }
-        if (options.backupSettingsBooks) settingsModules["settings_books"]?.let { toBackup["settings_books"] = it }
-        if (options.backupSettingsAdvancedRuntime) settingsModules["settings_advanced_runtime"]?.let { toBackup["settings_advanced_runtime"] = it }
+    )
 
-        val bannerDir = if (options.backupBanners) File(filesDir, "banners").takeIf { it.isDirectory } else null
-        val chatMediaFiles = if (options.backupChatMedia) collectChatMediaFiles() else emptyMap()
-        BackupManager.backup(outputFile, toBackup, bannerDir, chatMediaFiles)
-    }
+    private fun BackupOptions.toContentPolicy(): BackupContentPolicy {
+        val dataModules = linkedSetOf<String>()
+        if (backupAssets) dataModules += BackupModuleId.ASSETS
+        if (backupCategories) dataModules += BackupModuleId.CATEGORIES
+        if (backupBills) {
+            dataModules += BackupModuleId.BILLS
+            dataModules += BackupModuleId.DELETED_BILLS
+            dataModules += BackupModuleId.INVESTMENT_LOTS
+        }
+        if (backupRules) dataModules += BackupModuleId.RULES
+        if (backupChatMessages) dataModules += BackupModuleId.CHAT_MESSAGES
+        // Budgets and recurrence rules are core financial records and never silently omitted.
+        dataModules += BackupModuleId.BUDGETS
+        dataModules += BackupModuleId.RECURRING_PATTERNS
 
-    private fun getBackupTreeUri(): Uri? {
-        val raw = getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE).getString(KEY_BACKUP_TREE_URI, null)
-        return raw?.let { runCatching { Uri.parse(it) }.getOrNull() }
-    }
-
-    private fun saveBackupTreeUri(uri: Uri) {
-        getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE).edit().putString(KEY_BACKUP_TREE_URI, uri.toString()).apply()
-    }
-
-    private fun clearBackupTreeUri() {
-        getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE).edit().remove(KEY_BACKUP_TREE_URI).apply()
+        val settingsModules = linkedSetOf<String>()
+        if (backupSettingsGeneralBasic) settingsModules += "settings_general_basic"
+        if (backupSettingsGeneralAssets) settingsModules += "settings_general_assets"
+        if (backupSettingsGeneralCloud) settingsModules += "settings_general_cloud"
+        if (backupSettingsDisplayEntries) settingsModules += "settings_display_entries"
+        if (backupSettingsDisplayBills) settingsModules += "settings_display_bills"
+        if (backupSettingsDisplayMultiBill) settingsModules += "settings_display_multibill"
+        if (backupSettingsAiCore) settingsModules += "settings_ai_core"
+        if (backupSettingsAiChat) settingsModules += "settings_ai_chat"
+        if (backupSettingsBooks) settingsModules += "settings_books"
+        if (backupSettingsAdvancedRuntime) settingsModules += "settings_advanced_runtime"
+        return BackupContentPolicy(
+            dataModules = dataModules,
+            settingsModules = settingsModules,
+            includeBanners = backupBanners,
+            includeChatMedia = backupChatMedia
+        )
     }
 
     private fun updateBackupModeHint() {
         val tv = findViewById<TextView>(R.id.tv_backup_mode_hint)
-        val safUri = getBackupTreeUri()
-        val defaultDir = BackupDefaultDirHelper.getDefaultBackupDir()
+        val defaultDir = runCatching { BackupDefaultDirHelper.getDefaultBackupDir(this) }.getOrNull()
+        tv.text = when {
+            defaultDir == null -> getString(R.string.backup_private_dir_unavailable)
+            !BackupDefaultDirHelper.hasStoragePermission(this) ->
+                getString(R.string.backup_public_dir_permission_needed, defaultDir.absolutePath)
+            defaultDir.exists() -> getString(R.string.backup_private_dir_hint, defaultDir.absolutePath)
+            else -> getString(R.string.backup_private_dir_not_exists, defaultDir.absolutePath)
+        }
+    }
 
-        when {
-            // 用户手动设置了 SAF 目录
-            safUri != null -> {
-                tv.text = getString(R.string.backup_dir_set_hint)
-            }
-            // 默认目录存在且有权限
-            BackupDefaultDirHelper.hasStoragePermission() && defaultDir.exists() -> {
-                tv.text = getString(R.string.backup_dir_default_hint, defaultDir.absolutePath)
-            }
-            // 有权限但目录不存在（可能被删除）
-            BackupDefaultDirHelper.hasStoragePermission() -> {
-                tv.text = getString(R.string.backup_dir_default_not_exists, defaultDir.absolutePath)
-            }
-            // 没有权限
-            else -> {
-                tv.text = getString(R.string.backup_dir_no_permission)
+    /** Lists the canonical backup directory; external Save As files remain available separately. */
+    private fun showPrivateBackupBrowser() {
+        if (!BackupDefaultDirHelper.hasStoragePermission(this)) {
+            pendingStorageAction = PendingStorageAction.RESTORE
+            BackupDefaultDirHelper.requestStoragePermissionIfNeeded(this)
+            return
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val directory = runCatching { BackupDefaultDirHelper.getDefaultBackupDir(this@BackupActivity) }
+                .getOrNull()
+            val files = directory
+                ?.also { if (!it.exists()) it.mkdirs() }
+                ?.listFiles()
+                .orEmpty()
+                .asSequence()
+                .filter(File::isFile)
+                .filter { BackupFileFormatDetector.detect(it) != BackupFileFormat.UNKNOWN }
+                .sortedByDescending(File::lastModified)
+                .toList()
+            withContext(Dispatchers.Main) {
+                if (files.isEmpty()) {
+                    val dialog = AlertDialog.Builder(this@BackupActivity)
+                        .setTitle(R.string.private_backup_browser_title)
+                        .setMessage(R.string.private_backup_browser_empty)
+                        .setPositiveButton(R.string.choose_other_backup) { _, _ ->
+                            launchExternalBackupPicker()
+                        }
+                        .setNegativeButton(R.string.cancel) { _, _ ->
+                            if (isQuickOneShot()) finish()
+                        }
+                        .create()
+                    OverlayDialogs.showPageCenterDialog(
+                        dialog = dialog,
+                        ctx = this@BackupActivity,
+                        widthRatio = 0.92f,
+                        cancelOnTouchOutside = false,
+                        useSolidPanelBackground = true
+                    )
+                } else {
+                    showPrivateBackupList(files)
+                }
             }
         }
     }
 
-    private fun collectChatMediaFiles(): Map<String, File> {
-        val files = linkedMapOf<String, File>()
-        File(filesDir, "chat_bg").listFiles()?.filter { it.isFile }?.forEach { files["chat_bg/${it.name}"] = it }
-        File(filesDir, "chat_voice").listFiles()?.filter { it.isFile }?.forEach { files["chat_voice/${it.name}"] = it }
-        listOf("chat_ai_avatar.jpg", "chat_user_avatar.jpg").forEach { name ->
-            val file = File(filesDir, name)
-            if (file.isFile) files[name] = file
+    private fun showPrivateBackupList(files: List<File>) {
+        val content = LayoutInflater.from(this).inflate(R.layout.dialog_private_backup_browser, null)
+        val container = content.findViewById<LinearLayout>(R.id.backup_entry_container)
+        val scroll = content.findViewById<ScrollView>(R.id.backup_entry_scroll)
+        content.findViewById<TextView>(R.id.tv_private_backup_count).text =
+            getString(R.string.private_backup_count_fmt, files.size)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(content)
+            .setPositiveButton(R.string.choose_other_backup) { _, _ -> launchExternalBackupPicker() }
+            .setNegativeButton(R.string.cancel) { _, _ ->
+                if (isQuickOneShot()) finish()
+            }
+            .create()
+
+        val timeFormat = DateTimeFormatter.ofPattern("yyyy年M月d日 HH:mm", Locale.getDefault())
+        val legacyTimeFormat = SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.getDefault())
+        files.forEachIndexed { index, file ->
+            val parsed = BackupArtifactNames.parse(file.name)
+            val row = LayoutInflater.from(this).inflate(
+                R.layout.item_private_backup_entry,
+                container,
+                false
+            )
+            val mode = parsed?.mode.orEmpty()
+            val modeLabel = when (mode) {
+                "full" -> getString(R.string.backup_full)
+                "custom" -> getString(R.string.backup_custom)
+                "lite" -> getString(R.string.backup_lite)
+                else -> getString(R.string.private_backup_legacy)
+            }
+            val (iconBackground, iconTint) = when (mode) {
+                "full" -> Color.parseColor("#EAF7EF") to Color.parseColor("#2E8B57")
+                "custom" -> Color.parseColor("#F3EEFF") to Color.parseColor("#7656C9")
+                "lite" -> Color.parseColor("#EAF1FF") to Color.parseColor("#4F6EDB")
+                else -> Color.parseColor("#F1F3F6") to Color.parseColor("#6F7B8D")
+            }
+            row.findViewById<MaterialCardView>(R.id.card_backup_type_icon)
+                .setCardBackgroundColor(iconBackground)
+            row.findViewById<ImageView>(R.id.iv_backup_type).imageTintList =
+                ColorStateList.valueOf(iconTint)
+            row.findViewById<TextView>(R.id.tv_backup_entry_mode).text =
+                getString(R.string.private_backup_mode_fmt, modeLabel)
+            row.findViewById<TextView>(R.id.tv_backup_entry_latest).visibility =
+                if (index == 0) View.VISIBLE else View.GONE
+            row.findViewById<TextView>(R.id.tv_backup_entry_time).text =
+                parsed?.createdAt?.format(timeFormat)
+                    ?: legacyTimeFormat.format(Date(file.lastModified()))
+
+            val deviceName = parsed?.deviceName
+                ?.replace('_', ' ')
+                ?.trim()
+                ?.takeIf(String::isNotEmpty)
+                ?: getString(R.string.private_backup_unknown_device)
+            row.findViewById<TextView>(R.id.tv_backup_entry_meta).text = getString(
+                R.string.private_backup_device_size_fmt,
+                deviceName,
+                formatBackupFileSize(file.length())
+            )
+            row.findViewById<TextView>(R.id.tv_backup_entry_filename).text = file.name
+            row.setOnClickListener {
+                dialog.dismiss()
+                stagePrivateBackupForRestore(file)
+            }
+            container.addView(row)
         }
-        return files
+
+        if (files.size > 3) {
+            scroll.layoutParams = scroll.layoutParams.apply {
+                height = (360 * resources.displayMetrics.density).toInt()
+                    .coerceAtMost((resources.displayMetrics.heightPixels * 0.48f).toInt())
+            }
+        }
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = this,
+            widthRatio = 0.94f,
+            cancelOnTouchOutside = false,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun formatBackupFileSize(bytes: Long): String {
+        val kilobytes = bytes / 1024.0
+        return if (kilobytes < 1024.0) {
+            String.format(Locale.getDefault(), "%.1f KB", kilobytes)
+        } else {
+            String.format(Locale.getDefault(), "%.1f MB", kilobytes / 1024.0)
+        }
+    }
+
+    private fun launchExternalBackupPicker() {
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        openDocumentLauncher.launch(intent)
+    }
+
+    /** Restore preparation deletes its staged source, so never pass the durable private copy. */
+    private fun stagePrivateBackupForRestore(backupFile: File) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val stagedSource = File(cacheDir, "restore_source_${UUID.randomUUID()}.bak")
+            try {
+                backupFile.inputStream().buffered().use { input ->
+                    FileOutputStream(stagedSource).buffered().use(input::copyTo)
+                }
+                showRestoreDialogFromFile(stagedSource)
+            } catch (error: Exception) {
+                stagedSource.delete()
+                Log.e("BackupActivity", "读取本地备份失败", error)
+                withContext(Dispatchers.Main) {
+                    Utils.toast(this@BackupActivity, getString(R.string.file_corrupted))
+                }
+            }
+        }
     }
 
     private fun showRestoreDialog(uri: Uri) {
         lifecycleScope.launch(Dispatchers.IO) {
+            var sourceFile: File? = null
             try {
-                val tempFile = File(cacheDir, "temp_restore.bak")
-                contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(tempFile).use { input.copyTo(it) } }
-                showRestoreDialogFromFile(tempFile)
+                val stagedSource = File(cacheDir, "restore_source_${UUID.randomUUID()}.bak")
+                sourceFile = stagedSource
+                val input = contentResolver.openInputStream(uri)
+                    ?: throw java.io.IOException("无法读取备份文件")
+                input.use { source -> FileOutputStream(stagedSource).use { source.copyTo(it) } }
+                showRestoreDialogFromFile(stagedSource)
             } catch (e: Exception) {
+                sourceFile?.delete()
                 Log.e("BackupActivity", "解析备份文件失败", e)
                 withContext(Dispatchers.Main) {
                     Utils.toast(this@BackupActivity, getString(R.string.file_corrupted))
@@ -1043,7 +1409,172 @@ class BackupActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun showRestoreDialogFromFile(tempFile: File) {
+    private suspend fun showRestoreDialogFromFile(sourceFile: File) {
+        when (BackupFileFormatDetector.detect(sourceFile)) {
+            BackupFileFormat.ZIP -> {
+                val payload = File(cacheDir, "restore_payload_${System.currentTimeMillis()}.zip")
+                val prepared = recoverySnapshotService.prepareForRestore(sourceFile, payload)
+                if (prepared.payloadFile != sourceFile) sourceFile.delete()
+                showRestoreModules(prepared.payloadFile, allowSharedReconnect = false)
+            }
+
+            BackupFileFormat.V2_ENCRYPTED -> {
+                withContext(Dispatchers.Main) {
+                    promptRecoveryCode(onCancelled = { sourceFile.delete() }) { enteredCode ->
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            if (!tryPrepareEncryptedRestore(sourceFile, enteredCode)) {
+                                withContext(Dispatchers.Main) {
+                                    Utils.toast(this@BackupActivity, getString(R.string.recovery_code_wrong))
+                                    promptRecoveryCode(onCancelled = { sourceFile.delete() }) { retryCode ->
+                                        lifecycleScope.launch(Dispatchers.IO) {
+                                            if (!tryPrepareEncryptedRestore(sourceFile, retryCode)) {
+                                                withContext(Dispatchers.Main) {
+                                                    Utils.toast(this@BackupActivity, getString(R.string.recovery_code_wrong))
+                                                    sourceFile.delete()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            BackupFileFormat.V3_PASSWORD -> {
+                val parameters = BackupPasswordEnvelope.readKdfParameters(sourceFile)
+                val storedKey = runCatching { BackupPasswordKeyStore.load(this@BackupActivity) }
+                    .getOrNull()
+                    ?.takeIf { sameKdfParameters(it.parameters, parameters) }
+                if (storedKey != null) {
+                    val opened = try {
+                        tryPreparePasswordRestore(sourceFile, storedKey, rememberKey = false)
+                    } finally {
+                        storedKey.keyBytes.fill(0)
+                    }
+                    if (opened) return
+                }
+                requestPasswordRestore(
+                    sourceFile = sourceFile,
+                    parameters = parameters,
+                    rememberKey = !hasUsableBackupPasswordKey()
+                )
+            }
+
+            BackupFileFormat.UNKNOWN -> throw com.taostudio.tapaccounting.data.backup.BackupFormatException(
+                "文件不是受支持的备份格式"
+            )
+        }
+    }
+
+    private suspend fun tryPrepareEncryptedRestore(
+        sourceFile: File,
+        recoveryCode: BackupRecoveryCode
+    ): Boolean {
+        val payload = File(cacheDir, "restore_payload_${System.currentTimeMillis()}_${UUID.randomUUID()}.zip")
+        return try {
+            val prepared = recoverySnapshotService.prepareForRestore(sourceFile, payload, recoveryCode)
+            sourceFile.delete()
+            showRestoreModules(
+                prepared.payloadFile,
+                allowSharedReconnect = true
+            )
+            true
+        } catch (_: BackupAuthenticationException) {
+            payload.delete()
+            false
+        } catch (e: Exception) {
+            payload.delete()
+            sourceFile.delete()
+            Log.e("BackupActivity", "校验备份归档失败", e)
+            withContext(Dispatchers.Main) {
+                Utils.toast(this@BackupActivity, getString(R.string.file_corrupted))
+            }
+            true
+        }
+    }
+
+    private fun requestPasswordRestore(
+        sourceFile: File,
+        parameters: BackupPasswordKdfParameters,
+        rememberKey: Boolean
+    ) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            promptBackupPasswordForRestore(
+                onCancelled = { sourceFile.delete() },
+                onConfirmed = { pin ->
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val keyBytes = try {
+                            BackupPasswordCrypto.derive(pin, parameters)
+                        } catch (error: Exception) {
+                            Log.e("BackupActivity", "派生备份密钥失败", error)
+                            withContext(Dispatchers.Main) {
+                                Utils.toast(this@BackupActivity, rootCauseMessage(error))
+                            }
+                            sourceFile.delete()
+                            return@launch
+                        }
+                        val material = BackupPasswordKeyMaterial(keyBytes, parameters)
+                        val opened = try {
+                            tryPreparePasswordRestore(sourceFile, material, rememberKey)
+                        } finally {
+                            keyBytes.fill(0)
+                        }
+                        if (!opened) {
+                            withContext(Dispatchers.Main) {
+                                Utils.toast(this@BackupActivity, getString(R.string.backup_password_wrong))
+                                requestPasswordRestore(sourceFile, parameters, rememberKey)
+                            }
+                        }
+                    }
+                }
+            )
+        }
+    }
+
+    private suspend fun tryPreparePasswordRestore(
+        sourceFile: File,
+        material: BackupPasswordKeyMaterial,
+        rememberKey: Boolean
+    ): Boolean {
+        val payload = File(cacheDir, "restore_payload_${System.currentTimeMillis()}_${UUID.randomUUID()}.zip")
+        return try {
+            val prepared = recoverySnapshotService.prepareForRestore(
+                sourceFile = sourceFile,
+                clearPayloadFile = payload,
+                passwordKey = material.keyBytes
+            )
+            if (rememberKey) {
+                runCatching { BackupPasswordKeyStore.store(this@BackupActivity, material) }
+                    .onFailure { Log.w("BackupActivity", "备份已解密，但无法在本机记住密钥", it) }
+            }
+            sourceFile.delete()
+            showRestoreModules(prepared.payloadFile, allowSharedReconnect = true)
+            true
+        } catch (_: BackupAuthenticationException) {
+            payload.delete()
+            false
+        } catch (error: Exception) {
+            payload.delete()
+            sourceFile.delete()
+            Log.e("BackupActivity", "校验密码加密备份失败", error)
+            withContext(Dispatchers.Main) {
+                Utils.toast(this@BackupActivity, getString(R.string.file_corrupted))
+            }
+            true
+        }
+    }
+
+    private fun sameKdfParameters(
+        first: BackupPasswordKdfParameters,
+        second: BackupPasswordKdfParameters
+    ): Boolean = first.iterations == second.iterations && first.salt.contentEquals(second.salt)
+
+    private suspend fun showRestoreModules(
+        tempFile: File,
+        allowSharedReconnect: Boolean
+    ) {
         val dataMap = BackupManager.restore(tempFile)
         val hasBanners = BackupManager.hasBanners(tempFile)
         val hasChatMedia = BackupManager.hasChatMedia(tempFile)
@@ -1100,6 +1631,18 @@ class BackupActivity : AppCompatActivity() {
                 checkBox.isChecked = present
                 hasModules = hasModules || present
             }
+            if (dataMap.containsKey(BackupModuleId.INVESTMENT_LOTS) &&
+                moduleViews.getValue("assets").visibility == View.VISIBLE
+            ) {
+                val assets = moduleViews.getValue("assets")
+                val bills = moduleViews.getValue("bills")
+                bills.setOnCheckedChangeListener { _, checked ->
+                    if (checked) assets.isChecked = true
+                }
+                assets.setOnCheckedChangeListener { _, checked ->
+                    if (!checked && bills.isChecked) bills.isChecked = false
+                }
+            }
             aiCoreHint.visibility = moduleViews.getValue("settings_ai_core").visibility
 
             val groupCore = view.findViewById<LinearLayout>(R.id.group_restore_core)
@@ -1135,6 +1678,7 @@ class BackupActivity : AppCompatActivity() {
             )
 
             if (!hasModules) {
+                tempFile.delete()
                 Utils.toast(this@BackupActivity, getString(R.string.no_restorable_module))
                 return@withContext
             }
@@ -1144,7 +1688,7 @@ class BackupActivity : AppCompatActivity() {
                 .setPositiveButton(R.string.start_restore) { _, _ ->
                     val isMerge = rgRestoreMode.checkedRadioButtonId == R.id.rb_restore_merge
 
-                    val options = RestoreOptions(
+                    var options = RestoreOptions(
                         restoreAssets = moduleViews.getValue("assets").isChecked,
                         restoreCategories = moduleViews.getValue("categories").isChecked,
                         restoreBills = moduleViews.getValue("bills").isChecked,
@@ -1169,151 +1713,307 @@ class BackupActivity : AppCompatActivity() {
                         restoreBanners = moduleViews.getValue("banners").isChecked
                     )
 
-                    if (isMerge) {
-                        val action: (String?) -> Unit = { pin -> mergeRestoreData(dataMap, options, tempFile, pin) }
-                        if (options.restoreSettingsAiCore && settingsNeedsPin) promptPinForRestore(action) else action(null)
+                    val restoresRelationalData = options.restoreAssets || options.restoreCategories ||
+                        options.restoreBills || options.restoreBudgets ||
+                        options.restoreRecurringPatterns || options.restoreChatMessages
+                    if (!isMerge && restoresRelationalData) {
+                        val requiredRoots = listOf(
+                            BackupModuleId.ASSETS,
+                            BackupModuleId.CATEGORIES,
+                            BackupModuleId.BILLS
+                        )
+                        if (requiredRoots.any { it !in dataMap }) {
+                            tempFile.delete()
+                            Utils.toast(
+                                this@BackupActivity,
+                                getString(R.string.restore_overwrite_requires_complete_data)
+                            )
+                            return@setPositiveButton
+                        }
+                        // Room regenerates IDs for these roots. Restore every ID consumer in the
+                        // same transaction; absent modules from older archives become empty.
+                        options = options.copy(
+                            restoreAssets = true,
+                            restoreCategories = true,
+                            restoreBills = true,
+                            restoreBudgets = true,
+                            restoreRecurringPatterns = true,
+                            restoreChatMessages = true
+                        )
+                    }
+
+                    val execute: (SharedRestoreMode) -> Unit = { sharedMode ->
+                        val action: (String?) -> Unit = { legacyPin ->
+                            if (isMerge) {
+                                mergeRestoreData(
+                                    dataMap, options, tempFile, legacyPin, sharedMode
+                                )
+                            } else {
+                                restoreData(
+                                    dataMap, options, tempFile, legacyPin, sharedMode
+                                )
+                            }
+                        }
+                        // PIN is retained only for importing old V1 archives that encrypted AI keys.
+                        if (options.restoreSettingsAiCore && settingsNeedsPin) {
+                            promptPinForRestore(onCancelled = { tempFile.delete() }, onPinConfirmed = action)
+                        }
+                        else action(null)
+                    }
+                    val sharedReadiness = if (options.restoresDatabaseModules()) {
+                        inspectSharedRecoveryReadiness(dataMap)
                     } else {
-                        val action: (String?) -> Unit = { pin -> restoreData(dataMap, options, tempFile, pin) }
-                        if (options.restoreSettingsAiCore && settingsNeedsPin) promptPinForRestore(action) else action(null)
+                        SharedRecoveryReadiness.NOT_PRESENT
+                    }
+                    when {
+                        allowSharedReconnect && sharedReadiness == SharedRecoveryReadiness.READY -> {
+                            promptSharedRestoreMode(
+                                onCancelled = { tempFile.delete() },
+                                onSelected = execute
+                            )
+                        }
+                        allowSharedReconnect && sharedReadiness == SharedRecoveryReadiness.INCOMPLETE -> {
+                            promptIncompleteSharedRestore(
+                                onCancelled = { tempFile.delete() },
+                                onContinueAsLocalCopy = { execute(SharedRestoreMode.LOCAL_COPY) }
+                            )
+                        }
+                        else -> execute(SharedRestoreMode.LOCAL_COPY)
                     }
                 }
-                .setNegativeButton(R.string.cancel, null)
+                .setNegativeButton(R.string.cancel) { _, _ -> tempFile.delete() }
                 .create()
+            dialog.setOnCancelListener { tempFile.delete() }
             OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.92f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
         }
     }
 
-    private fun restoreData(dataMap: Map<String, String>, options: RestoreOptions, tempFile: File?, settingsPin: String?) {
+    private fun restoreData(
+        dataMap: Map<String, String>,
+        options: RestoreOptions,
+        tempFile: File?,
+        settingsPin: String?,
+        sharedRestoreMode: SharedRestoreMode
+    ) {
         lifecycleScope.launch(Dispatchers.IO) {
+            var restoreLockAcquired = false
+            var preferencesTransaction: RestorePreferencesTransaction? = null
+            var mediaTransaction: RestoreMediaTransaction? = null
+            var roomCommitted = false
             try {
-                val aiCoreRoot = if (options.restoreSettingsAiCore) {
-                    dataMap["settings_ai_core"]?.let {
-                        var root = parseSettingsRoot(it)
-                        if (BackupPinCrypto.hasEncryptedApi(root)) {
-                            val pin = settingsPin ?: throw IllegalArgumentException("该备份中的 API Key 受 PIN 保护，请输入 4 位 PIN")
-                            root = BackupPinCrypto.decryptApiKeyInSettings(root, pin)
-                        }
-                        root
+                RESTORE_MUTEX.lock()
+                restoreLockAcquired = true
+                val restoreDatabase = options.restoresDatabaseModules()
+                val investmentDrafts = if (options.restoreAssets) {
+                    dataMap[BackupModuleId.INVESTMENT_DRAFTS]
+                        ?.let(InvestmentDraftBackupSupport::decode)
+                } else {
+                    null
+                }
+                val effectiveSharedMode = if (restoreDatabase) sharedRestoreMode else SharedRestoreMode.LOCAL_COPY
+                val parsedSharedData = if (restoreDatabase) parseSharedRestoreData(dataMap) else null
+                val sharedSecrets = if (effectiveSharedMode == SharedRestoreMode.RECONNECT) {
+                    val ledgers = requireNotNull(parsedSharedData) { "备份缺少共享账本数据" }.ledgers
+                    val payload = requireNotNull(dataMap[BackupModuleId.SHARED_SECRETS]) {
+                        "备份缺少共享账本恢复凭据，请改选恢复为本地副本"
                     }
-                } else null
-
-                backupRepository.restoreFullData(
-                    assets = if (options.restoreAssets) dataMap["assets"]?.let { DataExportManager.deserializeAssets(it) } else null,
-                    bills = if (options.restoreBills) dataMap["bills"]?.let { DataExportManager.deserializeBills(it) } else null,
-                    deletedBills = if (options.restoreBills) dataMap["deleted_bills"]?.let { DataExportManager.deserializeDeletedBills(it) } else null,
-                    investmentLots = if (options.restoreBills) dataMap["investment_lots"]?.let { DataExportManager.deserializeInvestmentLots(it) } else null,
-                    categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
-                    rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
-                    chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null,
-                    budgets = if (options.restoreBudgets) dataMap["budgets"]?.let { DataExportManager.deserializeBudgets(it) } else null,
-                    recurringPatterns = if (options.restoreRecurringPatterns) dataMap["recurring_patterns"]?.let { DataExportManager.deserializeRecurringPatterns(it) } else null
-                )
-
-                val settingsModules = listOf(
-                    options.restoreSettingsGeneralBasic to "settings_general_basic",
-                    options.restoreSettingsGeneralAssets to "settings_general_assets",
-                    options.restoreSettingsGeneralCloud to "settings_general_cloud",
-                    options.restoreSettingsDisplayEntries to "settings_display_entries",
-                    options.restoreSettingsDisplayBills to "settings_display_bills",
-                    options.restoreSettingsDisplayMultiBill to "settings_display_multibill",
-                    options.restoreSettingsAiChat to "settings_ai_chat",
-                    options.restoreSettingsBooks to "settings_books",
-                    options.restoreSettingsAdvancedRuntime to "settings_advanced_runtime",
-                    options.restoreSettingsGeneralLegacy to "settings_general",
-                    options.restoreSettingsDisplayLegacy to "settings_display",
-                    options.restoreSettingsAdvancedLegacy to "settings_advanced"
-                )
-                settingsModules.forEach { (enabled, key) ->
-                    if (enabled) dataMap[key]?.let { Prefs.importAll(this@BackupActivity, parseSettingsRoot(it)) }
+                    SharedRecoverySecrets.decode(payload, ledgers.mapTo(hashSetOf(), SharedLedgerBackup::uuid))
+                } else {
+                    emptyList()
                 }
-                aiCoreRoot?.let { Prefs.importAll(this@BackupActivity, it) }
+                val sharedRestoreData = if (effectiveSharedMode == SharedRestoreMode.RECONNECT) {
+                    SharedReconnectPreflight.validate(
+                        this@BackupActivity,
+                        AppDatabase.getDatabase(this@BackupActivity),
+                        requireNotNull(parsedSharedData),
+                        sharedSecrets
+                    )
+                } else {
+                    parsedSharedData
+                }
+                val newDeviceId = if (effectiveSharedMode == SharedRestoreMode.RECONNECT) {
+                    UUID.randomUUID().toString()
+                } else {
+                    null
+                }
+                val settingsRoots = parseSelectedSettings(dataMap, options, settingsPin)
+                mediaTransaction = stageSelectedRestoreMedia(tempFile, options)
+                val preferenceTx = RestorePreferencesTransaction(this@BackupActivity)
+                preferencesTransaction = preferenceTx
+                var restoredSharedSecretCount = 0
 
-                if (options.restoreBanners && tempFile != null && tempFile.exists()) {
-                    val bannerDir = File(filesDir, "banners")
-                    BackupManager.restoreBanners(tempFile, bannerDir)
-                    fixRestoredBannerPaths(bannerDir)
+                withContext(NonCancellable) {
+                    backupRepository.restoreFullData(
+                        assets = if (options.restoreAssets) dataMap["assets"]?.let { DataExportManager.deserializeAssets(it) } else null,
+                        bills = if (options.restoreBills) dataMap["bills"]?.let { DataExportManager.deserializeBills(it) } else null,
+                        deletedBills = if (options.restoreBills) dataMap["deleted_bills"]
+                            ?.let { DataExportManager.deserializeDeletedBills(it) } ?: emptyList() else null,
+                        investmentLots = if (options.restoreBills && options.restoreAssets) dataMap["investment_lots"]
+                            ?.let { DataExportManager.deserializeInvestmentLots(it) } ?: emptyList() else null,
+                        categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
+                        rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
+                        chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]
+                            ?.let { DataExportManager.deserializeChatMessages(it) } ?: emptyList() else null,
+                        budgets = if (options.restoreBudgets) dataMap["budgets"]
+                            ?.let { DataExportManager.deserializeBudgets(it) } ?: emptyList() else null,
+                        recurringPatterns = if (options.restoreRecurringPatterns) dataMap["recurring_patterns"]
+                            ?.let { DataExportManager.deserializeRecurringPatterns(it) } ?: emptyList() else null,
+                        books = if (restoreDatabase) dataMap[BackupModuleId.BOOKS]?.let(DataExportManager::deserializeBooks) else null,
+                        sharedRestoreData = sharedRestoreData,
+                        sharedRestoreMode = effectiveSharedMode,
+                        newDeviceId = newDeviceId,
+                        beforeCommit = {
+                            restoredSharedSecretCount = applyRestoreSideEffectsBeforeCommit(
+                                options = options,
+                                investmentDrafts = investmentDrafts,
+                                replaceInvestmentDrafts = true,
+                                effectiveSharedMode = effectiveSharedMode,
+                                sharedSecrets = sharedSecrets,
+                                settingsRoots = settingsRoots,
+                                newDeviceId = newDeviceId,
+                                mediaTransaction = mediaTransaction
+                            )
+                        }
+                    )
+                    roomCommitted = true
+                    preferenceTx.commit()
+                    mediaTransaction?.let { media ->
+                        runCatching(media::commit).onFailure {
+                            Log.w("BackupActivity", "恢复已提交，但媒体事务临时文件清理失败", it)
+                        }
+                    }
                 }
 
-                if (options.restoreChatMedia && tempFile != null && tempFile.exists()) {
-                    BackupManager.restoreChatMedia(tempFile, filesDir)
-                    fixRestoredChatPreferencePaths()
-                    if (options.restoreChatMessages) fixRestoredVoiceMessagePaths()
+                runCatching { syncRestoredRuntimeState(options) }.onFailure {
+                    Log.w("BackupActivity", "恢复后运行状态刷新失败", it)
                 }
-
-                syncRestoredRuntimeState(options)
-
+                if (effectiveSharedMode == SharedRestoreMode.RECONNECT && restoredSharedSecretCount > 0) {
+                    runCatching { SharedSyncScheduler.enqueueFullNow(this@BackupActivity) }.onFailure {
+                        Log.w("BackupActivity", "共享账本恢复成功，但立即同步调度失败", it)
+                    }
+                }
                 withContext(Dispatchers.Main) {
                     Utils.toast(this@BackupActivity, getString(R.string.restore_success))
                     if (isQuickOneShot()) finish()
                 }
             } catch (e: Exception) {
+                if (!roomCommitted) {
+                    rollbackRestoreSideEffects(preferencesTransaction, mediaTransaction, e)
+                }
                 Log.e("BackupActivity", "恢复数据失败", e)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, getString(R.string.restore_failed))
+                    Utils.toast(this@BackupActivity, rootCauseMessage(e))
                 }
+            } finally {
+                runCatching { mediaTransaction?.close() }.onFailure {
+                    Log.e("BackupActivity", "清理恢复媒体事务失败", it)
+                }
+                tempFile?.delete()
+                if (restoreLockAcquired) RESTORE_MUTEX.unlock()
             }
         }
     }
 
-    private fun mergeRestoreData(dataMap: Map<String, String>, options: RestoreOptions, tempFile: File?, settingsPin: String?) {
+    private fun mergeRestoreData(
+        dataMap: Map<String, String>,
+        options: RestoreOptions,
+        tempFile: File?,
+        settingsPin: String?,
+        sharedRestoreMode: SharedRestoreMode
+    ) {
         lifecycleScope.launch(Dispatchers.IO) {
+            var restoreLockAcquired = false
+            var preferencesTransaction: RestorePreferencesTransaction? = null
+            var mediaTransaction: RestoreMediaTransaction? = null
+            var roomCommitted = false
             try {
-                val aiCoreRoot = if (options.restoreSettingsAiCore) {
-                    dataMap["settings_ai_core"]?.let {
-                        var root = parseSettingsRoot(it)
-                        if (BackupPinCrypto.hasEncryptedApi(root)) {
-                            val pin = settingsPin ?: throw IllegalArgumentException("该备份中的 API Key 受 PIN 保护，请输入 4 位 PIN")
-                            root = BackupPinCrypto.decryptApiKeyInSettings(root, pin)
-                        }
-                        root
+                RESTORE_MUTEX.lock()
+                restoreLockAcquired = true
+                val restoreDatabase = options.restoresDatabaseModules()
+                val investmentDrafts = if (options.restoreAssets) {
+                    dataMap[BackupModuleId.INVESTMENT_DRAFTS]
+                        ?.let(InvestmentDraftBackupSupport::decode)
+                } else {
+                    null
+                }
+                val effectiveSharedMode = if (restoreDatabase) sharedRestoreMode else SharedRestoreMode.LOCAL_COPY
+                val parsedSharedData = if (restoreDatabase) parseSharedRestoreData(dataMap) else null
+                val sharedSecrets = if (effectiveSharedMode == SharedRestoreMode.RECONNECT) {
+                    val ledgers = requireNotNull(parsedSharedData) { "备份缺少共享账本数据" }.ledgers
+                    val payload = requireNotNull(dataMap[BackupModuleId.SHARED_SECRETS]) {
+                        "备份缺少共享账本恢复凭据，请改选恢复为本地副本"
                     }
-                } else null
-
-                val result = backupRepository.mergeRestoreFullData(
-                    assets = if (options.restoreAssets) dataMap["assets"]?.let { DataExportManager.deserializeAssets(it) } else null,
-                    bills = if (options.restoreBills) dataMap["bills"]?.let { DataExportManager.deserializeBills(it) } else null,
-                    investmentLots = if (options.restoreBills) dataMap["investment_lots"]?.let { DataExportManager.deserializeInvestmentLots(it) } else null,
-                    categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
-                    rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
-                    chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null,
-                    budgets = if (options.restoreBudgets) dataMap["budgets"]?.let { DataExportManager.deserializeBudgets(it) } else null,
-                    recurringPatterns = if (options.restoreRecurringPatterns) dataMap["recurring_patterns"]?.let { DataExportManager.deserializeRecurringPatterns(it) } else null
-                )
-
-                // 设置始终覆盖
-                val settingsModules = listOf(
-                    options.restoreSettingsGeneralBasic to "settings_general_basic",
-                    options.restoreSettingsGeneralAssets to "settings_general_assets",
-                    options.restoreSettingsGeneralCloud to "settings_general_cloud",
-                    options.restoreSettingsDisplayEntries to "settings_display_entries",
-                    options.restoreSettingsDisplayBills to "settings_display_bills",
-                    options.restoreSettingsDisplayMultiBill to "settings_display_multibill",
-                    options.restoreSettingsAiChat to "settings_ai_chat",
-                    options.restoreSettingsBooks to "settings_books",
-                    options.restoreSettingsAdvancedRuntime to "settings_advanced_runtime",
-                    options.restoreSettingsGeneralLegacy to "settings_general",
-                    options.restoreSettingsDisplayLegacy to "settings_display",
-                    options.restoreSettingsAdvancedLegacy to "settings_advanced"
-                )
-                settingsModules.forEach { (enabled, key) ->
-                    if (enabled) dataMap[key]?.let { Prefs.importAll(this@BackupActivity, parseSettingsRoot(it)) }
+                    SharedRecoverySecrets.decode(payload, ledgers.mapTo(hashSetOf(), SharedLedgerBackup::uuid))
+                } else {
+                    emptyList()
                 }
-                aiCoreRoot?.let { Prefs.importAll(this@BackupActivity, it) }
+                val sharedRestoreData = if (effectiveSharedMode == SharedRestoreMode.RECONNECT) {
+                    SharedReconnectPreflight.validate(
+                        this@BackupActivity,
+                        AppDatabase.getDatabase(this@BackupActivity),
+                        requireNotNull(parsedSharedData),
+                        sharedSecrets
+                    )
+                } else {
+                    parsedSharedData
+                }
+                val newDeviceId = if (effectiveSharedMode == SharedRestoreMode.RECONNECT) {
+                    UUID.randomUUID().toString()
+                } else {
+                    null
+                }
+                val settingsRoots = parseSelectedSettings(dataMap, options, settingsPin)
+                mediaTransaction = stageSelectedRestoreMedia(tempFile, options)
+                val preferenceTx = RestorePreferencesTransaction(this@BackupActivity)
+                preferencesTransaction = preferenceTx
+                var restoredSharedSecretCount = 0
 
-                if (options.restoreBanners && tempFile != null && tempFile.exists()) {
-                    val bannerDir = File(filesDir, "banners")
-                    BackupManager.restoreBanners(tempFile, bannerDir)
-                    fixRestoredBannerPaths(bannerDir)
+                val result = withContext(NonCancellable) {
+                    val merged = backupRepository.mergeRestoreFullData(
+                        assets = if (options.restoreAssets) dataMap["assets"]?.let { DataExportManager.deserializeAssets(it) } else null,
+                        bills = if (options.restoreBills) dataMap["bills"]?.let { DataExportManager.deserializeBills(it) } else null,
+                        deletedBills = if (options.restoreBills) dataMap["deleted_bills"]?.let { DataExportManager.deserializeDeletedBills(it) } else null,
+                        investmentLots = if (options.restoreBills && options.restoreAssets) dataMap["investment_lots"]?.let { DataExportManager.deserializeInvestmentLots(it) } else null,
+                        categories = if (options.restoreCategories) dataMap["categories"]?.let { DataExportManager.deserializeCategories(it) } else null,
+                        rules = if (options.restoreRules) dataMap["rules"]?.let { DataExportManager.deserializeAiRules(it) } else null,
+                        chatMessages = if (options.restoreChatMessages) dataMap["chat_messages"]?.let { DataExportManager.deserializeChatMessages(it) } else null,
+                        budgets = if (options.restoreBudgets) dataMap["budgets"]?.let { DataExportManager.deserializeBudgets(it) } else null,
+                        recurringPatterns = if (options.restoreRecurringPatterns) dataMap["recurring_patterns"]?.let { DataExportManager.deserializeRecurringPatterns(it) } else null,
+                        books = if (restoreDatabase) dataMap[BackupModuleId.BOOKS]?.let(DataExportManager::deserializeBooks) else null,
+                        sharedRestoreData = sharedRestoreData,
+                        sharedRestoreMode = effectiveSharedMode,
+                        newDeviceId = newDeviceId,
+                        beforeCommit = {
+                            restoredSharedSecretCount = applyRestoreSideEffectsBeforeCommit(
+                                options = options,
+                                investmentDrafts = investmentDrafts,
+                                replaceInvestmentDrafts = false,
+                                effectiveSharedMode = effectiveSharedMode,
+                                sharedSecrets = sharedSecrets,
+                                settingsRoots = settingsRoots,
+                                newDeviceId = newDeviceId,
+                                mediaTransaction = mediaTransaction
+                            )
+                        }
+                    )
+                    roomCommitted = true
+                    preferenceTx.commit()
+                    mediaTransaction?.let { media ->
+                        runCatching(media::commit).onFailure {
+                            Log.w("BackupActivity", "合并恢复已提交，但媒体事务临时文件清理失败", it)
+                        }
+                    }
+                    merged
                 }
 
-                if (options.restoreChatMedia && tempFile != null && tempFile.exists()) {
-                    BackupManager.restoreChatMedia(tempFile, filesDir)
-                    fixRestoredChatPreferencePaths()
-                    if (options.restoreChatMessages) fixRestoredVoiceMessagePaths()
+                runCatching { syncRestoredRuntimeState(options) }.onFailure {
+                    Log.w("BackupActivity", "合并恢复后运行状态刷新失败", it)
                 }
-
-                syncRestoredRuntimeState(options)
-
+                if (effectiveSharedMode == SharedRestoreMode.RECONNECT && restoredSharedSecretCount > 0) {
+                    runCatching { SharedSyncScheduler.enqueueFullNow(this@BackupActivity) }.onFailure {
+                        Log.w("BackupActivity", "共享账本合并恢复成功，但立即同步调度失败", it)
+                    }
+                }
                 withContext(Dispatchers.Main) {
                     val msg = buildString {
                         append(getString(R.string.merge_restore_complete))
@@ -1331,45 +2031,165 @@ class BackupActivity : AppCompatActivity() {
                     if (isQuickOneShot()) finish()
                 }
             } catch (e: Exception) {
+                if (!roomCommitted) {
+                    rollbackRestoreSideEffects(preferencesTransaction, mediaTransaction, e)
+                }
                 Log.e("BackupActivity", "合并恢复失败", e)
                 withContext(Dispatchers.Main) {
-                    Utils.toast(this@BackupActivity, getString(R.string.restore_failed))
+                    Utils.toast(this@BackupActivity, rootCauseMessage(e))
                 }
+            } finally {
+                runCatching { mediaTransaction?.close() }.onFailure {
+                    Log.e("BackupActivity", "清理合并恢复媒体事务失败", it)
+                }
+                tempFile?.delete()
+                if (restoreLockAcquired) RESTORE_MUTEX.unlock()
             }
+        }
+    }
+
+    private fun stageSelectedRestoreMedia(
+        tempFile: File?,
+        options: RestoreOptions
+    ): RestoreMediaTransaction? {
+        if (!options.restoreBanners && !options.restoreChatMedia) return null
+        val source = requireNotNull(tempFile) { "恢复媒体暂存文件不存在，请重新选择备份" }
+        require(source.isFile) { "恢复媒体暂存文件已失效，请重新选择备份" }
+        return RestoreMediaTransaction.stageValidatedZip(
+            validatedZip = source,
+            filesDir = filesDir,
+            selection = RestoreMediaSelection(
+                banners = options.restoreBanners,
+                chatMedia = options.restoreChatMedia
+            )
+        )
+    }
+
+    /** Runs inside the Room transaction so a failure can roll database rows back as one unit. */
+    private suspend fun applyRestoreSideEffectsBeforeCommit(
+        options: RestoreOptions,
+        investmentDrafts: List<InvestmentDraftRecordBackup>?,
+        replaceInvestmentDrafts: Boolean,
+        effectiveSharedMode: SharedRestoreMode,
+        sharedSecrets: List<SharedRecoverySecret>,
+        settingsRoots: List<JSONObject>,
+        newDeviceId: String?,
+        mediaTransaction: RestoreMediaTransaction?
+    ): Int {
+        if (newDeviceId != null) DeviceIdManager.replaceDeviceId(this, newDeviceId)
+        if (options.restoreAssets) {
+            if (investmentDrafts == null && replaceInvestmentDrafts) {
+                com.taostudio.tapaccounting.logic.InvestmentLotDraftStorage.clearAll(this)
+            } else if (investmentDrafts != null) {
+                InvestmentDraftBackupSupport.restore(
+                    context = this,
+                    records = investmentDrafts,
+                    currentAssets = AppDatabase.getDatabase(this).assetDao().getAllAssetsList(),
+                    replaceAll = replaceInvestmentDrafts
+                )
+            }
+        }
+        val restoredSharedSecretCount = if (effectiveSharedMode == SharedRestoreMode.RECONNECT) {
+            SharedRecoverySecrets.restore(this, sharedSecrets)
+        } else {
+            0
+        }
+        settingsRoots.forEach { Prefs.importAll(this, it) }
+
+        mediaTransaction?.publish()
+        if (options.restoreBanners) fixRestoredBannerPaths(File(filesDir, "banners"))
+        if (options.restoreChatMedia) {
+            fixRestoredChatPreferencePaths()
+            if (options.restoreChatMessages) fixRestoredVoiceMessagePaths()
+        }
+        return restoredSharedSecretCount
+    }
+
+    private fun rollbackRestoreSideEffects(
+        preferences: RestorePreferencesTransaction?,
+        media: RestoreMediaTransaction?,
+        originalFailure: Throwable
+    ) {
+        runCatching { media?.rollback() }.onFailure { rollbackFailure ->
+            originalFailure.addSuppressed(rollbackFailure)
+            Log.e("BackupActivity", "恢复媒体回滚失败", rollbackFailure)
+        }
+        runCatching { preferences?.rollback() }.onFailure { rollbackFailure ->
+            originalFailure.addSuppressed(rollbackFailure)
+            Log.e("BackupActivity", "恢复设置回滚失败", rollbackFailure)
         }
     }
 
     private suspend fun fixRestoredVoiceMessagePaths() {
         val dao = AppDatabase.getDatabase(this).chatMessageDao()
         val voiceDir = File(filesDir, "chat_voice")
+        val imageDirs = listOf(File(filesDir, "chat_images"), File(filesDir, "chat_pics"))
+        val attachmentDir = File(filesDir, "chat_attachments")
         val messages = dao.getAll()
         messages.forEach { msg ->
-            if (msg.msgType != 2 || msg.content.isBlank()) return@forEach
-            runCatching {
-                val obj = JSONObject(msg.content)
-                val oldPath = obj.optString("audioPath")
-                if (oldPath.isBlank()) return@runCatching
-                val oldFile = File(oldPath)
-                if (oldFile.exists()) return@runCatching
-                val restored = File(voiceDir, oldFile.name)
-                if (restored.exists()) {
-                    obj.put("audioPath", restored.absolutePath)
-                    dao.update(msg.copy(content = obj.toString()))
+            var updated = msg
+            if (msg.msgType == ChatActivity.MSG_TYPE_USER_VOICE && msg.content.isNotBlank()) {
+                runCatching {
+                    val obj = JSONObject(msg.content)
+                    val oldPath = obj.optString("audioPath")
+                    val oldFile = fileFromStoredUri(oldPath)
+                    if (oldPath.isNotBlank() && (oldFile == null || !oldFile.exists())) {
+                        val restored = File(voiceDir, oldFile?.name ?: File(oldPath).name)
+                        if (restored.exists()) {
+                            obj.put("audioPath", restored.absolutePath)
+                            updated = updated.copy(content = obj.toString())
+                        }
+                    }
                 }
             }
+            if (msg.imageUri.isNotBlank() &&
+                msg.msgType in setOf(ChatActivity.MSG_TYPE_USER_IMAGE, ChatActivity.MSG_TYPE_USER_FILE)
+            ) {
+                val oldFile = fileFromStoredUri(msg.imageUri)
+                if (oldFile == null || !oldFile.exists()) {
+                    val fileName = oldFile?.name ?: File(msg.imageUri).name
+                    val restored = if (msg.msgType == ChatActivity.MSG_TYPE_USER_FILE) {
+                        File(attachmentDir, fileName).takeIf(File::exists)
+                    } else {
+                        imageDirs.asSequence().map { File(it, fileName) }.firstOrNull(File::exists)
+                    }
+                    if (restored != null) updated = updated.copy(imageUri = Uri.fromFile(restored).toString())
+                }
+            }
+            if (updated != msg) dao.update(updated)
         }
     }
 
+    private fun fileFromStoredUri(value: String): File? = runCatching {
+        val parsed = Uri.parse(value)
+        when (parsed.scheme?.lowercase(Locale.US)) {
+            null, "" -> File(value)
+            "file" -> parsed.path?.let(::File)
+            else -> null
+        }
+    }.getOrNull()
+
     private fun fixRestoredChatPreferencePaths() {
-        val aiAvatar = File(filesDir, "chat_ai_avatar.jpg")
-        if (aiAvatar.exists()) Prefs.setAiChatAvatarPath(this, aiAvatar.absolutePath)
-        val userAvatar = File(filesDir, "chat_user_avatar.jpg")
-        if (userAvatar.exists()) Prefs.setUserChatAvatarPath(this, userAvatar.absolutePath)
+        val aiAvatar = listOf(
+            File(filesDir, File(Prefs.getAiChatAvatarPath(this)).name),
+            File(filesDir, "chat_ai_avatar.jpg"),
+            File(filesDir, "chat_ai_avatar.png")
+        ).firstOrNull(File::isFile)
+        aiAvatar?.let { Prefs.setAiChatAvatarPath(this, it.absolutePath) }
+        val userAvatar = listOf(
+            File(filesDir, File(Prefs.getUserChatAvatarPath(this)).name),
+            File(filesDir, "chat_user_avatar.jpg"),
+            File(filesDir, "chat_user_avatar.png")
+        ).firstOrNull(File::isFile)
+        userAvatar?.let { Prefs.setUserChatAvatarPath(this, it.absolutePath) }
         val bgPath = Prefs.getAiChatBgPath(this)
         if (bgPath.isNotBlank()) {
             val bgFile = File(bgPath)
-            val restored = File(File(filesDir, "chat_bg"), bgFile.name)
-            if (!bgFile.exists() && restored.exists()) {
+            val restored = listOf(
+                File(File(filesDir, "chat_bg"), bgFile.name),
+                File(filesDir, bgFile.name)
+            ).firstOrNull(File::isFile)
+            if (!bgFile.exists() && restored != null) {
                 Prefs.setAiChatBgPath(this, restored.absolutePath)
             }
         }
@@ -1424,84 +2244,88 @@ class BackupActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun hasEncryptedApiInBackupUri(uri: Uri): Boolean {
-        val tempFile = File(cacheDir, "temp_pin_check_${System.currentTimeMillis()}.bak")
-        return try {
-            contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
-            } ?: return false
-            val dataMap = BackupManager.restore(tempFile)
-            val raw = dataMap["settings_ai_core"] ?: return false
-            val root = runCatching { parseSettingsRoot(raw) }.getOrNull() ?: return false
-            runCatching { BackupPinCrypto.hasEncryptedApi(root) }.getOrDefault(false)
-        } catch (_: Exception) {
-            false
-        } finally {
-            runCatching { tempFile.delete() }
+    private fun parseSelectedSettings(
+        dataMap: Map<String, String>,
+        options: RestoreOptions,
+        settingsPin: String?
+    ): List<JSONObject> {
+        val selectedModules = listOf(
+            options.restoreSettingsGeneralBasic to "settings_general_basic",
+            options.restoreSettingsGeneralAssets to "settings_general_assets",
+            options.restoreSettingsGeneralCloud to "settings_general_cloud",
+            options.restoreSettingsDisplayEntries to "settings_display_entries",
+            options.restoreSettingsDisplayBills to "settings_display_bills",
+            options.restoreSettingsDisplayMultiBill to "settings_display_multibill",
+            options.restoreSettingsAiChat to "settings_ai_chat",
+            options.restoreSettingsBooks to "settings_books",
+            options.restoreSettingsAdvancedRuntime to "settings_advanced_runtime",
+            options.restoreSettingsGeneralLegacy to "settings_general",
+            options.restoreSettingsDisplayLegacy to "settings_display",
+            options.restoreSettingsAdvancedLegacy to "settings_advanced"
+        )
+        val roots = selectedModules.mapNotNull { (enabled, key) ->
+            if (enabled) dataMap[key]?.let(::parseSettingsRoot) else null
+        }.toMutableList()
+        if (options.restoreSettingsAiCore) {
+            dataMap["settings_ai_core"]?.let { payload ->
+                var root = parseSettingsRoot(payload)
+                if (BackupPinCrypto.hasEncryptedApi(root)) {
+                    val pin = settingsPin
+                        ?: throw IllegalArgumentException("该旧备份中的 API Key 受 PIN 保护，请输入 4 位 PIN")
+                    root = BackupPinCrypto.decryptApiKeyInSettings(root, pin)
+                }
+                roots += root
+            }
         }
+        return roots
     }
 
-    private suspend fun verifyPinForExistingBackup(uri: Uri, pin: String): Boolean {
-        val tempFile = File(cacheDir, "temp_pin_verify_${System.currentTimeMillis()}.bak")
-        return try {
-            contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
-            } ?: return false
-            val dataMap = BackupManager.restore(tempFile)
-            val raw = dataMap["settings_ai_core"] ?: return false
-            val root = runCatching { parseSettingsRoot(raw) }.getOrNull() ?: return false
-            if (!BackupPinCrypto.hasEncryptedApi(root)) return false
-            runCatching {
-                BackupPinCrypto.decryptApiKeyInSettings(root, pin)
-                true
-            }.getOrDefault(false)
-        } catch (_: Exception) {
-            false
-        } finally {
-            runCatching { tempFile.delete() }
-        }
+    private fun parseSharedRestoreData(dataMap: Map<String, String>): SharedRestoreData? {
+        val ledgersJson = dataMap[BackupModuleId.SHARED_LEDGERS] ?: return null
+        return SharedRestoreData(
+            ledgers = DataExportManager.deserializeSharedLedgers(ledgersJson),
+            members = dataMap[BackupModuleId.SHARED_MEMBERS]
+                ?.let(DataExportManager::deserializeSharedMembers)
+                ?: emptyList(),
+            pendingQueue = dataMap[BackupModuleId.SYNC_QUEUE]
+                ?.let(DataExportManager::deserializePendingSyncQueue)
+                ?: emptyList(),
+            pendingOperations = dataMap[BackupModuleId.SYNC_OPERATIONS]
+                ?.let(DataExportManager::deserializePendingSyncOperations)
+                ?: emptyList()
+        )
     }
+
+    private fun inspectSharedRecoveryReadiness(
+        dataMap: Map<String, String>
+    ): SharedRecoveryReadiness = runCatching {
+        val data = parseSharedRestoreData(dataMap)
+            ?: return@runCatching SharedRecoveryReadiness.NOT_PRESENT
+        if (data.ledgers.isEmpty()) return@runCatching SharedRecoveryReadiness.NOT_PRESENT
+        val credentialLedgerUuids = dataMap[BackupModuleId.SHARED_SECRETS]
+            ?.let { payload ->
+                SharedRecoverySecrets.decode(
+                    payload,
+                    data.ledgers.mapTo(hashSetOf(), SharedLedgerBackup::uuid)
+                ).mapTo(hashSetOf(), SharedRecoverySecret::ledgerUuid)
+            }
+            ?: emptySet()
+        assessSharedRecoveryReadiness(data, credentialLedgerUuids)
+    }.onFailure { error ->
+        Log.w("BackupActivity", "共享身份恢复资料不完整", error)
+    }.getOrDefault(SharedRecoveryReadiness.INCOMPLETE)
+
+    private fun RestoreOptions.restoresDatabaseModules(): Boolean =
+        restoreAssets || restoreCategories || restoreBills || restoreRules || restoreBudgets ||
+            restoreRecurringPatterns || restoreChatMessages
 
     private fun visibleIfAny(vararg views: View): Int =
         if (views.any { it.visibility == View.VISIBLE }) View.VISIBLE else View.GONE
 
-    private fun promptPinSetupForBackup(onPinConfirmed: (String) -> Unit) {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            val p = (20 * resources.displayMetrics.density).toInt()
-            setPadding(p, p / 2, p, 0)
-        }
-        val etPin = EditText(this).apply {
-            hint = getString(R.string.input_4digit_pin)
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            filters = arrayOf(InputFilter.LengthFilter(4))
-        }
-        val etPinConfirm = EditText(this).apply {
-            hint = getString(R.string.confirm_4digit_pin)
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            filters = arrayOf(InputFilter.LengthFilter(4))
-        }
-        container.addView(etPin)
-        container.addView(etPinConfirm)
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.set_backup_pin)
-            .setMessage(getString(R.string.backup_pin_setup_prompt))
-            .setView(container)
-            .setPositiveButton(R.string.confirm) { _, _ ->
-                val pin = etPin.text?.toString().orEmpty().trim()
-                val confirm = etPinConfirm.text?.toString().orEmpty().trim()
-                when {
-                    !pin.matches(Regex("^\\d{4}$")) -> Utils.toast(this, getString(R.string.pin_must_4digit))
-                    pin != confirm -> Utils.toast(this, getString(R.string.pin_mismatch))
-                    else -> onPinConfirmed(pin)
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .create()
-        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
-    }
-
-    private fun promptPinForRestore(onPinConfirmed: (String) -> Unit) {
+    private fun promptPinForRestore(
+        onCancelled: () -> Unit = {},
+        onPinConfirmed: (String) -> Unit
+    ) {
         val etPin = EditText(this).apply {
             hint = getString(R.string.input_4digit_pin)
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
@@ -1519,8 +2343,9 @@ class BackupActivity : AppCompatActivity() {
                     onPinConfirmed(pin)
                 }
             }
-            .setNegativeButton(R.string.cancel, null)
+            .setNegativeButton(R.string.cancel) { _, _ -> onCancelled() }
             .create()
+        dialog.setOnCancelListener { onCancelled() }
         OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
     }
 
@@ -1603,40 +2428,6 @@ class BackupActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { Utils.toast(this@BackupActivity, getString(R.string.csv_parse_failed)) }
-            }
-        }
-    }
-
-    private fun promptPinVerifyForOverwrite(existingBackupUri: Uri, onPinConfirmed: (String) -> Unit) {
-        val etPin = EditText(this).apply {
-            hint = getString(R.string.input_existing_pin)
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            filters = arrayOf(InputFilter.LengthFilter(4))
-        }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.verify_backup_pin)
-            .setMessage(getString(R.string.backup_pin_match_prompt))
-            .setView(etPin)
-            .setPositiveButton(R.string.verify_and_continue, null)
-            .setNegativeButton(R.string.cancel, null)
-            .create()
-        OverlayDialogs.showPageCenterDialog(dialog = dialog, ctx = this@BackupActivity, widthRatio = 0.9f, cancelOnTouchOutside = true, useSolidPanelBackground = true)
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            val pin = etPin.text?.toString().orEmpty().trim()
-            if (!pin.matches(Regex("^\\d{4}$"))) {
-                Utils.toast(this, getString(R.string.pin_must_4digit))
-                return@setOnClickListener
-            }
-            lifecycleScope.launch(Dispatchers.IO) {
-                val matched = verifyPinForExistingBackup(existingBackupUri, pin)
-                withContext(Dispatchers.Main) {
-                    if (matched) {
-                        dialog.dismiss()
-                        onPinConfirmed(pin)
-                    } else {
-                        Utils.toast(this@BackupActivity, getString(R.string.pin_not_match))
-                    }
-                }
             }
         }
     }
@@ -1861,4 +2652,3 @@ data class RestoreOptions(
     val restoreSettingsAdvancedLegacy: Boolean,
     val restoreBanners: Boolean
 )
-

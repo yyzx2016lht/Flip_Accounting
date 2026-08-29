@@ -104,6 +104,7 @@ internal fun buildAccountingCasualChatSystemPrompt(
         appendLine("【当前场景】你在记账助手里陪用户闲聊。请正常、完整地回答对方的问题。")
         appendLine("语气亲切，但更偏记账助手：简洁务实，少废话；可偶尔轻轻提一句「有记账需求随时说」。")
         appendLine("不要拒绝聊天，不要要求用户必须先切换模式才能说话。")
+        appendLine("你无法读取本地账单或统计数据。用户询问历史账单、金额或排行时，明确说明无法代查，并引导其使用账单搜索或统计页；禁止猜测结果。")
     }.trim()
 }
 

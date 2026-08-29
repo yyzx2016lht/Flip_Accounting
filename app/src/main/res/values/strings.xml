@@ -61,9 +61,6 @@
     <string name="ai_feature_entry_desc">入口显示由设置中心控制，此处仅展示能力项。</string>
     <string name="ai_chat_entry">使用 AI 对话</string>
     <string name="ai_chat_entry_desc">"+"进入 AI 对话，关闭则使用传统记账</string>
-    <string name="ai_query_assistant">AI 查询助手</string>
-    <string name="ai_query_assistant_desc">在对话中把查询请求生成可编辑草稿；关闭后只保留记账和闲聊</string>
-    <string name="ai_query_assistant_disabled_hint">AI 查询助手已关闭，请先在 AI 功能设置中开启</string>
     <string name="ai_accounting_entry">记账页增加 AI 入口</string>
     <string name="ai_accounting_entry_desc">在传统记账弹窗底部显示切换入口。</string>
 
@@ -87,7 +84,7 @@
     <string name="chat_model_hint">留空则跟随主文本模型</string>
 
     <!-- 备份恢复 -->
-    <string name="backup_pin_auto_desc">首次备份将设置 PIN，覆盖已加密备份时需验证</string>
+    <string name="backup_pin_auto_desc">本机一键备份；换机恢复时输入备份密码</string>
     <string name="backup_module_core_desc">包含账单、资产、分类和记账习惯</string>
     <string name="backup_module_chat_desc">含聊天记录、背景和语音文件</string>
     <string name="backup_module_chat_res_desc">聊天背景、用户头像、AI 头像和语音文件</string>
@@ -98,7 +95,7 @@
     <string name="csv_export_import_desc">导出为 CSV 或从第三方 CSV 导入</string>
     <string name="batch_delete_warning">直接删除账单，不进回收站，请谨慎操作</string>
     <string name="local_backup_desc">手动触发，不做后台自动同步</string>
-    <string name="backup_manage_desc">管理备份模块、覆盖备份、重命名和恢复</string>
+    <string name="backup_manage_desc">管理备份模块、版本历史和恢复</string>
     <string name="cloud_backup_desc">配置 WebDAV，手动上传下载</string>
     <string name="webdav_password_hint">建议使用坚果云应用密码</string>
     <string name="cloud_sync_manual_desc">只在点击时上传/下载，不自动同步</string>
@@ -113,15 +110,16 @@
     <string name="downgrade_restore_need_upgrade">备份来自更高版本（v%1$d），请先升级应用再恢复</string>
 
     <!-- 备份 Kotlin 代码 -->
-    <string name="backup_lite_hint">轻量备份不含聊天资源，体积小，适合日常同步</string>
-    <string name="backup_full_hint">完整备份包含聊天资源，体积最大，适合归档</string>
+    <string name="backup_lite_hint">轻量备份不含聊天资源；共享身份和坚果云连接凭据会一并加密保存，可用于换机</string>
+    <string name="backup_full_hint">完整备份包含聊天资源；共享身份和坚果云连接凭据会一并加密保存，可用于换机归档</string>
     <string name="backup_pin_force_desc">勾选 AI 服务配置时要求输入 PIN</string>
     <string name="backup_pin_none_desc">不对 API Key 加密，请注意安全风险</string>
-    <string name="backup_retain_policy_desc">每台设备保留最近 10 份轻量 + 3 份完整备份</string>
+    <string name="backup_retain_policy_desc">每台设备保留最近 10 份轻量、3 份完整/自定义备份，并额外保留日、周、月历史版本</string>
     <string name="restore_merge_desc">只补充不存在的数据，不删除现有记录</string>
-    <string name="restore_overwrite_desc">清空当前数据后恢复备份内容</string>
+    <string name="restore_overwrite_desc">资产、分类、账单、预算、周期和聊天将整组覆盖，避免关联关系断裂</string>
+    <string name="restore_overwrite_requires_complete_data">该备份缺少资产、分类或账单，不能安全覆盖；请改用合并恢复</string>
     <string name="backup_pin_setup_prompt">检测到 AI 配置含 API Key，请设置 4 位 PIN</string>
-    <string name="backup_pin_verify_prompt">该备份已用 PIN 保护，请输入 4 位 PIN</string>
+    <string name="backup_pin_verify_prompt">这是旧版备份，其中的 AI 密钥曾用 PIN 单独保护。请输入当时的 4 位 PIN。</string>
     <string name="backup_pin_match_prompt">当前备份已启用 PIN，请输入同一 PIN 验证</string>
 
     <!-- 个人页 Kotlin 代码 -->
@@ -327,6 +325,50 @@
     <string name="backup_custom">自定义</string>
     <string name="backup_lite_short_hint">轻量备份默认不含聊天资源，体积更小。</string>
     <string name="pin_protection">PIN 保护</string>
+    <string name="backup_portable_desc">整个备份将加密保存，包含所选模块中的 API Key 和连接凭据。换机恢复时可保留原共享成员身份。</string>
+    <string name="backup_password_setup_title">设置备份密码</string>
+    <string name="backup_password_setup_message">设置一次后，本机手动和自动备份不再询问。换机或重装恢复时需要输入；密码遗失将无法恢复加密备份。</string>
+    <string name="backup_save_as_password_title">设置本次另存为密码</string>
+    <string name="backup_save_as_password_message">本次密码只用于这个另存为文件，不会替换默认备份密码。恢复该文件时需要输入。</string>
+    <string name="backup_password_input_hint">输入 8 至 12 位数字</string>
+    <string name="backup_password_confirm_hint">再次输入备份密码</string>
+    <string name="backup_password_invalid">请输入 8 至 12 位数字</string>
+    <string name="backup_password_mismatch">两次输入的备份密码不一致</string>
+    <string name="backup_password_saved">已记住默认备份密钥</string>
+    <string name="backup_password_configured_desc">备份已启用整包加密；API Key、坚果云和共享账本凭据将安全保存。本机备份无需再次输入密码。</string>
+    <string name="backup_password_unconfigured_desc">首次备份时设置 8 至 12 位备份密码；之后本机一键备份，换机恢复时再输入。</string>
+    <string name="backup_password_restore_title">输入备份密码</string>
+    <string name="backup_password_restore_message">该备份包含加密的账本与敏感配置。若本机尚无默认备份密码，验证成功后会记住其派生密钥。</string>
+    <string name="backup_password_wrong">备份密码错误，请重试</string>
+    <string name="private_backup_browser_title">本地备份</string>
+    <string name="private_backup_browser_empty">备份目录中还没有备份。可以选择一个“另存为”备份进行恢复。</string>
+    <string name="private_backup_entry_fmt">%1$s\n%2$s · %3$d KB</string>
+    <string name="private_backup_browser_subtitle">选择要恢复的版本，下一步可选择恢复内容</string>
+    <string name="private_backup_count_fmt">共 %1$d 个可用版本</string>
+    <string name="private_backup_list_hint">点击版本进入恢复选项</string>
+    <string name="private_backup_mode_fmt">%1$s备份</string>
+    <string name="private_backup_legacy">旧版</string>
+    <string name="private_backup_latest">最新</string>
+    <string name="private_backup_device_size_fmt">%1$s · %2$s</string>
+    <string name="private_backup_unknown_device">本机设备</string>
+    <string name="choose_other_backup">选择其他备份</string>
+    <string name="recovery_code_title">导入旧加密备份</string>
+    <string name="input_recovery_code">输入该旧备份的 13 组恢复码</string>
+    <string name="recovery_code_restore_message">这是旧版加密备份，请输入当时保存的恢复码。</string>
+    <string name="recovery_code_invalid">恢复码格式不正确</string>
+    <string name="recovery_code_wrong">恢复码错误，或备份文件已损坏</string>
+    <string name="backup_saved_v2">加密备份已保存</string>
+    <string name="backup_saved_shared_recovery_ready">加密备份已保存，可在新设备恢复原共享成员身份</string>
+    <string name="backup_saved_shared_recovery_incomplete">加密备份已保存，但共享连接资料不完整；换机前请检查共享账本连接并重新备份</string>
+    <string name="shared_restore_title">共享账本恢复方式</string>
+    <string name="shared_restore_message">如果这是换机，请选择推荐项：会保留原成员身份，不会占用新的成员名额。旧手机请停止继续记账，避免两台设备同时使用同一身份。</string>
+    <string name="shared_restore_local_copy">恢复为本地副本</string>
+    <string name="shared_restore_local_copy_desc">保留账目，但移除共享标记，不再连接远端账本。</string>
+    <string name="shared_restore_reconnect">保留原身份并重新连接（推荐·换机）</string>
+    <string name="shared_restore_reconnect_desc">保留原成员名额和名字，恢复离线待上传操作，并为新手机生成新的设备 ID。</string>
+    <string name="shared_restore_incomplete_title">无法恢复原共享身份</string>
+    <string name="shared_restore_incomplete_message">此备份缺少完整的共享成员资料或坚果云应用密码，只能恢复为不再同步的本地副本。若旧设备仍可用，请先检查共享连接，再重新创建加密备份。</string>
+    <string name="shared_restore_continue_local">恢复为本地副本</string>
     <string name="auto">自动</string>
     <string name="forced">强制</string>
     <string name="no_encryption">不加密</string>
@@ -354,7 +396,7 @@
     <string name="backup">备份</string>
     <string name="change_directory">更换目录</string>
     <string name="import_restore">导入恢复</string>
-    <string name="select_backup_file">选择备份文件</string>
+    <string name="select_backup_file">打开备份目录</string>
     <string name="auto_backup">自动备份</string>
     <string name="enable_auto_backup">启用自动备份</string>
     <string name="backup_interval">备份间隔</string>
@@ -443,7 +485,7 @@
     <string name="hint_input_name">请输入名称</string>
     <string name="account_balance">账户余额</string>
     <string name="annual_interest_rate">年利率</string>
-    <string name="interest_rate_hint">留空不结息，自动收益仅作估算</string>
+    <string name="interest_rate_hint">留空仅跟踪本金；该固定年化作为新批次默认值，已有批次请在资产详情中单独修改</string>
     <string name="asset_category">资产类别</string>
     <string name="fund">资金</string>
     <string name="currency">币种</string>
@@ -1098,7 +1140,7 @@
     <string name="investment_rate_use_new">使用新的利率</string>
     <string name="start_calculate_earning">开始计算收益</string>
     <string name="earning_arrival">收益到账</string>
-    <string name="investment_default_hint">收益在起息次日（T+1）到账；打开 App 或后台任务执行时结算，自动收益为估算值，以实际盈利为准。</string>
+    <string name="investment_default_hint">按所选周期在打开 App 或后台任务执行时结息；自动收益只保存在本机，属于估算值且不计入真实收支统计。</string>
 
     <!-- 硬编码中文抽取 - 弹窗 -->
     <string name="category_sort_tip">长按分类直接拖动排序。子分类可点「移出一级」单独拿出来，拖动时会保持和资产选择器一样的动画手感。</string>
@@ -1325,6 +1367,7 @@
 
     <!-- BackupActivity 硬编码抽取 -->
     <string name="auto_backup_disabled">自动备份已关闭</string>
+    <string name="auto_backup_waiting_for_password">自动备份等待设置备份密码；完成首次手动备份后即可正常运行。</string>
     <string name="auto_backup_cloud_suffix"> + 云端</string>
     <string name="backup_status_with_history_fmt">上次自动备份：%1$s\n%2$s\n当前：每%3$d小时 · %4$s%5$s</string>
     <string name="backup_status_no_history_fmt">当前：每%1$d小时 · %2$s%3$s\n等待首次自动备份…</string>
@@ -1348,11 +1391,16 @@
     <string name="all_cleared_fmt">已清空全部 %1$d 条账单</string>
     <string name="confirm_cleanup">确认清理</string>
     <string name="backup_custom_hint">自定义模式已开启：请按需勾选更细的模块。</string>
-    <string name="backup_dir_set_hint">默认目录已设置：点击"覆盖"会覆盖同名文件。</string>
+    <string name="backup_dir_set_hint">备份目录：所选目录/taptapaccount\n每次生成独立版本，并自动保留历史。</string>
     <string name="backup_dir_not_set_hint">默认目录未设置：请先点击"更换默认目录"。</string>
-    <string name="backup_dir_default_hint">备份目录：%1$s\n点击"覆盖"会覆盖同名文件。</string>
-    <string name="backup_dir_default_not_exists">备份目录不存在：%1$s\n点击"覆盖"将自动创建。</string>
-    <string name="backup_dir_no_permission">未授权存储权限：点击"覆盖"将请求权限。</string>
+    <string name="backup_dir_default_hint">备份目录：%1$s\n每次生成独立版本，并自动保留历史。</string>
+    <string name="backup_dir_default_not_exists">备份目录不存在：%1$s\n首次备份时将自动创建。</string>
+    <string name="backup_dir_no_permission">未授权存储权限：备份到默认目录时将请求权限。</string>
+    <string name="backup_private_dir_hint">备份目录：%1$s\n“备份”和自动备份均保存在这里；“另存为”可选择其他位置。</string>
+    <string name="backup_private_dir_not_exists">备份目录：%1$s\n首次备份时将自动创建。</string>
+    <string name="backup_private_dir_unavailable">主存储当前不可用。</string>
+    <string name="backup_public_dir_permission_needed">备份目录：%1$s\n需要“所有文件访问”权限才能使用根目录。</string>
+    <string name="backup_to_default_dir">备份到默认目录</string>
     <string name="backup_permission_denied">存储权限被拒绝，无法备份到默认目录</string>
     <string name="cloud_saved">云端设置已保存</string>
     <string name="connection_success">连接成功</string>
@@ -1365,6 +1413,9 @@
     <string name="uploaded_fmt">已上传到云端：%1$s</string>
     <string name="upload_failed">云端上传失败，请检查网络后重试</string>
     <string name="downloaded_fmt">已下载：%1$s</string>
+    <string name="choose_cloud_backup">选择云端备份</string>
+    <string name="cloud_no_backup">云端暂无可恢复的备份</string>
+    <string name="cloud_legacy_root">旧版备份</string>
     <string name="download_failed">云端下载失败，请检查网络后重试</string>
     <string name="csv_tools_title">CSV 工具</string>
     <string name="backup_encryption_title">备份加密方式</string>
@@ -1388,7 +1439,7 @@
     <string name="confirm_4digit_pin">再次输入4位PIN</string>
     <string name="pin_must_4digit">PIN 必须是 4 位数字</string>
     <string name="pin_mismatch">两次输入的 PIN 不一致</string>
-    <string name="input_backup_pin">输入备份 PIN</string>
+    <string name="input_backup_pin">输入旧版备份 PIN</string>
     <string name="continue_restore">继续恢复</string>
     <string name="exported_bills_fmt">已导出 %1$d 条账单</string>
     <string name="export_failed">导出失败，请稍后重试</string>
@@ -1509,14 +1560,20 @@
     <string name="investment_lot_split_over_allocated">已超出 %1$s</string>
     <string name="investment_lot_split_row_title">第 %1$d 笔本金</string>
     <string name="investment_lot_split_annual_rate">年利率（%%）</string>
-    <string name="investment_lot_split_rate_optional">可留空</string>
+    <string name="investment_lot_split_rate_optional">留空仅跟踪本金</string>
     <string name="investment_lot_split_amount_required">必填</string>
     <string name="investment_lot_split_sum_mismatch">各笔金额合计需等于当前余额</string>
     <string name="investment_lot_saved">本金批次已录入</string>
     <string name="start_earning">开始计算收益</string>
     <string name="earning_payout">收益到账</string>
     <string name="earning_payout_t_plus_one">收益到账（T+1）</string>
-    <string name="earning_default_hint">收益在起息次日（T+1）到账；打开 App 或后台任务执行时结算，自动收益为估算值。</string>
+    <string name="earning_default_hint">留空年利率可仅跟踪本金（适合股票、净值型基金）；填写固定年化后按所选周期生成本机估算收益，不计入真实收支统计。</string>
+    <string name="investment_settlement_cycle">结息周期</string>
+    <string name="earning_first_payout">首次结息</string>
+    <string name="investment_first_payout_value">首次结息：%1$s</string>
+    <string name="investment_manage_title">收益与本金批次</string>
+    <string name="investment_manage_action">管理收益周期与批次 ›</string>
+    <string name="investment_manage_empty">尚未录入本金批次</string>
 
     <!-- BalanceAdjustmentActivity 硬编码抽取 -->
     <string name="balance_after_change">变更后余额</string>
@@ -1790,43 +1847,7 @@
     <string name="asset_stats_title_fmt">资产统计-%1$s</string>
     <string name="income_expense_summary_fmt">收:%1$s%2$s 支:%1$s%3$s</string>
 
-    <!-- AI 查询助手 -->
-    <string name="query_draft_title">查询账单</string>
-    <string name="query_keyword">关键词</string>
-    <string name="query_category">分类</string>
-    <string name="query_asset">资产</string>
-    <string name="query_time_range">时间</string>
-    <string name="query_bill_type">类型</string>
-    <string name="query_book_scope">账本</string>
-    <string name="query_not_specified">未指定</string>
-    <string name="query_current_book">当前账本</string>
-    <string name="query_all_books">全部账本</string>
-    <string name="query_type_expense">支出</string>
-    <string name="query_type_income">收入</string>
-    <string name="query_type_transfer">转账</string>
-    <string name="query_type_repayment">还款</string>
-    <string name="query_type_refund">退款</string>
-    <string name="query_type_any">全部</string>
-    <string name="query_btn_stats">统计金额</string>
-    <string name="query_btn_search">搜索账单</string>
-    <string name="query_btn_cancel">取消</string>
-    <string name="query_btn_edit_keyword">改关键词</string>
-    <string name="query_btn_edit_date">改日期</string>
-    <string name="query_result_title">统计结果</string>
-    <string name="query_result_count_fmt">共 %1$d 笔，合计 %2$s</string>
-    <string name="query_result_no_match">没有查到匹配账单</string>
-    <string name="query_btn_view_details">查看明细</string>
-    <string name="query_btn_edit_conditions">改条件</string>
-    <string name="query_write_rejected">这个请求涉及新增、修改或删除账单。我现在只能帮你查询和打开相关页面。</string>
-    <string name="query_clarify_time">你想查哪个时间范围？例如"本月""上周"或"昨天"。</string>
-    <string name="query_clarify_keyword">你想查哪个关键词、分类或时间范围？</string>
-    <string name="query_hint_correction">可以继续对话修改条件，或点击按钮执行</string>
-    <string name="query_amount_fmt">%1$.2f</string>
-    <string name="query_bill_preview_fmt">%1$s %2$s %3$s %4$.2f</string>
-    <string name="query_edit_keyword_title">修改关键词</string>
-    <string name="query_edit_keyword_hint">输入关键词</string>
-    <string name="query_search_result_fmt">找到 %1$d 笔匹配账单</string>
-    <string name="query_stats_result_fmt">%1$s 共 %2$d 笔，合计 %3$s</string>
+    <string name="chat_unsupported_write">AI 对话目前只支持新增记账；修改、删除或设置操作请到对应页面完成。</string>
 
     <!-- 消费洞察 -->
     <string name="insight_category_delta_title">%1$s支出增长</string>
@@ -2026,11 +2047,11 @@
     <string name="budget_form_save">保存预算</string>
     <string name="budget_form_category_hint">预算范围</string>
     <string name="budget_form_amount_hint">预算金额</string>
-    <string name="budget_member_split_title">双方个人预算（可选）</string>
-    <string name="budget_member_split_help">仅影响统计页展开后的双方支出与预算剩余。填写任意一方即可，另一方自动使用总预算的剩余额度。</string>
-    <string name="budget_member_amount_hint">留空自动计算</string>
-    <string name="budget_member_split_invalid">双方个人预算之和必须等于总预算，且金额不能为负数</string>
-    <string name="member_budget_section_title">双方支出与预算</string>
+    <string name="budget_member_split_title">成员个人预算（可选）</string>
+    <string name="budget_member_split_help">仅影响统计页展开后的成员支出与预算剩余。未填写的成员会平均分配总预算的剩余额度。</string>
+    <string name="budget_member_amount_hint">留空均分剩余</string>
+    <string name="budget_member_split_invalid">成员个人预算之和不能超过总预算，且金额不能为负数</string>
+    <string name="member_budget_section_title">成员支出与预算</string>
     <string name="member_budget_remaining">预算剩余</string>
     <string name="budget_not_set_short">未设置</string>
     <string name="budget_form_amount_help">设置本月可花金额，例如 3000</string>

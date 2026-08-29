@@ -60,8 +60,10 @@ import com.taostudio.tapaccounting.ui.activity.EditBillActivity
 import com.taostudio.tapaccounting.ui.common.AddBillEntrySheetLauncher
 import com.taostudio.tapaccounting.logic.InvestmentLotDraftStorage
 import com.taostudio.tapaccounting.logic.InvestmentLotEntryHelper
+import com.taostudio.tapaccounting.logic.InvestmentInterestService
 import com.taostudio.tapaccounting.ui.dialog.InvestmentLotPromptDialog
 import com.taostudio.tapaccounting.ui.dialog.InvestmentLotSplitDialog
+import com.taostudio.tapaccounting.ui.dialog.InvestmentLotManagerDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -104,6 +106,7 @@ class AssetDetailActivity : AppCompatActivity() {
     private var allAssetBills: List<Bill> = emptyList()
     private var assetDetailRemarkText: String = ""
     private var creditCycleSummaryText: String? = null
+    private var investmentSummaryText: String? = null
     private var hasShownInvestmentLotPrompt = false
     /** Per-bill balance after tx, derived backward from current asset balance (not stored snapshots). */
     private var balanceAfterByBillId: Map<Long, Double> = emptyMap()
@@ -528,7 +531,7 @@ class AssetDetailActivity : AppCompatActivity() {
         val balanceText = CurrencyUtils.formatAmount(asset.balance, asset.currency)
         val noteParts = mutableListOf<String>()
         if (asset.assetCategory == Asset.CATEGORY_INVESTMENT && asset.annualInterestRate != 0.0) {
-            noteParts += "年利率 ${formatCompactDecimal(asset.annualInterestRate)}%"
+            noteParts += "新批次默认年利率 ${formatCompactDecimal(asset.annualInterestRate)}%"
         }
         if (asset.remark.isNotBlank()) noteParts += asset.remark.trim()
         creditCycleSummaryText = null
@@ -539,6 +542,7 @@ class AssetDetailActivity : AppCompatActivity() {
 
         // 理财资产自动弹窗补录本金批次
         checkAndPromptInvestmentLotDraft(asset)
+        loadInvestmentSummary(asset)
 
         // P1-6: 信用卡周期快照
         if (asset.assetCategory == Asset.CATEGORY_CREDIT_CARD) {
@@ -635,6 +639,110 @@ class AssetDetailActivity : AppCompatActivity() {
                 }
             }
         )
+    }
+
+    private fun loadInvestmentSummary(asset: Asset) {
+        if (asset.assetCategory != Asset.CATEGORY_INVESTMENT) {
+            investmentSummaryText = null
+            if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
+            return
+        }
+        lifecycleScope.launch {
+            val lots = withContext(Dispatchers.IO) {
+                db.investmentLotDao().getOpenLotsByAssetId(asset.id)
+            }
+            val tracked = lots.sumOf { it.remainingPrincipal }
+            val accruing = lots.count {
+                it.status == com.taostudio.tapaccounting.data.local.entity.InvestmentLot.STATUS_ACTIVE &&
+                    it.annualInterestRate != 0.0
+            }
+            val paused = lots.count {
+                it.status == com.taostudio.tapaccounting.data.local.entity.InvestmentLot.STATUS_PAUSED
+            }
+            investmentSummaryText = if (lots.isEmpty()) {
+                getString(R.string.investment_manage_empty)
+            } else {
+                buildString {
+                    append("已跟踪 ${CurrencyUtils.formatAmount(tracked, asset.currency)} · ${lots.size} 笔批次")
+                    if (accruing > 0) append(" · $accruing 笔自动结息")
+                    if (paused > 0) append(" · $paused 笔暂停")
+                }
+            }
+            if (::adapter.isInitialized) adapter.notifyDetailHeaderChanged()
+        }
+    }
+
+    private fun openInvestmentLotManager() {
+        val asset = currentAsset ?: return
+        if (asset.assetCategory != Asset.CATEGORY_INVESTMENT) return
+        lifecycleScope.launch {
+            val lots = withContext(Dispatchers.IO) {
+                db.investmentLotDao().getLotsByAssetId(asset.id)
+            }
+            InvestmentLotManagerDialog.show(
+                activity = this@AssetDetailActivity,
+                asset = asset,
+                lots = lots,
+                onEdit = { lot, rate, cycle, active ->
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        InvestmentInterestService.updateLotSchedule(
+                            db = db,
+                            lotId = lot.id,
+                            annualInterestRate = rate,
+                            settlementCycle = cycle,
+                            active = active
+                        )
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@AssetDetailActivity,
+                                "收益设置已更新",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            currentAsset?.let(::loadInvestmentSummary)
+                        }
+                    }
+                },
+                onAddMissing = {
+                    lifecycleScope.launch {
+                        val latestLots = withContext(Dispatchers.IO) {
+                            db.investmentLotDao().getOpenLotsByAssetId(asset.id)
+                        }
+                        val missing = BillAssetImpactService.roundMoneyForCurrency(
+                            (asset.balance - latestLots.sumOf { it.remainingPrincipal }).coerceAtLeast(0.0),
+                            asset.currency
+                        )
+                        if (missing <= 0.0) return@launch
+                        InvestmentLotSplitDialog.show(
+                            activity = this@AssetDetailActivity,
+                            title = getString(R.string.investment_lot_prompt_title),
+                            message = "为尚未跟踪的余额补录本金批次。",
+                            totalAmount = missing,
+                            currency = asset.currency,
+                            annualInterestRate = asset.annualInterestRate,
+                            onLater = { },
+                            onConfirm = { drafts ->
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    InvestmentLotEntryHelper.persistConfirmedLots(
+                                        this@AssetDetailActivity,
+                                        db,
+                                        asset,
+                                        drafts
+                                    )
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            this@AssetDetailActivity,
+                                            getString(R.string.investment_lot_saved),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        loadInvestmentSummary(asset)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
     }
 
     private fun toggleArchiveCurrentAsset() {
@@ -1045,6 +1153,8 @@ class AssetDetailActivity : AppCompatActivity() {
         inner class DetailActionHeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             private val tvCreditCycleSummary = v.findViewById<TextView>(R.id.tv_credit_cycle_summary)
             private val tvAssetRemark = v.findViewById<TextView>(R.id.tv_asset_remark)
+            private val tvInvestmentSummary = v.findViewById<TextView>(R.id.tv_investment_summary)
+            private val tvInvestmentManage = v.findViewById<TextView>(R.id.tv_investment_manage)
 
             fun bind() {
                 tvCreditCycleSummary.text = creditCycleSummaryText.orEmpty()
@@ -1054,7 +1164,15 @@ class AssetDetailActivity : AppCompatActivity() {
                 tvAssetRemark.text = assetDetailRemarkText
                 tvAssetRemark.visibility = if (assetDetailRemarkText.isBlank()) View.GONE else View.VISIBLE
 
-                val hasContent = !creditCycleSummaryText.isNullOrBlank() || assetDetailRemarkText.isNotBlank()
+                val isInvestment = currentAsset?.assetCategory == Asset.CATEGORY_INVESTMENT
+                tvInvestmentSummary.text = investmentSummaryText.orEmpty()
+                tvInvestmentSummary.visibility =
+                    if (isInvestment && !investmentSummaryText.isNullOrBlank()) View.VISIBLE else View.GONE
+                tvInvestmentManage.visibility = if (isInvestment) View.VISIBLE else View.GONE
+                tvInvestmentManage.setOnClickListener { openInvestmentLotManager() }
+
+                val hasContent = !creditCycleSummaryText.isNullOrBlank() ||
+                    assetDetailRemarkText.isNotBlank() || isInvestment
                 val lp = itemView.layoutParams as RecyclerView.LayoutParams
                 if (hasContent) {
                     itemView.visibility = View.VISIBLE

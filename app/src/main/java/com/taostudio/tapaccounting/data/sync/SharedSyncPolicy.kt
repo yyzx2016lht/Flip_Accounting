@@ -31,9 +31,10 @@ object SharedSyncPolicy {
         pendingUploadCount: Int,
         lastSyncTime: Long,
         now: Long,
-        forceFull: Boolean = false
+        forceFull: Boolean = false,
+        hasLastError: Boolean = false
     ): BackgroundMode = when {
-        forceFull -> BackgroundMode.FULL
+        forceFull || hasLastError -> BackgroundMode.FULL
         lastSyncTime <= 0L || now - lastSyncTime >= BACKGROUND_QUIET_PERIOD_MS -> BackgroundMode.FULL
         pendingUploadCount > 0 -> BackgroundMode.UPLOAD_ONLY
         else -> BackgroundMode.SKIP
@@ -41,6 +42,9 @@ object SharedSyncPolicy {
 
     fun shouldRunBackgroundSync(pendingUploadCount: Int, lastSyncTime: Long, now: Long): Boolean =
         backgroundMode(pendingUploadCount, lastSyncTime, now) != BackgroundMode.SKIP
+
+    fun shouldRetryWorker(failedLedgerCount: Int, pendingUploadCount: Int): Boolean =
+        failedLedgerCount > 0 || pendingUploadCount > 0
 
     fun cooldownMillis(statusCode: Int, retryAfterMillis: Long?): Long? {
         val fallback = when (statusCode) {

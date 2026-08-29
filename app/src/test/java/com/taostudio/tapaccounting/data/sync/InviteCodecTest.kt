@@ -35,6 +35,12 @@ class InviteCodecTest {
         assertNull(InviteCodec.decode("${InviteCodec.PREFIX}broken"))
     }
 
+    @Test fun `member invitation cannot target the creator identity`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            InviteCodec.encode(testInvite().copy(joinOrder = 1))
+        }
+    }
+
     private fun testInvite() = SharedInvite(
         "123e4567-e89b-42d3-a456-426614174000", "家庭", "https://dav.jianguoyun.com/dav/", "user@example.com",
         "/shared-ledger/123e4567-e89b-42d3-a456-426614174000", "123e4567-e89b-42d3-a456-426614174001", "小陶", 2

@@ -126,7 +126,6 @@ object AiProviderRegistry {
         Prefs.setAiReceiptModel(ctx, textModel)
         Prefs.setAiReceiptOcrRefineModel(ctx, textModel)
         Prefs.setAiRouterModel(ctx, textModel)
-        Prefs.setAiQueryModel(ctx, textModel)
 
         if (preset.supportsVision && preset.defaultVisionModel.isNotBlank()) {
             Prefs.setAiReceiptVisionModel(ctx, preset.defaultVisionModel)

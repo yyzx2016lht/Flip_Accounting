@@ -21,6 +21,16 @@ object DataExportManager {
         gson.fromJson(json, object : TypeToken<List<Budget>>() {}.type)
     fun deserializeRecurringPatterns(json: String): List<RecurringPattern> =
         gson.fromJson(json, object : TypeToken<List<RecurringPattern>>() {}.type)
+    fun deserializeBooks(json: String): List<Book> =
+        gson.fromJson(json, object : TypeToken<List<Book>>() {}.type)
+    fun deserializeSharedLedgers(json: String): List<SharedLedgerBackup> =
+        gson.fromJson(json, object : TypeToken<List<SharedLedgerBackup>>() {}.type)
+    fun deserializeSharedMembers(json: String): List<SharedMemberBackup> =
+        gson.fromJson(json, object : TypeToken<List<SharedMemberBackup>>() {}.type)
+    fun deserializePendingSyncQueue(json: String): List<PendingSyncQueueBackup> =
+        gson.fromJson(json, object : TypeToken<List<PendingSyncQueueBackup>>() {}.type)
+    fun deserializePendingSyncOperations(json: String): List<PendingSyncOperationBackup> =
+        gson.fromJson(json, object : TypeToken<List<PendingSyncOperationBackup>>() {}.type)
 }
 
 

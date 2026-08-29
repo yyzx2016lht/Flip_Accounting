@@ -16,70 +16,51 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * 管理自动备份默认目录 `/storage/emulated/0/TapAccounting/`。
- *
- * - Android 10 及以下：使用 `WRITE_EXTERNAL_STORAGE` 直接创建目录
- * - Android 11+：使用 `MANAGE_EXTERNAL_STORAGE` 创建目录
- */
+/** Manages the one user-visible backup directory on primary shared storage. */
 object BackupDefaultDirHelper {
-
-    private const val FOLDER_NAME = "TapAccounting"
-    const val LATEST_BACKUP_FILE_NAME = "TapAccount_Backup_Latest.bak"
     const val REQUEST_CODE_STORAGE_PERMISSION = 7701
+    const val LATEST_BACKUP_FILE_NAME = "TapAccount_Backup_Latest.bak"
+    private const val RELATIVE_BACKUP_PATH = "tapaccounting/files/backups"
 
-    /** 默认备份目录 */
-    fun getDefaultBackupDir(): File =
-        File(Environment.getExternalStorageDirectory(), FOLDER_NAME)
+    /** `/storage/emulated/0/tapaccounting/files/backups/` on the primary Android user. */
+    @Suppress("DEPRECATION", "UNUSED_PARAMETER")
+    fun getDefaultBackupDir(context: Context): File =
+        File(Environment.getExternalStorageDirectory(), RELATIVE_BACKUP_PATH)
 
-    /** 默认备份文件（覆盖） */
-    fun getDefaultBackupFile(): File =
-        File(getDefaultBackupDir(), LATEST_BACKUP_FILE_NAME)
+    fun getDefaultBackupFile(context: Context): File =
+        File(getDefaultBackupDir(context), LATEST_BACKUP_FILE_NAME)
 
-    /** 生成带时间戳的手动备份文件名 */
     fun generateManualBackupFileName(): String {
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         return "TapAccount_Backup_$ts.bak"
     }
 
-    /** 确保默认目录存在，返回是否成功 */
-    fun ensureDefaultDirExists(): Boolean {
-        val dir = getDefaultBackupDir()
-        if (dir.exists()) return true
-        if (!hasStoragePermission()) return false
-        return dir.mkdirs()
+    fun ensureDefaultDirExists(context: Context): Boolean {
+        if (!hasStoragePermission(context)) return false
+        val dir = getDefaultBackupDir(context)
+        return dir.isDirectory || dir.mkdirs()
     }
 
-    /** 是否已授予存储权限 */
-    fun hasStoragePermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    fun hasStoragePermission(context: Context): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else {
             ContextCompat.checkSelfPermission(
-                com.taostudio.tapaccounting.TapApplication.app(),
+                context,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
             ) == PackageManager.PERMISSION_GRANTED
         }
-    }
 
-    /**
-     * 请求存储权限。
-     * - Android 11+：跳转到系统设置的"所有文件访问"页面
-     * - Android 10 及以下：使用标准运行时权限请求
-     *
-     * @return true 表示已拥有权限，false 表示需要请求（已发起请求或跳转）
-     */
     fun requestStoragePermissionIfNeeded(activity: Activity): Boolean {
-        if (hasStoragePermission()) return true
-
+        if (hasStoragePermission(activity)) return true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+：跳转到 MANAGE_EXTERNAL_STORAGE 设置页
-            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                data = Uri.parse("package:${activity.packageName}")
-            }
-            activity.startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION)
+            activity.startActivityForResult(
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:${activity.packageName}")
+                },
+                REQUEST_CODE_STORAGE_PERMISSION
+            )
         } else {
-            // Android 10 及以下：标准权限请求
             ActivityCompat.requestPermissions(
                 activity,
                 arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),

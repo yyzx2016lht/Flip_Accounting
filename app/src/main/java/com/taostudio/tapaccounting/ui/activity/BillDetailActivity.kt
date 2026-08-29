@@ -625,7 +625,11 @@ class BillDetailActivity : AppCompatActivity() {
                     time = currentBillTimeMillis
                 )
 
-                app.billRepository.updateBill(updatedBill)
+                BillMutationService.replaceBill(
+                    db = app.database,
+                    oldBill = originalBill,
+                    newBill = updatedBill
+                )
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@BillDetailActivity, getString(R.string.save_success), Toast.LENGTH_SHORT).show()
@@ -841,4 +845,3 @@ class BillDetailActivity : AppCompatActivity() {
         }
     }
 }
-

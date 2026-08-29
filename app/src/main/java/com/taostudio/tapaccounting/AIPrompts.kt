@@ -161,20 +161,11 @@ ${buildRemarksChineseRule().trim()}
 """
     }
 
-    const val INTENT_ROUTER_PROMPT_DEFAULT = """
-判断用户这句话是想记账还是想闲聊。只输出 JSON，不要解释。
-
-记账：包含金额、消费动作（买了/花了/支付/转账/还款等）、或明确的收入/支出描述。
-闲聊：打招呼、问问题、闲聊、寒暄、问你是谁、问功能等一切非记账内容。
-
-输出格式：{"intent":"BOOKKEEPING"} 或 {"intent":"GENERAL_CHAT"}
-"""
-
-    /** 四分类 Router 提示词：区分记账、查询、闲聊、不支持的写操作 */
-    const val INTENT_ROUTER_V2_PROMPT = """
+    /** 聊天入口 Router：区分新增记账、闲聊、不支持的写操作 */
+    const val CHAT_INPUT_ROUTER_PROMPT = """
 你是 TapAccounting 的聊天入口路由器。
 
-你的任务是把用户输入分成 4 类：
+你的任务是把用户输入分成 3 类：
 
 1. ACCOUNTING_CREATE
 用户想新增账单、录入消费、收入、转账、还款。例如：
@@ -183,24 +174,17 @@ ${buildRemarksChineseRule().trim()}
 - 从微信转100到支付宝
 - 帮我记一笔咖啡18
 
-2. ACCOUNTING_QUERY
-用户想查询已有账单、统计金额、搜索明细、查看分类排行、查看资产/账本统计。例如：
-- 这个月买苹果花了多少钱
-- 上个月餐饮支出多少
-- 最近一笔是什么
-- 有没有买过咖啡
-- 全部账本这个月花了多少
-- 微信这个月支出多少
-
-3. GENERAL_CHAT
-用户在闲聊、问功能、寒暄、表达情绪，或者问题不需要查询本地账本。例如：
+2. GENERAL_CHAT
+用户在闲聊、问功能、寒暄、表达情绪、提出普通问题，或者询问已有账单和统计。例如：
 - 你好
 - 你是谁
 - 怎么使用图片记账
 - 今天心情不好
+- 这个月花了多少钱
+- 最近一笔是什么
 
-4. UNSUPPORTED_WRITE
-用户想修改、删除、清空、导入、恢复、设置、授权、配置等不应由查询助手执行的操作。例如：
+3. UNSUPPORTED_WRITE
+用户想修改、删除、清空、导入、恢复、设置、授权或配置。例如：
 - 删除上一笔
 - 把昨天咖啡改成20
 - 清空本月账单
@@ -210,83 +194,17 @@ ${buildRemarksChineseRule().trim()}
 只输出 JSON，不要解释，不要 Markdown。
 
 输出格式：
-{"intent":"ACCOUNTING_CREATE" | "ACCOUNTING_QUERY" | "GENERAL_CHAT" | "UNSUPPORTED_WRITE","confidence":0.0,"reason":"简短原因"}
+{"intent":"ACCOUNTING_CREATE" | "GENERAL_CHAT" | "UNSUPPORTED_WRITE","confidence":0.0,"reason":"简短原因"}
 
-如果输入同时包含查询和写操作，优先输出 UNSUPPORTED_WRITE。
 如果用户明显是在新增一笔账，输出 ACCOUNTING_CREATE，不要输出 UNSUPPORTED_WRITE。
-如果不确定是查询还是闲聊，输出 GENERAL_CHAT，不要擅自查账。
+询问已有账单、金额统计、搜索明细、分类排行、资产或账本统计，一律输出 GENERAL_CHAT。
+如果不确定是否在新增账单，输出 GENERAL_CHAT，不要擅自记账。
 
 当用户附带图片时，请同时看图片和文字：
 - 小票、支付截图、订单明细、转账凭证等，像在录入一笔账 → ACCOUNTING_CREATE
 - 表情包、风景、聊天截图、无关图片，或在问「这是什么」「帮我看看」→ GENERAL_CHAT
 - 只有图片、没有文字：内容像票据/支付凭证 → ACCOUNTING_CREATE；否则 → GENERAL_CHAT
-- 图片是账单，但用户在查历史统计（如「这类消费本月多少」）→ ACCOUNTING_QUERY
-"""
-
-    /** Query Extractor 提示词：仅当 Router 判断为 ACCOUNTING_QUERY 时使用 */
-    const val QUERY_EXTRACTOR_PROMPT = """
-你是 TapAccounting 的查询参数提取器。
-
-你的任务不是回答用户问题，而是把用户的自然语言转换为一个固定 JSON 查询草稿。
-
-你不能生成金额、笔数、分类排行、账单列表等事实结果。
-所有事实结果都由 App 本地数据库查询得到。
-
-只允许输出 JSON，不要输出 Markdown、解释、代码块或额外文本。
-
-如果用户请求新增、修改、删除、导入、恢复、设置、授权等写操作或高风险操作，输出：
-{"intent":"UNSUPPORTED","reason":"WRITE_OR_UNSAFE_OPERATION"}
-
-如果用户其实是在新增账单，而不是查询已有账单，输出：
-{"intent":"UNSUPPORTED","reason":"SHOULD_USE_ACCOUNTING_CREATE_FLOW"}
-
-如果用户是在修正上一条查询草稿，输出需要更新的字段。
-
-允许的 queryType:
-- AMOUNT_TOTAL
-- BILL_LIST
-- LATEST_BILL
-- RECENT_BILLS
-- EXISTS_KEYWORD
-- TOP_CATEGORIES
-- PERIOD_COMPARE
-- BOOK_SUMMARY
-- ASSET_SUMMARY
-
-允许的 billType:
-- EXPENSE
-- INCOME
-- TRANSFER
-- REPAYMENT
-- REFUND
-- ANY
-
-允许的 bookScope:
-- CURRENT
-- ALL
-- SPECIFIC
-
-输出格式：
-{
-  "intent": "QUERY_DRAFT" | "UPDATE_DRAFT" | "CLARIFY" | "UNSUPPORTED",
-  "queryType": "AMOUNT_TOTAL",
-  "slots": {
-    "keyword": null,
-    "categoryName": null,
-    "assetName": null,
-    "bookName": null,
-    "bookScope": "CURRENT",
-    "billType": "EXPENSE",
-    "timeRange": {
-      "startMillis": null,
-      "endMillis": null,
-      "label": null
-    },
-    "aggregation": "TOTAL"
-  },
-  "confidence": 0.0,
-  "clarifyQuestion": null
-}
+- 图片是账单，但用户在询问历史统计（如「这类消费本月多少」）→ GENERAL_CHAT
 """
 
 

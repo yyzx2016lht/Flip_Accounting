@@ -7,6 +7,7 @@ import com.taostudio.tapaccounting.ChatBillMessageParser
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.data.local.entity.DeletedBill
+import com.taostudio.tapaccounting.data.sync.SharedMutationHooks
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -34,8 +35,11 @@ object BillRestoreHelper {
                 val origId = deletedBill.originalBillId
                 val existingBill = if (origId > 0L) billDao.getBillById(origId) else null
 
-                val billToRestore = deletedBill.toBill().copy(
-                    relatedBillId = deletedBill.relatedBillId?.let { idRemapping[it] ?: it }
+                val billToRestore = SharedMutationHooks.prepareLocalBill(
+                    db,
+                    deletedBill.toBill().copy(
+                        relatedBillId = deletedBill.relatedBillId?.let { idRemapping[it] ?: it }
+                    )
                 )
                 val finalBill = if (existingBill == null && origId > 0L) {
                     billToRestore.copy(id = origId)
@@ -51,6 +55,36 @@ object BillRestoreHelper {
                 }
 
                 BillAssetImpactService.applyBillBalanceImpact(db, restoredBill)
+                InvestmentInterestService.applyEstimateBillLotImpact(
+                    db = db,
+                    bill = restoredBill,
+                    restoring = true
+                )
+                if (restoredBill.type == Bill.TYPE_TRANSFER) {
+                    val targetAsset = restoredBill.toAccountId?.let { db.assetDao().getAssetById(it) }
+                    if (targetAsset?.assetCategory == com.taostudio.tapaccounting.data.local.entity.Asset.CATEGORY_INVESTMENT &&
+                        db.investmentLotDao().getLotBySourceBillId(restoredBill.id) == null
+                    ) {
+                        val start = InvestmentInterestService.plusDays(
+                            InvestmentInterestService.startOfDay(restoredBill.time),
+                            1
+                        )
+                        InvestmentInterestService.createOrReplaceLotForTransfer(
+                            db = db,
+                            bill = restoredBill,
+                            targetAsset = targetAsset,
+                            schedule = InvestmentInterestService.InvestmentSchedule(
+                                startEarningAt = start,
+                                firstPayoutAt = InvestmentInterestService.firstPayoutFor(
+                                    start,
+                                    com.taostudio.tapaccounting.data.local.entity.InvestmentLot.CYCLE_DAILY
+                                ),
+                                annualInterestRate = targetAsset.annualInterestRate
+                            )
+                        )
+                    }
+                }
+                SharedMutationHooks.enqueueSaved(db, restoredBill)
                 deletedBillDao.delete(deletedBill)
                 restoredBills.add(restoredBill)
             }
@@ -211,4 +245,3 @@ object BillRestoreHelper {
         )
     }
 }
-

@@ -49,11 +49,9 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         val layoutAiMain = findViewById<View>(R.id.layout_ai_main_entry)
         val switchShowAi = findViewById<CompoundButton>(R.id.switch_show_ai)
         val switchAiChatMode = findViewById<CompoundButton>(R.id.switch_ai_chat_mode)
-        val switchAiQueryAssistant = findViewById<CompoundButton>(R.id.switch_ai_query_assistant)
         val switchShowAiChatEntry = findViewById<CompoundButton>(R.id.switch_show_ai_chat_entry)
         val showAiChatEntryRow = switchShowAiChatEntry.parent as? View
         val layoutOpenAiChatPage = findViewById<View>(R.id.layout_open_ai_chat_page)
-        val layoutAiQueryAssistant = findViewById<View>(R.id.layout_ai_query_assistant)
         // AI 总开关由设置中心控制，这里只展示具体能力配置。
         (switchShowAi.parent as? View)?.visibility = View.GONE
         layoutAiMain.visibility = View.VISIBLE
@@ -71,14 +69,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         }
         layoutOpenAiChatPage.setOnClickListener {
             switchAiChatMode.performClick()
-        }
-
-        switchAiQueryAssistant.isChecked = Prefs.isAiQueryEnabled(this)
-        switchAiQueryAssistant.setOnCheckedChangeListener { _, isChecked ->
-            Prefs.setAiQueryEnabled(this, isChecked)
-        }
-        layoutAiQueryAssistant.setOnClickListener {
-            switchAiQueryAssistant.performClick()
         }
 
         Prefs.setShowAiChatEntry(this, false)
@@ -337,7 +327,6 @@ class AiFeatureSettingsActivity : AppCompatActivity() {
         try {
             val toggleIds = intArrayOf(
                 R.id.switch_ai_chat_mode,
-                R.id.switch_ai_query_assistant,
                 R.id.switch_show_ai_chat_entry,
                 R.id.switch_local_rule_override,
                 R.id.switch_show_voice,

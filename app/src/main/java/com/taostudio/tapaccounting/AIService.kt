@@ -29,12 +29,17 @@ import java.util.concurrent.TimeUnit
 const val OCR_MODE_LOCAL      = 0   // 本地 ML Kit OCR + 文本 AI
 const val OCR_MODE_MULTIMODAL = 1   // 直接多模态 AI（发送图片）
 
-/** AI Router 四分类结果 */
+/** 聊天入口 Router 分类结果 */
 data class RouterResult(
-    val intent: String,  // ACCOUNTING_CREATE, ACCOUNTING_QUERY, GENERAL_CHAT, UNSUPPORTED_WRITE
+    val intent: String,  // ACCOUNTING_CREATE, GENERAL_CHAT, UNSUPPORTED_WRITE
     val confidence: Double,
     val reason: String?
 )
+
+internal fun normalizeChatRouterIntent(intent: String): String = when (intent) {
+    "ACCOUNTING_CREATE", "GENERAL_CHAT", "UNSUPPORTED_WRITE" -> intent
+    else -> "GENERAL_CHAT"
+}
 
 object AIService {
     private const val MAX_AUDIO_INLINE_BYTES = 8L * 1024L * 1024L
@@ -849,52 +854,7 @@ object AIService {
     }
 
     /**
-     * 轻量意图分类：判断用户输入是记账还是闲聊。
-     * 仅用于聊天入口，悬浮窗记账不走此函数。
-     * @return "BOOKKEEPING" / "GENERAL_CHAT"
-     */
-    suspend fun classifyIntent(ctx: Context, userText: String): String {
-        val apiKey = Prefs.getAiKey(ctx)
-        if (apiKey.isBlank()) return "BOOKKEEPING"
-        val model = AiModelSlots.resolveVisionModel(ctx).ifBlank { AiModelSlots.resolveTextModel(ctx) }
-        if (model.isBlank()) return "BOOKKEEPING"
-
-        val requestJson = buildTextChatRequest(
-            model = model,
-            temperature = 0.1,
-            systemPrompt = AIPrompts.INTENT_ROUTER_PROMPT_DEFAULT,
-            userText = userText,
-            enableThinking = false
-        )
-
-        return try {
-            val content = requestAccountingContentStreamed(
-                ctx = ctx,
-                apiKey = apiKey,
-                requestJson = requestJson,
-                onProgress = null,
-                emitTextDelta = false,
-                logReasoning = false,
-                reasoningLogTag = "IntentRouter"
-            )
-            val cleaned = cleanJsonString(content)
-            val jsonText = extractFirstJsonObjectText(cleaned)
-            val json = runCatching { jsonText?.let { org.json.JSONObject(it) } }.getOrNull()
-            val intent = json?.optString("intent", "BOOKKEEPING") ?: "BOOKKEEPING"
-            Logger.d(ctx, "AIService", "classifyIntent: input=${userText.take(50)}, result=$intent")
-            when (intent) {
-                "GENERAL_CHAT" -> "GENERAL_CHAT"
-                else -> "BOOKKEEPING"
-            }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "classifyIntent failed: ${e.message}, fallback to BOOKKEEPING")
-            "BOOKKEEPING"
-        }
-    }
-
-    /**
-     * 四分类 Router：区分 ACCOUNTING_CREATE / ACCOUNTING_QUERY / GENERAL_CHAT / UNSUPPORTED_WRITE。
+     * 聊天入口 Router：区分 ACCOUNTING_CREATE / GENERAL_CHAT / UNSUPPORTED_WRITE。
      * 有图片时走视觉模型，结合图片与文字一起判断。
      */
     suspend fun classifyRouterIntent(
@@ -914,7 +874,7 @@ object AIService {
             buildTextChatRequest(
                 model = model,
                 temperature = 0.1,
-                systemPrompt = AIPrompts.INTENT_ROUTER_V2_PROMPT,
+                systemPrompt = AIPrompts.CHAT_INPUT_ROUTER_PROMPT,
                 userText = routerUserText,
                 jsonObjectResponse = true,
                 enableThinking = false
@@ -926,7 +886,7 @@ object AIService {
             buildMultimodalChatRequest(
                 model = model,
                 temperature = 0.1,
-                systemPrompt = AIPrompts.INTENT_ROUTER_V2_PROMPT,
+                systemPrompt = AIPrompts.CHAT_INPUT_ROUTER_PROMPT,
                 attachments = attachments,
                 userText = routerUserText,
                 jsonObjectResponse = true,
@@ -955,83 +915,12 @@ object AIService {
                 "AIService",
                 "classifyRouterIntent: input=${routerUserText.take(50)} images=${images.size}, result=$intent"
             )
-            val validIntents = setOf("ACCOUNTING_CREATE", "ACCOUNTING_QUERY", "GENERAL_CHAT", "UNSUPPORTED_WRITE")
-            val normalizedIntent = if (intent in validIntents) intent else "GENERAL_CHAT"
+            val normalizedIntent = normalizeChatRouterIntent(intent)
             RouterResult(normalizedIntent, confidence.coerceIn(0.0, 1.0), reason)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Logger.d(ctx, "AIService", "classifyRouterIntent failed: ${e.message}, fallback to ACCOUNTING_CREATE")
             RouterResult("ACCOUNTING_CREATE", 0.0, "error: ${e.message}")
-        }
-    }
-
-    /**
-     * 查询参数提取器：当 Router 判断为 ACCOUNTING_QUERY 时，提取结构化查询草稿 JSON。
-     * @param existingDraft 当前活跃的查询草稿（如有），用于多轮修正
-     * @return 解析后的 JSONObject，包含 intent/queryType/slots 等字段；失败返回 null
-     */
-    suspend fun extractQueryDraft(
-        ctx: Context,
-        userText: String,
-        existingDraft: com.taostudio.tapaccounting.chat.query.QueryDraft? = null
-    ): org.json.JSONObject? {
-        val apiKey = Prefs.getAiKey(ctx)
-        if (apiKey.isBlank()) return null
-        val model = AiModelSlots.resolveTextModel(ctx)
-        if (model.isBlank()) return null
-
-        // 如果有 existingDraft，将其序列化到 userText 中，让 AI 知道当前草稿状态
-        val effectiveUserText = if (existingDraft != null) {
-            val draftJson = org.json.JSONObject().apply {
-                put("currentDraft", org.json.JSONObject().apply {
-                    put("keyword", existingDraft.keyword ?: org.json.JSONObject.NULL)
-                    put("categoryName", existingDraft.categoryName ?: org.json.JSONObject.NULL)
-                    put("assetName", existingDraft.assetName ?: org.json.JSONObject.NULL)
-                    put("billType", existingDraft.billType.name)
-                    put("bookScope", existingDraft.bookScope.name)
-                    put("timeRange", existingDraft.timeRange?.let {
-                        org.json.JSONObject().apply {
-                            put("label", it.label ?: org.json.JSONObject.NULL)
-                            put("startMillis", it.startMillis ?: org.json.JSONObject.NULL)
-                            put("endMillis", it.endMillis ?: org.json.JSONObject.NULL)
-                        }
-                    } ?: org.json.JSONObject.NULL)
-                })
-                put("userText", userText)
-            }
-            draftJson.toString()
-        } else {
-            userText
-        }
-
-        val requestJson = buildTextChatRequest(
-            model = model,
-            temperature = 0.1,
-            systemPrompt = AIPrompts.QUERY_EXTRACTOR_PROMPT,
-            userText = effectiveUserText,
-            jsonObjectResponse = true,
-            enableThinking = false
-        )
-
-        return try {
-            val content = requestAccountingContentStreamed(
-                ctx = ctx,
-                apiKey = apiKey,
-                requestJson = requestJson,
-                onProgress = null,
-                emitTextDelta = false,
-                logReasoning = false,
-                reasoningLogTag = "QueryExtractor"
-            )
-            val cleaned = cleanJsonString(content)
-            val jsonText = extractFirstJsonObjectText(cleaned)
-            val json = runCatching { jsonText?.let { org.json.JSONObject(it) } }.getOrNull()
-            Logger.d(ctx, "AIService", "extractQueryDraft: input=${userText.take(50)}, intent=${json?.optString("intent")}")
-            json
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            Logger.d(ctx, "AIService", "extractQueryDraft failed: ${e.message}")
-            null
         }
     }
 

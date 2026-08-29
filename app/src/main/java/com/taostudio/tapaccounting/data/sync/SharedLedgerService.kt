@@ -26,56 +26,72 @@ class SharedLedgerService(private val context: Context, private val db: AppDatab
     suspend fun create(
         bookName: String,
         ledgerName: String,
-        memberNames: List<String>,
+        creatorName: String,
         webdavUrl: String,
         webdavUser: String,
         password: String
-    ): String {
-        require(memberNames.size == SharedLedger.ACTIVE_MEMBER_LIMIT)
+    ): Long {
+        val normalizedCreatorName = creatorName.trim()
+        require(normalizedCreatorName.isNotBlank()) { "请输入你的成员名称" }
+        require(normalizedCreatorName.length <= Manifest.MAX_MEMBER_DISPLAY_NAME_LENGTH) { "成员名称过长" }
+        require(webdavUrl.trim().trimEnd('/') == JIANGUOYUN_WEBDAV_URL.trimEnd('/')) {
+            "新共享账本仅支持坚果云 WebDAV"
+        }
+        val normalizedWebdavUrl = JIANGUOYUN_WEBDAV_URL
         val bookId = db.bookDao().resolveOrCreateId(bookName)
         val book = db.bookDao().getById(bookId) ?: error("无法创建账本身份")
         check(db.sharedLedgerDao().getByBookId(book.id) == null) { "该账本已经是共享账本" }
         val ledgerUuid = UUID.randomUUID().toString()
-        val members = memberNames.mapIndexed { index, name -> ManifestMember(UUID.randomUUID().toString(), name.trim(), index + 1) }
+        val createdAt = System.currentTimeMillis()
+        val members = listOf(
+            ManifestMember(
+                memberId = UUID.randomUUID().toString(),
+                displayName = normalizedCreatorName,
+                joinOrder = SharedInvitePolicy.CREATOR_JOIN_ORDER,
+                joinedAt = createdAt
+            )
+        )
         val remotePath = "/shared-ledger/$ledgerUuid"
-        val config = SharedWebDavClient.Config(webdavUrl, webdavUser, password)
+        val config = SharedWebDavClient.Config(normalizedWebdavUrl, webdavUser, password)
         webDav.ensureDirectory(config, "$remotePath/operations")
-        val manifest = Manifest(sharedBookId = ledgerUuid, name = ledgerName, createdAt = System.currentTimeMillis(), members = members)
+        val manifest = Manifest(sharedBookId = ledgerUuid, name = ledgerName, createdAt = createdAt, members = members)
         require(ManifestValidator.validate(manifest).isValid) { "共享账本信息无效" }
         webDav.put(config, "$remotePath/meta.json", gson.toJson(manifest))
 
-        db.withTransaction {
+        val ledgerId = db.withTransaction {
             val ledgerId = db.sharedLedgerDao().insert(SharedLedger(
-                uuid = ledgerUuid, bookId = book.id, name = ledgerName, webdavUrl = webdavUrl,
+                uuid = ledgerUuid, bookId = book.id, name = ledgerName, webdavUrl = normalizedWebdavUrl,
                 webdavUser = webdavUser, remotePath = remotePath, localMemberId = members.first().memberId,
                 createdAt = manifest.createdAt
             ))
             db.sharedMemberDao().insertAll(members.map { SharedMember(ledgerId = ledgerId, memberId = it.memberId, displayName = it.displayName, joinOrder = it.joinOrder, isLocal = it.joinOrder == 1) })
             db.syncStateDao().save(SyncState(ledgerId, DeviceIdManager.getDeviceId(context)))
             seedHistory(ledgerId, ledgerUuid, book.name, book.id, members.first().memberId)
+            ledgerId
         }
         SharedCredentials.save(context, ledgerUuid, password)
         SharedSyncScheduler.enqueueNow(context)
-        return InviteCodec.encode(SharedInvite(ledgerUuid, ledgerName, webdavUrl, webdavUser, remotePath, members[1].memberId, members[1].displayName, 2))
+        return ledgerId
     }
 
-    suspend fun join(invite: SharedInvite, password: String, existingBookName: String? = null): Long {
+    suspend fun join(
+        invite: SharedInvite,
+        password: String,
+        memberName: String,
+        existingBookName: String? = null
+    ): Long {
         check(db.sharedLedgerDao().getByUuid(invite.ledgerId) == null) { "已经加入该共享账本" }
         val config = SharedWebDavClient.Config(invite.webdavUrl, invite.webdavUser, password)
         check(!webDav.exists(config, "${invite.remotePath}/closed.json")) { "该共享账本已解散" }
-        var manifest = decodeManifest(webDav.get(config, "${invite.remotePath}/meta.json"))
-        require(ManifestValidator.validate(manifest).isValid) { "远端共享账本信息无效" }
-        require(manifest.sharedBookId == invite.ledgerId) { "邀请与远端账本不一致" }
-        require(manifest.members.any { it.memberId == invite.memberId }) { "邀请成员不存在" }
-        val profileName = Prefs.getUserChatName(context).trim()
-            .takeIf { it.isNotBlank() && it != "我" }
-            ?.take(Manifest.MAX_MEMBER_DISPLAY_NAME_LENGTH)
-        if (profileName != null) {
-            manifest = manifest.copy(members = manifest.members.map { member ->
-                if (member.memberId == invite.memberId) member.copy(displayName = profileName) else member
-            })
-            require(ManifestValidator.validate(manifest).isValid) { "成员名称无效" }
-            webDav.put(config, "${invite.remotePath}/meta.json", gson.toJson(manifest))
+        val (manifest, _) = updateManifest(config, "${invite.remotePath}/meta.json") { current ->
+            require(current.sharedBookId == invite.ledgerId) { "邀请与远端账本不一致" }
+            val invitedMember = current.members.singleOrNull { it.memberId == invite.memberId }
+                ?: error("邀请成员不存在")
+            require(invitedMember.joinOrder == invite.joinOrder) { "邀请成员顺序不一致" }
+            val joinedMember = SharedInvitePolicy.joinWithName(invitedMember, memberName)
+            current.copy(members = current.members.map { member ->
+                if (member.memberId == joinedMember.memberId) joinedMember else member
+            }) to Unit
         }
         val localName = existingBookName?.trim()?.takeIf { it.isNotBlank() } ?: uniqueBookName(manifest.name)
         val bookId = db.bookDao().resolveOrCreateId(localName)
@@ -93,6 +109,7 @@ class SharedLedgerService(private val context: Context, private val db: AppDatab
         }
         SharedCredentials.save(context, invite.ledgerId, password)
         runCatching { SharedSyncEngine(context, db).syncLedger(ledgerId) }
+            .onFailure { SharedSyncScheduler.enqueueFullNow(context) }
         return ledgerId
     }
 
@@ -106,6 +123,18 @@ class SharedLedgerService(private val context: Context, private val db: AppDatab
         db.withTransaction {
             db.billDao().clearSharedState(bookName)
             db.budgetDao().clearSharedState(ledger.bookId)
+            db.sharedLedgerDao().deleteById(ledgerId)
+        }
+        SharedCredentials.clear(context, ledger.uuid)
+    }
+
+    suspend fun exitDeletingLocalCopy(ledgerId: Long) {
+        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: return
+        val bookName = db.bookDao().getById(ledger.bookId)?.name ?: ledger.name
+        db.withTransaction {
+            db.billDao().deleteAllByBookName(bookName)
+            db.budgetDao().deleteAllByBookId(ledger.bookId)
+            db.chatMessageDao().deleteAllByBookName(bookName)
             db.sharedLedgerDao().deleteById(ledgerId)
         }
         SharedCredentials.clear(context, ledger.uuid)
@@ -127,13 +156,102 @@ class SharedLedgerService(private val context: Context, private val db: AppDatab
         exitKeepingLocalCopy(ledgerId, syncFirst = false)
     }
 
-    suspend fun inviteText(ledgerId: Long): String {
+    suspend fun createInvite(ledgerId: Long): String {
         val ledger = db.sharedLedgerDao().getById(ledgerId) ?: error("共享账本不存在")
-        val member = db.sharedMemberDao().getByLedgerId(ledgerId).firstOrNull { !it.isLocal }
-            ?: error("没有可邀请的成员")
+        val localMember = db.sharedMemberDao().get(ledgerId, ledger.localMemberId)
+            ?: error("本机成员不存在")
+        check(SharedInvitePolicy.canCreateInvite(localMember.joinOrder)) { "只有创建者可以邀请新成员" }
+        val password = SharedCredentials.load(context, ledger.uuid) ?: error("缺少 WebDAV 应用密码")
+        val config = SharedWebDavClient.Config(ledger.webdavUrl, ledger.webdavUser, password)
+        val (_, remoteMember) = updateManifest(config, "${ledger.remotePath}/meta.json") { manifest ->
+            require(manifest.sharedBookId == ledger.uuid) { "远端共享账本信息无效" }
+            val invited = SharedInvitePolicy.newMember(manifest.members, UUID.randomUUID().toString())
+            manifest.copy(members = (manifest.members + invited).sortedBy { it.joinOrder }) to invited
+        }
+        db.sharedMemberDao().insert(
+            SharedMember(
+                ledgerId = ledgerId,
+                memberId = remoteMember.memberId,
+                displayName = remoteMember.displayName,
+                joinOrder = remoteMember.joinOrder,
+                isLocal = false
+            )
+        )
+        return encodeInvite(ledger, remoteMember)
+    }
+
+    suspend fun inviteText(ledgerId: Long, memberId: String): String {
+        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: error("共享账本不存在")
+        val localMember = db.sharedMemberDao().get(ledgerId, ledger.localMemberId)
+            ?: error("本机成员不存在")
+        check(SharedInvitePolicy.canCreateInvite(localMember.joinOrder)) { "只有创建者可以发送成员邀请" }
+        val password = SharedCredentials.load(context, ledger.uuid) ?: error("缺少 WebDAV 应用密码")
+        val config = SharedWebDavClient.Config(ledger.webdavUrl, ledger.webdavUser, password)
+        val manifest = decodeManifest(webDav.get(config, "${ledger.remotePath}/meta.json"))
+        require(manifest.sharedBookId == ledger.uuid && ManifestValidator.validate(manifest).isValid) {
+            "远端共享账本信息无效"
+        }
+        val member = manifest.members.singleOrNull { it.memberId == memberId }
+            ?: error("邀请成员不存在")
+        require(member.joinOrder in 2..Manifest.MAX_MEMBER_COUNT) { "不能生成创建者身份邀请" }
+        if (member.invitedAt != null) check(member.joinedAt == null) { "该成员已经加入" }
+        return encodeInvite(ledger, member)
+    }
+
+    suspend fun cancelInvite(ledgerId: Long, memberId: String) {
+        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: error("共享账本不存在")
+        val localMember = db.sharedMemberDao().get(ledgerId, ledger.localMemberId)
+            ?: error("本机成员不存在")
+        check(SharedInvitePolicy.canCreateInvite(localMember.joinOrder)) { "只有创建者可以撤销成员邀请" }
+        val password = SharedCredentials.load(context, ledger.uuid) ?: error("缺少 WebDAV 应用密码")
+        val config = SharedWebDavClient.Config(ledger.webdavUrl, ledger.webdavUser, password)
+        updateManifest(config, "${ledger.remotePath}/meta.json") { manifest ->
+            require(manifest.sharedBookId == ledger.uuid) { "远端共享账本信息无效" }
+            val invitedMember = manifest.members.singleOrNull { it.memberId == memberId }
+                ?: error("邀请成员不存在")
+            check(SharedInvitePolicy.canCancelInvite(invitedMember)) { "该邀请已被使用或属于旧版成员，不能撤销" }
+            manifest.copy(members = manifest.members.filterNot { it.memberId == memberId }) to Unit
+        }
+        db.sharedMemberDao().delete(ledgerId, memberId)
+    }
+
+    suspend fun updateLocalMemberName(ledgerId: Long, displayName: String) {
+        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: error("共享账本不存在")
+        val normalized = displayName.trim()
+        require(normalized.isNotBlank()) { "请输入你的成员名称" }
+        require(normalized.length <= Manifest.MAX_MEMBER_DISPLAY_NAME_LENGTH) { "成员名称过长" }
+        val password = SharedCredentials.load(context, ledger.uuid) ?: error("缺少 WebDAV 应用密码")
+        val config = SharedWebDavClient.Config(ledger.webdavUrl, ledger.webdavUser, password)
+        updateManifest(config, "${ledger.remotePath}/meta.json") { manifest ->
+            require(manifest.sharedBookId == ledger.uuid) { "远端共享账本信息无效" }
+            require(manifest.members.any { it.memberId == ledger.localMemberId }) { "本机成员不存在" }
+            manifest.copy(members = manifest.members.map { member ->
+                if (member.memberId == ledger.localMemberId) {
+                    member.copy(displayName = normalized, joinedAt = member.joinedAt ?: System.currentTimeMillis())
+                } else member
+            }) to Unit
+        }
+        db.sharedMemberDao().updateDisplayName(ledgerId, ledger.localMemberId, normalized)
+    }
+
+    suspend fun updateJianguoyunPassword(ledgerId: Long, password: String) {
+        require(password.isNotBlank()) { "请输入坚果云应用密码" }
+        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: error("共享账本不存在")
+        val config = SharedWebDavClient.Config(ledger.webdavUrl, ledger.webdavUser, password)
+        check(!webDav.exists(config, "${ledger.remotePath}/closed.json")) { "该共享账本已解散" }
+        val manifest = decodeManifest(webDav.get(config, "${ledger.remotePath}/meta.json"))
+        require(manifest.sharedBookId == ledger.uuid && ManifestValidator.validate(manifest).isValid) {
+            "坚果云中的共享账本信息不匹配"
+        }
+        require(manifest.members.any { it.memberId == ledger.localMemberId }) { "本机成员身份不在远端账本中" }
+        SharedCredentials.save(context, ledger.uuid, password)
+        SharedSyncScheduler.enqueueFullNow(context)
+    }
+
+    private fun encodeInvite(ledger: SharedLedger, member: ManifestMember): String {
         return InviteCodec.encode(SharedInvite(
             ledger.uuid, ledger.name, ledger.webdavUrl, ledger.webdavUser, ledger.remotePath,
-            member.memberId, member.resolvedName(), member.joinOrder
+            member.memberId, member.displayName, member.joinOrder
         ))
     }
 
@@ -179,6 +297,27 @@ class SharedLedgerService(private val context: Context, private val db: AppDatab
         }
         return gson.fromJson(root, Manifest::class.java)
     }
+
+    private fun <T> updateManifest(
+        config: SharedWebDavClient.Config,
+        path: String,
+        transform: (Manifest) -> Pair<Manifest, T>
+    ): Pair<Manifest, T> {
+        repeat(3) { attempt ->
+            val resource = webDav.getTextResource(config, path)
+            val current = decodeManifest(resource.content)
+            require(ManifestValidator.validate(current).isValid) { "远端共享账本信息无效" }
+            val (updated, result) = transform(current)
+            require(ManifestValidator.validate(updated).isValid) { "共享账本成员信息无效" }
+            try {
+                webDav.put(config, path, gson.toJson(updated), ifMatch = resource.etag)
+                return updated to result
+            } catch (error: WebDavHttpException) {
+                if (error.statusCode != 412 || resource.etag.isNullOrBlank() || attempt == 2) throw error
+            }
+        }
+        error("共享成员信息更新冲突，请重试")
+    }
     private suspend fun uniqueBookName(name: String): String {
         if (db.bookDao().getByName(name) == null) return name
         var index = 2
@@ -187,6 +326,8 @@ class SharedLedgerService(private val context: Context, private val db: AppDatab
     }
 
     companion object {
+        const val JIANGUOYUN_WEBDAV_URL = "https://dav.jianguoyun.com/dav/"
+
         fun Bill.isShareable() = type in setOf(Bill.TYPE_EXPENSE, Bill.TYPE_INCOME) && subType !in setOf(Bill.SUBTYPE_BALANCE_ADJUSTMENT, Bill.SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED) && type != Bill.TYPE_REPAYMENT
     }
 }

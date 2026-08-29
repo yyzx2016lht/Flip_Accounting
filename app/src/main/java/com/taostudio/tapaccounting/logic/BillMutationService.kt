@@ -91,6 +91,31 @@ object BillMutationService {
         return db.billDao().getBillById(savedBill.id) ?: savedBill
     }
 
+    /**
+     * 保存仅属于本机的系统生成账单。理财批次没有参与共享账本同步，因此其估算收益也不能
+     * 进入共享队列，否则多台设备会各自结息并产生重复流水。
+     */
+    suspend fun insertLocalGeneratedBillWithinActiveTransaction(
+        db: AppDatabase,
+        bill: Bill,
+        applyAssetImpact: Boolean = true
+    ): Bill {
+        val localBill = normalizeBillCategoryName(
+            bill.copy(
+                sharedId = null,
+                memberId = null,
+                isShared = false,
+                sharedRevision = 0,
+                sharedDeviceId = null,
+                relatedSharedId = null
+            )
+        )
+        val savedBill = localBill.copy(id = db.billDao().insertBill(localBill))
+        if (applyAssetImpact) BillAssetImpactService.applyBillBalanceImpact(db, savedBill)
+        auditBill("insert_local_generated", savedBill)
+        return db.billDao().getBillById(savedBill.id) ?: savedBill
+    }
+
     suspend fun upsertBillAndApplyImpact(
         db: AppDatabase,
         bill: Bill,
@@ -108,6 +133,9 @@ object BillMutationService {
         logFull("BILL_MUTATION", "replace:start oldId=${oldBill.id}, oldType=${oldBill.type}, oldAmount=${oldBill.amount}, newType=${newBill.type}, newAmount=${newBill.amount}, assetImpact=$applyAssetImpact")
         return db.withTransaction {
             SharedMutationHooks.requireOwner(db, oldBill)
+            require(oldBill.subType != Bill.SUBTYPE_INVESTMENT_ESTIMATE) {
+                "自动估算收益不能直接编辑，请在资产详情修改收益设置"
+            }
             val normalizedBill = when {
                 oldBill.subType == Bill.SUBTYPE_REFUND -> {
                     val fallbackCategory = stripRefundPrefix(oldBill.categoryName)
@@ -147,15 +175,19 @@ object BillMutationService {
             if (oldBill.subType == Bill.SUBTYPE_REFUND && oldBill.relatedBillId != null) {
                 val sourceBill = db.billDao().getBillById(oldBill.relatedBillId)
                 if (sourceBill != null) {
+                    SharedMutationHooks.requireOwner(db, sourceBill)
                     val sourceBaseOriginalAmount = baseOriginalAmount(sourceBill)
                     val delta = normalizedBillForStorage.amount - oldBill.amount
                     val newSourceActualAmount = (sourceBill.amount - delta).coerceIn(0.0, sourceBaseOriginalAmount)
-                    db.billDao().updateBill(
+                    val savedSource = SharedMutationHooks.prepareLocalBill(
+                        db,
                         sourceBill.copy(
                             amount = newSourceActualAmount,
                             originalAmount = sourceBaseOriginalAmount
                         )
                     )
+                    db.billDao().updateBill(savedSource)
+                    SharedMutationHooks.enqueueSaved(db, savedSource)
                 }
             }
 
@@ -181,6 +213,7 @@ object BillMutationService {
                     logFull("BILL_GUARD", "（警告）replace 写入新账单后资产未变化，billId=${savedBill.id}, type=${savedBill.type}, asset=${savedBill.accountName}, toAsset=${savedBill.toAccountName}")
                 }
             }
+            InvestmentInterestService.syncLotAfterBillReplacement(db, oldBill, savedBill)
             logFull("BILL_MUTATION", "replace:done id=${savedBill.id}, type=${savedBill.type}, amount=${savedBill.amount}, category=${savedBill.categoryName}")
             auditBill("replace", savedBill)
             SharedMutationHooks.enqueueSaved(db, savedBill)
@@ -204,6 +237,7 @@ object BillMutationService {
             require(latestOriginal.type == Bill.TYPE_EXPENSE && latestOriginal.subType != Bill.SUBTYPE_REFUND) {
                 "Original bill is not refundable"
             }
+            SharedMutationHooks.requireOwner(db, latestOriginal)
 
             val existingRefund = when {
                 previousRefundBill != null -> {
@@ -294,24 +328,6 @@ object BillMutationService {
                 refundAccountName = refundBill.accountName,
                 refundTime = refundBill.time
             ) ?: return@withTransaction null
-            if (refundBill.id > 0L && refundBill.relatedBillId == null) {
-                val linkedRefundTotal = db.billDao().getRefundTotalBySourceId(source.id)
-                val baseOriginal = baseOriginalAmount(source)
-                val reconciledAmount = RefundReconciliationPolicy.actualExpenseAfterLink(
-                    sourceAmount = source.amount,
-                    sourceOriginalAmount = baseOriginal,
-                    alreadyLinkedRefundTotal = linkedRefundTotal,
-                    refundAmount = refundBill.amount
-                )
-                if (kotlin.math.abs(reconciledAmount - source.amount) > 1e-9) {
-                    db.billDao().updateBill(source.copy(amount = reconciledAmount, originalAmount = baseOriginal))
-                }
-                db.billDao().updateBill(refundBill.copy(
-                    relatedBillId = source.id,
-                    relatedSharedId = source.sharedId
-                ))
-                return@withTransaction source.copy(amount = reconciledAmount, originalAmount = baseOriginal)
-            }
             source
         }
     }

@@ -6,6 +6,10 @@
 
 - [`release-regression-checklist.md`](operations/release-regression-checklist.md)
 
+## 代码审阅
+
+- [`shared-book-review-2026-08-29.md`](reviews/shared-book-review-2026-08-29.md)：共享账本 1–5 人实现、兼容策略、已修问题、剩余风险与坚果云验收清单
+
 ## 历史归档
 
 - `archive/plans/`：已完成或已过时的需求与实施计划

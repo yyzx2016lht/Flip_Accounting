@@ -1151,6 +1151,7 @@ class AccountingFormController(
         targetName: String,
         annualInterestRate: Double,
         previousAnnualInterestRate: Double?,
+        previousSettlementCycle: Int?,
         onConfirm: (InvestmentInterestService.InvestmentSchedule) -> Unit
     ) {
         val safeContext = ctx
@@ -1245,6 +1246,30 @@ class AccountingFormController(
             gravity = Gravity.END
         })
 
+        val cycleOptions = InvestmentInterestService.cycleOptions()
+        val cycleRow = LinearLayout(themeContext).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(14), 0, dp(4))
+        }
+        cycleRow.addView(TextView(themeContext).apply {
+            text = ctx.getString(R.string.investment_settlement_cycle)
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2A38"))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val cycleSpinner = Spinner(themeContext).apply {
+            adapter = ArrayAdapter(
+                themeContext,
+                android.R.layout.simple_spinner_dropdown_item,
+                cycleOptions.map { it.first }
+            )
+            val initialCycle = previousSettlementCycle ?: com.taostudio.tapaccounting.data.local.entity.InvestmentLot.CYCLE_DAILY
+            setSelection(cycleOptions.indexOfFirst { it.second == initialCycle }.coerceAtLeast(0))
+        }
+        cycleRow.addView(cycleSpinner, LinearLayout.LayoutParams(dp(116), LinearLayout.LayoutParams.WRAP_CONTENT))
+        content.addView(cycleRow)
+
         var startEarningAt = InvestmentInterestService.plusDays(
             InvestmentInterestService.startOfDay(transferTime),
             1
@@ -1257,8 +1282,9 @@ class AccountingFormController(
             row.text = "$label    ${formatDateForSchedule(value)}"
         }
         fun refreshPayoutRow() {
-            val firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1)
-            bindRow(payoutRow, ctx.getString(R.string.earning_payout_t_plus_one), firstPayoutAt)
+            val cycle = cycleOptions[cycleSpinner.selectedItemPosition.coerceAtLeast(0)].second
+            val firstPayoutAt = InvestmentInterestService.firstPayoutFor(startEarningAt, cycle)
+            bindRow(payoutRow, ctx.getString(R.string.earning_first_payout), firstPayoutAt)
         }
 
         startRow = TextView(themeContext).apply {
@@ -1284,6 +1310,12 @@ class AccountingFormController(
         }
         content.addView(startRow)
         content.addView(payoutRow)
+        cycleSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                refreshPayoutRow()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
         refreshPayoutRow()
         content.addView(TextView(themeContext).apply {
             text = ctx.getString(R.string.investment_default_hint)
@@ -1296,21 +1328,34 @@ class AccountingFormController(
             .setTitle(ctx.getString(R.string.set_investment_time))
             .setView(content)
             .setNegativeButton(ctx.getString(R.string.cancel), null)
-            .setPositiveButton(ctx.getString(R.string.confirm)) { _, _ ->
+            .setPositiveButton(ctx.getString(R.string.confirm), null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val annualRate = if (usePreviousRate) {
+                    previousAnnualInterestRate ?: 0.0
+                } else {
+                    parseLocalizedAmount(etAnnualRate.text?.toString().orEmpty())
+                }
+                if (!InvestmentInterestService.isValidAnnualRate(annualRate)) {
+                    etAnnualRate.error = "请输入大于 -100 且不超过 10000 的年利率"
+                    return@setOnClickListener
+                }
                 hasCheckedInvestmentSchedulePrompt = true
                 onConfirm(
                     InvestmentInterestService.InvestmentSchedule(
                         startEarningAt = startEarningAt,
-                        firstPayoutAt = InvestmentInterestService.plusDays(startEarningAt, 1),
-                        annualInterestRate = if (usePreviousRate) {
-                            previousAnnualInterestRate ?: 0.0
-                        } else {
-                            parseLocalizedAmount(etAnnualRate.text?.toString().orEmpty())
-                        }
+                        firstPayoutAt = InvestmentInterestService.firstPayoutFor(
+                            startEarningAt,
+                            cycleOptions[cycleSpinner.selectedItemPosition.coerceAtLeast(0)].second
+                        ),
+                        annualInterestRate = annualRate,
+                        settlementCycle = cycleOptions[cycleSpinner.selectedItemPosition.coerceAtLeast(0)].second
                     )
                 )
+                dialog.dismiss()
             }
-            .create()
+        }
         OverlayDialogs.showPageCenterDialog(
             dialog = dialog,
             ctx = safeContext,
@@ -1601,17 +1646,17 @@ class AccountingFormController(
                 val targetAsset = accountName2.takeIf { it.isNotBlank() }
                     ?.let { AppDatabase.getDatabase(ctx).assetDao().getAssetByName(it) }
                 if (targetAsset?.assetCategory == Asset.CATEGORY_INVESTMENT) {
-                    val previousRate = AppDatabase.getDatabase(ctx)
+                    val previousLot = AppDatabase.getDatabase(ctx)
                         .investmentLotDao()
                         .getLatestOpenLotWithRateByAssetId(targetAsset.id)
-                        ?.annualInterestRate
                     val transferTime = parseUiTimeToMillis(tvTime.text?.toString().orEmpty()) ?: System.currentTimeMillis()
                     withContext(Dispatchers.Main) {
                         showInvestmentScheduleDialog(
                             transferTime = transferTime,
                             targetName = targetAsset.name,
                             annualInterestRate = targetAsset.annualInterestRate,
-                            previousAnnualInterestRate = previousRate
+                            previousAnnualInterestRate = previousLot?.annualInterestRate,
+                            previousSettlementCycle = previousLot?.settlementCycle
                         ) { schedule ->
                             pendingInvestmentSchedule = schedule
                             handleSave()
@@ -1840,6 +1885,7 @@ class AccountingFormController(
                 }
             }
 
+            val scheduleForInvestment = pendingInvestmentSchedule
             if (editingBillId == null) {
                 if (latestRefundSource != null) {
                     try {
@@ -1860,27 +1906,24 @@ class AccountingFormController(
                         return@launch
                     }
                 } else {
-                    rBill = BillMutationService.upsertBillAndApplyImpact(
-                        db = db,
-                        bill = rBill,
-                        applyAssetImpact = true
-                    )
+                    rBill = if (scheduleForInvestment != null &&
+                        rBill.type == Bill.TYPE_TRANSFER &&
+                        asset2?.assetCategory == Asset.CATEGORY_INVESTMENT
+                    ) {
+                        InvestmentInterestService.insertTransferWithLot(
+                            db = db,
+                            bill = rBill,
+                            targetAsset = asset2,
+                            schedule = scheduleForInvestment
+                        )
+                    } else {
+                        BillMutationService.upsertBillAndApplyImpact(
+                            db = db,
+                            bill = rBill,
+                            applyAssetImpact = true
+                        )
+                    }
                 }
-            }
-
-            val scheduleForInvestment = pendingInvestmentSchedule
-            if (editingBillId == null &&
-                latestRefundSource == null &&
-                scheduleForInvestment != null &&
-                rBill.type == Bill.TYPE_TRANSFER &&
-                asset2?.assetCategory == Asset.CATEGORY_INVESTMENT
-            ) {
-                InvestmentInterestService.createOrReplaceLotForTransfer(
-                    db = db,
-                    bill = rBill,
-                    targetAsset = asset2,
-                    schedule = scheduleForInvestment
-                )
             }
 
             withContext(Dispatchers.Main) {

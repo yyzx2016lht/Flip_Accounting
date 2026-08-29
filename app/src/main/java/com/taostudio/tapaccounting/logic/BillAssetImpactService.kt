@@ -283,7 +283,9 @@ object BillAssetImpactService {
         bill: Bill
     ) {
         if (assetBeforeImpact.assetCategory != Asset.CATEGORY_INVESTMENT) return
-        if (bill.categoryName == InvestmentInterestService.CATEGORY_NAME && bill.remark.contains("自动结息")) return
+        if (bill.subType == Bill.SUBTYPE_INVESTMENT_ESTIMATE ||
+            (bill.categoryName == InvestmentInterestService.CATEGORY_NAME && bill.remark.contains("自动结息"))
+        ) return
 
         val latestAsset = db.assetDao().getAssetById(assetBeforeImpact.id) ?: return
         InvestmentInterestService.reconcileAssetLotsToBalance(
@@ -307,4 +309,3 @@ object BillAssetImpactService {
         return principal + fee
     }
 }
-

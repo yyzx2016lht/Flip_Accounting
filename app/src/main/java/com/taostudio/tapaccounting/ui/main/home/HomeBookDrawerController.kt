@@ -35,8 +35,12 @@ import com.taostudio.tapaccounting.BookAccountManager
 import com.taostudio.tapaccounting.Prefs
 import com.taostudio.tapaccounting.R
 import com.taostudio.tapaccounting.data.local.AppDatabase
+import com.taostudio.tapaccounting.data.local.entity.SharedLedger
+import com.taostudio.tapaccounting.data.local.entity.SharedMember
+import com.taostudio.tapaccounting.data.local.entity.SyncState
 import com.taostudio.tapaccounting.data.sync.InviteCodec
 import com.taostudio.tapaccounting.data.sync.SharedLedgerService
+import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
 import com.taostudio.tapaccounting.ui.activity.BookOverviewActivity
 import com.taostudio.tapaccounting.ui.dialog.OverlayDialogs
 import com.taostudio.tapaccounting.ui.dialog.LedgerViewScopeDialog
@@ -89,6 +93,21 @@ internal class HomeBookDrawerController(
         DELETE_BILLS_KEEP_ASSETS,
         DELETE_BILLS_AND_REVERT_ASSETS
     }
+
+    private data class SharedDetailSnapshot(
+        val ledger: SharedLedger,
+        val members: List<SharedMember>,
+        val localMember: SharedMember,
+        val syncState: SyncState?,
+        val pendingCount: Int
+    )
+
+    private data class SharedDetailAction(
+        val title: String,
+        val description: String,
+        val highRisk: Boolean = false,
+        val onClick: () -> Unit
+    )
 
     fun setupBookDrawer() {
         layoutBookDrawer.isClickable = true
@@ -634,7 +653,7 @@ internal class HomeBookDrawerController(
             add(
                 ManageOption(
                     title = "共享账本",
-                    desc = "创建共享或重新复制、分享邀请",
+                    desc = "创建共享或查看成员、邀请与同步状态",
                     onClick = { showSharedLedgerAction(target) }
                 )
             )
@@ -740,7 +759,7 @@ internal class HomeBookDrawerController(
                 AppDatabase.getDatabase(fragment.requireContext().applicationContext)
                     .sharedLedgerDao().getByBookName(BookAccountManager.normalizeBookName(bookName))
             }
-            if (ledger != null) showSharedLedgerManagement(bookName, ledger.id) else deleteRegularBook(bookName)
+            if (ledger != null) showSharedLedgerDetails(bookName, ledger.id) else deleteRegularBook(bookName)
         }
     }
 
@@ -1053,8 +1072,6 @@ internal class HomeBookDrawerController(
 
         val etLedgerName = panel.findViewById<EditText>(R.id.et_shared_ledger_name)
         val etMember1Name = panel.findViewById<EditText>(R.id.et_member1_name)
-        val etMember2Name = panel.findViewById<EditText>(R.id.et_member2_name)
-        val etWebdavUrl = panel.findViewById<EditText>(R.id.et_webdav_url)
         val etWebdavUser = panel.findViewById<EditText>(R.id.et_webdav_user)
         val etWebdavPassword = panel.findViewById<EditText>(R.id.et_webdav_password)
 
@@ -1063,8 +1080,6 @@ internal class HomeBookDrawerController(
         etMember1Name.setText(
             Prefs.getUserChatName(fragment.requireContext()).trim().takeUnless { it == "我" }.orEmpty()
         )
-        etWebdavUrl.setText("https://dav.jianguoyun.com/dav/")
-
         panel.findViewById<TextView>(R.id.btn_create_shared_cancel).setOnClickListener {
             dialog.dismiss()
         }
@@ -1072,8 +1087,6 @@ internal class HomeBookDrawerController(
         panel.findViewById<TextView>(R.id.btn_create_shared_confirm).setOnClickListener {
             val ledgerName = etLedgerName.text.toString().trim()
             val member1Name = etMember1Name.text.toString().trim()
-            val member2Name = etMember2Name.text.toString().trim()
-            val webdavUrl = etWebdavUrl.text.toString().trim()
             val webdavUser = etWebdavUser.text.toString().trim()
             val webdavPassword = etWebdavPassword.text.toString().trim()
 
@@ -1082,8 +1095,13 @@ internal class HomeBookDrawerController(
                 return@setOnClickListener
             }
 
-            if (webdavUrl.isEmpty() || webdavUser.isEmpty() || webdavPassword.isEmpty()) {
-                Toast.makeText(fragment.requireContext(), "请填写完整的WebDAV配置", Toast.LENGTH_SHORT).show()
+            if (member1Name.isEmpty()) {
+                Toast.makeText(fragment.requireContext(), "请输入你的成员名称", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (webdavUser.isEmpty() || webdavPassword.isEmpty()) {
+                Toast.makeText(fragment.requireContext(), "请填写坚果云账号和应用密码", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -1092,13 +1110,19 @@ internal class HomeBookDrawerController(
                 runCatching {
                     withContext(Dispatchers.IO) {
                         SharedLedgerService(fragment.requireContext().applicationContext, AppDatabase.getDatabase(fragment.requireContext()))
-                            .create(bookName, ledgerName, listOf(member1Name, member2Name), webdavUrl, webdavUser, webdavPassword)
+                            .create(
+                                bookName,
+                                ledgerName,
+                                member1Name,
+                                SharedLedgerService.JIANGUOYUN_WEBDAV_URL,
+                                webdavUser,
+                                webdavPassword
+                            )
                     }
-                }.onSuccess { invite ->
-                    val clipboard = fragment.requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("FlipAccounting 共享账本邀请", invite))
+                }.onSuccess { ledgerId ->
                     dialog.dismiss()
-                    showCreatedInviteDialog(invite, copiedAlready = true)
+                    Toast.makeText(fragment.requireContext(), "共享账本已创建，可以继续邀请成员", Toast.LENGTH_LONG).show()
+                    showSharedLedgerDetails(bookName, ledgerId)
                 }.onFailure { error ->
                     panel.findViewById<TextView>(R.id.btn_create_shared_confirm).isEnabled = true
                     Toast.makeText(fragment.requireContext(), error.message ?: "创建失败", Toast.LENGTH_LONG).show()
@@ -1125,47 +1149,109 @@ internal class HomeBookDrawerController(
                 }
             }
             if (result == null) showCreateSharedLedgerDialog(bookName)
-            else copySharedInvite(result.id)
+            else showSharedLedgerDetails(bookName, result.id)
         }
     }
 
-    private fun showSharedLedgerManagement(bookName: String, ledgerId: Long) {
+    private fun showSharedLedgerDetails(bookName: String, ledgerId: Long) {
         fragment.lifecycleScope.launch {
-            val info = withContext(Dispatchers.IO) {
+            val snapshot = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(fragment.requireContext().applicationContext)
                 val ledger = db.sharedLedgerDao().getById(ledgerId) ?: return@withContext null
-                val isCreator = db.sharedMemberDao().get(ledgerId, ledger.localMemberId)?.joinOrder == 1
-                Triple(ledger, isCreator, db.syncQueueDao().count(ledgerId))
+                val members = db.sharedMemberDao().getByLedgerId(ledgerId)
+                val localMember = members.firstOrNull { it.memberId == ledger.localMemberId }
+                    ?: return@withContext null
+                SharedDetailSnapshot(
+                    ledger = ledger,
+                    members = members,
+                    localMember = localMember,
+                    syncState = db.syncStateDao().get(ledgerId),
+                    pendingCount = db.syncQueueDao().count(ledgerId)
+                )
             } ?: return@launch
-            val options = buildList {
-                add(Triple("退出共享，保留本地副本", "停止同步，当前账单和预算会变为普通本地数据", false))
-                add(Triple("退出共享，删除本地副本", "停止同步，并永久删除本机中的账单和预算", true))
-                if (info.second) add(Triple("解散共享账本", "旧邀请失效，双方下次同步后停止共享并保留副本", true))
-            }
+            val isCreator = snapshot.localMember.joinOrder == 1
 
             val panel = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.dialog_book_delete_options, null, false)
-            panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "管理共享账本「$bookName」"
-            panel.findViewById<TextView>(R.id.tv_delete_book_desc).text =
-                if (info.third > 0) "有 ${info.third} 项内容尚未上传；退出会放弃上传，但本机账单仍可保留" else "选择退出或解散方式"
+            panel.findViewById<TextView>(R.id.tv_delete_book_title).text = "共享详情「$bookName」"
+            panel.findViewById<TextView>(R.id.tv_delete_book_desc).text = sharedDetailDescription(snapshot)
             val container = panel.findViewById<LinearLayout>(R.id.layout_delete_book_options)
             val dialog = AlertDialog.Builder(ContextThemeWrapper(fragment.requireContext(), R.style.Theme_TapAccounting))
                 .setView(panel)
                 .create()
-            options.forEachIndexed { index, option ->
+
+            val actions = buildList {
+                if (isCreator && snapshot.members.size < SharedLedger.ACTIVE_MEMBER_LIMIT) {
+                    add(SharedDetailAction(
+                        title = "邀请新成员（${snapshot.members.size}/${SharedLedger.ACTIVE_MEMBER_LIMIT}）",
+                        description = "创建一个新成员席位；对方加入时自行填写名称",
+                        onClick = { createSharedMemberInvite(ledgerId) }
+                    ))
+                }
+                if (isCreator) {
+                    snapshot.members.filter { !it.isLocal && it.displayName.isBlank() }.forEach { member ->
+                        add(SharedDetailAction(
+                            title = "发送成员 ${member.joinOrder} 的邀请",
+                            description = "该席位正在等待成员加入",
+                            onClick = { copySharedInvite(ledgerId, member.memberId) }
+                        ))
+                        add(SharedDetailAction(
+                            title = "撤销成员 ${member.joinOrder} 的邀请",
+                            description = "释放这个尚未加入的成员席位",
+                            highRisk = true,
+                            onClick = { confirmCancelSharedInvite(bookName, ledgerId, member) }
+                        ))
+                    }
+                }
+                add(SharedDetailAction(
+                    title = "修改我的成员名称",
+                    description = "名称由你自己维护，并同步给其他成员",
+                    onClick = { showEditSharedMemberNameDialog(bookName, ledgerId, snapshot.localMember.displayName) }
+                ))
+                add(SharedDetailAction(
+                    title = "立即同步",
+                    description = "从坚果云拉取其他成员的数据，并上传本机待同步内容",
+                    onClick = {
+                        SharedSyncScheduler.enqueueFullNow(fragment.requireContext().applicationContext)
+                        Toast.makeText(fragment.requireContext(), "已开始同步", Toast.LENGTH_SHORT).show()
+                    }
+                ))
+                add(SharedDetailAction(
+                    title = "更新坚果云应用密码",
+                    description = "密码失效或更换后，在这里验证并重新连接",
+                    onClick = { showUpdateSharedPasswordDialog(bookName, ledgerId) }
+                ))
+                add(SharedDetailAction(
+                    title = "退出共享，保留本地副本",
+                    description = "停止同步，当前账单和预算会变为普通本地数据",
+                    onClick = { confirmExitShared(bookName, ledgerId, deleteLocal = false) }
+                ))
+                add(SharedDetailAction(
+                    title = "退出共享，删除本地副本",
+                    description = "停止同步，并永久删除本机中的账单和预算",
+                    highRisk = true,
+                    onClick = { confirmExitShared(bookName, ledgerId, deleteLocal = true) }
+                ))
+                if (isCreator) {
+                    add(SharedDetailAction(
+                        title = "解散共享账本",
+                        description = "所有成员下次同步后停止共享并保留副本",
+                        highRisk = true,
+                        onClick = { confirmDissolveShared(bookName, ledgerId) }
+                    ))
+                }
+            }
+
+            actions.forEach { action ->
                 val item = LayoutInflater.from(fragment.requireContext())
                     .inflate(R.layout.item_book_delete_option, container, false)
-                item.findViewById<TextView>(R.id.tv_delete_option_title).text = option.first
-                item.findViewById<TextView>(R.id.tv_delete_option_desc).text = option.second
+                item.findViewById<TextView>(R.id.tv_delete_option_title).text = action.title
+                item.findViewById<TextView>(R.id.tv_delete_option_desc).text = action.description
                 item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility =
-                    if (option.third) View.VISIBLE else View.GONE
+                    if (action.highRisk) View.VISIBLE else View.GONE
                 item.setOnClickListener {
                     dialog.dismiss()
-                    when (index) {
-                        0 -> confirmExitShared(bookName, ledgerId, deleteLocal = false)
-                        1 -> confirmExitShared(bookName, ledgerId, deleteLocal = true)
-                        2 -> confirmDissolveShared(bookName, ledgerId)
-                    }
+                    action.onClick()
                 }
                 container.addView(item)
             }
@@ -1180,17 +1266,194 @@ internal class HomeBookDrawerController(
         }
     }
 
-    private fun copySharedInvite(ledgerId: Long) {
+    private fun sharedDetailDescription(snapshot: SharedDetailSnapshot): String {
+        val role = if (snapshot.localMember.joinOrder == 1) "创建者" else "成员 ${snapshot.localMember.joinOrder}"
+        val members = snapshot.members.sortedBy { it.joinOrder }.joinToString("\n") { member ->
+            val name = member.displayName.ifBlank { "等待加入" }
+            val tags = buildList {
+                if (member.joinOrder == 1) add("创建者")
+                if (member.isLocal) add("我")
+            }.joinToString(" · ")
+            "• $name${if (tags.isBlank()) "" else "（$tags）"}"
+        }
+        val sync = when {
+            snapshot.syncState?.isSyncing == true -> "同步中"
+            !snapshot.syncState?.lastError.isNullOrBlank() -> "同步失败：${snapshot.syncState?.lastError}"
+            snapshot.syncState?.lastSyncTime ?: 0L > 0L -> {
+                val formatted = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                    .format(java.util.Date(snapshot.syncState?.lastSyncTime ?: 0L))
+                "最近同步：$formatted"
+            }
+            else -> "尚未完成首次同步"
+        }
+        return buildString {
+            append("坚果云 WebDAV · ")
+            append(maskSharedAccount(snapshot.ledger.webdavUser))
+            append("\n我的身份：$role")
+            append("\n成员 ${snapshot.members.size}/${SharedLedger.ACTIVE_MEMBER_LIMIT}\n")
+            append(members)
+            append("\n$sync · 待上传 ${snapshot.pendingCount} 项")
+        }
+    }
+
+    private fun maskSharedAccount(value: String): String {
+        val text = value.trim()
+        val at = text.indexOf('@')
+        return if (at > 1) "${text.first()}***${text.substring(at)}" else text.take(2) + "***"
+    }
+
+    private fun createSharedMemberInvite(ledgerId: Long) {
         fragment.lifecycleScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     val ctx = fragment.requireContext().applicationContext
-                    SharedLedgerService(ctx, AppDatabase.getDatabase(ctx)).inviteText(ledgerId)
+                    SharedLedgerService(ctx, AppDatabase.getDatabase(ctx)).createInvite(ledgerId)
+                }
+            }.onSuccess(::showCreatedInviteDialog).onFailure {
+                Toast.makeText(fragment.requireContext(), it.message ?: "创建邀请失败", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun copySharedInvite(ledgerId: Long, memberId: String) {
+        fragment.lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val ctx = fragment.requireContext().applicationContext
+                    SharedLedgerService(ctx, AppDatabase.getDatabase(ctx)).inviteText(ledgerId, memberId)
                 }
             }.onSuccess(::showCreatedInviteDialog).onFailure {
                 Toast.makeText(fragment.requireContext(), it.message ?: "读取邀请失败", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun confirmCancelSharedInvite(bookName: String, ledgerId: Long, member: SharedMember) {
+        showDeleteFollowupConfirmDialog(
+            title = "撤销成员 ${member.joinOrder} 的邀请",
+            message = "该邀请链接将失效，并释放一个成员席位。如果对方正在加入，本次操作会检测冲突并停止。",
+            confirmText = "撤销邀请",
+            isDanger = true
+        ) {
+            fragment.lifecycleScope.launch {
+                val error = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val ctx = fragment.requireContext().applicationContext
+                        SharedLedgerService(ctx, AppDatabase.getDatabase(ctx))
+                            .cancelInvite(ledgerId, member.memberId)
+                    }.exceptionOrNull()
+                }
+                if (error == null) {
+                    Toast.makeText(fragment.requireContext(), "邀请已撤销", Toast.LENGTH_SHORT).show()
+                    showSharedLedgerDetails(bookName, ledgerId)
+                } else {
+                    Toast.makeText(fragment.requireContext(), error.message ?: "撤销邀请失败", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun showEditSharedMemberNameDialog(bookName: String, ledgerId: Long, currentName: String) {
+        val panel = LayoutInflater.from(fragment.requireContext())
+            .inflate(R.layout.dialog_shared_join_input, null, false)
+        val input = panel.findViewById<EditText>(R.id.et_shared_join_input).apply {
+            hint = "我的成员名称"
+            setText(currentName)
+            setSelection(text?.length ?: 0)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+        }
+        panel.findViewById<TextView>(R.id.tv_shared_join_title).text = "修改我的成员名称"
+        panel.findViewById<TextView>(R.id.tv_shared_join_subtitle).text = "只修改你自己的名称，并同步给其他成员"
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(fragment.requireContext(), R.style.Theme_TapAccounting))
+            .setView(panel)
+            .create()
+        panel.findViewById<TextView>(R.id.btn_shared_join_cancel).setOnClickListener { dialog.dismiss() }
+        panel.findViewById<TextView>(R.id.btn_shared_join_confirm).apply {
+            text = "保存"
+            setOnClickListener {
+                val name = input.text.toString().trim()
+                if (name.isBlank()) {
+                    input.error = "请输入你的成员名称"
+                    return@setOnClickListener
+                }
+                isEnabled = false
+                fragment.lifecycleScope.launch {
+                    val error = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val ctx = fragment.requireContext().applicationContext
+                            SharedLedgerService(ctx, AppDatabase.getDatabase(ctx))
+                                .updateLocalMemberName(ledgerId, name)
+                        }.exceptionOrNull()
+                    }
+                    if (error == null) {
+                        dialog.dismiss()
+                        Toast.makeText(fragment.requireContext(), "成员名称已更新", Toast.LENGTH_SHORT).show()
+                        showSharedLedgerDetails(bookName, ledgerId)
+                    } else {
+                        isEnabled = true
+                        Toast.makeText(fragment.requireContext(), error.message ?: "更新失败", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
+    }
+
+    private fun showUpdateSharedPasswordDialog(bookName: String, ledgerId: Long) {
+        val panel = LayoutInflater.from(fragment.requireContext())
+            .inflate(R.layout.dialog_shared_join_input, null, false)
+        val input = panel.findViewById<EditText>(R.id.et_shared_join_input).apply {
+            hint = "坚果云应用密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+        }
+        panel.findViewById<TextView>(R.id.tv_shared_join_title).text = "重新连接坚果云"
+        panel.findViewById<TextView>(R.id.tv_shared_join_subtitle).text = "验证当前账号与共享成员身份后替换本机保存的应用密码"
+        val dialog = AlertDialog.Builder(ContextThemeWrapper(fragment.requireContext(), R.style.Theme_TapAccounting))
+            .setView(panel)
+            .create()
+        panel.findViewById<TextView>(R.id.btn_shared_join_cancel).setOnClickListener { dialog.dismiss() }
+        panel.findViewById<TextView>(R.id.btn_shared_join_confirm).apply {
+            text = "验证并保存"
+            setOnClickListener {
+                val password = input.text.toString()
+                if (password.isBlank()) {
+                    input.error = "请输入坚果云应用密码"
+                    return@setOnClickListener
+                }
+                isEnabled = false
+                fragment.lifecycleScope.launch {
+                    val error = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val ctx = fragment.requireContext().applicationContext
+                            SharedLedgerService(ctx, AppDatabase.getDatabase(ctx))
+                                .updateJianguoyunPassword(ledgerId, password)
+                        }.exceptionOrNull()
+                    }
+                    if (error == null) {
+                        dialog.dismiss()
+                        Toast.makeText(fragment.requireContext(), "坚果云连接已更新，正在同步", Toast.LENGTH_LONG).show()
+                        showSharedLedgerDetails(bookName, ledgerId)
+                    } else {
+                        isEnabled = true
+                        Toast.makeText(fragment.requireContext(), error.message ?: "连接验证失败", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+        OverlayDialogs.showPageCenterDialog(
+            dialog = dialog,
+            ctx = fragment.requireContext(),
+            widthRatio = 0.88f,
+            cancelOnTouchOutside = true,
+            useSolidPanelBackground = true
+        )
     }
 
     private fun confirmExitShared(bookName: String, ledgerId: Long, deleteLocal: Boolean) {
@@ -1211,13 +1474,9 @@ internal class HomeBookDrawerController(
                     runCatching {
                         val ctx = fragment.requireContext().applicationContext
                         val db = AppDatabase.getDatabase(ctx)
-                        val ledger = db.sharedLedgerDao().getById(ledgerId) ?: return@runCatching
-                        SharedLedgerService(ctx, db).exitKeepingLocalCopy(ledgerId)
                         if (deleteLocal) {
-                            db.billDao().deleteAllByBookName(bookName)
-                            db.budgetDao().deleteAllByBookId(ledger.bookId)
-                            db.chatMessageDao().deleteAllByBookName(bookName)
-                        }
+                            SharedLedgerService(ctx, db).exitDeletingLocalCopy(ledgerId)
+                        } else SharedLedgerService(ctx, db).exitKeepingLocalCopy(ledgerId)
                     }.exceptionOrNull()
                 }
                 if (error != null) {
@@ -1238,7 +1497,7 @@ internal class HomeBookDrawerController(
 
     private fun confirmDissolveShared(bookName: String, ledgerId: Long) {
         showDeleteFollowupConfirmDialog(
-            "解散共享账本", "解散后旧邀请失效，双方下次同步时都会停止共享并保留本地副本。坚果云归档不会被直接删除。",
+            "解散共享账本", "解散后旧邀请失效，所有成员下次同步时都会停止共享并保留本地副本。坚果云归档不会被直接删除。",
             "确认解散", true
         ) {
             fragment.lifecycleScope.launch {
@@ -1266,10 +1525,10 @@ internal class HomeBookDrawerController(
 
         panel.findViewById<TextView>(R.id.tv_shared_invite_subtitle).text =
             if (copiedAlready) "共享账本已创建，邀请已复制到剪贴板"
-            else "复制或分享给另一位成员即可加入"
+            else "复制或分享给新成员；对方加入时会自行填写名称"
         panel.findViewById<TextView>(R.id.tv_shared_invite_ledger).text = details.ledgerName
         panel.findViewById<TextView>(R.id.tv_shared_invite_member).text =
-            details.memberName.ifBlank { "成员${details.joinOrder}" }
+            details.memberName.ifBlank { "新成员席位 ${details.joinOrder}" }
 
         panel.findViewById<TextView>(R.id.btn_shared_invite_copy).setOnClickListener {
             val clipboard = fragment.requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -1298,7 +1557,7 @@ internal class HomeBookDrawerController(
                     AppDatabase.getDatabase(fragment.requireContext().applicationContext)
                         .bookDao().getById(ledger.bookId)?.name
                 } ?: details.ledgerName
-                showSharedLedgerManagement(bookName, ledger.id)
+                showSharedLedgerDetails(bookName, ledger.id)
             }
         }
         panel.findViewById<TextView>(R.id.btn_shared_invite_done).setOnClickListener {

@@ -9,10 +9,15 @@ class SharedSyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
     override suspend fun doWork(): Result = try {
         val db = AppDatabase.getDatabase(applicationContext)
         val engine = SharedSyncEngine(applicationContext, db)
-        val forceFull = inputData.getBoolean(KEY_FORCE_FULL, false)
+        val requestedFullSync = inputData.getBoolean(KEY_FORCE_FULL, false)
+        var retryFailedPull = false
         repeat(2) {
-            engine.syncAll(forceFull = forceFull)
-            if (db.syncQueueDao().countAll() == 0) return Result.success()
+            val run = engine.syncAll(forceFull = requestedFullSync || retryFailedPull)
+            val pendingUploadCount = db.syncQueueDao().countAll()
+            if (!SharedSyncPolicy.shouldRetryWorker(run.failedLedgerCount, pendingUploadCount)) {
+                return Result.success()
+            }
+            retryFailedPull = run.failedLedgerCount > 0
         }
         Result.retry()
     } catch (_: Exception) {

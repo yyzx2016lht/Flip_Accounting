@@ -8,8 +8,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.taostudio.tapaccounting.data.backup.AutoBackupWorker
-import com.taostudio.tapaccounting.data.backup.BackupDefaultDirHelper
-import com.taostudio.tapaccounting.data.backup.BackupInitHelper
 import com.taostudio.tapaccounting.data.local.AppDatabase
 import com.taostudio.tapaccounting.data.local.DatabaseDowngradeHelper
 import java.text.SimpleDateFormat
@@ -72,32 +70,8 @@ class BackupHomeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 检查并创建默认备份目录（首次安装或权限恢复后）
-        BackupInitHelper.ensureDefaultDirWithPermission(this)
         updateAutoBackupHint()
         checkAndShowDowngradeBackupPrompt()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == BackupDefaultDirHelper.REQUEST_CODE_STORAGE_PERMISSION) {
-            if (BackupDefaultDirHelper.hasStoragePermission()) {
-                BackupInitHelper.ensureDefaultDirWithPermission(this)
-            }
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == BackupDefaultDirHelper.REQUEST_CODE_STORAGE_PERMISSION) {
-            if (BackupDefaultDirHelper.hasStoragePermission()) {
-                BackupInitHelper.ensureDefaultDirWithPermission(this)
-            }
-        }
     }
 
     private fun updateAutoBackupHint() {
@@ -160,4 +134,3 @@ class BackupHomeActivity : AppCompatActivity() {
             .show()
     }
 }
-

@@ -82,13 +82,19 @@ object BillDeleteHelper {
         if (uniqueBills.isEmpty()) return
 
         db.billDao().backfillAssetLinksByName()
-        uniqueBills.forEach { bill ->
-            deleteBillAndRevertBalanceInternal(
-                db = db,
-                bill = bill,
-                backfillLinks = false,
-                scopeBillIds = scopeBillIds
-            )
+        val latestBills = uniqueBills.map { bill ->
+            if (bill.id > 0L) db.billDao().getBillById(bill.id) ?: bill else bill
+        }
+        latestBills.forEach { SharedMutationHooks.requireOwner(db, it) }
+        db.withTransaction {
+            latestBills.forEach { bill ->
+                deleteBillAndRevertBalanceInternal(
+                    db = db,
+                    bill = bill,
+                    backfillLinks = false,
+                    scopeBillIds = scopeBillIds
+                )
+            }
         }
     }
 
@@ -110,6 +116,16 @@ object BillDeleteHelper {
 
             // 先保存到 deleted_bills 表
             deletedBillDao.insert(billToDeletedBill(latestBill))
+
+            // 转入理财产生的本金批次与来源账单同生共死，避免删账单后继续虚构收益。
+            if (latestBill.id > 0L) {
+                db.investmentLotDao().deleteBySourceBillId(latestBill.id)
+            }
+            InvestmentInterestService.applyEstimateBillLotImpact(
+                db = db,
+                bill = latestBill,
+                restoring = false
+            )
 
             when {
                 latestBill.subType == Bill.SUBTYPE_REFUND -> {

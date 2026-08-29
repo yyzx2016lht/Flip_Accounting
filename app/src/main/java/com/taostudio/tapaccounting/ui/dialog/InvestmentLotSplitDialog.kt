@@ -9,8 +9,11 @@ import android.text.TextWatcher
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -152,10 +155,13 @@ object InvestmentLotSplitDialog {
             val amountInput: EditText,
             val rateInput: EditText,
             val startInput: TextView,
+            val cycleInput: Spinner,
+            val payoutText: TextView,
             var startEarningAt: Long
         )
 
         val rows = mutableListOf<LotRow>()
+        val cycleOptions = InvestmentInterestService.cycleOptions()
         val todayStart = InvestmentInterestService.startOfDay(System.currentTimeMillis())
 
         fun updateRemainingHint() {
@@ -180,6 +186,20 @@ object InvestmentLotSplitDialog {
         }
 
         fun rebuildRows() {
+            val preservedDrafts = rows.map { row ->
+                val cycle = cycleOptions[row.cycleInput.selectedItemPosition.coerceAtLeast(0)].second
+                InvestmentLotDraft(
+                    amount = BillAssetImpactService.roundMoney(
+                        parseLocalizedAmount(row.amountInput.text?.toString().orEmpty())
+                    ),
+                    schedule = InvestmentInterestService.InvestmentSchedule(
+                        startEarningAt = row.startEarningAt,
+                        firstPayoutAt = InvestmentInterestService.firstPayoutFor(row.startEarningAt, cycle),
+                        annualInterestRate = parseLocalizedAmount(row.rateInput.text?.toString().orEmpty()),
+                        settlementCycle = cycle
+                    )
+                )
+            }
             lotsContainer.removeAllViews()
             rows.clear()
             val initialCount = initialDrafts.size.takeIf { it > 0 }
@@ -205,7 +225,7 @@ object InvestmentLotSplitDialog {
                     textSize = 15f
                     typeface = android.graphics.Typeface.DEFAULT_BOLD
                 })
-                val draft = initialDrafts.getOrNull(index)
+                val draft = preservedDrafts.getOrNull(index) ?: initialDrafts.getOrNull(index)
                 val amountText = when {
                     draft != null && draft.amount > 0.0 -> formatCompactDecimal(draft.amount)
                     count == 1 -> formatCompactDecimal(totalAmount)
@@ -234,10 +254,23 @@ object InvestmentLotSplitDialog {
                     activity.getString(R.string.investment_lot_split_rate_optional),
                     rateText
                 )
+                val startInput = TextView(themeContext)
+                val cycleInput = Spinner(themeContext).apply {
+                    adapter = ArrayAdapter(
+                        themeContext,
+                        android.R.layout.simple_spinner_dropdown_item,
+                        cycleOptions.map { it.first }
+                    )
+                    val initialCycle = draft?.schedule?.settlementCycle
+                        ?: com.taostudio.tapaccounting.data.local.entity.InvestmentLot.CYCLE_DAILY
+                    setSelection(cycleOptions.indexOfFirst { it.second == initialCycle }.coerceAtLeast(0))
+                }
                 val row = LotRow(
                     amountInput = amountInput,
                     rateInput = rateInput,
-                    startInput = TextView(themeContext),
+                    startInput = startInput,
+                    cycleInput = cycleInput,
+                    payoutText = TextView(themeContext),
                     startEarningAt = draft?.schedule?.startEarningAt
                         ?: InvestmentInterestService.plusDays(todayStart, 1)
                 )
@@ -267,14 +300,49 @@ object InvestmentLotSplitDialog {
                         ElegantDatePickerSheet.show(
                             context = activity,
                             initialTimeMillis = row.startEarningAt,
-                            minTimeMillis = todayStart
+                            minTimeMillis = null
                         ) { selected ->
                             row.startEarningAt = InvestmentInterestService.startOfDay(selected)
                             row.startInput.text = formatDateForSchedule(row.startEarningAt)
+                            val cycle = cycleOptions[row.cycleInput.selectedItemPosition.coerceAtLeast(0)].second
+                            row.payoutText.text = activity.getString(
+                                R.string.investment_first_payout_value,
+                                formatDateForSchedule(InvestmentInterestService.firstPayoutFor(row.startEarningAt, cycle))
+                            )
                         }
                     }
                 }
                 card.addView(row.startInput)
+                card.addView(TextView(themeContext).apply {
+                    text = activity.getString(R.string.investment_settlement_cycle)
+                    setTextColor(Color.parseColor("#667085"))
+                    textSize = 12f
+                    setPadding(0, dp(activity, 10), 0, dp(activity, 4))
+                })
+                card.addView(row.cycleInput, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(activity, 42)
+                ))
+                fun refreshPayout() {
+                    val cycle = cycleOptions[row.cycleInput.selectedItemPosition.coerceAtLeast(0)].second
+                    row.payoutText.text = activity.getString(
+                        R.string.investment_first_payout_value,
+                        formatDateForSchedule(InvestmentInterestService.firstPayoutFor(row.startEarningAt, cycle))
+                    )
+                }
+                row.payoutText.apply {
+                    setTextColor(Color.parseColor("#8A9099"))
+                    textSize = 12f
+                    setPadding(0, dp(activity, 6), 0, 0)
+                }
+                row.cycleInput.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                        refreshPayout()
+                    }
+                    override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+                }
+                refreshPayout()
+                card.addView(row.payoutText)
                 lotsContainer.addView(card)
                 rows += row
             }
@@ -300,8 +368,12 @@ object InvestmentLotSplitDialog {
                     amount = amount,
                     schedule = InvestmentInterestService.InvestmentSchedule(
                         startEarningAt = row.startEarningAt,
-                        firstPayoutAt = InvestmentInterestService.plusDays(row.startEarningAt, 1),
-                        annualInterestRate = parseLocalizedAmount(row.rateInput.text?.toString().orEmpty())
+                        firstPayoutAt = InvestmentInterestService.firstPayoutFor(
+                            row.startEarningAt,
+                            cycleOptions[row.cycleInput.selectedItemPosition.coerceAtLeast(0)].second
+                        ),
+                        annualInterestRate = parseLocalizedAmount(row.rateInput.text?.toString().orEmpty()),
+                        settlementCycle = cycleOptions[row.cycleInput.selectedItemPosition.coerceAtLeast(0)].second
                     )
                 )
             }
@@ -356,12 +428,21 @@ object InvestmentLotSplitDialog {
                         row.amountInput.error = activity.getString(R.string.investment_lot_split_amount_required)
                         return@setOnClickListener
                     }
+                    val annualRate = parseLocalizedAmount(row.rateInput.text?.toString().orEmpty())
+                    if (!InvestmentInterestService.isValidAnnualRate(annualRate)) {
+                        row.rateInput.error = "请输入大于 -100 且不超过 10000 的年利率"
+                        return@setOnClickListener
+                    }
                     InvestmentLotDraft(
                         amount = amount,
                         schedule = InvestmentInterestService.InvestmentSchedule(
                             startEarningAt = row.startEarningAt,
-                            firstPayoutAt = InvestmentInterestService.plusDays(row.startEarningAt, 1),
-                            annualInterestRate = parseLocalizedAmount(row.rateInput.text?.toString().orEmpty())
+                            firstPayoutAt = InvestmentInterestService.firstPayoutFor(
+                                row.startEarningAt,
+                                cycleOptions[row.cycleInput.selectedItemPosition.coerceAtLeast(0)].second
+                            ),
+                            annualInterestRate = annualRate,
+                            settlementCycle = cycleOptions[row.cycleInput.selectedItemPosition.coerceAtLeast(0)].second
                         )
                     )
                 }

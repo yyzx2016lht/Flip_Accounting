@@ -97,8 +97,6 @@ class ChatActivity : AppCompatActivity() {
         const val MSG_TYPE_USER_FILE = 7
         const val MSG_TYPE_AI_TEXT = 3
         const val MSG_TYPE_AI_BILL = 4
-        const val MSG_TYPE_QUERY_DRAFT = 5
-        const val MSG_TYPE_QUERY_RESULT = 6
         const val BILL_INTERACTION_NONE = 0
         const val BILL_INTERACTIVE_ACTION_PRIMARY = 1
         const val BILL_INTERACTIVE_ACTION_SECONDARY = 2
@@ -167,14 +165,6 @@ class ChatActivity : AppCompatActivity() {
     private val db by lazy { AppDatabase.getDatabase(this) }
     private val aiScopeJob = SupervisorJob()
     private val aiWorkScope = CoroutineScope(aiScopeJob + Dispatchers.Main.immediate)
-    internal val queryDraftManager by lazy {
-        com.taostudio.tapaccounting.chat.query.QueryDraftManager(db) { currentBookName }
-    }
-
-    /** 构建查询上下文（供 QueryDraftManager 和 QueryPlanner 使用） */
-    internal suspend fun buildQueryContext(): com.taostudio.tapaccounting.chat.query.QueryContext {
-        return com.taostudio.tapaccounting.chat.query.QueryContextBuilder(db).build(currentBookName)
-    }
     private val messagePipeline by lazy {
         ChatMessagePipeline(
             context = this,
@@ -202,8 +192,6 @@ class ChatActivity : AppCompatActivity() {
             db = db,
             getCurrentBookName = { currentBookName },
             getCurrentConversationId = { currentConversationId },
-            appendQueryDraftMessage = { draft -> appendQueryDraftMessage(draft) },
-            appendQueryResultMessage = { result -> appendQueryResultMessage(result) },
             isConversationMode = { chatMode == MODE_CONVERSATION }
         )
     }
@@ -284,15 +272,6 @@ class ChatActivity : AppCompatActivity() {
             onInteractiveBillAction = ::onInteractiveBillAction,
             onOpenImagePreview = ::openImagePreview,
             onInterruptAiLoading = ::interruptAiResponse,
-            onQueryDraftStats = { item -> onQueryDraftStats(item) },
-            onQueryDraftSearch = { item -> onQueryDraftSearch(item) },
-            onQueryDraftCancel = { item -> onQueryDraftCancel(item) },
-            onQueryResultViewDetails = { item -> onQueryResultViewDetails(item) },
-            onQueryResultEditConditions = { item -> onQueryResultEditConditions(item) },
-            onQueryDraftEditKeyword = { item -> onQueryDraftEditKeyword(item) },
-            onQueryDraftEditDate = { item -> onQueryDraftEditDate(item) },
-            onQueryDraftEditBillType = { item -> onQueryDraftEditBillType(item) },
-            onQueryDraftEditBookScope = { item -> onQueryDraftEditBookScope(item) },
             isBillMessageExpanded = ::isBillMessageExpanded,
             onToggleBillExpand = ::toggleBillMessageExpand,
             onShowBillMessageMenu = ::showBillMessageMenu,
@@ -2168,233 +2147,6 @@ class ChatActivity : AppCompatActivity() {
         startActivity(Intent(this, CalendarActivity::class.java))
     }
 
-    /** 追加查询草稿卡片消息 */
-    private fun appendQueryDraftMessage(draft: com.taostudio.tapaccounting.chat.query.QueryDraft): String {
-        val uiKey = UUID.randomUUID().toString()
-        val item = ChatDisplayItem(
-            msgType = MSG_TYPE_QUERY_DRAFT,
-            content = queryDraftManager.formatConditionsText(draft),
-            timestamp = System.currentTimeMillis(),
-            queryDraft = draft
-        )
-        displayMessages.add(item)
-        adapter.notifyItemInserted(displayMessages.lastIndex)
-        scrollToBottom()
-        return uiKey
-    }
-
-    /** 追加查询结果卡片消息 */
-    private fun appendQueryResultMessage(result: com.taostudio.tapaccounting.chat.query.QueryResult): String {
-        val uiKey = UUID.randomUUID().toString()
-        val item = ChatDisplayItem(
-            msgType = MSG_TYPE_QUERY_RESULT,
-            content = queryDraftManager.formatResultText(result),
-            timestamp = System.currentTimeMillis(),
-            queryResult = result
-        )
-        displayMessages.add(item)
-        adapter.notifyItemInserted(displayMessages.lastIndex)
-        scrollToBottom()
-        return uiKey
-    }
-
-    /** 用户点击"统计金额" —— 使用该卡片自己的草稿 */
-    private fun onQueryDraftStats(item: ChatDisplayItem) {
-        val draft = item.queryDraft ?: return
-        lifecycleScope.launch {
-            val queryContext = withContext(Dispatchers.IO) { buildQueryContext() }
-            val result = withContext(Dispatchers.IO) { queryDraftManager.executeStats(draft, queryContext) }
-            appendQueryResultMessage(result)
-        }
-    }
-
-    /** 用户点击"搜索账单" —— 使用该卡片自己的草稿 */
-    private fun onQueryDraftSearch(item: ChatDisplayItem) {
-        val draft = item.queryDraft ?: return
-        lifecycleScope.launch {
-            val queryContext = withContext(Dispatchers.IO) { buildQueryContext() }
-            val bills = withContext(Dispatchers.IO) { queryDraftManager.executeSearch(draft, queryContext) }
-            // executeSearch 已按 draft.billType 过滤，直接对结果求和即可
-            val statBills = bills.filterNot { it.excludeFromStats }
-            val result = com.taostudio.tapaccounting.chat.query.QueryResult(
-                draft = draft,
-                billCount = statBills.size,
-                totalAmount = statBills.sumOf { it.amount },
-                billsPreview = bills.take(3).map {
-                    com.taostudio.tapaccounting.chat.query.BillPreview(
-                        id = it.id, time = it.time, type = it.type,
-                        amount = it.amount, remark = it.remark,
-                        categoryName = it.categoryName,
-                        accountName = it.accountName, currency = it.currency
-                    )
-                }
-            )
-            appendQueryResultMessage(result)
-        }
-    }
-
-    /** 用户点击"取消" */
-    private fun onQueryDraftCancel(item: ChatDisplayItem) {
-        queryDraftManager.clearDraft()
-        val index = displayMessages.indexOfFirst { it.uiKey == item.uiKey }
-        if (index >= 0) {
-            displayMessages.removeAt(index)
-            adapter.notifyItemRemoved(index)
-        }
-    }
-
-    /** 用户点击"查看明细" —— 带完整筛选条件 */
-    private fun onQueryResultViewDetails(item: ChatDisplayItem) {
-        val result = item.queryResult ?: return
-        val draft = result.draft
-        // 用本地查询获取匹配账单，然后展示在聊天中
-        lifecycleScope.launch {
-            val queryContext = withContext(Dispatchers.IO) { buildQueryContext() }
-            val bills = withContext(Dispatchers.IO) { queryDraftManager.executeSearch(draft, queryContext) }
-            if (bills.isNotEmpty()) {
-                val summary = buildBillListSummary(bills.take(10), draft)
-                appendAiTextMessage(summary, false, currentBookName, currentConversationId)
-            } else {
-                appendAiTextMessage("没有找到匹配的账单。", false, currentBookName, currentConversationId)
-            }
-        }
-    }
-
-    /** 构建账单列表摘要 */
-    private fun buildBillListSummary(bills: List<Bill>, draft: com.taostudio.tapaccounting.chat.query.QueryDraft): String {
-        val dateFormat = java.text.SimpleDateFormat("MM-dd", java.util.Locale.getDefault())
-        val sb = StringBuilder()
-        val timeLabel = draft.timeRange?.label ?: "全部时间"
-        val typeLabel = when (draft.billType) {
-            com.taostudio.tapaccounting.chat.query.QueryBillType.EXPENSE -> "支出"
-            com.taostudio.tapaccounting.chat.query.QueryBillType.INCOME -> "收入"
-            com.taostudio.tapaccounting.chat.query.QueryBillType.TRANSFER -> "转账"
-            com.taostudio.tapaccounting.chat.query.QueryBillType.REPAYMENT -> "还款"
-            com.taostudio.tapaccounting.chat.query.QueryBillType.REFUND -> "退款"
-            com.taostudio.tapaccounting.chat.query.QueryBillType.ANY -> "全部"
-        }
-        sb.appendLine("📋 ${timeLabel}${typeLabel}账单明细（前${bills.size}条）")
-        sb.appendLine()
-        for (bill in bills) {
-            val date = dateFormat.format(java.util.Date(bill.time))
-            val title = bill.remark.ifBlank { bill.categoryName.ifBlank { bill.accountName.ifBlank { "未备注" } } }
-            sb.appendLine("$date $title ¥${String.format(java.util.Locale.getDefault(), "%.2f", bill.amount)}")
-        }
-        return sb.toString().trimEnd()
-    }
-
-    /** 用户点击"改条件" —— 重新展示草稿卡片 */
-    private fun onQueryResultEditConditions(item: ChatDisplayItem) {
-        val result = item.queryResult ?: return
-        // 重新设置 currentDraft 为该结果的草稿
-        queryDraftManager.updateDraft(result.draft.id, result.draft)
-        appendQueryDraftMessage(result.draft)
-    }
-
-    // === 卡片手动编辑 ===
-
-    /** 编辑关键词 */
-    private fun onQueryDraftEditKeyword(item: ChatDisplayItem) {
-        val draft = item.queryDraft ?: return
-        val editText = android.widget.EditText(this).apply {
-            setText(draft.keyword ?: "")
-            hint = getString(R.string.query_edit_keyword_hint)
-            setPadding(48, 32, 48, 32)
-        }
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.query_edit_keyword_title))
-            .setView(editText)
-            .setPositiveButton("确定") { _, _ ->
-                val newKeyword = editText.text.toString().trim().ifBlank { null }
-                val updated = draft.copy(keyword = newKeyword, updatedAt = System.currentTimeMillis())
-                updateQueryDraftItem(item, updated)
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    /** 编辑日期范围 */
-    private fun onQueryDraftEditDate(item: ChatDisplayItem) {
-        val draft = item.queryDraft ?: return
-        com.taostudio.tapaccounting.ui.dialog.ElegantDatePickerSheet.showRange(
-            context = this,
-            initialStartMillis = draft.timeRange?.startMillis,
-            initialEndMillis = draft.timeRange?.endMillis
-        ) { startMillis, endMillis ->
-            val label = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(startMillis)) +
-                " 至 " +
-                java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(endMillis))
-            val newTimeRange = com.taostudio.tapaccounting.chat.query.QueryTimeRange(
-                startMillis = startMillis,
-                endMillis = endMillis,
-                label = label
-            )
-            val updated = draft.copy(timeRange = newTimeRange, updatedAt = System.currentTimeMillis())
-            updateQueryDraftItem(item, updated)
-        }
-    }
-
-    /** 编辑账单类型 */
-    private fun onQueryDraftEditBillType(item: ChatDisplayItem) {
-        val draft = item.queryDraft ?: return
-        val types = arrayOf("支出", "收入", "转账", "还款", "退款", "全部")
-        val typeValues = arrayOf(
-            com.taostudio.tapaccounting.chat.query.QueryBillType.EXPENSE,
-            com.taostudio.tapaccounting.chat.query.QueryBillType.INCOME,
-            com.taostudio.tapaccounting.chat.query.QueryBillType.TRANSFER,
-            com.taostudio.tapaccounting.chat.query.QueryBillType.REPAYMENT,
-            com.taostudio.tapaccounting.chat.query.QueryBillType.REFUND,
-            com.taostudio.tapaccounting.chat.query.QueryBillType.ANY
-        )
-        val currentIndex = typeValues.indexOf(draft.billType).coerceAtLeast(0)
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("选择账单类型")
-            .setSingleChoiceItems(types, currentIndex) { dialog, which ->
-                val updated = draft.copy(billType = typeValues[which], updatedAt = System.currentTimeMillis())
-                updateQueryDraftItem(item, updated)
-                dialog.dismiss()
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    /** 编辑账本范围 */
-    private fun onQueryDraftEditBookScope(item: ChatDisplayItem) {
-        val draft = item.queryDraft ?: return
-        val scopes = arrayOf("当前账本", "全部账本")
-        val scopeValues = arrayOf(
-            com.taostudio.tapaccounting.chat.query.BookScope.CURRENT,
-            com.taostudio.tapaccounting.chat.query.BookScope.ALL
-        )
-        val currentIndex = scopeValues.indexOf(draft.bookScope).coerceAtLeast(0)
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("选择账本范围")
-            .setSingleChoiceItems(scopes, currentIndex) { dialog, which ->
-                val updated = draft.copy(
-                    bookScope = scopeValues[which],
-                    bookName = if (scopeValues[which] == com.taostudio.tapaccounting.chat.query.BookScope.CURRENT) currentBookName else null,
-                    updatedAt = System.currentTimeMillis()
-                )
-                updateQueryDraftItem(item, updated)
-                dialog.dismiss()
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    /** 更新查询草稿卡片 */
-    private fun updateQueryDraftItem(item: ChatDisplayItem, newDraft: com.taostudio.tapaccounting.chat.query.QueryDraft) {
-        val index = displayMessages.indexOfFirst { it.uiKey == item.uiKey }
-        if (index < 0) return
-        displayMessages[index] = item.copy(
-            queryDraft = newDraft,
-            content = queryDraftManager.formatConditionsText(newDraft)
-        )
-        adapter.notifyItemChanged(index)
-        // 同步更新 currentDraft
-        queryDraftManager.updateDraft(newDraft.id, newDraft)
-    }
-
     private fun scrollToBottom(force: Boolean = false) {
         if (!force && isInlineAmountEditing()) return
         if (displayMessages.isEmpty()) return
@@ -2462,8 +2214,6 @@ data class ChatDisplayItem(
     val compactGroupedLayout: Boolean = false,
     val billInteractionMode: Int = ChatActivity.BILL_INTERACTION_NONE,
     val billInteractionToken: String = "",
-    val queryDraft: com.taostudio.tapaccounting.chat.query.QueryDraft? = null,
-    val queryResult: com.taostudio.tapaccounting.chat.query.QueryResult? = null,
     val showConversationModeNudge: Boolean = false
 )
 

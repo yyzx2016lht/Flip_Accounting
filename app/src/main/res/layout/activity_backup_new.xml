@@ -125,59 +125,11 @@
                             android:textSize="12sp" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:id="@+id/tv_backup_portable_hint"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp"
-                            android:text="@string/pin_protection"
-                            android:textColor="#2D3C57"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-
-                        <RadioGroup
-                            android:id="@+id/rg_backup_pin_mode"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:orientation="horizontal">
-
-                            <RadioButton
-                                android:id="@+id/rb_pin_auto"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:checked="true"
-                                android:singleLine="true"
-                                android:text="@string/auto"
-                                android:textColor="#2D3C57"
-                                android:textSize="13sp" />
-
-                            <RadioButton
-                                android:id="@+id/rb_pin_force"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:singleLine="true"
-                                android:text="@string/forced"
-                                android:textColor="#2D3C57"
-                                android:textSize="13sp" />
-
-                            <RadioButton
-                                android:id="@+id/rb_pin_plain"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:singleLine="true"
-                                android:text="@string/no_encryption"
-                                android:textColor="#2D3C57"
-                                android:textSize="13sp" />
-                        </RadioGroup>
-
-                        <TextView
-                            android:id="@+id/tv_backup_pin_hint"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="@string/backup_pin_auto_desc"
+                            android:text="@string/backup_portable_desc"
                             android:textColor="#6E7D95"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -516,16 +468,15 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:orientation="horizontal"
-                        android:weightSum="2">
+                        android:weightSum="1">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_backup_save_as"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
                             android:layout_height="50dp"
-                            android:layout_marginEnd="7dp"
                             android:layout_weight="1"
-                            android:text="@string/overwrite"
+                            android:text="@string/save_as"
                             android:textAllCaps="false"
                             android:textColor="#36507D"
                             android:textSize="14sp"
@@ -538,25 +489,6 @@
                             app:strokeColor="#CFE0FA"
                             app:strokeWidth="1.2dp" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_change_backup_dir"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="50dp"
-                            android:layout_marginStart="7dp"
-                            android:layout_weight="1"
-                            android:text="@string/change_directory"
-                            android:textAllCaps="false"
-                            android:textColor="#36507D"
-                            android:textSize="14sp"
-                            app:backgroundTint="#FFFFFF"
-                            app:cornerRadius="14dp"
-                            app:icon="@drawable/ic_backup_folder_action"
-                            app:iconGravity="textStart"
-                            app:iconPadding="8dp"
-                            app:iconTint="#4B73C8"
-                            app:strokeColor="#CFE0FA"
-                            app:strokeWidth="1.2dp" />
                     </LinearLayout>
 
                 </LinearLayout>
@@ -1233,4 +1165,3 @@
     </ScrollView>
 
 </LinearLayout>
-

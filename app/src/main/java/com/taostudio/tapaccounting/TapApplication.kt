@@ -14,6 +14,7 @@ import com.taostudio.tapaccounting.logic.InvestmentInterestService
 import com.taostudio.tapaccounting.logic.InvestmentInterestWorker
 import com.taostudio.tapaccounting.ui.main.SharedYearMonthSession
 import com.taostudio.tapaccounting.data.backup.BackupInitHelper
+import com.taostudio.tapaccounting.data.backup.BackupCacheCleaner
 import com.taostudio.tapaccounting.data.sync.SharedSyncScheduler
 import com.taostudio.tapaccounting.data.sync.SharedMutationHooks
 
@@ -36,6 +37,7 @@ class TapApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        BackupCacheCleaner.cleanupAtProcessStart(this)
         ProcessExitLogger.onAppCreate(this)
         SharedYearMonthSession.resetToCurrentMonth()
         installCrashHandler()

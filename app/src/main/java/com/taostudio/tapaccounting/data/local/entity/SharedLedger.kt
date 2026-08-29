@@ -22,7 +22,7 @@ data class SharedLedger(
     val createdAt: Long
 ) {
     companion object {
-        const val ACTIVE_MEMBER_LIMIT = 2
+        const val ACTIVE_MEMBER_LIMIT = 5
         const val PROTOCOL_MEMBER_LIMIT = 5
     }
 }

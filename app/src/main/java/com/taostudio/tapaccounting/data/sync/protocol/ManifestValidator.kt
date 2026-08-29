@@ -14,10 +14,13 @@ object ManifestValidator {
             return ValidationResult.Invalid("name too long: ${manifest.name.length}")
         }
         if (manifest.createdAt < 0) return ValidationResult.Invalid("createdAt must be >= 0")
-        if (manifest.members.size !in Manifest.REQUIRED_MEMBER_COUNT..Manifest.MAX_MEMBER_COUNT) {
+        if (manifest.members.size !in Manifest.MIN_MEMBER_COUNT..Manifest.MAX_MEMBER_COUNT) {
             return ValidationResult.Invalid(
-                "Expected ${Manifest.REQUIRED_MEMBER_COUNT}..${Manifest.MAX_MEMBER_COUNT} members, got ${manifest.members.size}"
+                "Expected ${Manifest.MIN_MEMBER_COUNT}..${Manifest.MAX_MEMBER_COUNT} members, got ${manifest.members.size}"
             )
+        }
+        if (manifest.members.none { it.joinOrder == 1 }) {
+            return ValidationResult.Invalid("Missing creator member with joinOrder 1")
         }
 
         val memberIds = mutableSetOf<String>()
@@ -41,6 +44,15 @@ object ManifestValidator {
             }
             if (!joinOrders.add(member.joinOrder)) {
                 return ValidationResult.Invalid("Duplicate joinOrder: ${member.joinOrder}")
+            }
+            if (member.invitedAt != null && member.invitedAt < 0) {
+                return ValidationResult.Invalid("Member $index invitedAt must be >= 0")
+            }
+            if (member.joinedAt != null && member.joinedAt < 0) {
+                return ValidationResult.Invalid("Member $index joinedAt must be >= 0")
+            }
+            if (member.invitedAt != null && member.joinedAt != null && member.joinedAt < member.invitedAt) {
+                return ValidationResult.Invalid("Member $index joinedAt cannot be before invitedAt")
             }
         }
         return ValidationResult.Valid

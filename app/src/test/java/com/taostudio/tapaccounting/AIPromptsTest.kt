@@ -7,10 +7,12 @@ import org.junit.Test
 class AIPromptsTest {
     @Test
     fun intentRouterPromptContainsKeyElements() {
-        val prompt = AIPrompts.INTENT_ROUTER_PROMPT_DEFAULT
+        val prompt = AIPrompts.CHAT_INPUT_ROUTER_PROMPT
 
-        assertTrue(prompt.contains("BOOKKEEPING"))
+        assertTrue(prompt.contains("ACCOUNTING_CREATE"))
         assertTrue(prompt.contains("GENERAL_CHAT"))
+        assertTrue(prompt.contains("UNSUPPORTED_WRITE"))
+        assertFalse(prompt.contains("ACCOUNTING_QUERY"))
         assertTrue(prompt.contains("intent"))
     }
 

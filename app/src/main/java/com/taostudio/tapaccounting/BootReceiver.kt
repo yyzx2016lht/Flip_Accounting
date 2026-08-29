@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.taostudio.tapaccounting.data.backup.BackupDefaultDirHelper
 import com.taostudio.tapaccounting.logic.InvestmentInterestWorker
 
 class BootReceiver : BroadcastReceiver() {
@@ -15,6 +16,8 @@ class BootReceiver : BroadcastReceiver() {
         if (intent == null) return
 
         if (Intent.ACTION_MY_PACKAGE_REPLACED == intent.action) {
+            runCatching { BackupDefaultDirHelper.ensureDefaultDirExists(context.applicationContext) }
+                .onFailure { Log.w(TAG, "create private backup directory after update failed", it) }
             InvestmentInterestWorker.schedule(context.applicationContext)
         }
 
@@ -39,4 +42,3 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 }
-

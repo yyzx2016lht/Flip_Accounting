@@ -507,6 +507,7 @@ class MainActivity : AppCompatActivity() {
         buttonText: String,
         multiline: Boolean = false,
         password: Boolean = false,
+        initialValue: String? = null,
         onConfirm: (EditText, AlertDialog, TextView) -> Unit
     ) {
         val panel = LayoutInflater.from(this).inflate(R.layout.dialog_shared_join_input, null, false)
@@ -520,6 +521,10 @@ class MainActivity : AppCompatActivity() {
                 inputType = android.text.InputType.TYPE_CLASS_TEXT
                 transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
                 panel.findViewById<TextInputLayout>(R.id.layout_shared_join_input).endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
+            }
+            if (!initialValue.isNullOrBlank()) {
+                setText(initialValue)
+                setSelection(text?.length ?: 0)
             }
         }
         panel.findViewById<TextView>(R.id.tv_shared_join_title).text = title
@@ -567,7 +572,7 @@ class MainActivity : AppCompatActivity() {
                 item.findViewById<TextView>(R.id.tv_delete_option_risk).visibility = View.GONE
                 item.setOnClickListener {
                     dialog.dismiss()
-                    showJoinPasswordDialog(invite, handledKey, book)
+                    showJoinMemberNameDialog(invite, handledKey, book)
                 }
                 container.addView(item)
             }
@@ -580,7 +585,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showJoinPasswordDialog(invite: SharedInvite, handledKey: String, existingBookName: String?) {
+    private fun showJoinMemberNameDialog(invite: SharedInvite, handledKey: String, existingBookName: String?) {
+        showJoinInputDialog(
+            title = "设置我的成员名称",
+            subtitle = "名称由你自己填写，加入后会显示给共享账本中的其他成员",
+            hint = "我的成员名称",
+            buttonText = "下一步",
+            initialValue = Prefs.getUserChatName(this).trim().takeUnless { it == "我" }
+        ) { input, dialog, _ ->
+            val memberName = input.text.toString().trim()
+            if (memberName.isBlank()) {
+                input.error = "请输入你的成员名称"
+                return@showJoinInputDialog
+            }
+            dialog.dismiss()
+            showJoinPasswordDialog(invite, handledKey, existingBookName, memberName)
+        }
+    }
+
+    private fun showJoinPasswordDialog(
+        invite: SharedInvite,
+        handledKey: String,
+        existingBookName: String?,
+        memberName: String
+    ) {
         val title = existingBookName?.let { "合并“$it”并加入" } ?: "加入 ${invite.ledgerName}"
         showJoinInputDialog(title, "请输入创建者同一坚果云账号的应用密码", "坚果云应用密码", "加入", password = true) { input, dialog, button ->
             val password = input.text.toString()
@@ -590,10 +618,13 @@ class MainActivity : AppCompatActivity() {
             }
             button.isEnabled = false
             lifecycleScope.launch {
-                    runCatching { withContext(Dispatchers.IO) { SharedLedgerService(applicationContext, AppDatabase.getDatabase(applicationContext)).join(invite, password, existingBookName) } }
+                    runCatching { withContext(Dispatchers.IO) { SharedLedgerService(applicationContext, AppDatabase.getDatabase(applicationContext)).join(invite, password, memberName, existingBookName) } }
                         .onSuccess { ledgerId ->
                             val db = AppDatabase.getDatabase(applicationContext)
                             val ledger = withContext(Dispatchers.IO) { db.sharedLedgerDao().getById(ledgerId) }
+                            val initialSyncError = withContext(Dispatchers.IO) {
+                                db.syncStateDao().get(ledgerId)?.lastError
+                            }
                             val bookName = ledger?.let { withContext(Dispatchers.IO) { db.bookDao().getById(it.bookId)?.name } }
                             if (!bookName.isNullOrBlank()) {
                                 BookAccountManager.addBookAccount(this@MainActivity, bookName)
@@ -601,7 +632,12 @@ class MainActivity : AppCompatActivity() {
                             }
                             getSharedPreferences("shared_invites", MODE_PRIVATE).edit().putBoolean(handledKey, true).apply()
                             dialog.dismiss(); pendingInviteDialog = false
-                            Toast.makeText(this@MainActivity, "已加入共享账本", Toast.LENGTH_LONG).show()
+                            val message = if (initialSyncError.isNullOrBlank()) {
+                                "已加入共享账本"
+                            } else {
+                                "已加入，但首次同步失败：$initialSyncError。稍后会自动重试"
+                            }
+                            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
                             recreate()
                         }.onFailure {
                             button.isEnabled = true

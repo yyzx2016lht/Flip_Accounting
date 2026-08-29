@@ -9,6 +9,7 @@ import com.taostudio.tapaccounting.data.local.entity.SyncQueue
 @Dao
 interface SyncQueueDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIgnore(value: SyncQueue): Long
+    @Query("SELECT * FROM sync_queue ORDER BY ledgerId, createdAt") suspend fun getAll(): List<SyncQueue>
     @Query("SELECT * FROM sync_queue WHERE ledgerId=:ledgerId ORDER BY createdAt") suspend fun getByLedgerId(ledgerId: Long): List<SyncQueue>
     @Query("SELECT COUNT(*) FROM sync_queue WHERE ledgerId=:ledgerId") suspend fun count(ledgerId: Long): Int
     @Query("SELECT COUNT(*) FROM sync_queue") suspend fun countAll(): Int

@@ -1,6 +1,7 @@
 package com.taostudio.tapaccounting.data.sync
 
 import com.google.gson.Gson
+import com.taostudio.tapaccounting.data.sync.protocol.Manifest
 import com.taostudio.tapaccounting.data.sync.protocol.Operation
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -93,7 +94,7 @@ object InviteCodec {
         invite.protocolVersion == 1 &&
             Operation.UUID_PATTERN.matches(invite.ledgerId) &&
             Operation.UUID_PATTERN.matches(invite.memberId) &&
-            invite.joinOrder in 1..5 &&
+            invite.joinOrder in 2..Manifest.MAX_MEMBER_COUNT &&
             invite.ledgerName.isNotBlank() && invite.ledgerName.length <= 100 &&
             invite.webdavUrl.isNotBlank() && invite.webdavUrl.length <= 2048 &&
             invite.webdavUser.isNotBlank() && invite.webdavUser.length <= 320 &&

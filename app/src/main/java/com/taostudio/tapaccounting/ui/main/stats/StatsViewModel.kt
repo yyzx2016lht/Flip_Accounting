@@ -25,7 +25,6 @@ import com.taostudio.tapaccounting.data.local.entity.Bill
 import com.taostudio.tapaccounting.logic.insight.InsightCardModel
 import com.taostudio.tapaccounting.logic.insight.InsightEngine
 import com.taostudio.tapaccounting.logic.BillStatsContribution
-import com.taostudio.tapaccounting.ui.main.stats.StatsExternalQueryFilter
 import com.taostudio.tapaccounting.viewscope.ResolvedLedgerViewScope
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -358,28 +357,6 @@ class StatsViewModel(private val billDao: BillDao, private val localMemberIdForB
             it.copy(
                 viewScope = scope,
                 selectedBookName = scope.singleBookName
-            )
-        }
-        loadData()
-    }
-
-    fun applyExternalQueryFilter(filter: StatsExternalQueryFilter) {
-        _uiState.update { state ->
-            val forcedRange = if (filter.startMillis != null && filter.endMillis != null) {
-                Triple(
-                    minOf(filter.startMillis, filter.endMillis),
-                    maxOf(filter.startMillis, filter.endMillis),
-                    filter.label
-                )
-            } else {
-                null
-            }
-            state.copy(
-                forcedStartTime = forcedRange?.first,
-                forcedEndTime = forcedRange?.second,
-                forcedLabel = forcedRange?.third,
-                selectedBookName = filter.bookName?.takeIf { it.isNotBlank() } ?: state.selectedBookName,
-                selectedCurrency = filter.currency?.takeIf { it.isNotBlank() }
             )
         }
         loadData()

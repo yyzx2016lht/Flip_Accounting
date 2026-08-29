@@ -42,7 +42,7 @@ import com.taostudio.tapaccounting.data.local.entity.SyncedRemoteFile
 import com.taostudio.tapaccounting.logic.InvestmentInterestService
 
 /** 与 backupIfDowngrade 第三个参数保持同步。 */
-private const val DB_VERSION = 37
+private const val DB_VERSION = 38
 
 /**
  * Room 主库。改 schema 前请先读本节，避免误用破坏性迁移或漏改版本号。
@@ -715,6 +715,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_37_38 = object : Migration(37, 38) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE investment_lots ADD COLUMN settlementCycle INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE investment_lots ADD COLUMN settlementInterval INTEGER NOT NULL DEFAULT 1")
+                database.execSQL("ALTER TABLE investment_lots ADD COLUMN interestCarry REAL NOT NULL DEFAULT 0.0")
+                database.execSQL("ALTER TABLE investment_lots ADD COLUMN status INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val appCtx = context.applicationContext
@@ -762,7 +771,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_33_34,
                         MIGRATION_34_35,
                         MIGRATION_35_36,
-                        MIGRATION_36_37
+                        MIGRATION_36_37,
+                        MIGRATION_37_38
                     )
                     // 仅处理降级：清库并按当前代码 schema 重建。升级缺迁移时仍应抛异常，不要改成 fallbackToDestructiveMigration()。
                     .fallbackToDestructiveMigrationOnDowngrade()

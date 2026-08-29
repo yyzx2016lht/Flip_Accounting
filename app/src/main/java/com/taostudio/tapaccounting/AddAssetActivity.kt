@@ -425,6 +425,11 @@ class AddAssetActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.input_account_name), Toast.LENGTH_SHORT).show()
             return
         }
+        if (!InvestmentInterestService.isValidAnnualRate(annualInterestRate)) {
+            etAnnualInterestRate.error = "请输入大于 -100 且不超过 10000 的年利率"
+            etAnnualInterestRate.requestFocus()
+            return
+        }
 
         lifecycleScope.launch {
             val existing = db.assetDao().getAssetByName(name)
@@ -727,13 +732,20 @@ class AddAssetActivity : AppCompatActivity() {
                     bill = bill,
                     applyAssetImpact = true
                 )
-            } else if (pending.asset.assetCategory == Asset.CATEGORY_INVESTMENT) {
+            } else if (pending.asset.assetCategory == Asset.CATEGORY_INVESTMENT &&
+                pending.investmentDraftLots.isEmpty()
+            ) {
                 db.assetDao().getAssetById(savedAssetId)?.let { latestAsset ->
                     InvestmentInterestService.reconcileAssetLotsToBalance(
                         db = db,
                         asset = latestAsset
                     )
                 }
+            }
+
+            // “稍后再写”必须真的保持未配置，不能被平账或保存后的自动对账偷偷生成默认批次。
+            if (pending.investmentDraftLots.isNotEmpty() && pending.investmentLots.isEmpty()) {
+                db.investmentLotDao().deleteByAssetId(savedAssetId)
             }
 
             if (pending.asset.assetCategory != Asset.CATEGORY_INVESTMENT) {

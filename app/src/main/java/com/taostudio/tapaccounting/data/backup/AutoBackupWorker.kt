@@ -2,19 +2,13 @@ package com.taostudio.tapaccounting.data.backup
 
 import android.content.Context
 import android.util.Log
-import androidx.documentfile.provider.DocumentFile
 import androidx.work.*
 import com.taostudio.tapaccounting.*
 import com.taostudio.tapaccounting.data.local.AppDatabase
-import com.taostudio.tapaccounting.data.repository.BackupRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import org.json.JSONTokener
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 class AutoBackupWorker(
@@ -33,6 +27,8 @@ class AutoBackupWorker(
         private const val KEY_AUTO_BACKUP_MODE = "auto_backup_mode"
         private const val KEY_LAST_AUTO_BACKUP_TIME = "last_auto_backup_time"
         private const val KEY_LAST_AUTO_BACKUP_RESULT = "last_auto_backup_result"
+        private const val KEY_LAST_LOCAL_BACKUP_SUCCESS = "last_local_backup_success_v2"
+        private const val KEY_LAST_CLOUD_BACKUP_SUCCESS = "last_cloud_backup_success_v2"
 
         private const val CLOUD_PREFS = "tap_cloud_backup_prefs"
         private const val KEY_WEBDAV_URL = "webdav_url"
@@ -40,9 +36,6 @@ class AutoBackupWorker(
         private const val KEY_WEBDAV_PASS = "webdav_pass"
         private const val KEY_WEBDAV_DIR = "webdav_dir"
         private const val KEY_DEVICE_NAME = "webdav_device_name"
-
-        private const val KEY_BACKUP_TREE_URI = "backup_tree_uri_v1"
-        private const val LATEST_BACKUP_FILE_NAME = "TapAccount_Backup_Latest.bak"
 
         fun schedule(ctx: Context) {
             val sp = ctx.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE)
@@ -122,7 +115,7 @@ class AutoBackupWorker(
             backupSettingsGeneralBasic = true, backupSettingsGeneralAssets = true,
             backupSettingsGeneralCloud = true, backupSettingsDisplayEntries = true,
             backupSettingsDisplayBills = true, backupSettingsDisplayMultiBill = true,
-            backupSettingsAiCore = false, backupSettingsAiChat = true,
+            backupSettingsAiCore = true, backupSettingsAiChat = true,
             backupSettingsBooks = true, backupSettingsAdvancedRuntime = true,
             backupBanners = true
         )
@@ -133,7 +126,7 @@ class AutoBackupWorker(
             backupSettingsGeneralBasic = true, backupSettingsGeneralAssets = true,
             backupSettingsGeneralCloud = true, backupSettingsDisplayEntries = true,
             backupSettingsDisplayBills = true, backupSettingsDisplayMultiBill = true,
-            backupSettingsAiCore = false, backupSettingsAiChat = true,
+            backupSettingsAiCore = true, backupSettingsAiChat = true,
             backupSettingsBooks = true, backupSettingsAdvancedRuntime = true,
             backupBanners = true
         )
@@ -165,79 +158,65 @@ class AutoBackupWorker(
 
         return try {
             withContext(Dispatchers.IO) {
-                val repo = BackupRepository(AppDatabase.getDatabase(ctx))
-                val fullData = repo.getFullData()
-                val toBackup = linkedMapOf<String, Any>()
+                val snapshotFile = File(ctx.cacheDir, "auto_snapshot_${System.currentTimeMillis()}.bak")
+                try {
+                    val created = RecoverySnapshotService(ctx, AppDatabase.getDatabase(ctx)).create(
+                        outputFile = snapshotFile,
+                        policy = options.toContentPolicy()
+                    )
 
-                if (options.backupAssets) fullData["assets"]?.let { toBackup["assets"] = it }
-                if (options.backupCategories) fullData["categories"]?.let { toBackup["categories"] = it }
-                if (options.backupBills) {
-                    fullData["bills"]?.let { toBackup["bills"] = it }
-                    fullData["deleted_bills"]?.let { toBackup["deleted_bills"] = it }
-                    fullData["investment_lots"]?.let { toBackup["investment_lots"] = it }
-                }
-                if (options.backupRules) fullData["rules"]?.let { toBackup["rules"] = it }
-                if (options.backupChatMessages) fullData["chat_messages"]?.let { toBackup["chat_messages"] = it }
-                fullData["budgets"]?.let { toBackup["budgets"] = it }
-                fullData["recurring_patterns"]?.let { toBackup["recurring_patterns"] = it }
+                    // Both destinations publish the exact same authenticated encrypted bytes.
+                    val localOk = backupToLocal(ctx, snapshotFile, created.manifest, mode)
 
-                val settingsModules = Prefs.serializeSettingsModules(ctx)
-                if (options.backupSettingsGeneralBasic) settingsModules["settings_general_basic"]?.let { toBackup["settings_general_basic"] = it }
-                if (options.backupSettingsGeneralAssets) settingsModules["settings_general_assets"]?.let { toBackup["settings_general_assets"] = it }
-                if (options.backupSettingsGeneralCloud) settingsModules["settings_general_cloud"]?.let { toBackup["settings_general_cloud"] = it }
-                if (options.backupSettingsDisplayEntries) settingsModules["settings_display_entries"]?.let { toBackup["settings_display_entries"] = it }
-                if (options.backupSettingsDisplayBills) settingsModules["settings_display_bills"]?.let { toBackup["settings_display_bills"] = it }
-                if (options.backupSettingsDisplayMultiBill) settingsModules["settings_display_multibill"]?.let { toBackup["settings_display_multibill"] = it }
-                if (options.backupSettingsAiCore) settingsModules["settings_ai_core"]?.let { toBackup["settings_ai_core"] = it }
-                if (options.backupSettingsAiChat) settingsModules["settings_ai_chat"]?.let { toBackup["settings_ai_chat"] = it }
-                if (options.backupSettingsBooks) settingsModules["settings_books"]?.let { toBackup["settings_books"] = it }
-                if (options.backupSettingsAdvancedRuntime) settingsModules["settings_advanced_runtime"]?.let { toBackup["settings_advanced_runtime"] = it }
-
-                val bannerDir = if (options.backupBanners) File(ctx.filesDir, "banners").takeIf { it.isDirectory } else null
-                val chatMediaFiles = if (options.backupChatMedia) collectChatMediaFiles(ctx) else emptyMap()
-
-                // Step 1: Local backup to default directory
-                val localOk = backupToLocal(ctx, toBackup, bannerDir, chatMediaFiles)
-
-                // Step 2: Cloud backup if enabled and configured
-                var cloudOk = true
-                var cloudMsg = ""
-                if (cloudEnabled) {
-                    val config = readCloudConfig(ctx)
-                    if (config != null) {
-                        try {
-                            backupToCloud(ctx, config, toBackup, bannerDir, chatMediaFiles, mode)
-                            cloudOk = true
-                            cloudMsg = "云端同步成功"
-                        } catch (e: Exception) {
+                    var cloudOk = true
+                    var cloudMsg = ""
+                    if (cloudEnabled) {
+                        val config = readCloudConfig(ctx)
+                        if (config != null) {
+                            try {
+                                backupToCloud(config, snapshotFile, created.manifest, mode)
+                                cloudMsg = "云端同步成功"
+                            } catch (e: Exception) {
+                                cloudOk = false
+                                cloudMsg = "云端同步失败: ${e.message?.take(50)}"
+                                Log.w(TAG, "Cloud backup failed", e)
+                            }
+                        } else {
                             cloudOk = false
-                            cloudMsg = "云端同步失败: ${e.message?.take(50)}"
-                            Log.w(TAG, "Cloud backup failed", e)
+                            cloudMsg = "云端未配置，跳过"
                         }
-                    } else {
-                        cloudMsg = "云端未配置，跳过"
                     }
-                }
 
-                val now = System.currentTimeMillis()
-                val result = buildString {
-                    append(if (localOk) "本地备份成功" else "本地备份失败")
-                    if (cloudEnabled) append("；$cloudMsg")
-                }
-                sp.edit()
-                    .putLong(KEY_LAST_AUTO_BACKUP_TIME, now)
-                    .putString(KEY_LAST_AUTO_BACKUP_RESULT, result)
-                    .apply()
+                    val now = System.currentTimeMillis()
+                    val result = buildString {
+                        append(if (localOk) "本地备份成功" else "本地备份失败")
+                        if (cloudEnabled) append("；$cloudMsg")
+                    }
+                    val resultEditor = sp.edit()
+                        .putLong(KEY_LAST_AUTO_BACKUP_TIME, now)
+                        .putString(KEY_LAST_AUTO_BACKUP_RESULT, result)
+                    if (localOk) resultEditor.putLong(KEY_LAST_LOCAL_BACKUP_SUCCESS, now)
+                    if (cloudEnabled && cloudOk) resultEditor.putLong(KEY_LAST_CLOUD_BACKUP_SUCCESS, now)
+                    resultEditor.apply()
 
-                log("Auto backup completed: $result")
-                if (localOk) Result.success() else Result.retry()
+                    log("Auto backup completed: $result")
+                    val atLeastOneDestinationSucceeded = localOk || (cloudEnabled && cloudOk)
+                    if (atLeastOneDestinationSucceeded) Result.success() else Result.retry()
+                } finally {
+                    snapshotFile.delete()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Auto backup failed", e)
             val sp2 = ctx.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE)
+            val message = if (e is BackupPasswordKeyUnavailableException) {
+                "等待用户设置备份密码"
+            } else {
+                "备份异常: ${e.message?.take(50)}"
+            }
             sp2.edit()
                 .putLong(KEY_LAST_AUTO_BACKUP_TIME, System.currentTimeMillis())
-                .putString(KEY_LAST_AUTO_BACKUP_RESULT, "备份异常: ${e.message?.take(50)}")
+                .putString(KEY_LAST_AUTO_BACKUP_RESULT, message)
                 .apply()
             Result.retry()
         }
@@ -245,82 +224,52 @@ class AutoBackupWorker(
 
     private suspend fun backupToLocal(
         ctx: Context,
-        toBackup: LinkedHashMap<String, Any>,
-        bannerDir: File?,
-        chatMediaFiles: Map<String, File>
+        snapshotFile: File,
+        manifest: BackupV2Manifest,
+        mode: String
     ): Boolean {
-        // 优先使用用户手动选择的 SAF 目录
-        val treeUriRaw = ctx.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_BACKUP_TREE_URI, null)
-        if (!treeUriRaw.isNullOrBlank()) {
-            return backupToSafDir(ctx, treeUriRaw, toBackup, bannerDir, chatMediaFiles)
-        }
-
-        // 否则使用默认目录 /storage/emulated/0/TapAccounting/
-        return backupToDefaultDir(ctx, toBackup, bannerDir, chatMediaFiles)
+        // Automatic backups always use the same canonical root directory as the manual Backup
+        // action. Historical SAF preferences are deliberately ignored.
+        return backupToDefaultDir(ctx, snapshotFile, manifest, mode)
     }
 
-    /** 通过 SAF tree URI 备份到用户选择的目录 */
-    private suspend fun backupToSafDir(
-        ctx: Context,
-        treeUriRaw: String,
-        toBackup: LinkedHashMap<String, Any>,
-        bannerDir: File?,
-        chatMediaFiles: Map<String, File>
-    ): Boolean {
-        val treeUri = runCatching { android.net.Uri.parse(treeUriRaw) }.getOrNull() ?: return false
-        val folder = DocumentFile.fromTreeUri(ctx, treeUri) ?: return false
-        if (!folder.exists() || !folder.canWrite()) {
-            log("SAF backup directory not writable, falling back to default dir")
-            return backupToDefaultDir(ctx, toBackup, bannerDir, chatMediaFiles)
-        }
-
-        val tempFile = File(ctx.cacheDir, "auto_backup_temp.bak")
-        return try {
-            BackupManager.backup(tempFile, toBackup, bannerDir, chatMediaFiles)
-
-            val existing = folder.findFile(LATEST_BACKUP_FILE_NAME)
-            val target = existing ?: folder.createFile("application/octet-stream", LATEST_BACKUP_FILE_NAME)
-            if (target == null) {
-                log("Cannot create backup file in SAF directory")
-                return false
-            }
-
-            ctx.contentResolver.openOutputStream(target.uri)?.use { output ->
-                tempFile.inputStream().use { it.copyTo(output) }
-            }
-            log("Local backup saved to SAF dir: ${target.uri}")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "SAF local backup failed", e)
-            false
-        } finally {
-            runCatching { tempFile.delete() }
-        }
-    }
-
-    /** 备份到默认目录 /storage/emulated/0/TapAccounting/ */
+    /** 备份到唯一的 app-specific `files/backups/` 目录。 */
     private suspend fun backupToDefaultDir(
         ctx: Context,
-        toBackup: LinkedHashMap<String, Any>,
-        bannerDir: File?,
-        chatMediaFiles: Map<String, File>
+        snapshotFile: File,
+        manifest: BackupV2Manifest,
+        mode: String
     ): Boolean {
-        if (!BackupDefaultDirHelper.hasStoragePermission()) {
-            log("No storage permission, skipping default dir backup")
+        if (!BackupDefaultDirHelper.hasStoragePermission(ctx)) {
+            log("Root backup directory permission is not granted")
             return false
         }
-
-        val dir = BackupDefaultDirHelper.getDefaultBackupDir()
+        val dir = try {
+            BackupDefaultDirHelper.getDefaultBackupDir(ctx)
+        } catch (error: Exception) {
+            Log.e(TAG, "Private backup directory unavailable", error)
+            return false
+        }
         if (!dir.exists() && !dir.mkdirs()) {
             log("Cannot create default backup directory: ${dir.absolutePath}")
             return false
         }
 
-        val targetFile = File(dir, LATEST_BACKUP_FILE_NAME)
         return try {
-            BackupManager.backup(targetFile, toBackup, bannerDir, chatMediaFiles)
-            log("Local backup saved to default dir: ${targetFile.absolutePath}")
+            val published = LocalBackupPublisher.publish(
+                sourceFile = snapshotFile,
+                targetDirectory = dir,
+                deviceName = android.os.Build.MODEL ?: "android",
+                mode = mode,
+                createdAt = Instant.ofEpochMilli(manifest.createdAt),
+                backupId = manifest.backupId,
+                validate = { file ->
+                    check(BackupFileFormatDetector.detect(file) == BackupFileFormat.V3_PASSWORD)
+                }
+            )
+            runCatching { LocalBackupHistory.cleanup(dir) }
+                .onFailure { Log.w(TAG, "Local backup retention cleanup failed", it) }
+            log("Local backup saved to default dir: ${published.file.absolutePath}")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Default dir local backup failed", e)
@@ -329,37 +278,52 @@ class AutoBackupWorker(
     }
 
     private suspend fun backupToCloud(
-        ctx: Context,
         config: CloudBackupConfig,
-        toBackup: LinkedHashMap<String, Any>,
-        bannerDir: File?,
-        chatMediaFiles: Map<String, File>,
+        snapshotFile: File,
+        manifest: BackupV2Manifest,
         mode: String
     ) {
-        val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "backup_${config.deviceName}_${mode}_$ts.bak".replace(Regex("\\s+"), "_")
-        val tempFile = File(ctx.cacheDir, "auto_cloud_upload_$ts.bak")
-        try {
-            BackupManager.backup(tempFile, toBackup, bannerDir, chatMediaFiles)
-            WebDavClient.uploadBackup(config, fileName, tempFile.readBytes())
-            runCatching { WebDavClient.cleanupBackups(config) }
-            log("Cloud backup uploaded: $fileName")
-        } finally {
-            runCatching { tempFile.delete() }
-        }
+        val fileName = BackupArtifactNames.create(
+            deviceName = config.deviceName,
+            mode = mode,
+            createdAt = Instant.ofEpochMilli(manifest.createdAt),
+            backupId = manifest.backupId
+        )
+        WebDavClient.uploadBackup(config, fileName, snapshotFile)
+        runCatching { WebDavClient.cleanupBackupHistory(config) }
+        log("Cloud backup uploaded: $fileName")
     }
 
-    private fun collectChatMediaFiles(ctx: Context): Map<String, File> {
-        val files = linkedMapOf<String, File>()
-        File(ctx.filesDir, "chat_bg").listFiles()?.filter { it.isFile }?.forEach { files["chat_bg/${it.name}"] = it }
-        File(ctx.filesDir, "chat_voice").listFiles()?.filter { it.isFile }?.forEach { files["chat_voice/${it.name}"] = it }
-        File(ctx.filesDir, "chat_images").listFiles()?.filter { it.isFile }?.forEach { files["chat_images/${it.name}"] = it }
-        File(ctx.filesDir, "chat_attachments").listFiles()?.filter { it.isFile }?.forEach { files["chat_attachments/${it.name}"] = it }
-        listOf("chat_ai_avatar.jpg", "chat_user_avatar.jpg").forEach { name ->
-            val file = File(ctx.filesDir, name)
-            if (file.isFile) files[name] = file
-        }
-        return files
+    private fun BackupOptions.toContentPolicy(): BackupContentPolicy {
+        val dataModules = linkedSetOf<String>()
+        if (backupAssets) dataModules += BackupModuleId.ASSETS
+        if (backupCategories) dataModules += BackupModuleId.CATEGORIES
+        if (backupBills) dataModules += setOf(
+            BackupModuleId.BILLS,
+            BackupModuleId.DELETED_BILLS,
+            BackupModuleId.INVESTMENT_LOTS
+        )
+        if (backupRules) dataModules += BackupModuleId.RULES
+        if (backupChatMessages) dataModules += BackupModuleId.CHAT_MESSAGES
+        dataModules += setOf(BackupModuleId.BUDGETS, BackupModuleId.RECURRING_PATTERNS)
+
+        val settingsModules = linkedSetOf<String>()
+        if (backupSettingsGeneralBasic) settingsModules += "settings_general_basic"
+        if (backupSettingsGeneralAssets) settingsModules += "settings_general_assets"
+        if (backupSettingsGeneralCloud) settingsModules += "settings_general_cloud"
+        if (backupSettingsDisplayEntries) settingsModules += "settings_display_entries"
+        if (backupSettingsDisplayBills) settingsModules += "settings_display_bills"
+        if (backupSettingsDisplayMultiBill) settingsModules += "settings_display_multibill"
+        if (backupSettingsAiCore) settingsModules += "settings_ai_core"
+        if (backupSettingsAiChat) settingsModules += "settings_ai_chat"
+        if (backupSettingsBooks) settingsModules += "settings_books"
+        if (backupSettingsAdvancedRuntime) settingsModules += "settings_advanced_runtime"
+        return BackupContentPolicy(
+            dataModules = dataModules,
+            settingsModules = settingsModules,
+            includeBanners = backupBanners,
+            includeChatMedia = backupChatMedia
+        )
     }
 
     private fun log(message: String) {

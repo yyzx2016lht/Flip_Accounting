@@ -62,6 +62,18 @@ class SharedSyncPolicyTest {
     }
 
     @Test
+    fun `ledger with a previous sync error bypasses quiet period`() {
+        assertTrue(
+            SharedSyncPolicy.backgroundMode(
+                pendingUploadCount = 0,
+                lastSyncTime = 999_999L,
+                now = 1_000_000L,
+                hasLastError = true
+            ) == SharedSyncPolicy.BackgroundMode.FULL
+        )
+    }
+
+    @Test
     fun `503 uses a short cooldown instead of fifteen minutes`() {
         assertTrue(
             SharedSyncPolicy.cooldownMillis(503, retryAfterMillis = null) ==
@@ -73,5 +85,31 @@ class SharedSyncPolicyTest {
     fun `server retry-after takes precedence but is capped`() {
         assertTrue(SharedSyncPolicy.cooldownMillis(429, retryAfterMillis = 90_000L) == 90_000L)
         assertTrue(SharedSyncPolicy.cooldownMillis(429, retryAfterMillis = 30 * 60_000L) == 5 * 60_000L)
+    }
+
+    @Test
+    fun `worker retries a failed remote pull even with no pending uploads`() {
+        assertTrue(
+            SharedSyncPolicy.shouldRetryWorker(
+                failedLedgerCount = 1,
+                pendingUploadCount = 0
+            )
+        )
+    }
+
+    @Test
+    fun `worker completes only when all ledgers succeeded and upload queue is empty`() {
+        assertFalse(
+            SharedSyncPolicy.shouldRetryWorker(
+                failedLedgerCount = 0,
+                pendingUploadCount = 0
+            )
+        )
+        assertTrue(
+            SharedSyncPolicy.shouldRetryWorker(
+                failedLedgerCount = 0,
+                pendingUploadCount = 1
+            )
+        )
     }
 }

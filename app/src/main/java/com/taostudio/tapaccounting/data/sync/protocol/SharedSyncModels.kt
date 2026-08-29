@@ -5,7 +5,9 @@ import com.google.gson.JsonObject
 data class ManifestMember(
     val memberId: String,
     val displayName: String,
-    val joinOrder: Int
+    val joinOrder: Int,
+    val invitedAt: Long? = null,
+    val joinedAt: Long? = null
 )
 
 data class Manifest(
@@ -19,7 +21,7 @@ data class Manifest(
         const val CURRENT_SCHEMA_VERSION = 1
         const val MAX_NAME_LENGTH = 100
         const val MAX_MEMBER_DISPLAY_NAME_LENGTH = 40
-        const val REQUIRED_MEMBER_COUNT = 2
+        const val MIN_MEMBER_COUNT = 1
         const val MAX_MEMBER_COUNT = 5
     }
 }

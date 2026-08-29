@@ -7,40 +7,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Tests for chat input routing model.
+ * Tests for chat routing and attachment payloads.
  *
  * Covers:
- * 1. MODE_ACCOUNTING always routes to ACCOUNTING.
- * 2. shouldRouteToAccounting gates accounting-only paths.
- * 3. Image payload encoding round-trips correctly.
- * 4. no_bill result still prompts user for more info.
+ * Covers router normalization and image payload encoding.
  */
 class ChatRoutingTest {
 
-    // ---- resolveInputAction ------------------------------------------------
-
     @Test
-    fun `MODE_ACCOUNTING always returns ACCOUNTING regardless of explicit flag`() {
-        assertEquals(
-            InputAction.ACCOUNTING,
-            ChatInputRouter.resolveInputAction(ChatActivity.MODE_ACCOUNTING, isExplicitAccounting = false)
-        )
-        assertEquals(
-            InputAction.ACCOUNTING,
-            ChatInputRouter.resolveInputAction(ChatActivity.MODE_ACCOUNTING, isExplicitAccounting = true)
-        )
-    }
-
-    @Test
-    fun `InputAction has exactly one value`() {
-        assertEquals(1, InputAction.values().size)
-    }
-
-    // ---- shouldRouteToAccounting -------------------------------------------
-
-    @Test
-    fun `ACCOUNTING routes to accounting`() {
-        assertTrue(ChatInputRouter.shouldRouteToAccounting(InputAction.ACCOUNTING))
+    fun `removed query route falls back to general chat`() {
+        assertEquals("GENERAL_CHAT", normalizeChatRouterIntent("ACCOUNTING_QUERY"))
+        assertEquals("GENERAL_CHAT", normalizeChatRouterIntent("unexpected"))
+        assertEquals("ACCOUNTING_CREATE", normalizeChatRouterIntent("ACCOUNTING_CREATE"))
+        assertEquals("UNSUPPORTED_WRITE", normalizeChatRouterIntent("UNSUPPORTED_WRITE"))
     }
 
     // ---- Image payload encoding round-trip ---------------------------------
@@ -88,13 +67,6 @@ class ChatRoutingTest {
         )
         assertFalse(ReceiptImageInputHelper.isDirectPayload(draft))
         assertTrue(ReceiptImageInputHelper.isDirectPayload(direct))
-    }
-
-    // ---- no_bill handling (existing behaviour preserved) --------------------
-
-    @Test
-    fun `no_bill handling routes to accounting`() {
-        assertTrue(ChatInputRouter.shouldRouteToAccounting(InputAction.ACCOUNTING))
     }
 
     // ---- Supplement-as-text encoding (new flow: user text becomes supplement) ----

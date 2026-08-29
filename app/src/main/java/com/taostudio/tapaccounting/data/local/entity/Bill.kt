@@ -86,5 +86,7 @@ data class Bill(
         const val SUBTYPE_REFUND = 2
         const val SUBTYPE_BALANCE_ADJUSTMENT = 3
         const val SUBTYPE_BALANCE_ADJUSTMENT_EXCLUDED = 4
+        /** 本机根据固定年化估算生成的理财收益；始终不计入真实收支统计。 */
+        const val SUBTYPE_INVESTMENT_ESTIMATE = 5
     }
 }

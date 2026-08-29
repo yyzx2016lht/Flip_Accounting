@@ -141,10 +141,6 @@ object Prefs {
     fun isAiLlmRouterEnabled(ctx: Context): Boolean = PrefsAiSupport.isAiLlmRouterEnabled(ctx)
     fun setAiLlmRouterEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiLlmRouterEnabled(ctx, enabled)
-    // Hidden legacy field. Current product flow does not expose query planning configuration.
-    fun getAiQueryModel(ctx: Context): String = PrefsAiSupport.getAiQueryModel(ctx)
-    fun setAiQueryModel(ctx: Context, value: String) = PrefsAiSupport.setAiQueryModel(ctx, value)
-
     fun getAiRuleModel(ctx: Context): String = PrefsAiSupport.getAiRuleModel(ctx)
     fun setAiRuleModel(ctx: Context, value: String) = PrefsAiSupport.setAiRuleModel(ctx, value)
     fun getAiReceiptModel(ctx: Context): String = PrefsAiSupport.getAiReceiptModel(ctx)
@@ -184,11 +180,6 @@ object Prefs {
         PrefsAiSupport.isAiThinkingCategoryRefineEnabled(ctx)
     fun setAiThinkingCategoryRefineEnabled(ctx: Context, enabled: Boolean) =
         PrefsAiSupport.setAiThinkingCategoryRefineEnabled(ctx, enabled)
-    // Hidden legacy flag kept for backward-compatible restore only.
-    fun isAiQueryEnabled(ctx: Context): Boolean = PrefsAiSupport.isAiQueryEnabled(ctx)
-    fun setAiQueryEnabled(ctx: Context, enabled: Boolean) =
-        PrefsAiSupport.setAiQueryEnabled(ctx, enabled)
-
     fun getAiModelsCache(ctx: Context): List<String> = PrefsAiSupport.getAiModelsCache(ctx)
     fun setAiModelsCache(ctx: Context, models: List<String>) =
         PrefsAiSupport.setAiModelsCache(ctx, models)
