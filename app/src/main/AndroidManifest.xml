@@ -223,6 +223,54 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:exported="false" />
+        <!-- 桌面小组件：三种尺寸共享同一套渲染逻辑，见 com.taostudio.tapaccounting.widget 包 -->
+        <receiver
+            android:name=".widget.CompactExpenseWidgetProvider"
+            android:exported="true"
+            android:label="记账小组件 · 精简">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_compact" />
+        </receiver>
+        <receiver
+            android:name=".widget.StandardExpenseWidgetProvider"
+            android:exported="true"
+            android:label="记账小组件 · 标准">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_standard" />
+        </receiver>
+        <receiver
+            android:name=".widget.DetailedExpenseWidgetProvider"
+            android:exported="true"
+            android:label="记账小组件 · 详细">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_detailed" />
+        </receiver>
+        <activity
+            android:name=".widget.WidgetConfigureActivity"
+            android:label="桌面小组件设置"
+            android:exported="true"
+            android:theme="@style/Theme.TapAccounting">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".widget.WidgetSettingsActivity"
+            android:label="桌面小组件"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

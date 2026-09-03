@@ -661,6 +661,12 @@ class MainActivity : AppCompatActivity() {
         swipeContainer.post { RecurringDuePromptController.maybeShow(this) }
     }
 
+    override fun onPause() {
+        super.onPause()
+        // 离开 App 时刷新所有已放置的桌面小组件，覆盖“记一笔/改预算 -> 回桌面看小组件”的主要场景。
+        com.taostudio.tapaccounting.widget.ExpenseWidgetUpdater.refreshAll(this)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

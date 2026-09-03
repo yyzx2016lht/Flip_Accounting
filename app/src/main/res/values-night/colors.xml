@@ -44,4 +44,11 @@
     <color name="chat_voice_bubble">@color/chat_user_bubble</color>
     <color name="chat_voice_bubble_text">@color/chat_user_bubble_text</color>
     <color name="chat_voice_wave_bar">#94A3B8</color>
+
+    <!-- 桌面小组件（暗色） -->
+    <color name="widget_card_bg">#FF1E1E1E</color>
+    <color name="widget_text_primary">#FFECECEC</color>
+    <color name="widget_text_secondary">#FF9CA3AF</color>
+    <color name="widget_accent">#FF60A5FA</color>
+    <color name="widget_danger">#FFFF6B6B</color>
 </resources>

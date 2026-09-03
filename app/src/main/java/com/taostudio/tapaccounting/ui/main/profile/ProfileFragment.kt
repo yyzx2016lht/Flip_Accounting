@@ -172,6 +172,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         view.findViewById<View>(R.id.btn_sensitivity).setOnClickListener {
             requireActivity().startActivity(Intent(requireContext(), SensitivityActivity::class.java))
         }
+        view.findViewById<View>(R.id.layout_widget_settings_entry).setOnClickListener {
+            requireActivity().startActivity(
+                Intent(requireContext(), com.taostudio.tapaccounting.widget.WidgetSettingsActivity::class.java)
+            )
+        }
         view.findViewById<View>(R.id.btn_backup_restore).setOnClickListener {
             requireActivity().startActivity(Intent(requireContext(), BackupActivity::class.java))
         }

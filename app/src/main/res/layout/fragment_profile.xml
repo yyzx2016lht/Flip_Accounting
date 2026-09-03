@@ -802,7 +802,68 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="›"
+                                android:text="‹"
+                                android:textColor="#C0C8D4"
+                                android:textSize="22sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- 桌面小组件 -->
+                    <LinearLayout
+                        android:id="@+id/group_widget_settings"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:id="@+id/layout_widget_settings_entry"
+                            android:layout_width="match_parent"
+                            android:layout_height="60dp"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="18dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_icon_badge_indigo">
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_profile_bill_display"
+                                    android:tint="#FFFFFF" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="桌面小组件"
+                                    android:textColor="#1A2744"
+                                    android:textSize="@dimen/text_size_15"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:text="在桌面显示总支出、预算和预算剩余"
+                                    android:textColor="#9AA4B2"
+                                    android:textSize="@dimen/text_size_11" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="‹"
                                 android:textColor="#C0C8D4"
                                 android:textSize="22sp" />
                         </LinearLayout>
