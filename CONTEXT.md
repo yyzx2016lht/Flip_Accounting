@@ -1,6 +1,6 @@
-# FlipAccounting
+# TapTapAccounting
 
-FlipAccounting records financial activity in user-managed books and derives planning views such as budgets from those records.
+TapTapAccounting records financial activity in user-managed books and derives planning views such as budgets from those records.
 
 ## Language
 

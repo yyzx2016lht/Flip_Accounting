@@ -1,4 +1,4 @@
-# FlipAccounting Release Regression Checklist
+# TapTapAccounting Release Regression Checklist
 
 ## Goal
 

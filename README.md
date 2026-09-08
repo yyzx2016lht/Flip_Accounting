@@ -1,6 +1,6 @@
-# FlipAccounting（敲敲记账）
+# TapTapAccounting（敲敲记账）
 
-FlipAccounting 是一款 AI 驱动的 Android 记账应用，支持自然语言、语音、图片和截图记账，并在本地完成规则校验、账单处理与 Room 数据持久化。
+TapTapAccounting 是一款以敲击手势为核心入口的 AI 驱动 Android 记账应用，支持自然语言、语音、图片和截图记账，并在本地完成规则校验、账单处理与 Room 数据持久化。
 
 ## 当前架构
 
